@@ -1,0 +1,25 @@
+#+OPTIONS: toc:nil num:nil
+#+TITLE: Blog Home Page
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
+
+当前目录：
+
+#+BEGIN_SRC elisp :exports results :wrap raw
+    (require 'cl-lib)
+    (setq org-html-preamble nil)
+    (defun yy-out-blogs ()
+      (let ((dirs (directory-files "./posts")))
+	(delete "." dirs)
+	(delete ".." dirs)
+	(cl-loop
+	 for i in (cdr dirs)
+	 concat (format "- [[%s][%s]]\n"
+			(concat "./posts/" i "/index.html")
+			i))))
+    (yy-out-blogs)
+#+END_SRC
+
+#+RESULTS:
+#+begin_raw
+- [[./posts/2020-03-02-C风格字符串缺陷及改进/index.html][2020-03-02-C风格字符串缺陷及改进]]
+#+end_raw

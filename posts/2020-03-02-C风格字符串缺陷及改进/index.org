@@ -1,8 +1,8 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: C风格字符串缺陷及改进
-#+DATE: [2020-03-02 周一]
-#+TAGS: c
 
+#+TITLE: C风格字符串缺陷及改进
+#+DATE: [2020-03-02 Mon]
+#+TAGS: c
 
 当人们谈论 C 的问题时，“字符串”的概念永远是首要缺陷之一。你已经用过它们，并且我也谈论过它们的种种缺陷，但是对为什么 C 字符串拥有缺陷，以及为什么一直是这样没有明确的解释。—— /Learn C the hard way/
 
@@ -41,7 +41,7 @@
 
    gets() 的函数原型如下：
 
-   #+BEGIN_SRC c
+   #+BEGIN_SRC C
      char * gets(char *);
    #+END_SRC
 
@@ -107,7 +107,6 @@
 
    #+BEGIN_SRC c
      char * strncpy ( char * destination, const char * source, size_t num );
-     ```
    #+END_SRC
 
    参考 www.cplusplus.com[fn:1] 可以得到以下类容： /No null-character is implicitly appended at the end of destination if source is longer than num. Thus, in this case, destination shall not be considered a null terminated C string (reading it as such would overflow)./ 翻译过来即：如果源字符串的长度大于参数 num 的值，那么空字符不会被加到目标字符串的结尾。因此，在这种情况下，目标字符串不应该被当作以空字符结尾的 C 字符串。

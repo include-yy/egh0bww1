@@ -1,0 +1,52 @@
+/* font: NotoSansSC */
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Regular.woff2") format('woff2');
+}
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Thin.woff2") format('woff2');
+    font-weight: thin;
+}
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Light.woff2") format('woff2');
+    font-weight: light;
+}
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Medium.woff2") format('woff2');
+    font-weight: medium;
+}
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Bold.woff2") format('woff2');
+    font-weight: bold;
+}
+@font-face{
+    font-family: "NotoSansSC";
+    src: url("./NotoSansSC-Black.woff2") format('woff2');
+    font-weight: black;
+}
+
+/* font: consola */
+@font-face{
+    font-family: "consola";
+    src: url("./consola.woff2") format('woff2');
+}
+@font-face{
+    font-family: "consola";
+    src: url("./consolab.woff2") format('woff2');
+    font-weight: bold;
+}
+@font-face{
+    font-family: "consola";
+    src: url("./consolai.woff2") format('woff2');
+    font-style: italic;
+}
+@font-face{
+    font-family: "consola";
+    src: url("./consolaz.woff2") format('woff2');
+    font-style: italic;
+    font-weight: bold;
+}
