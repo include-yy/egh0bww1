@@ -1,1 +1,14 @@
-"hello" 
+* This is include-yy's blog
+
+  感谢在使用 org-mode 作为 blog 的路上做出知识共享的人们
+
+  本博客的 css 来源：[[https://gongzhitaao.org/orgcss/]]
+
+  本博客参考的博客：
+
+  - [[http://www.langdebuqing.com/emacs%20notebook/%E6%90%AD%E5%BB%BA%E6%88%91%E7%9A%84%E7%AC%94%E8%AE%B0%E7%B3%BB%E7%BB%9F.html][搭建我的笔记系统 -- 浪的不轻]]
+  - [[http://blog.lujun9972.win/][lujun9972 -- 暗无天日]]
+  - [[https://emacs-china.github.io/][emacs-china (not emacs-china.org)]]
+  - [[https://archive.casouri.cat/index.html][casouri's blog]]
+
+
