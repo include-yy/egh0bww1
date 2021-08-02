@@ -1,14 +1,12 @@
 * This is include-yy's blog
 
-  ¸ĞĞ»ÔÚÊ¹ÓÃ org-mode ×÷Îª blog µÄÂ·ÉÏ×ö³öÖªÊ¶¹²ÏíµÄÈËÃÇ
+  æ„Ÿè°¢åœ¨ä½¿ç”¨ org-mode ä½œä¸º blog çš„è·¯ä¸Šåšå‡ºçŸ¥è¯†å…±äº«çš„äººä»¬
 
-  ±¾²©¿ÍµÄ css À´Ô´£º[[https://gongzhitaao.org/orgcss/]]
+  æœ¬åšå®¢çš„ css æ¥æºï¼š[[https://gongzhitaao.org/orgcss/]]
 
-  ±¾²©¿Í²Î¿¼µÄ²©¿Í£º
+  æœ¬åšå®¢å‚è€ƒçš„åšå®¢ï¼š
 
-  - [[http://www.langdebuqing.com/emacs%20notebook/%E6%90%AD%E5%BB%BA%E6%88%91%E7%9A%84%E7%AC%94%E8%AE%B0%E7%B3%BB%E7%BB%9F.html][´î½¨ÎÒµÄ±Ê¼ÇÏµÍ³ -- ÀËµÄ²»Çá]]
-  - [[http://blog.lujun9972.win/][lujun9972 -- °µÎŞÌìÈÕ]]
+  - [[http://www.langdebuqing.com/emacs%20notebook/%E6%90%AD%E5%BB%BA%E6%88%91%E7%9A%84%E7%AC%94%E8%AE%B0%E7%B3%BB%E7%BB%9F.html][æ­å»ºæˆ‘çš„ç¬”è®°ç³»ç»Ÿ -- æµªçš„ä¸è½»]]
+  - [[http://blog.lujun9972.win/][lujun9972 -- æš—æ— å¤©æ—¥]]
   - [[https://emacs-china.github.io/][emacs-china (not emacs-china.org)]]
   - [[https://archive.casouri.cat/index.html][casouri's blog]]
-
-
