@@ -2,7 +2,7 @@
 #+TITLE: Blog Home Page
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
 
-µ±Ç°Ä¿Â¼£º
+å½“å‰ç›®å½•ï¼š
 
 #+BEGIN_SRC elisp :exports results :wrap raw
     (require 'cl-lib)
@@ -21,6 +21,6 @@
 
 #+RESULTS:
 #+begin_raw
-- [[./posts/2020-03-02-C·ç¸ñ×Ö·û´®È±Ïİ¼°¸Ä½ø/index.html][2020-03-02-C·ç¸ñ×Ö·û´®È±Ïİ¼°¸Ä½ø]]
-- [[./posts/2019-03-18-1div(chx)^n»ı·ÖµÄÒ»°ãĞÎÊ½/index.html][2019-03-18-1div(chx)^n»ı·ÖµÄÒ»°ãĞÎÊ½]]
+- [[./posts/2020-03-02-Cé£æ ¼å­—ç¬¦ä¸²ç¼ºé™·åŠæ”¹è¿›/index.html][2020-03-02-Cé£æ ¼å­—ç¬¦ä¸²ç¼ºé™·åŠæ”¹è¿›]]
+- [[./posts/2019-03-18-1div(chx)^nç§¯åˆ†çš„ä¸€èˆ¬å½¢å¼/index.html][2019-03-18-1div(chx)^nç§¯åˆ†çš„ä¸€èˆ¬å½¢å¼]]
 #+end_raw
