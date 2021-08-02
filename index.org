@@ -1,4 +1,4 @@
-#+OPTIONS: toc:nil num:nil
+#+OPTIONS: toc:nil num:nil ^:nil
 #+TITLE: Blog Home Page
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
 
@@ -12,7 +12,7 @@
 	(delete "." dirs)
 	(delete ".." dirs)
 	(cl-loop
-	 for i in (cdr dirs)
+	 for i in (reverse (cdr dirs))
 	 concat (format "- [[%s][%s]]\n"
 			(concat "./posts/" i "/index.html")
 			i))))
@@ -22,4 +22,5 @@
 #+RESULTS:
 #+begin_raw
 - [[./posts/2020-03-02-C风格字符串缺陷及改进/index.html][2020-03-02-C风格字符串缺陷及改进]]
+- [[./posts/2019-03-18-1div(chx)^n积分的一般形式/index.html][2019-03-18-1div(chx)^n积分的一般形式]]
 #+end_raw
