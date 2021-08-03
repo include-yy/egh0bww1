@@ -1,0 +1,1007 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: Win32编程基础之资源
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMjc5ODM3.jpg" alt="load failed"></div>@@
+#+DATE: [2020-07-17 Fri]
+#+TAGS: windows
+
+*资源* 是可以添加到基于 Windows 的应用可执行文件中的二进制数据。资源可以是标准类型资源，也可以是自定义资源。标准资源描述了图标（icon）、光标（cursor）、菜单（menu）、对话框（dialog box）、位图（bitmap）、强化图元文件（enhanced metafile）、字体（font）、加速键表（accelerate table）、消息表入口（message-table entry）、字符串表入口（string-table entry）或版本信息。应用定义的资源（也叫自定义资源）可以包含应用所需的任何类型的资源。
+
+* 资源的基础操作
+
+** 资源的添加，删除与替换
+
+应用可以频繁地在可执行文件中添加、删除或替换资源。要做到这一点有两种方法。第一种是编辑资源定义文件并重新编译资源，再将重编译的资源加入到应用可执行文件中。第二种是直接将资源数据拷贝到应用可执行文件中。
+
+例如，要想将英语软件本地化供挪威使用，它可能必须将使用英文的对话框替换为使用挪威文的。开发者可以通过对话框编辑器或写一个资源定义文件模板来创建合适的对话框。随后开发者重编译资源并将新的资源添加到应用的可执行文件中。
+
+如果合适的对话框是以二进制形式存在的，开发者可以使用如下函数直接将数据拷贝到可执行文件中。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-beginupdateresourcea][BeginUpdateResource]] 函数创建一个可执行文件的更新句柄，该可执行文件的资源需要更新。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-updateresourcea][UpdateResource]] 函数使用这个句柄来进行资源的添加、删除和替换。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-endupdateresourcea][EndUpdateResource]] 函数关闭这个句柄。
+
+在创建更新句柄后，应用可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-updateresourcea][UpdateResource]] 重复地改变资源数据。每一次 *UpdateResource* 调用都会导致内部表的添加、删除和替换，但是它不会向可执行文件写入数据。在关闭更新句柄后，[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-endupdateresourcea][EndUpdateResource]] 函数会立即将累积的更改写入到可执行文件中。
+
+** 资源的枚举
+
+某些情况下开发者可能想要发掘未知的可执行模块（PE）中的资源。Windows SDK 提供了资源枚举函数来允许应用获取特定模块中的包含资源类型、名字和指定语言的表。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-enumresourcetypesa][EnumResourceTypes]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-enumresourcetypesexa][EnumResourceTypesEx]] 函数提供一张在模块中找到了资源类型的表。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-enumresourcenamesa][EnumResourceNames]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-enumresourcenamesexa][EnumResourceNamesEx]] 函数提供指定类型的资源名字表。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-enumresourcelanguagesa][EnumResourceLanguages]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-enumresourcelanguagesexa][EnumResourceLanguagesEx]] 函数提供给定名字和类型的资源的语言。这些函数允许应用创建一张包含所有资源的表。
+
+** 资源的查找与定位
+
+在使用资源之前，应用必须将它载入到内存中。[[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-findresourcea][FindResource]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-findresourceexa][FindResourceEx]] 函数查找模块中的资源，并返回一个二进制资源数据的句柄。 *FindResource* 通过类型和名字来定位资源， *FindResourceEx* 则还要加上语言。
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadresource][LoadResource]] 函数使用由 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winbase/nf-winbase-findresourcea][FindResource]] 返回的资源句柄来将资源载入到内存中。应用使用 *LoadResource* 载入资源后，系统会在所有对该资源的引用被 [[https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-freelibrary][FreeLibrary]] 释放后卸载相应的内存。需要在特定模块中重复访问相同或许多资源的应用可能会导致性能下降，这是因为重复调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-loadlibrarya][LoadLibrary]] 和 *FreeLibrary* 所导致的内存映射。应用应该将单个句柄保存起来，在它不被需要的时候再调用 *FreeLibrary* 。再模块被从内存卸载后，句柄不再可用。
+
+应用可以使用上面的这两个函数来载入任何类型的资源，但是这些函数只应该再以下情况中使用：
+
+- 当应用不能使用现存的资源指定函数访问资源时
+
+- 当应用必须以二进制形式访问资源时
+
+
+应用应该尽可能地使用下面的资源指定函数来一次性地查找和载入资源：
+
+| Function         | Action                                   | To remove resource                       |
+|------------------+------------------------------------------+------------------------------------------|
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-formatmessage][FormatMessage]]    | Loads and formats a message-table entry. | No action needed.                        |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadacceleratorsa][LoadAccelerators]] | Loads an accelerator table.              | [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroyacceleratortable][DestroyAcceleratorTable]]                  |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-loadbitmapa][LoadBitmap]]       | Loads a bitmap resource.                 | [[https://docs.microsoft.com/en-us/windows/desktop/api/wingdi/nf-wingdi-deleteobject][DeleteObject]]                             |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadcursora][LoadCursor]]       | Loads a cursor resource.                 | [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroycursor][DestroyCursor]]                            |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadicona][LoadIcon]]         | Loads an icon resource.                  | [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroyicon][DestroyIcon]]                              |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadimagea][LoadImage]]        | Loads an icon, cursor, or bitmap.        | [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroyicon][DestroyIcon]], [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroycursor][DestroyCursor]], [[https://docs.microsoft.com/en-us/windows/desktop/api/wingdi/nf-wingdi-deleteobject][DeleteObject]] |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadmenua][LoadMenu]]         | Loads a menu resource.                   | [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-destroymenu][DestroyMenu]]                              |
+| [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-loadstringa][LoadString]]       | Loads a string-table entry.              | No action needed.                        |
+
+注意表中的释放函数。在应用终止之前，应用应该使用合适的函数释放由加速键、位图、光标、图标和菜单占据的内存。应用终止时，处于卸载状态的资源会被系统自动释放。
+
+* 资源定义语句
+
+资源定义语句定义了资源编译器放入资源文件（.Res）中的资源。在 .Res 文件链接到可执行文件后，应用可以在运行时根据需要载入资源。资源语句将标识名或数字与一个给定资源联系起来。
+
+资源定义语句可以分为三类：
+
+- 资源
+
+- 控件
+
+- 声明（statement）
+
+
+以下主要介绍资源语句，控件语句留到将对话框的文章中再介绍。
+
+** 通用资源属性
+
+*** 载入属性
+
+载入属性指定了资源何时被载入。它可以是下面中的一个：
+
+| Attribute    | Description                                                                  |
+|--------------+------------------------------------------------------------------------------|
+| *PRELOAD*    | Ignored. In 16-bit Windows, the resource is loaded with the executable file. |
+| *LOADONCALL* | Ignored. In 16-bit Windows, the resource is loaded when called.              |
+
+**** 内存属性
+
+内存属性指定资源是固定的还是可移动的，是否是可撤销的。
+
+| Attribute     | Description                                                                                                                               |
+|---------------+-------------------------------------------------------------------------------------------------------------------------------------------|
+| *FIXED*       | Ignored. In 16-bit Windows, the resource remains at a fixed memory location.                                                              |
+| *MOVEABLE*    | Ignored. In 16-bit Windows, the resource can be moved if necessary to compact memory.                                                     |
+| *DISCARDABLE* | Ignored. In 16-bit Windows, the resource can be discarded if no longer needed.                                                            |
+| *PURE*        | Ignored. Accepted for compatibility with existing resource scripts.                                                                       |
+| *IMPURE*      | Ignored. Accepted for compatibility with existing resource scripts.                                                                       |
+| *SHARED*      | Ignored. In 16-bit Windows, SHARED is ignored for regular modules. For a resource from a ROM Windows module, the memory is shared.        |
+| *NONSHARED*   | Ignored. In 16-bit Windows, NONSHARED is ignored for regular modules. For a resource from a ROM Windows module, the memory is not shared. |
+
+** 图标资源
+
+图标（icon）是由位图图像和 mask 组成的图片，它用于在图片中创建透明区域。
+
+图标在资源文件中的定义语法是
+
+#+BEGIN_SRC c
+nameID ICON filename
+#+END_SRC
+
+nameID 是一个 16 位无符号整数值，用于标识资源。
+
+filename 是包含资源的文件，名字必须是一个合法文件名；如果文件不在当前工作目录下，它必须是文件的绝对路径。它应该是一个带双引号的字符串。
+
+对它可以使用通用资源属性。
+
+** 光标资源
+
+定义了一张位图，它定义了显示在屏幕上的光标的形状。
+
+定义语法：
+
+#+BEGIN_SRC c
+nameID CURSOR filename
+#+END_SRC
+
+nameID filename 的含义与上图标一致。
+
+对它可以使用通用资源属性。
+
+** 字符串表
+
+字符串表定义了一个或多个字符串资源。字符串资源就是以 NULL 结尾的 Unicode 或 ASCII 字符串，它们可以在被需要的时候使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadstringa][LoadString]] 载入。
+
+字符串表的语法有两种，它们分别是：
+
+#+BEGIN_SRC c
+STRINGTABLE  [optional-statements] {stringID string  ...}
+#+END_SRC
+
+以及：
+
+#+BEGIN_SRC c
+STRINGTABLE
+  [optional-statements]
+BEGIN
+stringID string
+. . .
+END
+#+END_SRC
+
+optional-statements 可以是 0 个或多个以下的语句
+
+- [[https://docs.microsoft.com/en-us/windows/win32/menurc/characteristics-statement][CHARACTERISTICS]]，用户定义的信息，可以被读写资源文件的工具使用
+
+- [[https://docs.microsoft.com/en-us/windows/win32/menurc/language-statement][LANGUAGE]]，指定资源的语言
+
+- [[https://docs.microsoft.com/en-us/windows/win32/menurc/version-statement][VERSION]]，用户定义的版本数字，可以被读写资源文件的工具使用
+
+
+stringID 是一个无符号 16 位整数，用于标识资源
+
+string 是一个或多个字符串，被围在双引号中。字符串必须不能长于 4097 个字符，并且必须在源文件中只占一行。若要使用回车，可使用字符序列 =\012= 。例如，"Line one\012Line two" 定义了一个两行的字符串。要折行的话也可在字符串中使用 \，例如"Line1\Line2"。
+
+要在字符串中使用双引号，可以使用 ""。若使用 Unicode 字符串，需要在字符串前面加上 L，例如 L"hello"。
+
+对它可以使用通用资源属性。
+
+** 加速键表
+
+加速键是应用定义的击键，它让用户能够快速进行某种任务。
+
+定义语法：
+
+#+BEGIN_SRC
+acctablename ACCELERATORS [optional-statements] {event, idvalue, [type] [options]... }
+#+END_SRC
+
+*Programming Windows* 上也有另一种写法，使用 BEGIN 和 END 来代替 {}。
+
+acctablename 是一个名字或一个标识资源的 16 位无符号整数。
+
+optional-statements 和上面的一致
+
+event 是作为加速键使用的击键。它的类型如下所示：
+
+- "char"，使用双引号包围的单个字符。这个字符可以在前面带一个 ^，表示这是一个控制字符
+
+- Character，一个表示字符的整数值。它的类型必须是 ASCII
+
+- 虚拟键字符，表示虚拟键的整数值。对于数字和字母表字符键，它可以通过使用双引号括起来的大写字母或数字来表示（比如 "9"，"C"）。它的类型必须是 VIRTKEY。
+
+
+idvalue 是标识加速键的 16 位无符号整数。
+
+type 只在 event 参数是字符（Character）或虚拟键时被需要。 type 参数指定为 ASCII 或 VIRTKEY；event 的整数值根据类型进行解释。当指定 VIRTKEY 且 event 是字符串时，event 必须是大写的。
+
+options 定义了加速键，这个参数的取值如下：
+
+- NOINVERT，当使用加速键时顶级菜单不会被高亮。这对于定义不对应与菜单项的动作是很有用的。如果 *NOINVERT* 被忽略了，当使用加速键时顶级菜单会被高亮。
+- ALT，仅当 ALT 键被按下时，才会触发加速键，仅用于虚拟键。
+- SHIFT，仅当 SHIFT 被按下时，才会触发加速键，仅用于虚拟键。
+- [[https://docs.microsoft.com/en-us/windows/win32/menurc/control-control][CONTROL]]，将一个字符定义为控制字符（即仅当 CTRL 键按下时，才会触发加速键）。这与在加速键字符前面加上 ^ 的效果是一样的。仅用于虚拟键。
+
+可以使用通用资源属性。
+
+** 菜单资源
+
+菜单资源是定义了菜单功能和外观的集合信息的资源。菜单是一个特殊的输入工具，它让用户选择命令并从菜单项中选择子菜单。
+
+定义语法：
+
+#+BEGIN_SRC c
+menuID MENU  [optional-statements]  {item-definitions ... }
+#+END_SRC
+
+{} 可使用 BEGIN，AND 替换。
+
+menuID 是菜单的标识值。这个值可以是一个唯一字符串或一个唯一的 16 位无符号整数。
+
+optional-statements 同上。
+
+item-definitions 可以是多个 MENUITEM 和 POP。
+
+*** MENUITEM
+
+menuitem 的语法是：
+
+#+BEGIN_SRC c
+MENUITEM text, result, [optionlist]
+MENUITEM SEPARATOR
+#+END_SRC
+
+text 是菜单项的名字，它可以包含 \t 和 \a。\t 会在字符串中插入一个 tab，它被用来列对其文本。tab 字符只应该在菜单中使用，不应该在菜单栏中使用。\a 字符将所有的文本右对其。
+
+result 是当用户选择菜单项时产生的结果值。结果值总是整数；用户点击菜单项名字时，结果值会被发送到拥有菜单的窗口。
+
+optionlist 控制菜单项的外观。选项参数可以是一个或多个下面的值，使用空格和逗号分开。
+
+- CHECKED，在菜单项旁边有一个选择标记
+
+- GRAYED，菜单项初始时是不活跃的，以灰色外观出现在菜单上。这个选项不能和 INACTIVE 一起使用
+
+- HELP，标识一个帮助项。这个选项对菜单项的外观没有任何影响
+
+- INACTIVE，菜单项被显示，但是它不能被选取。它不能和 GRAYED 一起使用
+
+- MENUBARBREAK，和 MENUBREAK 一样，使用垂直线将新的列和老的列分开
+
+- MENUBREAK，将菜单项放在新的列
+
+
+MENUITEM SEPARATOR 创建一个不活跃的菜单项，它将两个活跃的菜单项分开。
+
+*** POPUP
+
+定义一个包含菜单项和子菜单的菜单项。
+
+#+BEGIN_SRC c
+POPUP text, [optionlist] {item-definitions ...}
+#+END_SRC
+
+text 是菜单项的名字，它必须在双引号内。
+
+optionlist 和 上面的 MENUITEM 的选项一致。
+
+补充：在菜单项字符串中还可以使用 & 符号，使得紧跟 & 的下一个字符可以显示下划线。
+
+** 版本资源
+
+版本资源定义了可被读写资源文件工具使用的信息。
+
+版本语句出现在 [[https://docs.microsoft.com/en-us/windows/win32/menurc/accelerators-resource][ACCELERATORS]]，[[https://docs.microsoft.com/en-us/windows/win32/menurc/dialogex-resource][DIALOGEX]]，[[https://docs.microsoft.com/en-us/windows/win32/menurc/menu-resource][MENU]]，[[https://docs.microsoft.com/en-us/windows/win32/menurc/rcdata-resource][RCDATA]] 或 [[https://docs.microsoft.com/en-us/windows/win32/menurc/stringtable-resource][STRINGTABLE]] 资源语句开头的后面。指定的版本值只作用于该资源。
+
+定义语法：
+
+#+BEGIN_SRC c
+VERSION dword
+#+END_SRC
+
+dword 是用户定义的版本值。
+
+** 版本信息资源
+
+有点长，可以直接看 [[https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource][VERSIONINFO]]。
+
+** 自定义资源
+
+用户定义资源语句定义了包含特定于应用数据的资源。数据可以是任意的格式，它可以被定义为给定文件的内容，也可以是一系列的数字和字符串。
+
+定义语法是：
+
+#+BEGIN_SRC
+nameID typeID filename
+#+END_SRC
+
+文件名指定了包含二进制数据的资源。RC 不会对这些数据进行处理。
+
+自定义资源也可以使用资源脚本的语法来定义：
+
+#+BEGIN_SRC c
+nameID typeID  {  raw-data  }
+#+END_SRC
+
+{} 可以使用 BEGIN AND 替换。
+
+nameID 是资源的 16 位无符号整数标识值。
+
+typeID 是资源类型的 16 位无符号整数标识值。如果指定了类型，他必须大于 255。1 到 255 被保留给现存的和将来的预定义类型。
+
+raw-data 包含一个或多个整数或字符串。整数可以使用十进制、八进制或十六进制的格式。为了与 16 位 Windows 兼容，整数以 WORD 值存储。你可以在数字前面加上 "L" 前缀来使用 DWORD 值存储。
+
+字符在双引号中。RC 不会在字符串后面自动加上 NULL 结尾符。每个字符串都是 ASCI 字符序列，除非你指定了 "L"。
+
+** 资源的标识值
+
+除了上面多次提到的 16 位无符号整数外，还可以使用字符串来作为资源的标识
+
+例如，一个图标资源除了可以写成这样
+
+#+BEGIN_SRC
+IDI_MYICON ICON "yy.ico"
+#+END_SRC
+
+还可以写成这样
+
+#+BEGIN_SRC c
+MYICO ICON "yy.ico"
+#+END_SRC
+
+使用标识值时，在调用 LoadIcon 时，需要使用 *MAKEINTRESOURCE* 宏来对标识值进行处理：
+
+#+BEGIN_SRC c
+LoadIcon(hInst, MAKEINTRESOURCE(IDI_MYICON));
+#+END_SRC
+
+如果使用字符串，则可以这样写：
+
+#+BEGIN_SRC c
+LoadIcon(hInst, TEXT("MYICO"));
+#+END_SRC
+
+如果想直接使用数字字符串来索引资源，可以在数字前面加上一个 =#= （假设资源的标识值为 345）
+
+#+BEGIN_SRC c
+LoadIcon(hInst, TEXT("#345"));
+#+END_SRC
+
+* 资源编译器
+
+Microsoft Windows Resource Compiler（RC）是用来构建基于 Windows 应用的工具。它可以在 Visual Studio 和 Microsoft Windows SDK 中使用。
+
+** 资源文件
+
+资源文件是一个带有 .rc 拓展名的文本文件。它可以使用单字节、双字节、或 Unicode 字符。资源脚本定义了资源。
+
+*** 注释
+
+资源文件支持 C 风格的单行注释，也支持块注释。块注释以 =/*= 开头，以 =*/= 结尾。
+
+下面是一个 rc 文件的注释例子：
+
+#+BEGIN_SRC c
+/*
+    Resources.Rc
+
+    Contains the resource definitions for the application.
+    Control identifiers are defined in Resources.h.
+*/
+
+#include "resources.h"
+//...
+#+END_SRC
+
+*** 预定义宏
+
+资源文件不支持 ANSI C 的预定义宏。因此，你不能在资源脚本中使用它们。
+
+*** 预定义指令
+
+你可以在资源脚本中使用以下的一定义指令。它们与 C 语言的预定义指令很相似：
+
+| Directive | Description                                                           |
+|-----------+-----------------------------------------------------------------------|
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-define][#define]]   | Defines a specified name by assigning it a given value.               |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-elif][#elif]]     | Marks an optional clause of a conditional-compilation block.          |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-else][#else]]     | Marks the last optional clause of a conditional-compilation block.    |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-endif][#endif]]    | Marks the end of a conditional-compilation block.                     |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-if][#if]]       | Conditionally compiles the script if a specified expression is true.  |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-ifdef][#ifdef]]    | Conditionally compiles the script if a specified name is defined.     |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-ifndef][#ifndef]]   | Conditionally compiles the script if a specified name is not defined. |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-include][#include]]  | Copies the contents of a file into the resource-definition file.      |
+| [[https://docs.microsoft.com/en-us/windows/win32/menurc/-undef][#undef]]    | Removes the definition of the specified name.                         |
+
+** 使用资源编译器 RC
+
+要使用 RC，可以使用以下命令行：
+
+#+BEGIN_SRC
+RC [options] script-file
+#+END_SRC
+
+script-file 指定了资源定义文件的名字。
+
+options 是剩余的命令行参数，这里仅仅列出常用命令，完整的命令表可以参考官方文档
+
+- /?，显示命令行选项
+
+- /d，定义一个预处理符号
+
+- /u，Undefine 一个预定义符号
+
+- /fo resname，创建使用 resname 作为名字的 .RES 文件
+
+
+除了使用斜线（/）外，还可以使用连字符（-）。
+
+** MINGW 中的资源编译器
+
+除了 VS 中的 RC 外，MINGW 中也有一个资源编译器，叫做 windres。
+
+windres 从输入文件中读取资源并将它们拷贝到输出文件中。文件的格式可以是 rc， res 和 coff。
+
+它的使用语法如下：
+
+#+BEGIN_SRC
+windres [options] [input-file] [output-file]
+#+END_SRC
+
+部分命令如下：
+
+- -o filename（--output filename），filename 是输出文件的名字。如果没有使用它，windres 会使用第一个非选项的参数作为它的输出文件名
+
+- -J format（--input-format format），读取文件的格式，format 可以是 res，rc，或 coff，如果没有指定格式， windres 会根据后缀判断
+
+- -O format（--output-format format），输出文件的格式，他可以是 res，rc，coff。如果没有指定，windres 会根据文件后缀猜测
+
+
+如果我要从 rc 得到一个 res 文件，可以使用如下的命令行：
+
+#+BEGIN_SRC
+windres -o yy.res -O coff yy.rc
+#+END_SRC
+
+* 代码示例
+
+关于每个资源的具体使用，微软的官方文档都给出了详细的解说。
+
+这里的例子包括了这几个方面：RC（windres） 的使用，可执行文件的资源更新，加速键的使用和菜单的使用。
+
+** 资源更新
+
+这里以字符串资源为例，来编写资源更新的例子。根据 [[https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-beginupdateresourcea][BeginUpdateResource]] 文档，BeginUpdateResource 接收的文件不能是当前正在执行的可执行文件。所以需要一个对资源进行修改的程序。
+
+为了方便地使用 stdio，这里使用的是 mingw。
+
+首先编写一个使用字符串资源的程序：
+
+资源文件如下：
+
+#+BEGIN_SRC c
+//resource.h
+#include <windows.h>
+
+#define IDS_STR 10001
+
+
+//resource.rc
+#include "resource.h"
+
+STRINGTABLE
+BEGIN
+IDS_STR "Hello world"
+END
+#+END_SRC
+
+输出字符串的主函数如下：
+
+#+BEGIN_SRC c
+//1.c
+#include <stdio.h>
+#include "resource.h"
+#include <windows.h>
+
+int main(void)
+{
+    HINSTANCE hInst = GetModuleHandle(NULL);
+    char a[100] = { '\0' };
+    LoadString(hInst, IDS_STR, a, 100);
+    printf("%s\n", a);
+    return 0;
+}
+#+END_SRC
+
+编译链接运行可以看到 Hello World 字样。
+
+然后使用如下的代码尝试修改资源字符串值：
+
+#+BEGIN_SRC c
+#include <windows.h>
+
+
+int main(void)
+{
+    HANDLE hUpdate;
+    HANDLE hIO;
+
+    TCHAR buf[100];
+    DWORD dwbufLength;
+
+    TCHAR szExeName[100];
+    DWORD dwExeLength;
+
+    hIO = GetStdHandle(STD_INPUT_HANDLE);
+    ReadConsole(hIO, szExeName, 100, &dwExeLength, NULL);
+    ReadConsole(hIO, buf, 100, &dwbufLength, NULL);
+    szExeName[dwExeLength - 2] = TEXT('\0');
+    buf[dwbufLength - 2] = TEXT('\0');
+    dwExeLength -= 2;
+    dwbufLength -= 2;
+    //*
+    hUpdate = BeginUpdateResource(szExeName, FALSE);
+    if (!hUpdate)
+    {
+        MessageBox(NULL, TEXT("1"), TEXT("BeginUpdate"), MB_OK);
+        exit(1);
+    }
+
+    if (!UpdateResource(hUpdate,
+        RT_STRING,
+        MAKEINTRESOURCE(10001),
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+        buf,
+        dwbufLength * 2))
+    {
+        MessageBox(NULL, TEXT("2"), TEXT("UpdateRes"), MB_OK);
+        exit(2);
+    }
+
+    if (!EndUpdateResource(hUpdate, FALSE))
+    {
+        MessageBox(NULL, TEXT("3"), TEXT("End"), MB_OK);
+        exit(3);
+    }
+    return 0;
+
+}
+#+END_SRC
+
+发现无法达到目的，资源没有被修改。
+
+网上暂时查不到相关的资料，先把这个问题放在这里。
+
+微软官方文档的示例在这里 [[https://docs.microsoft.com/en-us/windows/win32/menurc/using-resources][Using Resources]]。
+
+** 关于 rc 资源文件的一些测试
+
+这里试一试能否使用两个 .rc 文件来得到一个 .res 文件，以及能否在链接时使用两个或多个 .res 文件。
+
+我本人不是很熟悉 CL 的命令行操作，所以这里使用 MINGW 的 gcc 和 windres 来实验。
+
+根据我的测试，windres 一次只能接收一个文件并生成一个文件，那么在链接时能不能接收两个或多个 .res 文件呢？以下是测试代码。
+
+首先编写资源头文件和资源脚本。
+
+下面是 r1.h 和 r1.rc 的内容
+
+#+BEGIN_SRC c
+//r1.h
+#include <windows.h>
+#define IDS_STR1 10000
+
+//r1.rc
+#include "r1.h"
+
+STRINGTABLE
+BEGIN
+IDS_STR1 "HELLO"
+END
+#+END_SRC
+
+以下是 r2.h 和 r2.rc 的内容
+
+#+BEGIN_SRC c
+//r2.h
+#include <windows.h>
+#define IDS_STR2 10001
+
+//r2.rc
+#include "r2.h"
+
+STRINGTABLE
+BEGIN
+IDS_STR2 "WORLD"
+END
+#+END_SRC
+
+以下是主函数的源文件：
+
+#+BEGIN_SRC c
+//1.c
+#include <stdio.h>
+#include <windows.h>
+#include "r1.h"
+#include "r2.h"
+
+int main(void)
+{
+    HINSTANCE hInst = GetModuleHandle(NULL);
+    char a[100] = {'\0'};
+    LoadString(hInst, IDS_STR1, a, 100);
+    printf("%s\n", a);
+    LoadString(hInst, IDS_STR2, a, 100);
+    printf("%s\n", a);
+    return 0;
+}
+#+END_SRC
+
+使用以下命令编译并链接文件：
+
+#+BEGIN_SRC
+gcc -c 1.c
+windres -o r1.res -O coff r1.rc
+windres -o r2.res -O coff r2.rc
+gcc -o 1.exe 1.o r1.res r2.res
+#+END_SRC
+
+可以得到可执行文件，运行之，显示的结果为 HELLO =\n= WORLD。这就说明可以使用多个资源文件来进行编译，得到一个可执行文件。
+
+** 菜单资源的使用
+
+*** 菜单的消息
+
+关于菜单的消息有很多，以下随便列举几个
+
+WM_MENUSELECT，当用户在菜单项之间移动光标或鼠标时，程序可以接收到许多 WM_MENUSELECT 消息。这对于实现一个状态栏十分有用，因为可以在状态栏上显示菜单的完整文本描述。
+
+WM_INITMENUPOPUP，Windows 要显示菜单时，会向窗口发送一个该消息。
+
+最重要的是 WM_COMMAND 消息，它表示用户已经从窗口菜单中选择了一个被启用的菜单项。
+
+*wParam* 参数的 LOWORD 是菜单的 ID， *lParam* 是 0。
+
+*** 在程序中引用菜单
+
+程序可以在窗口类定义中引入菜单，这里假设菜单名存储在 szMenuName 变量中，wndclass 是 WNDCLASS 类型的变量，那么可以这样做：
+
+#+BEGIN_SRC c
+wndclass.lpszMenuName = szMenuName
+#+END_SRC
+
+应用还可以使用 *LoadMenu* 函数把资源载入到内存。 *LoadMenu* 返回一个菜单句柄，它可以在 *CreateWindow* 中使用。也可以在 *CreateWindow* 后使用 *SetMenu* 来指定一个菜单。
+
+*** 菜单的基本函数
+
+CheckMenuItem 可以设置指定菜单项的点击属性。
+
+函数原型如下：
+
+#+BEGIN_SRC c
+DWORD CheckMenuItem(
+  HMENU hMenu,
+  UINT  uIDCheckItem,
+  UINT  uCheck
+);
+#+END_SRC
+
+uCheck 的值可以是 MF_BYCOMMAND，MF_BYPOSITION，MF_CHECKED 或 MF_UNCHECKED。可以控制菜单的外观是否为点击外观。
+
+EnableMenuItem 函数可以设置菜单项的可用状态。
+
+#+BEGIN_SRC c
+BOOL EnableMenuItem(
+  HMENU hMenu,
+  UINT  uIDEnableItem,
+  UINT  uEnable
+);
+#+END_SRC
+
+uEnable 的值可以是 MF_BYCOMMAND，MF_BYPOSITION，MF_DISABLED，MF_ENABLED 和 MF_GRAYED。
+
+GetMenu 可以通过窗口句柄获得菜单句柄，SetMenu 可以为某个窗口设置菜单。
+
+*** 菜单的增删查改，以及其他功能
+
+CreateMenu 创建一个新的空菜单，并返回菜单句柄。
+
+AppendMenu 在菜单末尾加上一个新的菜单项。
+
+DeleteMenu 从菜单中删除菜单项并进行销毁
+
+InsertMenu 在菜单中插入一个新菜单项
+
+ModifyMenu 修改一个已存在的菜单项
+
+RemoveMenu 从菜单中去除一个已有的菜单项
+
+GetMenuItemCount 可以获得菜单中现有菜单项的个数
+
+GetMenuItemID 可以根据弹出菜单的位置获得某个菜单项的 ID
+
+*** 例子
+
+这里举一个简单的例子，它使用三个菜单项，分别叫做 One，Two，Three。鼠标按下菜单项时，会在客户区的左上角打印对应于菜单的 1，2，3 三个数字。按下一个菜单项后，该菜单项外观会被标记为按下状态。若点击处于按下状态的菜单项，那么数字会被擦除。
+
+以下是资源文件的头文件和脚本文件
+
+#+BEGIN_SRC c
+//resource.h
+#define IDR_MENU1                       129
+#define ID_NUMBER_ONE                   32771
+#define ID_NUMBER_TWO                   32772
+#define ID_NUMBER_THREE                 32773
+
+//resource.rc
+IDR_MENU1 MENU
+BEGIN
+    POPUP "Number"
+    BEGIN
+        MENUITEM "One",                         ID_NUMBER_ONE
+        MENUITEM "Two",                         ID_NUMBER_TWO
+        MENUITEM "Three",                       ID_NUMBER_THREE
+    END
+END
+#+END_SRC
+
+接下来，在注册窗口类时加上自定义的菜单标识符：
+
+#+BEGIN_SRC c
+wcex.lpszMenuName   = MAKEINTRESOURCEW(IDR_MENU1);
+#+END_SRC
+
+以下部分是窗口过程：
+
+#+BEGIN_SRC c
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    static int iCurrNum;
+    static int IDmap3[3] = { ID_NUMBER_ONE, ID_NUMBER_TWO, ID_NUMBER_THREE };
+    HMENU hMenu;
+    switch (message)
+    {
+    case WM_COMMAND:
+        {
+            hMenu = GetMenu(hWnd);
+            int wmId = LOWORD(wParam);
+            if (iCurrNum >= 1)
+                CheckMenuItem(hMenu, IDmap3[iCurrNum - 1], MF_UNCHECKED);
+            switch (wmId)
+            {
+            case ID_NUMBER_ONE:
+                if (iCurrNum != 1)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_ONE, MF_CHECKED);
+                    iCurrNum = 1;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            case ID_NUMBER_TWO:
+                if (iCurrNum != 2)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_TWO, MF_CHECKED);
+                    iCurrNum = 2;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            case ID_NUMBER_THREE:
+                if (iCurrNum != 3)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_THREE, MF_CHECKED);
+                    iCurrNum = 3;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            default:
+                return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+        }
+        InvalidateRect(hWnd, NULL, TRUE);
+        break;
+    case WM_PAINT:
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
+            if (iCurrNum == 1)
+            {
+                TextOut(hdc, 0, 0, TEXT("1"), 1);
+            }
+            else if (iCurrNum == 2)
+            {
+                TextOut(hdc, 0, 0, TEXT("2"), 1);
+
+            }
+            else if (iCurrNum == 3)
+            {
+                TextOut(hdc, 0, 0, TEXT("3"), 1);
+            }
+
+            EndPaint(hWnd, &ps);
+        }
+        break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
+}
+#+END_SRC
+
+运行并点击菜单，可以在左上角相应显示 1，2，3 三个数字。
+
+以上的资源文件并非我直接写在文件中，而是通过 VS 的自动生成功能得到的。
+
+** 加速键资源的使用
+
+对于拥有当前输入焦点的窗口，Windows 会将键盘消息发送给它的窗口过程。对键盘加速键而言，Windows 会将 WM_COMMAND 消息发送给一个在 *TranslateAccelerator* 函数中指定的窗口句柄的窗口过程。
+
+应该尽量避免使用 Tab，回车，Esc 和空格键来作为键盘加速键，因为它们通常保留给了系统功能。
+
+*** 加速键的加载与翻译
+
+在应用中使用 LoadAccelerators 来把加速键表加载到内存中，并获得它的句柄。
+
+#+BEGIN_SRC c
+HACCEL hAccel = LoadAccelerators (hInst, MAKEINTRESOURCE(IDA_ACCE));
+#+END_SRC
+
+要使用加速键，需要对主循环进行修改，将
+
+#+BEGIN_SRC c
+while (GetMessage(&msg, NULL, 0, 0))
+{
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+}
+#+END_SRC
+
+修改为
+
+#+BEGIN_SRC c
+while(GetMessage(&msg, NULL, 0, 0))
+{
+    if (!TranslateAccelerator(hWnd, hAccel, &msg))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+#+END_SRC
+
+*TranslateAccelerator* 函数确定在 msg 消息结构中的消息是否为键盘消息。如果是，它会在加速键表中寻找句柄为 hAccel 的匹配值。如果找到了，它会调用 hWnd 的窗口过程。如果键盘加速键 ID 对应于系统菜单的一个菜单项，则对应消息为 WM_SYSCOMMAND，否则为 WM_COMMAND。
+
+如果键盘加速键对应于某个菜单项，那么创口过程还会接收到 WM_INITMENU，WM_INITMENUPOPUP 和 WM_MENUSELECT 消息。如果窗口被最小化，对于映射到启用的系统菜单项的键盘加速键，TranslateAccelerator 会发送 WM_SYSCOMMAND 而不是 WM_COMMAND。
+
+*** 加速键消息
+
+加速键的 WM_COMMAND 消息中，LOWORD(wParam) 是加速键的 ID，HIWORD(wParam) 为 1，lParam 为 0。
+
+*** 例子
+
+下面的例子借用了上面的菜单程序，通过为菜单添加加速键来使用菜单。
+
+资源文件的头文件和脚本文件如下：（仅包含加速键部分）
+
+#+BEGIN_SRC c
+//resource.h
+#define IDR_ACCELERATOR1                130
+#define ID_ACCONE                       32774
+#define ID_ACCTWO                       32775
+#define ID_ACCTHREE                     32776
+
+//resource.rc
+IDR_ACCELERATOR1 ACCELERATORS
+BEGIN
+    "1",            ID_ACCONE,              VIRTKEY, CONTROL, NOINVERT
+    "2",            ID_ACCTWO,              VIRTKEY, CONTROL, NOINVERT
+    "3",            ID_ACCTHREE,            VIRTKEY, CONTROL, NOINVERT
+END
+#+END_SRC
+
+这里使用的是 CONTROL 修饰符，也可以直接在数字前面使用 ^ 而不适用修饰符。
+
+相对于菜单程序，修改后的程序如下：
+
+需要在主循环中添加加速键翻译：
+
+#+BEGIN_SRC c
+HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
+
+    MSG msg;
+
+    // 主消息循环:
+    while (GetMessage(&msg, nullptr, 0, 0))
+    {
+        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+修改
+#+END_SRC
+
+修改后的窗口过程如下：
+
+#+BEGIN_SRC c
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    static int iCurrNum;
+    static int IDmap3[3] = { ID_NUMBER_ONE, ID_NUMBER_TWO, ID_NUMBER_THREE };
+    HMENU hMenu;
+    switch (message)
+    {
+    case WM_COMMAND:
+        if (HIWORD(wParam) == 0)
+        {
+            hMenu = GetMenu(hWnd);
+            int wmId = LOWORD(wParam);
+            if (iCurrNum >= 1)
+                CheckMenuItem(hMenu, IDmap3[iCurrNum - 1], MF_UNCHECKED);
+            switch (wmId)
+            {
+            case ID_NUMBER_ONE:
+                if (iCurrNum != 1)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_ONE, MF_CHECKED);
+                    iCurrNum = 1;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            case ID_NUMBER_TWO:
+                if (iCurrNum != 2)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_TWO, MF_CHECKED);
+                    iCurrNum = 2;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            case ID_NUMBER_THREE:
+                if (iCurrNum != 3)
+                {
+                    CheckMenuItem(hMenu, ID_NUMBER_THREE, MF_CHECKED);
+                    iCurrNum = 3;
+                }
+                else
+                    iCurrNum = 0;
+                break;
+            default:
+                return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+            InvalidateRect(hWnd, NULL, TRUE);
+        }
+        else
+        {
+            int accid = LOWORD(wParam);
+            switch (accid)
+            {
+            case ID_ACCONE:
+                SendMessage(hWnd, WM_COMMAND, ID_NUMBER_ONE, 0);
+                break;
+            case ID_ACCTWO:
+                SendMessage(hWnd, WM_COMMAND, ID_NUMBER_TWO, 0);
+                break;
+            case ID_ACCTHREE:
+                SendMessage(hWnd, WM_COMMAND, ID_NUMBER_THREE, 0);
+                break;
+            }
+        }
+
+        break;
+    case WM_PAINT:
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
+            if (iCurrNum == 1)
+            {
+                TextOut(hdc, 0, 0, TEXT("1"), 1);
+            }
+            else if (iCurrNum == 2)
+            {
+                TextOut(hdc, 0, 0, TEXT("2"), 1);
+
+            }
+            else if (iCurrNum == 3)
+            {
+                TextOut(hdc, 0, 0, TEXT("3"), 1);
+            }
+
+            EndPaint(hWnd, &ps);
+        }
+        break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
+}
+#+END_SRC
+
+* 参考资料
+
+<<<【1】>>> gnu windres： https://sourceware.org/binutils/docs/binutils/windres.html
+
+<<<【2】>>> Menus and Other Resources： https://docs.microsoft.com/en-us/windows/win32/menurc/resources
+
+<<<【3】>>> /Programming Windows/, Charles Petzold
