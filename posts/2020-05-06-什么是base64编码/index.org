@@ -1,0 +1,410 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 什么是base64编码
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-05-06 Wed]
+#+TAGS: c wasistwas
+
+
+* 什么是 Base64
+
+Base64 是二进制到字符编码的一种方案，将二进制数据使用 ASCII 字符串格式表示，即翻译为基数为 64 的一种表示。每个 Base64 数字表示一个 6 比特的数据。三个字节（共 24 个比特）因此可以被表示为 4 个 Base64 数字。
+
+Base64 常用于处理文本数据的场合，表示、传输、存储一些二进制数据。
+
+* Base64 编码表
+
+从 0 到 25 ，也就是从 000000 到 011001，是 ASCII 字符 A - Z
+
+从 26 到 51，也就是从 011010 到 110011，是 ASCII 字符 a - z
+
+从 52 到 61，也就是从 110100 到 111101，是 ASCII 字符 0 - 9
+
+62 （111110）是 ASCII 字符 +
+
+63 （111111）是 ASCII 字符 /
+
+* 缀词（padding） =
+
+因为 Base64 是每 6 个比特进行一次编码，而现代电脑上的编码值被分为了一个个 8 比特的字节，因此，在 Base64 编码的文本中，每 4 个字符表示三个字节的未编码的文本或数据。这就意味着，当未编码的输入的字节数不是 3 的倍数时，编码输出必须加上缀词来使得输出的长度是 4 的倍数。这个缀词便是 === ，它表明：不再需要更多的比特来进行解码。
+
+=== 数量规则如下：
+
+- 若源数据的字节数是 3 的倍数，则不需要加 ===
+
+- 若源数据的字节数除 3 余 1，则加两个 ===
+
+- 若源数据的字节数除 3 余 2，则加一个 ===
+
+
+举个例子来说明 === 的使用：
+
+字符串 "Man" 的 ASCII 编码是 =01001101= ， =01100001= ， =01101110= ，（0x4d，0x61，0x6e）。拆成六个一组，就是 =010011= ， =010110= ， =000101= ， =101110= 。对应于 Base64 编码表中的 T，W，F，u，故编码后 ASCII 编码的"Man" 对应于 "TWFu"。
+
+字符串 "Ma" 的 ASCII 是 =01001101= ， =01100001= 。拆开得到 =010011= ， =010110= ， =0001= 。最后一组还少两个比特，补零得到 =000100= 。对应于 Base64 编码得到 T，W，E，编码结果为 "TWE="。此处的 === 表明补了两个比特。
+
+字符串 "M" 的 ASCII 是 =01001101= ，拆开之，得到 =010011= ， =01= 。最后一组要补四个零，得到 =010000= 。对应 Base64 得到 T，Q。编码结果为 "TQ=="， ==== 表明补了四个比特。
+
+实际上，缀词 === 并不是必须的，因为缺少的字节可以从编码文本的长度中计算得到。例如 “YW55IGNhcm5hbCBwbGVhc3VyZS4” 这个编码串共有 27 个字符，不是 4 的倍数， 且由 mod(27, 4) = 1 可知它补充了两个比特。通过这些信息就可以知道源文本（或数据）（若为 ASCII 编码）是 “any carnal pleasure.”。但是，如果多个 Base64 编码字符串被连接在一起, === 是必要的，因为需要使用它来区分不同来源的字符串。
+
+* Base64 的解码
+
+当对 Base64 进行解码时，四个字符通常会被转化为三个字节。当存在缀词时则可能是两个或一个，一个 === 表明四个字符会被转化为两个字节，两个 === 表明四字符会被转为一个字节。上面的例子便是如此。
+
+如果没有缀词，在对所有的四字符组进行转码后，若还有剩下的字符，剩下的字符数一定小于四。这种情况下，只可能剩下两个或三个字符。若剩下两个字符，则转为一个字节，若为三个则转为两个字节。
+
+* 一个简单的 C 实现
+
+以下代码在 MINGW 下通过编译并通过了下面的测试。
+
+简便起见，我没用使用 stdint 头文件，所有下面的代码想要正确运行的话，必须满足 =int= 是 32 位。
+
+** 编码
+
+要想将一个个字节编码为 Base64，首先需要一张二进制码（000000 - 111111）到 64 个字符的映射表：
+
+#+BEGIN_SRC c
+char base64_encode_table[64] =
+{
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+    'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+};
+#+END_SRC
+
+由于现在的计算机中一个字节是 8 位，而 Base64 编码中每 6 位进行一次编码，在处理过程中若直接使用字节（字符）数组可能不是太方便。考虑到 3 * 8 = 4 * 6，先编写一次性对 3 个字节进行处理的函数会方便不少，而且若最后还剩下 1 或 2 个字节，可以一并处理。
+
+#+BEGIN_SRC c
+void base64_convert3(char * dststr, unsigned char c1, unsigned char c2, unsigned char c3, int num)
+{
+    // dststr must be big enough to contain four char
+    // num is the number of byte to convert
+
+    int convert = 0;
+    convert = (c1 << 16) | (c2 << 8) | c3;
+    for (int i = 0; i < 4; i++)
+    {
+        int temp = (convert >> (i * 6)) & 0x3f; //0x3f = 00111111
+
+        dststr[3 - i] = base64_encode_table[temp];
+    }
+
+    for (int i = 3; i > num; i--)
+    {
+        dststr[i] = '=';
+    }
+}
+#+END_SRC
+
+上面的函数的三个字符参数 =c1, c2, c3= 是顺序排列的 3 个字节，参数 =num= 是处理字节的个数。如果 =num= 的值不为 3，那么 c2 或 c3 的值应该设为 0 来确保得到正确的结果。
+
+这个函数没有对参数的合理性进行检验。
+
+接下来就可以完成编码函数了。
+
+#+BEGIN_SRC c
+int base64_encoder(char * dststr, char * srcstr, int num, int * dstlength)
+{
+    // num is the number of byte
+    // dstlength is the number of encoded char, include '='
+    // dststr must be big enough to carry encoded char
+    // return non-zero means failed
+    if (dststr == NULL || srcstr == NULL || num <= 0 || dstlength == NULL)
+    {
+        return 1;
+    }
+
+    int cnt = 0;
+    int i = 0;
+    for (i = 0; i <= num - 3; i += 3)
+    {
+        base64_convert3(dststr + cnt, srcstr[i], srcstr[i + 1], srcstr[i + 2], 3);
+        cnt += 4;
+    }
+
+    if (i == num)
+    {
+        dstlength[0] = cnt;
+        return 0;
+    }
+    else if (i == num - 1)
+    {
+        base64_convert3(dststr + cnt, srcstr[i], 0, 0, 1);
+        cnt += 4;
+        dstlength[0] = cnt;
+        return 0;
+    }
+    else if (i == num - 2)
+    {
+        base64_convert3(dststr + cnt, srcstr[i], srcstr[i + 1], 0, 2);
+        cnt += 4;
+        dstlength[0] = cnt;
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
+
+    return 1;
+}
+#+END_SRC
+
+该函数做了最低限度的参数检查。 =dststr= 代表编码后字符串的目标位置， =srcstr= 表示源字符串， =num= 是源字符串的长度， =dstlength= 指向一个整型变量，用于存储得到的编码的长度。
+
+** 解码
+
+与编码相似，解码也需要一张映射表，不过 Base64 只规定了从二进制到字符进行编码，而没有规定字符的编码，至于字符编码是 ASCII 还是其他的比如 UTF-8，EBCDEC 。为了简便起见，这里使用 ASCII。可以使用一个一个 if else 来去掉字符集依赖性，不过也太麻烦了点：
+
+#+BEGIN_SRC c
+unsigned char base64_decode_table(unsigned char ch)
+{
+    //use ascii code
+    if (isupper(ch))
+    {
+        return ch - 65; // 'A' is 65
+    }
+    else if (islower(ch))
+    {
+        return ch - 97 + 26; // 'a' is 97
+    }
+    else if (isdigit(ch))
+    {
+        return ch - 48 + 52; // '0' is 48
+    }
+    else if (ch == '+')
+    {
+        return 62;
+    }
+    else if (ch == '/')
+    {
+        return 63;
+    }
+    else
+    {
+        return 255;
+    }
+}
+#+END_SRC
+
+同样，与编码类似，解码时也可以考虑将四个字符看成一组，这样处理带 === 时更方便：
+
+#+BEGIN_SRC c
+void base64_convert4(char * dststr, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, int num)
+{
+    // num is the number of char
+    // dststr must not be null
+
+    int convert = 0;
+    convert = base64_decode_table(c4);
+    convert = convert | (base64_decode_table(c3) << 6);
+    convert = convert | (base64_decode_table(c2) << 12);
+    convert = convert | (base64_decode_table(c1) << 18);
+    for (int i = 0; i <= num - 2; i++)
+    {
+        dststr[i] = convert >> (8 * (2 - i)) & 0xff;
+    }
+}
+#+END_SRC
+
+接下来就可以编写解码函数了，因为要处理使用 === 和不使用 === 的情况，代码的选择支有点多，看起来有点长：
+
+#+BEGIN_SRC c
+int base64_decoder(char * dststr, char * srcstr, int num, int *dstlength)
+{
+    //the min value of num is 2
+    if (dststr == NULL || srcstr == NULL || num < 2 || dstlength == NULL)
+    return 1;
+
+    int i;
+    int cnt = 0;
+
+    for (i = 0; i <= num - 8; i += 4)
+    {
+        base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], srcstr[i + 2], srcstr[i + 3], 4);
+        cnt += 3;
+    }
+
+    if (i == num - 4)
+    {
+        if (srcstr[num - 1] != '=')
+        {
+            base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], srcstr[i + 2], srcstr[i + 3], 4);
+            cnt += 3;
+            dstlength[0] = cnt;
+            return 0;
+        }
+        else
+        {
+            if (srcstr[num - 2] == '=')
+            {
+                base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], 0, 0, 2);
+                cnt += 1;
+                dstlength[0] = cnt;
+                return 0;
+            }
+            else
+            {
+                base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], srcstr[i + 2], 0, 3);
+                cnt += 2;
+                dstlength[0] = cnt;
+                return 0;
+            }
+        }
+    }
+    else if (i == num - 3)
+    {
+        base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], srcstr[i + 2], 0, 3);
+        cnt += 2;
+        dstlength[0] = cnt;
+        return 0;
+    }
+    else if (i == num - 2)
+    {
+        base64_convert4(dststr + cnt, srcstr[i], srcstr[i + 1], 0, 0, 2);
+        cnt += 1;
+        dstlength[0] = cnt;
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
+    return 1;
+}
+#+END_SRC
+
+** 测试
+
+#+BEGIN_SRC c
+int main(void)
+{
+    char man[] = "Man";
+    char trans_man[3][20];
+    int len[3];
+
+    //test encode
+    for (int i = 0; i < 3; i++)
+    {
+        base64_encoder(trans_man[i], man, 3 - i, len + i);
+        trans_man[i][len[i]] = '\0';
+        printf("%s\n", trans_man[i]);
+    }
+
+    //test decode
+    char restore[3][20];
+    int lenres[3];
+    for (int i = 0; i < 3; i++)
+    {
+        base64_decoder(restore[i], trans_man[i], 4, lenres + i);
+        restore[i][lenres[i]] = '\0';
+        printf("%s\n", restore[i]);
+    }
+
+    //test for situation without '='
+    base64_decoder(restore[0], trans_man[1], 3, lenres);
+    restore[0][lenres[0]] = '\0';
+    printf("%s\n", restore[0]);
+
+    base64_decoder(restore[0], trans_man[2], 2, lenres);
+    restore[0][lenres[0]] = '\0';
+    printf("%s\n", restore[0]);
+
+    char myself[] = "include-yy";
+    char myself_encode[20];
+    int myself_len;
+    base64_encoder(myself_encode, myself, 10, &myself_len);
+    myself_encode[myself_len] = '\0';
+    printf("\n%s\n", myself_encode);
+
+    base64_decoder(restore[0], myself_encode, myself_len, lenres);
+    restore[0][lenres[0]] = '\0';
+    printf("%s\n", restore[0]);
+
+
+    return 0;
+}
+#+END_SRC
+
+输出结果应该为：
+
+#+BEGIN_SRC
+TWFu
+TWE=
+TQ==
+Man
+Ma
+M
+Ma
+M
+
+aW5jbHVkZS15eQ==
+include-yy
+#+END_SRC
+
+* 在 Python 中使用 Base64
+
+Python 随处可见，用起来也比 C 方便的多，故学习 Python 的用法肯定还是有用的。
+
+** Python 的 base64 模块
+
+base64 模块提供了将二进制数据编码为可打印 ASCII 字符和将编码解码为二进制数据的函数。
+
+base64 模块提供的函数不限于操作 base64，还有 base16，base32 等，不过这里只关注 base64 的编码和解码。
+
+** 接口函数
+
+#+BEGIN_SRC python
+base64.b64encode(s, altchars=None)
+#+END_SRC
+
+该函数将[[https://docs.python.org/3/glossary.html#term-bytes-like-object][类字节对象]]（bytes-like object）使用 base64 进行编码，并返回编码后的字节。
+
+=altchars= 必须是长度至少为 2 的类字节对象，这些字符指定了代替 =+= 和 =/= 的字符。这就允许该函数生成 URL 安全的 Base64 字符串。
+
+#+BEGIN_SRC python
+base64.b64decode(s, altchars=None, validate=False)
+#+END_SRC
+
+该函数被编码的字符串解码并返回解码字节。
+
+=altchars= 必须是长度至少为 2 的类字节对象或 ASCII 字符串，这些字符串指定了用来代替 =+= 和 =/= 的字符。
+
+=validate= 默认为 =False= ，既不是 base-64 字符也不是备用字母表中的字符会被丢弃。如果 =validate= 为 =True= ，非 base64 字符会导致 [[https://docs.python.org/3/library/binascii.html#binascii.Error][binascii.Error]] 。
+
+** 具体用法
+
+首先，导入 python 的 base64 模块
+
+#+BEGIN_SRC python
+import base64
+#+END_SRC
+
+创建一个字符串，并使用 encode 方法，将其转化为字节对象：
+
+#+BEGIN_SRC python
+s = 'include-yy'
+s = s.encode()
+#+END_SRC
+
+（encode 方法的默认编码是 'uft-8'）
+
+接着使用 `base64.b64encode()` ，便可得到结果：
+
+#+BEGIN_SRC python
+base.b64encode(s)
+#+END_SRC
+
+想要解码，则调用 `base64.b64decode()`
+
+#+BEGIN_SRC python
+s2 = base.b64encode(s)
+base64.b64decode(s2.encode());
+#+END_SRC
+
+* 参考资料
+
+https://en.wikipedia.org/wiki/Base64
+
+https://docs.python.org/3/library/base64.html?highlight=base64#module-base64
