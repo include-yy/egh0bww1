@@ -1,0 +1,72 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 2020-05-31-写个C库-part2
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-05-31 Sun]
+#+TAGS: c
+
+
+本文翻译自 *Writing a C library part 2*
+
+作者：davidz
+
+作者主页：https://www.blogger.com/profile/18166813552495508964
+
+文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html
+
+前一篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]]
+
+* 事件处理和主循环
+
+事件驱动（event-driven）的应用程序，尤其是 [[https://en.wikipedia.org/wiki/Graphical_user_interface][GUI]] 应用，通常都围绕“主循环”的概念构建。“主循环” 接受并分派事件，比如 按键/按钮 的按压，进程间的通信（[[https://en.wikipedia.org/wiki/Inter-process_communication][IPC]]），鼠标移动，计时器和 文件/套接字 I/O，等等。每当事件发生时，主循环通常会 “回调”（call back） 应用程序。
+
+ 例如， GLib/Gtk+ GUI 库围绕 [[https://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#glib-The-Main-Event-Loop.description][GMainContext, GMainLoop 和 GSource]] 类型构建，其他的库也提供了类似的抽象。许多内核或系统层的程序员在 GUI 程序员发出 "主循环" 的叫声时感到非常滑稽 —— GUI 程序员同样也对内核程序员讲到的 [[https://www.win.tue.nl/~aeb/linux/lk/lk-13.html#ss13.2][put() 或 get()]] 之类的东西感到困惑。事实是，主循环在内核层是一个广为人知，但又名字不同的概念：它是对系统基元（OS primitives） [[https://www.man7.org/linux/man-pages/man2/select.2.html][select(2)]], [[https://www.man7.org/linux/man-pages/man2/poll.2.html][pool(2)]] 之类东西（[[https://en.wikipedia.org/wiki/Windows_API][Windows]] 上也有等价的东西）的抽象。
+
+注意到多线程应用可能在不同的线程中运行着不同的主循环，来保证回调发生在正确的线程中 —— 在 GLib 中它被实现为使用 [[https://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#g-main-context-push-thread-default][g_main_context_push_thread_default()]] 函数，该函数在线程局部存储（[[https://en.wikipedia.org/wiki/Thread-local_storage][thread-local storage]]） 中为当前线程记录主循环。该变量（局部存储）会在开始一个异步操作（比如 [[https://developer.gnome.org/gio/unstable/GDBusConnection.html#g-dbus-connection-call][g_bus_connection_call]] 或 [[https://developer.gnome.org/gio/unstable/GInputStream.html#g-input-stream-read-async][g_input_stream_read_async()]] ）时被读取，来保证之前使用过 =g_main_context_push_thread_default()= 进行设置的上下文中的主循环的回调函数被调用。
+
+一些主循环，比如 GLib 中的那个，允许创建递归的主循环，它被用于实现 GtkDialog 的 [[http://developer.gnome.org/gtk3/unstable/GtkDialog.html#gtk-dialog-run][run() 方法]] 。虽然这样的确阻塞（block）了进行回调的线程，但事件仍在处理中（例如，进程输入事件和重绘动画）。具体而言，这就意味着建立对话框的函数可能会被再次调用（在一个回调中）。因此，使用像是 gtk_dialog_() 的函数时，你需要确保你的函数是可重入的（[[https://en.wikipedia.org/wiki/Reentrancy_(computing][re-entrant]])），或者它们保证在对话框显示时不被调用（这通常由模态对话框 (making the dialog [[https://en.wikipedia.org/wiki/Modal_window][modal]]) 实现，这样触发显示对话框的 UI 操作就不会成功了）。正是因为存在着这样的陷阱，如果你使用了递归的主循环，务必在文档中注明。
+
+主循环并不是 GUI 中独有的概念 —— 许多守护进程（[[https://en.wikipedia.org/wiki/Daemon_(computing][daemons]])）（没有 GUI 的后台进程）也是围绕着这个概念编写的，因为它很好地整合任何来源的事件，不论是基于文件描述符的，还是比如计时器或登录事件的综合事件。实际上，在现代 Linux 上，可观数量的一部分系统层次软件都是在 GLib 基础上搭建的，它们使用了 GLib 的主循环抽象来分派事件 —— 大多数时间，这些守护进程在一个或多个主循环中闲置着，等待着 D-Bus 消息的到来或子进程的终止。
+
+既然我们已经揭示了什么是主循环（或者说，主循环的概念是什么），让我们看看为什么写 C 库时你需要注意它。首先，如果你的库不需要向用户发送事件，你不需要关心主循环。然而，大多数库都没有这么简单 —— 例如，libudev 会在插入或改变硬件时发送事件，[[https://wiki.gnome.org/action/show/Projects/NetworkManager?action=show&redirect=NetworkManager][NetworkManager]] 想要告知网络的改变，等等。
+
+如果你的库使用了 GLib，要求库的使用者使用 GLib 的主循环通常而言是合适的（如果应用程序使用了其他的主循环，它要么整合 GLib 的主循环（像 Qt 做的那样），要么在分离的线程中使用它），并在建立回调时使用 =g_main_context_push_thread_default()= 。这也是许多基于 GObject 的库的工作原理，比如 libpolkit-gobject-1，libnm-glib 或 libgudev 。例如，当对象被创建时，与 [[https://mirrors.edge.kernel.org/pub/linux/utils/kernel/hotplug/gudev/GUdevClient.html#GUdevClient-uevent][GUdevClient::uevent]] 信号关联的回调会被在默认主循环（[[https://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#g-main-context-push-thread-default][thread-default main loop]]）中被调用。对一个共享资源，比如 总线连接（[[https://developer.gnome.org/gio/unstable/GDBusConnection.html#g-bus-get-sync][message bus connection]]），一个比较好的策略是：当方法被调用时，使回调发生在默认线程的主循环中，因为应用程序或库对共享对象的创建没有绝对的控制。在任何情况下，必须总是对与回调有关的函数的回调上下文进行文档说明。
+
+另一方面，如果你没有使用 GLib，一个提供通知的好方法是： a) 提供文件描述符，并且使其在有事件需要处理时变得可读 b) 提供处理事件的函数（可能的话调用用户注册了的回调函数）。一个好的例子是 libudev 中的 [[https://mirrors.edge.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-monitor.html#udev-monitor-get-fd][udev_monitor_get_fd()]] 和 [[https://mirrors.edge.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-monitor.html#udev-monitor-receive-device][udev_monitor_receive_device()]] 函数。用这种方法，应用程序（或使用你的库的库）能够轻易地控制由什么进程来处理事件。
+
+如果你的库提供了回调函数，确保它们接受 *user_data* 参数，这样用户可以轻易地将回调与其他数据或对象联系起来。如果你的回调的作用域是未定义的，同样提供一种方法来在不需要的时候释放 *user_data* 指针 —— 否则应用会泄露需要在之后释放的数据。例子可以在 [[http://developer.gnome.org/gio/unstable/gio-Watching-Bus-Names.html#g-bus-watch-name][g_bus_watch_name()]] 看到。
+
+** 清单
+
+- 提供整合主循环的 API
+
+- 确保回调函数接受 *user_data* 参数（可能的话还带一个释放函数）
+
+* 同步和异步 I/O
+
+让用户知道对函数的调用是否会引发 同步I/O（ [[http://en.wikipedia.org/wiki/Asynchronous_I/O][synchronous I/O]]）（也叫做阻塞 I/O）是很重要的。例如，一个带用户界面的应用需要对使用者的输入进行响应，甚至可能要为了达到平滑的动画效果而逐帧（[[http://en.wikipedia.org/wiki/Vertical_blanking_interval][every frame]]）更新用户界面（例如，60 次每秒）。为了避免应用无响应和动画抖动的情况，应用的 UI 线程不应该调用任何进行 同步I/O 的函数。
+
+注意，即便是从本地磁盘加载一个文件也可能造成相当长时间的阻塞 —— 有时达到 10 秒之长。例如，文件可能不在页缓存中，而且硬盘可能处于断电中 —— 或者文件可能在用户的 home 目录，该目录可能使用了网络文件系统，比如 [[http://en.wikipedia.org/wiki/Network_File_System_(protocol][NFS]]。其他的包括 IPC 的阻塞 I/O 例子有； [[http://en.wikipedia.org/wiki/D-Bus][D-Bus]] ，[[http://en.wikipedia.org/wiki/Unix_domain_socket][Unix domain sockets]] 。
+
+如果已知一个操作需要很长时间来完成，如果能够取消的话，那通常是一个不错的选择。例如，GLib 中的 [[http://developer.gnome.org/gio/unstable/GCancellable.html#GCancellable.description][GCancellable]] 类型。另一个不错的（虽然很容易通过 GCancellable 类型实现）的方法是为可能超时的操作设置时间限制（timeout）。这方面的例子可见于[[http://developer.gnome.org/gio/unstable/GDBusConnection.html#g-dbus-connection-send-message-with-reply][g_dbus_connection_send_message_with_reply()]] 和 [[http://developer.gnome.org/gio/unstable/GDBusProxy.html#g-dbus-proxy-call][g_dbus_proxy_call()]] ，后者有一个对象范围（object-wide）的时间限制，这样一来时间只需要设置一次。
+
+一些库同时提供同步和异步版本的函数，前者会阻塞主调线程，而后者不会。通常地，异步I/O 使用工作线程实现（在工作线程进行同步 I/O），但它也能够通过 IPC 与其他进程进行交流，或者甚至通过 TCP/IP。例如，[[http://developer.gnome.org/gio/unstable/][libgio-2.0]] 的异步文件I/O 就是通过工作线程中的 同步I/O 实现的，这仅仅是因为 Linux （现在？）还没有提供足够的适用于库的 异步I/O 方法（见于：[[http://davmac.org/davpage/linux/async-io.html][colorful notes about Asynchronous I/O]]）。有利的一面是，这主要是一个实现细节，如果将来有这样的机制，libgio-2.0 实现可以迁移到非线程的方法。
+
+一般 异步I/O 会引入回调（或至少是其他种类的时间通知），这也就意味着主循环的引入。如果库提供了这样的函数，它应该清楚地说明回调发生的线程所在，和它是否需要应用运行在（某种特定的）主循环上。
+
+如果库是线程安全的，对应用本身而言，在工作线程使用同步版本的函数会更简单一些 —— 如果使用了 GLib，使用 [[http://developer.gnome.org/gio/unstable/gio-GIOScheduler.html#g-io-scheduler-push-job][g_io_scheduler_push_job()]] 便是正确的方法。
+
+在某些情况下，同步I/O 是使用递归主循环实现的（通常使用了函数的异步形式）—— 这是应当避免的，它通常会造成各种各样的问题，因为可重入性的问题，以及在等待同步操作完成时等待处理的事件。像往常一样，将代码执行的操作清晰地写在文档中。
+
+一些库，比如 GLib 中的那些，为包括了[[http://developer.gnome.org/gio/unstable/GAsyncResult.html][GAsyncResult]] / [[http://developer.gnome.org/gio/unstable/GSimpleAsyncResult.html][GSimpleAsyncResult]], [[http://developer.gnome.org/gio/unstable/GAsyncResult.html#GAsyncReadyCallback][GAsyncReadyCallback]] 和 [[http://developer.gnome.org/gio/unstable/GCancellable.html][GCancellable]] 类型的，使用了异步 I/O 的全部函数使用了 [[http://developer.gnome.org/gio/unstable/GSimpleAsyncResult.html#GSimpleAsyncResult.description][consistent pattern]] —— 这样既方便了程序员，又方便了高级语言的绑定，因为重要的东西，比如生命周期，是这个 pattern 的一部分。（例如，你被保证回调总会发生，即便被取消，超时或出错）
+
+** 清单
+
+- 清楚记录函数是否进行了任何的 同步I/O
+
+- 理想情况下，为同步函数加上 _sync() 后缀，这样就能轻松地使用 [[https://www.gnu.org/software/grep/manual/grep.html][grep(1)]] 来查看大型代码树
+
+- 考虑函数是需要同步形式，异步形式还是两者都需要
+
+- 在你的 API 文档中指出同步函数和异步函数
+
+- 如果可能的话，使用已有的模型进行 I/O（比如 [[http://developer.gnome.org/gio/unstable/GSimpleAsyncResult.html#GSimpleAsyncResult.description][GIO model]] ），而不是自己造一个

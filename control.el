@@ -21,7 +21,10 @@
 	  "\"./"(file-relative-name fn default-directory)"\""
 	  " alt=\"load failed\"></div>@@"))
 
-
+;;add title command
+(defun yy-org-add-tit ()
+  (interactive)
+  (insert (substring (buffer-name) 10)))
 (progn
   ;;pre
   (setq org-html-preamble t)
