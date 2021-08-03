@@ -1,0 +1,87 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 2020-06-03-写个C库-part3
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-06-03 Wed]
+#+TAGS: c
+
+本文翻译自 *Writing a C library part 3*
+
+作者：davidz
+
+作者主页：https://www.blogger.com/profile/18166813552495508964
+
+文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html
+
+前篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]]
+
+* 模块化和名字空间
+
+C 语言没有提供名字空间（[[https://en.wikipedia.org/wiki/Namespace#In_programming_languages][namespace]]）的概念（像在 C++ 或 Python 中那样的），因此通常使用命名约定进行模拟。使用名字空间的主要原因是避免名字碰撞（[[http://en.wikipedia.org/wiki/Naming_collision][naming collisions]] ）—— libwoot 和 libkool 都提供了叫做 get_all_objects() 的函数，如果程序链接了这两个库，该使用哪一个函数呢？名字空间的使用是命名策略的重要组成部分，它用于变量名，函数名，类型名（包括 structs，unions，enums 和 typedefs）和宏。
+
+标准约定是使用短标识符，例如在 [[https://wiki.gnome.org/Projects/NetworkManager][libnm-glib]] 中你会看到 =nm_= 和 =NM= 的使用，在 [[http://docs.clutter-project.org/docs/clutter/unstable/][Clutter]] 中是 =clutter= 和 =Clutter= ，在 libpolkit-agent-1 中是 =polkit_agent= 和 =PolkitAgent= 。对于不对类型使用驼峰式大小写（[[http://en.wikipedia.org/wiki/CamelCase][CamelCase]]） 的库，一般对函数和类型使用相同的前缀 —— 例如，libudev 的前缀就是 =udev= 。
+
+不恰当使用名字空间的代码不但难以集成到其他的库和程序中（符号碰撞的概率很大），它也存在着与未来加入到 C 标准库或 POSIX 标准的函数发生碰撞的可能。
+
+在 C 中使用名字空间（讽刺的是，名字空间在语言中没有被很好的支持）的一个好处便是，仅仅通过查看源代码的片段就可以更容易确定代码在做什么 —— 例如，当你看到一个东西被加入到了一个容器中，你一般是不会对这是 GtkContainer 的 add 方法还是 ClutterContainer 的 add 方法感到疑问的，因为 C 的名字空间强制程序员的行为显而易见，不论是好是坏。
+
+除了选择良好的命名策略外，注意到库导出的符号的可见性是可以微调的。
+
+在命名这个话题上，避免使用 C++ 的关键字（例如 class）来命名变量通常是个好主意，至少在你期望在 C++ 中使用的头文件中加上 [[https://en.wikipedia.org/wiki/Compatibility_of_C_and_C%2B%2B#Linking_C_and_C.2B.2B_code][extern "C"]]。另外，一般避免使用 C 标准库 / POSIX 中的函数名作为变量，例如 "interface" 或 "index"，因为这些函数可能被定义为宏。
+
+** 清单
+
+- 选择一个命名约定 —— 并坚持使用它
+
+- 不要导出非公共 API 的符号
+
+* 错误处理
+
+如果有一个充分描述了 C 语言错误处理的陈述，那人们和可能难以就其达成共识。然而，大多数程序员会同意这一点：错误可以被分为两类 1) 程序员错误（programmmer error）；2) 运行时错误（run-time error）。
+
+程序员错误是指当程序员没有正确使用函数的错误 —— 将非 [[http://en.wikipedia.org/wiki/UTF-8][UTF-8]] 字符串传递给期望参数是合法 UTF-8 字符串的函数，例如 [[http://developer.gnome.org/glib/unstable/glib-GVariant.html#g-variant-new-string][g_variant_new_string()]] （如果不确定的话，可以使用 [[http://developer.gnome.org/glib/unstable/glib-Unicode-Manipulation.html#g-utf8-validate][g_utf8_validate()]] 在调用函数前对字符串进行验证），将不合法的 D-Bus 名字传递给 [[http://developer.gnome.org/gio/unstable/gio-Owning-Bus-Names.html#g-bus-own-name][g_bus_own_name()]]（如果不确定，可以使用 [[http://developer.gnome.org/gio/unstable/gio-D-Bus-Utilities.html#g-dbus-is-name][g_dbus_is_name()]] 或 [[http://developer.gnome.org/gio/unstable/gio-D-Bus-Utilities.html#g-dbus-is-unique-name][g_dbus_is_unique_name()]] 进行验证）。
+
+大多数库在使用不恰当的时候都会有未定义行为（undefined behavior） —— 在 GLib 中，宏 [[http://developer.gnome.org/glib/unstable/glib-Warnings-and-Assertions.html#g-return-if-fail][g_return_if_fail()]] / [[http://developer.gnome.org/glib/unstable/glib-Warnings-and-Assertions.html#g-return-val-if-fail][g_return_val_if_fail()]] 被用于对[[http://git.gnome.org/browse/glib/tree/glib/gvariant.c?id=2.29.8#n1116][g_variant_new_string()]] 和 [[http://git.gnome.org/browse/glib/tree/gio/gdbusnameowning.c?id=2.29.8#n596][g_dbus_own_name()]] 的检查。另外，为了性能，在编译 GLib 自身或其他使用 GLib 的应用时，这些检查可以通过使用宏 G_DISABLE_CHECKS 来关闭（通常不用）。然而，检查不会覆盖所有的情况，因为检查的代价很昂贵。结合 G_DEBUG 标志，在 [[http://developer.gnome.org/glib/unstable/glib-running.html][G_DEBUG=fatal-warnings]] 的环境中，可以更简单地捕获错误。
+
+使用 g_return_if_fail() 形式的检查通常是一种折衷（本可以不用的） —— 例如，GLib 一开始没有在 g_variant_new_string() 进行 UTF-8 的检查 —— 它只有在可观数量的用户将非 UTF-8 字符串传递给该函数，并造成了在不相关的代码中极难追踪的错误时，才被加入到函数中（可以在 [[http://git.gnome.org/browse/glib/commit/glib/gvariant.c?id=5e6f762d61db1a5c64bd1d33e5ba112755106581][commit message]] 看到更多细节）。 如果检查开销是不能接受的，程序员程序员可以使用 [[http://developer.gnome.org/glib/unstable/glib-GVariant.html#g-variant-new-from-data][g_variant_new_from_data()]] 来将 TURE 作为信任参数传给函数。
+
+即便有一个进行了合理的参数验证的库（在早期发现程序员错误），如果你将垃圾值传递给函数，你通常最终会得到未定义行为，未定义行为可以是任何东西，比如将你的磁盘格式化，或蒸发掉半径五英里内的酒（evaporating all booze in a five-mile radius (oh noz)）。这也就是为什么一些库简单地调用 [[http://www.kernel.org/doc/man-pages/online/pages/man3/abort.3.html][abort()]] 而不是继续假装什么也没发生，一般而言，一个 C 库永远不能保证它不会在传递给它任意参数时发生爆炸 —— 例如用户可能传递指向无效数据的指针，然后就炸了，在库尝试访问它时，[[http://en.wikipedia.org/wiki/SIGSEGV][SIGSEGV]] 会被引发。当然，库也可以尝试恢复，通过使用 [[http://www.kernel.org/doc/man-pages/online/pages/man3/longjmp.3.html][longjmp(3)]] ，但是因为它是一个库，它不能像信号处理程序那样用于处理进程间的状态。不幸的是，即便是聪明人，有时也会没有发现调用者的责任（[[http://lwn.net/Articles/449517/][fail to realize that the caller has a responsibility]]），而是选择指责库，而不是库的使用者。大多数情况下，像这样的问题只是通过将文档丢到问题上来进行解决（读文档）。
+
+总结一下，当谈到程序员错误时，一个要点便是：将函数接受的输入类型详细准确地记录在文档中通常是个好主意。俗话说：“相信是好的，但控制更好”（[[http://cs.nyu.edu/~dodis/quotes.html]["trust is good, control is better"]]），使用 g_return_if_fail() 样式的检查（可能提供不进行检查的 API），验证程序员是否正确也是一个好主意。另外，如果你的代码进行了相应的检查，确保使用了检查的函数是公有的，这样就有机会在调用函数前对输入进行验证（可见于：[[http://lists.freedesktop.org/archives/dbus/2007-October/008679.html][notes on errors in libdbus]]）。
+
+运行时错误，例如 [[http://www.kernel.org/doc/man-pages/online/pages/man3/fopen.3.html][fopen(3)]] 返回了 NULL（例如要打开的文件不存在或进程没有权力打开它），[[http://developer.gnome.org/gio/unstable/GSocketClient.html#g-socket-client-connect][g_socket_client_connect()]] 返回 FALSE（可能没有足够的地址空间供 8GiB 的数组使用）。根据定义，运行时错误是可以恢复的，即便你使用的代码将某些错误（像是 [[http://www.kernel.org/doc/man-pages/online/pages/man3/malloc.3.html][malloc(3)]] 失败）看作不可恢复的，因为处理某些运行时错误（比如内存耗尽 ([[http://en.wikipedia.org/wiki/Out_of_memory][OOM]])）会使得 API  更复杂，不论是在函数水平（可能需要传递 错误（处理）参数），还是说需要在大多数数据类型上使用事务性语义（[[http://en.wikipedia.org/wiki/Atomicity_(database_systems][transactional semantics]])）比如回滚（rollback）。（这方面的说明可见于：[[http://blog.ometer.com/2008/02/04/out-of-memory-handling-d-bus-experience/][write-up on why handling OOM is hard]] 和 [[http://lwn.net/Articles/449481/][good explanation of Linux's overcommit feature]]）.
+
+ 对于简单的库，使用标准库的 errno（[[http://en.wikipedia.org/wiki/Errno][libc's errno]]） 是最简单的处理运行时错误的方法（因为它是线程安全的，而且每个 C 程序员都知道它）。但在同时也需要注意到，一些使用了 [[http://www.kernel.org/doc/man-pages/online/pages/man3/asprintf.3.html][asprintf(3)]] 的函数没有将 errno 设置为 ENOMEM，比如在内存分配失败时。如果你的库是基于像是 GLib 的库的话，那就使用基库的错误类型，比如 [[http://developer.gnome.org/glib/unstable/glib-Error-Reporting.html#glib-Error-Reporting.description][GError]] ，作为运行时错误。在 [[http://www.cairographics.org/][cairo 2D graphics library]] 中使用了一种（[[http://www.cairographics.org/manual/cairo-Error-handling.html][is the one]]）有趣的错误处理的方式，对象实例对错误状态进行了追踪。（例子见于 [[http://www.cairographics.org/manual/cairo-cairo-t.html#cairo-status][cairo_status()]] and [[http://www.cairographics.org/manual/cairo-cairo-device-t.html#cairo-device-status][cairo_device_status()]]）。还存在许多方法来追踪运行时错误 —— 一如既往，最重要的是在编写 C 库时保持一种一致性。
+
+** 清单
+
+- 将合法和不合法（如果有的话）的参数范围在文档中说明，并为程序员提供验证参数合法性的功能（除非实在是微不足道）。
+
+- 尝试在公共 API 边界对传入参数进行验证
+
+- 建立处理程序员错误的一种体系（例如，未定义行为或 about()）
+
+- 建立处理运行时错误的一种体系（例如，使用 errno 或 GError）
+
+- 确保你所使用的处理运行时错误的方法能够映射到常见的异常处理（[[http://en.wikipedia.org/wiki/Exception_handling][exception handling]]）系统
+
+* 封装和面向对象设计
+
+虽然 C 语言没有内置面向对象编程（[[http://en.wikipedia.org/wiki/Object-oriented_programming][object-oriented programming]]）支持，许都 C 程序员却是这么做的 —— 在很多方面，几乎很难不这么做。事实上，许多 C 程序员将 C 的简单性（和 C++ 相比）视作一个特性，这样你就不会与任何一个对象模型（[[http://en.wikipedia.org/wiki/Object_model][object model]]）绑定。—— 例如，Linux 内核使用了[[http://lwn.net/Articles/444910/][various]] [[http://lwn.net/Articles/446317/][OO techniques]]，而 GLib/GTK+ 有它自己的动态类型系统，叫做 [[http://developer.gnome.org/gobject/unstable/pt01.html][GType]]，[[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#gobject-The-Base-Object-Type.description][GObject base class]] （许多类的派生源） 就是在它之上建立的。
+
+建立自己的对象模型当然得付出相应的代价 —— 它通常包括更多的类型（更长的标识符），和包括对 [[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#g-object-class-install-property][register properties]]（寄存器属性）， [[http://developer.gnome.org/gobject/unstable/gobject-Type-Information.html#g-type-class-add-private][add private instance data]]（添加私有实例数据）的更多函数调用，等等（比如这里的例子[[http://git.gnome.org/browse/clutter/tree/clutter/clutter-actor.c?id=1.7.2#n3786][example]]）。另一方面，动态类型系统通常提供了一定水平的 [[http://en.wikipedia.org/wiki/Reflection_(computer_programming][type introspection]]) （类型内省），因此可以通过使用 [[http://developer.gnome.org/gobject/unstable/GBinding.html#g-object-bind-property][g_object_bind_property()]] 函数将 [[http://developer.gnome.org/gtk3/unstable/GtkToggleButton.html#GtkToggleButton--active][whether a check-button widget is active]] 与 [[http://developer.gnome.org/gtk3/unstable/GtkEntry.html#GtkEntry--visibility][whether an text-entry widget should use password mode]] 轻易连接起来。GObject 中的多态（[[http://en.wikipedia.org/wiki/Polymorphism_in_object-oriented_programming][Polymorphism]]）是由嵌入类结构中的虚函数表（[[http://en.wikipedia.org/wiki/Vtable][virtual method table]] ）提供的（[[http://git.gnome.org/browse/gnome-online-accounts/tree/src/goabackend/goaprovider.h?id=3.1.0#n57][example]] ），它也提供了一个使用函数指针的 C 函数（[[http://git.gnome.org/browse/gnome-online-accounts/tree/src/goabackend/goaprovider.c?id=3.1.0#n313][example]] ） —— 注意到派生类型可以访问这个类结构，直到派生链的链头（[[http://git.gnome.org/browse/gnome-online-accounts/tree/src/goabackend/goagoogleprovider.c?id=3.1.0#n245][example]]）。
+
+C 中的面向对象设计的一个重要特性是，它通常通过使用不透明数据类型（[[http://en.wikipedia.org/wiki/Opaque_data_type][opaque data types]]）达到封装（[[http://en.wikipedia.org/wiki/Encapsulation_(object-oriented_programming][encapsulation]])）和数据隐藏的效果 —— 这是可取的，因为它允许对数据类型进行扩展（比如加上更多的属性(properties)和方法）而不需要对使用库的程序进行重新编译。在不透明数据类型中，在 C 结构中的字段会对用户表现为隐藏，并通过使用 getter （[[http://developer.gnome.org/gio/unstable/GApplication.html#g-application-get-flags][example]]）和/或 setter （[[http://developer.gnome.org/gio/unstable/GApplication.html#g-application-set-flags][example]]）变得可用 —— 另外，如果对象模型支持属性，成员也可以作为属性而可用（[[http://developer.gnome.org/gio/unstable/GApplication.html#GApplication--flags][example]]） —— 例如，这对于在属性发生变化时进行通知（[[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#GObject-notify][notifying when the property changes]]）是有用的。
+
+当然，不是所有的数据结构都需要成为全面（full-blown）的 GObject —— 例如，某些情况下数据隐藏并不可取（有时使用 C getter 函数是很尴尬的）或在内部循环使用的速度太慢（直接数据访问无疑会更快）。另外，对于简单的数据结构，有时直接在代码中对其进行初始化更为可取。
+
+即便没有全面使用对象模型（像是 GType 和 GObject），使用非透明数据结构和 getters/setters 永远不是个坏注意。作为它的一个有趣的例外，注意到有些库显式允许扩展一个 C 结构而不需要考虑 ABI 的变化（[[http://git.0pointer.de/?p=libatasmart.git;a=blob;f=atasmart.h;h=aa4e339cb4bfa882c7d1b5608663d000d0166ba0;hb=HEAD#l106][allows extending a C structure without considering it an ABI change]]） —— 当没有简单的方法来确保这一点时（用户可能会把结构分配在栈上），库的作者至少能够总是告诉程序员不要这么做（也许有用吧）。
+
+** 清单
+
+- 为你的库建立一个对象模型（如果适用的话）
+
+- 尽可能地隐藏实现细节，在不影响性能的情况下
+
+- 确保你能在不破坏 API 和 ABI 的情况下对库进行扩展
+
+- 如果可能的话，在一个已有的且易于理解的类型系统上建立你的库（比如 GLib）
