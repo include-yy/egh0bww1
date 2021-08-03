@@ -1,0 +1,144 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 0-我的从0开始的emacs配置
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2021-03-21 Sun]
+#+TAGS: emacs
+
+* 写在前面
+
+本文并不是介绍如何从 0 开始配置一个完整的 emacs 配置过程，而是一系列我将要写的文章的一个主旨概括，或者说是一本书的卷首语。
+
+本文的主要内容包括：我个人的 emacs 使用和学习经历，我个人认为的折腾 emacs 的意义，以及我将来要写的东西的内容。
+
+注意：本文并不是教你学习 Emacs 的最佳实践，文中出现的一些内容可能和 Emacs 的学习有关，至于是不是最适合你的还是看你自己的摸索，与其听我这个晃荡晃荡的半桶水的话，不如货比三家，择良而从之。
+
+* 个人经历
+
+2018年，在学习当代工科大学生都要学习的 C 语言时，我听信了所谓命令行比傻瓜式 IDE 更高级的说法，尝试在 Windows 上使用 Mingw 和 notepad++ 来编写 C 程序。虽说后来知道了 notepad++ 的作者的某些事迹而转而使用 notepad3，但是 notepad++ 也确实是一个相当不错的编辑器软件，相比起连高亮都没有的 VC6.0 也算得上是赏心悦目了。既然都了解到命令行了，那自然我顺着了解到了 linux 上的两大编辑器 —— 神之编辑器 emacs 和编辑器之神 vim。vim 相比 emacs 在大小上轻便不少，但是由于第一次使用 vim 时不知道怎么退出，看着屏幕上一行行的 =~= 我有点摸不着头脑。emacs 相比于 vim 更像是一个正常的编辑器，那就用它了。
+
+在阅读一些介绍性文章之后，我发现大部分文章中称道的都是 emacs 的可扩展性，通过 .emacs 中的代码就可以自定义 emacs。看了看奇形怪状的 elisp 代码，我选择了放弃。在浅尝辄止地尝试了 =package-list-package= 上面几个插件后，我就搁置了对 emacs 的折腾，安安心心地去用宇宙第一 IDE —— Visual Studio 了。
+
+再后来，大约是2019年，阅读了 Yin Wang 的一些文章之后，我对 Lisp 系的语言有了一些了解。带着兴趣，我对 Lisp 的一种方言 —— Scheme 投入了一定的精力进行学习。Scheme 的括号套括号让我重新拾起了 Emacs，它提供的括号高亮让括号匹配变得简单了很多，scheme-mode 也提供了表达式求值的快捷键，以及在 buffer 中运行 scheme 解释器的能力，这样就没有必要写完代码后再一段一段复制到终端里了。这一时期，Emacs 成了我的 IDE，使用 Emacs 和 chez-scheme，我完成了 SICP 1-3 章的学习。
+
+Emacs 的 paredit-mode 让我彻底摆脱了括号匹配的痛苦，直到这时我才意识到除了 gnu-elpa 外还存在其他的插件。偶然搜索 emacs 时，我发现了子龙山人的 Emacs 教程【1】 ，照着他的代码加入 elpa 源后，list-package 瞬间暴涨到了上千个插件！通过 Emacs 自带的包管理我可以相当方便的下载和体验插件。但是在使用过多插件后 Emacs 的启动时间明显变长了不少，我所有的配置都堆在 .emacs 文件里，显得十分杂乱。由于不会 elisp 不知如何下手，我对 Emacs 再次丧失了兴趣，连子龙山人的教程都没读完。
+
+又是一次偶然的搜索，我发现了 redguardtoo 的《一年成为Emacs高手》【2】，文中提到的要点对我有很大的启发，即：
+
+- 不要从头创建自己的配置
+- 不要记快捷键
+- 不要学习 Lisp
+
+对于一点 Lisp（毕竟 lisp 和 scheme 差的有点多）也不会的我，从 0 开始创建配置是不可能完成的任务，借用他人的配置是新手最佳的选择。我从 github 上下载了 redguardtoo 的配置（最好直接下载或 clone --depth 1，实在是太大了）并一直使用至今。他的配置启动速度很快，由于不懂 Lisp，我也不知道如何准确评价配置的好坏，直观的感觉就是用起来十分顺手，Emacs + evil，那我就是神用神之编辑器。使用期间我在 github 上提过一次 issue，过了一天之后问题就得到了修复。
+
+到了这里，我已经对 Emacs 的具体使用有了一定的经验了，对所谓的结构化配置有了一定的了解，知道了基本的 =require/provide= 机制。在参考 emacs-china 上各种各样的讨论之后，我觉得我的配置之路可以正式开始了。manateelazycat 在【3】中展示了使用 git 管理插件的方法，也许可以拿来一用。
+
+manateelazycat 在 emacs-china 的一个帖子中这样写道：
+
+#+BEGIN_QUOTE
+学习Emacs有几条曲线:
+
+1. 先会用基本的快捷键, 安装各种简单的插件, 抄各种各样的配置, 先体验一下Emacs的强大功能.
+
+2. 安装复杂插件, 被各种配置搞崩溃了, 越改挂的越厉害, 大部分人卡在这个阶段, 因为不会Elisp, 导致东拼西凑的方法对于复杂插件行不通
+
+3. 你搞不懂Emacs复杂的配置的原因是因为你不懂 Elisp 编程, 学习Elisp的方法: 老老实实读Emacs内置的 Elisp reference manual, 这么厚的手册怎么学?
+
+- 一页一页的挨着看, 一个API一个API的读, 不要跳过
+
+- 每个API, 都在 ielm 里面实践一下
+
+- 遇到不知道啥鬼用的 API, 去 Google 或 EmacsWiki 上搜索一下, 看看别人怎么用这些API的?
+
+4. 如果你花了一个月耐下心读完 Elisp reference manual 以后, Emacs 90% 以上的代码你都可以看懂了, 继续折腾复杂插件, 知道 require, autoload, set-key, 各种 hook, defadvice 的在不同环境下的细微差别, 编程上知道 save-excursion, ignore-errors 这些风骚 macro 的用法. 这个阶段可以尝试手动来写一写复杂的配置了, 这个阶段你已经是 Emacs 高级用户了.
+
+5. 如果还不满足, 可以像我这样造点有趣的轮子: [[https://www.emacswiki.org/emacs/AndyStewart][My Emacs Plugins 39]] , 如果你自己会写Elisp插件, 你会发现Emacs其实是越用越简单的, 因为包括正则表达式, 语法高亮, 模式, 异步子进程, hook, overlay, advice 这些代码你写熟悉以后, 你会发现所有插件的唯一差别就是复杂度和想象力的区别, 不存在想得出来写不出来的东西.
+
+6. 到了这个阶段, 唯一可以让你学习到更多知识的就是去 IRC [[https://emacs-china.org/c/5-emacs][#emacs]] 和那些古老的黑客们交流, 或者去扒Github Emacser, 我知道很多日本牛逼哄哄的 Emacs 开发者都把插件放到 ftp 上 (比如当年的 color-moccur.el ), 学点 Google 语法就可以定向搜索. 这些人都是你会写Emacs插件后, 需要学习和进阶的榜样, 这时候你再看Elisp代码, 你的注意力会放在他们Elisp编程的一些细节上, 比如代码写的更简洁, 方法用的妙, 架构设计上等等, 这是完全不同阶段的探索体验.
+
+7. 如果你还不满足, 好好学习C语言, 然后再找个赚钱的工作, 把自己和家人照顾好. 业余时间直接用C或Elisp给Emacs底层做贡献, 把你的代码贡献固化到Emacs中, 然后你的名字可以像我一样写到 Emacs AUTHORS 里面去装逼: [[https://github.com/emacs-mirror/emacs/blob/7f95e1aec3014f32366129bcbf61675ab858f053/etc/AUTHORS#L349][Emacs AUTHORS 107]]
+
+如果你已经看到这里, 而且也做到上面的所有7点, 你自己的能力和精神境界都会很高了, 再也不会咋咋呼呼的吵着自己的技术要咋样咋样, 因为你会发现学的越多, 自己就是傻逼一个, 啥都不懂, 这辈子即使终身学习也学习不完, 哈哈哈哈.
+
+上面就是我学习Emacs十多年的经验分享, 希望可以给同学们一点参考.
+#+END_QUOTE
+
+按照上面的分级的话，我现在的位置就是第 3 点描述的情况。是时候学点 elisp 了。
+
+* 为什么要折腾 emacs
+
+首先，折腾 Emacs 很好玩，我有折腾的兴趣。
+
+其次，manateelazycat 在一个帖子【5】中这样描述到：
+
+#+BEGIN_QUOTE
+在特定领域，比如JavaScript、C++等语言，VSCode 和 IDEA 的IDE有无与伦比的优势，开箱即用，交互友好。
+
+如果真的只是拿流行语言去工作和快乐生活，真的，VSCode 要比 Emacs 好很多，补全流畅，啥都有。
+
+Eclipse、IDEA、VSCode、VIM我都严肃的用过（当然没有Emacs用的多），用过之后仍然选择Emacs的理由：
+
+1. 如果你学习十几门编程语言的情况下，VSCode/IDEA 这些对非主流的编程语言的支持几乎是处于贫瘠的边缘
+2. Emacs的生产力在于整体作战的能力，虽然语法补全依然很渣，但是在 dired、magit、ripgrep等方面几乎是无敌的，因为没有别的编辑器或者IDE会像这样设计软件和全键盘操作
+3. Emacs写插件的知识门槛很高，但是一旦你学会Elisp，你会发现你很快乐的就实现你想要的插件效果，在你收集高手的插件加上自己写插件，你会发现自己的编程环境简直舒服的无与伦比。VSCode/IDEA需要考虑大众程序员的习惯，所以会在交互设计和超高生产力上会做取舍和平衡，但是你在Emacs中，你可以完全不受商业公司的影响，只要你自己肯钻研，你的生产力会越来越高，打个比方， VSCode是初始速度非常快的性感跑车，Emacs就是一个老爷车，但是它的加速度会持续几十年，你越用越顺手，最终速度会比IDE快很多。
+
+当然，最后每个人都有自己的选择，不必为放弃Emacs感到…，喜欢啥就用啥。
+#+END_QUOTE
+
+Emacs 在单方面的能力可能比不过特化的 IDE，但是它胜在整体作战的能力。
+
+* 之后会写的东西
+
+现在，是时候去读一读 Elisp mannual【6】 了，学会使用 elisp 并组织自己的一套配置出来。
+
+在读文档的过程中肯定会遇到不少的坑，可能是文档中没有足够详细的代码示例，可能是自己实操和文档说明不一致，等等。所以，我接下来要写的文章的内容主要是与官方文档相关的内容。
+
+目前想出来的大概是以下这些：
+
+- 不熟悉的函数和宏的用法
+
+- 容易出错的点
+
+- Emacs 常见疑难杂症
+
+- 好玩的插件和配置
+
+- +好看的二刺猿图+
+
+- ......
+
+
+* 4、延申阅读
+
+** 配置相关
+
+1、lazycat 的 emacs 配置：[[https://github.com/manateelazycat/lazycat-emacs][manateelazycat/lazycat-emacs: Andy Stewart's emacs (github.com)]]
+
+2、redguardtoo 的 Emacs 配置：[[https://github.com/redguardtoo/emacs.d][redguardtoo/emacs.d: Fast and robust Emacs setup. (github.com)]]
+
+3、purcell 的 Emacs 配置：[[https://github.com/purcell/emacs.d][purcell/emacs.d: An Emacs configuration bundle with batteries included (github.com)]]
+
+** 博客相关
+
+1、王垠的 Emacs 整理：[[https://docs.huihoo.com/homepage/shredderyin/emacs.html][Emacs (huihoo.com)]]
+
+2、lazycat 的博客：[[https://manateelazycat.github.io/][ManateeLazyCat]]
+
+** 论坛相关
+
+reddit 上有 r/emacs，国内有 emacs-china，上面都有非常不错的内容。
+
+与 Emacs 相关的资料浩如烟海，这只是其中的一小部分。
+
+* 正文中出现的链接
+
+<<<【1】>>> [[http://book.emacs-china.org/][Master Emacs in 21 Days (emacs-china.org)]]
+
+<<<【2】>>> [[https://github.com/redguardtoo/mastering-emacs-in-one-year-guide/blob/master/guide-zh.org][mastering-emacs-in-one-year-guide/guide-zh.org at master · redguardtoo/mastering-emacs-in-one-year-guide (github.com)]]
+
+<<<【3】>>> [[https://emacs-china.org/t/emacs/7116][讨论一下Emacs半手动包管理 - Emacs-general - Emacs China (emacs-china.org)]]
+
+<<<【4】>>> [[https://emacs-china.org/t/emacs/7532/16][以你多年的经验，请写出一个新手学习emacs的路线建议。 - Emacs-general - Emacs China (emacs-china.org)]]
+
+<<<【5】>>> [[https://emacs-china.org/t/emacs/9477/25][为什么我放弃emacs了？ - 闲聊灌水 - Emacs China (emacs-china.org)]]
+
+<<<【6】>>> https://www.gnu.org/software/emacs/manual/html_node/elisp/index.html#SEC_Contents
