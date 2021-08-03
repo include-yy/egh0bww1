@@ -1,0 +1,234 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: Windows窗口与消息：窗口属性
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNTAxODg5.jpg" alt="load failed"></div>@@
+#+DATE: [2020-07-01 Wed]
+#+TAGS: windows
+
+* 什么是窗口属性
+
+窗口属性是分配给窗口的任意数据。窗口属性通常是窗口特定数据的句柄，但它也可为任何的值。每个窗口属性由一个字符串名字标识。
+
+* 使用窗口属性的好处
+
+窗口属性一般用来将数据与子类化的窗口联系起来，或是用在多文档界面（MDI）应用中。不论哪种情况，使用额外的窗口字节或类字节都是不太方便的，原因如下：
+
+- 应用可能不知道有多少额外字节是可用的，以及空间的使用方式。使用窗口属性，应用可以在不使用额外字节的情况下将数据与窗口关联
+
+- 应用必须使用索引值来访问额外字节。然而，窗口属性是使用字符串标识符而不是索引来进行访问的。
+
+
+* 分配窗口属性
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropa][SetProp]] 函数将一个窗口属性和它的字符串标识符分配给一个窗口。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getpropa][GetProp]] 函数通过指定字符串来检索窗口属性。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-removepropa][RemoveProp]] 函数会销毁窗口与窗口属性之间的关联，但不会销毁数据。要销毁数据，需要使用合适的函数来释放由 RemoveProp 返回的句柄。
+
+* 枚举窗口属性
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] 函数通过使用应用定义的回调函数来枚举所有的窗口属性。关于枚举回调函数的信息，可见于 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-propenumproca][PropEnumProc]] 。
+
+* 代码示例
+
+从官方文档上面列出的使用原因来看，这大概是对 *wndextrabytes* 的改进，使用额外字节不如使用字符串来进行索引。
+
+微软官方给出了相关函数的具体使用方式，可以在 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/using-window-properties][Using Window Properties]] 看到。
+
+*Programming Windows* 的鼠标操作一章中有一个叫做 CHECKER 的示例程序，它将一个窗口分为数个矩形。若鼠标单击了某一个矩形，程序会为矩形画两条相交的对角线。若矩形已经画了对角线，则擦除对角线。书上的代码在窗口回调函数中使用了一个静态数组来记录每个小矩形的绘制情况。那么这里也可以将记录数据的数组添加到窗口属性中。（有点大炮打蚊子了）
+
+在 VS 2019 中创建一个 Win32 窗口项目。
+
+首先，指定字符串，以及指定窗口的横纵分隔数量：
+
+#+BEGIN_SRC c
+TCHAR fState[] = TEXT("yystate");
+TCHAR wndSize[] = TEXT("yysize");
+#define DIV 5
+#+END_SRC
+
+在窗口创建时，同时创建一个保存状态的数组，并将指针作为句柄添加到窗口属性中。
+
+窗口改变大小时，会发送 WM_SIZE 消息，其中包含窗口的新的宽和高，这也可以放入窗口属性中。
+
+窗口大小改变时，需要对整个窗口重新进行绘制，可以把对角线的绘制逻辑放入 WM_PAINT 的消息处理中。
+
+窗口回调函数如下：
+
+#+BEGIN_SRC c
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    HDC hdc;
+    PAINTSTRUCT ps;
+    RECT rect;
+    PBOOL pstate = NULL;
+    PINT psize = NULL;
+    int x, y;
+
+    switch (message)
+    {
+    case WM_CREATE:
+        //state array
+        pstate = (PBOOL)malloc(sizeof(BOOL) * DIV * DIV);
+        if (!pstate)
+            exit(EXIT_FAILURE);
+        for (int i = 0; i < DIV * DIV; i++)
+            pstate[i] = FALSE;
+        if (!SetProp(hWnd, szState, (HANDLE)pstate))
+            exit(EXIT_FAILURE);
+        //size array
+        psize = (PINT)malloc(sizeof(INT) * 2);
+        if (!psize)
+            exit(EXIT_FAILURE);
+        for (int i = 0; i < 2; i++)
+            psize[i] = 0;
+        if (!SetProp(hWnd, szWndSize, (HANDLE)psize))
+            exit(EXIT_FAILURE);
+        return 0;
+
+    case WM_SIZE:
+        psize = (PINT)GetProp(hWnd, szWndSize);
+        //zero index for width, one index for height
+        psize[0] = LOWORD(lParam) / DIV;
+        psize[1] = HIWORD(lParam) / DIV;
+        psize = NULL;
+        return 0;
+    case WM_LBUTTONDOWN:
+        psize = (PINT)GetProp(hWnd, szWndSize);
+        x = LOWORD(lParam) / psize[0];
+        y = HIWORD(lParam) / psize[1];
+
+        if (x < DIV && y < DIV)
+        {
+            pstate = (PBOOL)GetProp(hWnd, szState);
+            pstate[x + y * DIV] ^= 1;
+            rect.left = x * psize[0];
+            rect.top = y * psize[1];
+            rect.right = (x + 1) * psize[0];
+            rect.bottom = (y + 1) * psize[1];
+            InvalidateRect(hWnd, &rect, FALSE);
+
+            psize = NULL;
+        }
+        else
+            MessageBeep(0);
+        return 0;
+
+    case WM_COMMAND:
+        {
+            int wmId = LOWORD(wParam);
+            // Parse the menu selections:
+            switch (wmId)
+            {
+            case IDM_ABOUT:
+                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+                break;
+            case IDM_EXIT:
+                DestroyWindow(hWnd);
+                break;
+            default:
+                return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+        }
+        break;
+    case WM_PAINT:
+        hdc = BeginPaint(hWnd, &ps);
+        psize = (PINT)GetProp(hWnd, szWndSize);
+        pstate = (PBOOL)GetProp(hWnd, szState);
+        for (x = 0; x < DIV; x++)
+        {
+            for (y = 0; y < DIV; y++)
+            {
+                Rectangle(hdc, x * psize[0], y * psize[1],
+                    (x + 1) * psize[0], (y + 1) * psize[1]);
+                if (pstate[x + y * DIV])
+                {
+                    MoveToEx(hdc, x * psize[0], y * psize[1], NULL);
+                    LineTo(hdc, (x + 1) * psize[0], (y + 1) * psize[1]);
+                    MoveToEx(hdc, x * psize[0], (y + 1) * psize[1], NULL);
+                    LineTo(hdc, (x + 1) * psize[0], y * psize[1]);
+                }
+            }
+        }
+        EndPaint(hWnd, &ps);
+        psize = NULL;
+        pstate = NULL;
+        return 0;
+    case WM_DESTROY:
+        psize = (PINT)RemoveProp(hWnd, szWndSize);
+
+        pstate = (PBOOL)RemoveProp(hWnd, szState);
+
+        free(psize);
+        free(pstate);
+        PostQuitMessage(0);
+        break;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
+}
+#+END_SRC
+
+如果你看过 *Programming Windows* 上的程序，你会明显感觉上面的这段程序要长了不少，多出来的部分就是对两种窗口属性的初始化和存取，使用静态变量则不需要这些 getter 操作。
+
+在我看来，函数中的静态变量一旦被定义，它就“弥散”到了整个函数中，它的使用范围可能会不经意间超出我的预料。全局变量也是如此，如果定义了全局变量而不对它的使用范围进行相应的限制的话，它的踪迹是相当的难以捉摸。
+
+自然，如果我在上面的代码中使用静态变量，我也一样可以使用 getter/setter 函数对其进行一下包装，那么使用窗口属性的好处在哪？就我个人来看的话，窗口属性将数据与窗口进行了绑定，就如同将一系列的全局变量放入了一个结构中，有利于对属性的统一管理。额外字节也是属于窗口的，但是没有窗口属性那样直接，它适合于简单的数据存储。
+
+** 窗口属性的枚举
+
+在上面的代码中，我将窗口的宽度和高度以及窗口的点击状态设置为了窗口属性。如果要枚举当前全部的窗口属性，可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] 或 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] 函数。枚举操作由用户定义的回调函数完成。
+
+回调函数的函数原型如下：
+
+#+BEGIN_SRC c
+BOOL Propenumproca(
+  HWND Arg1,
+  LPCSTR Arg2,
+  HANDLE Arg3
+)
+{...}
+#+END_SRC
+
+*Arg1* 是要进行枚举的窗口
+
+*Arg2* 是属性的字符串
+
+*Arg3* 是属性的句柄
+
+对于上面的程序，这里我只考虑将它的窗口属性全部列出，回调函数可以写成这样：（需要 strsafe 头文件）
+
+#+BEGIN_SRC c
+BOOL CALLBACK EnumProc(HWND hwnd, LPCTSTR lpstr, HANDLE hd)
+{
+    static int icnt = 0;
+    TCHAR tchBuffer[100];
+    size_t size = 0;
+
+    HDC hdc;
+    HRESULT hRes;
+
+    hdc = GetDC(hwnd);
+    hRes = StringCchPrintf(tchBuffer, 100, TEXT("%s"), lpstr);
+    hRes = StringCchLength(tchBuffer, 100, &size);
+    TextOut(hdc, 10, icnt++ * 20, tchBuffer, size);
+    ReleaseDC(hwnd, hdc);
+
+    return TRUE;
+}
+#+END_SRC
+
+通过右键来触发窗口属性字符串的打印：
+
+#+BEGIN_SRC c
+case WM_RBUTTONDOWN:
+        EnumProps(hWnd, EnumProc);
+        break;
+#+END_SRC
+
+运行程序，当按下鼠标右键时，会打印出所有的窗口属性字符串。除了上面我添加的 yystate 和 yysize，还可以看到一个叫做 =ShellPositionerManager:PriortyList= 的属性字符串。
+
+当添加了这个右键事件处理和枚举后，若改变窗口尺寸，会在 =DispatchMessage= 处抛出异常。暂时没有发现问题的原因。
+
+* 参考资料
+
+<<<【1】>>> About Window Properties：https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-properties
+
+<<<【2】>>> /Programming Windows/ , Charles Petzold
