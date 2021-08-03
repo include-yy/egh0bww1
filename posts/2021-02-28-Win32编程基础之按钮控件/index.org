@@ -1,0 +1,241 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: Win32编程基础之按钮控件
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS9wb3N0L3Nob3cvMjI4MjY2MjY=.jpg" alt="load failed"></div>@@
+#+DATE: [2021-02-28 Sun]
+#+TAGS: windows
+
+按钮是一种控件，用户可以通过点击它来为应用提供输入，它的类名是 =button= 。
+
+按钮有几种不同的类型，而且有一种或多种可用来区分相同类型按钮的样式。用户通过鼠标或键盘点击按钮，对按钮的点击一般会改变它的外观和状态。按钮可以向它的父窗口发送消息，父窗口也可以向它发送消息。有些按钮是由系统绘制的，有些则是由应用绘制的。
+
+* 按钮消息
+
+** 向按钮发送消息
+
+父窗口可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]] 或 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]]、[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkdlgbutton][CheckDlgButton]]、[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkradiobutton][CheckRadioButton]]、[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] 函数来向按钮发送消息。
+
+应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] 消息来检索复选框或单选按钮按钮的选择状态，也可以使用 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] 消息来检索按钮的当前状态。
+
+参考微软官方文档，可用的消息有：
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-click][BM_CLICK]]，向按钮发送 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttonup][WM_LBUTTONUP]] 消息，并向按钮的父窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 通知码
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]]，返回按钮的选择状态
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]]，设置按钮的选择状态，用于所有样式的单选按钮和复选框。对于单选按钮，如果 *wParam* 的值大于 0，则按钮会被赋予 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_TABSTOP]] 样式
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getimage][BM_GETIMAGE]]，返回和按钮关联的位图或图标的句柄，如果按钮没有位图或图标则返回 NULL
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setimage][BM_SETIMAGE]]，将按钮与指定的位图或图标关联起来，并返回先前使用的位图或图标的句柄
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]]，获取按钮的当前的选择状态、按压状态（push state）和焦点状态（focus state）
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]]，设置按钮的按下状态。对于自绘按钮，如果按钮的状态发生改变，则会向父窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] 消息
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstyle][BM_SETSTYLE]]，设置按钮的样式，如果 LOWORD(lParam) 为 TRUE，按钮会被重绘
+
+
+** 从按钮接收消息
+
+从按钮发送的消息是 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-notify][WM_NOTIFY]] 消息。当用户点击按钮时，它的状态会发生改变，按钮会以 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] 消息的形式向父窗口发送通知码。例如，在用户点击按钮时，按键按钮会向父窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 通知码。
+
+WM_COMMAND 消息的 *wParam* 参数的低位字是控件的标识符，高位字是通知码， *lParam* 参数是控件的窗口句柄。
+
+按钮消息和父窗口的响应取决于按钮的类型，样式和按钮的当前状态。下面是一些按钮通知码：
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]]，用户点击了按钮
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-doubleclicked][BN_DOUBLECLICKED]]，用户双击了按钮
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]，按钮被禁用了
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]，按钮需要被绘制
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]]，按钮丢失和获取键盘输入焦点
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-hilite][BN_HILITE]]，用户按下按钮
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unhilite][BN_UNHILITE]]，按钮不再被按下
+
+
+仅当按钮有 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_NOTIFY]] 样式时，按钮才会发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] 和[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] 通知码。[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_USERBUTTON]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_OWNERDRAW]] 的按钮能自动发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] 通知码，而其他类型按钮需要指定 BS_NOTIFY 样式。所有的按钮都能够发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 消息，不论它是什么类型
+
+对于自动按钮，系统会改变按钮的按下状态并绘制按钮。这种情况下，应用一般只需要处理 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] 通知。对于非自动按钮，应用一般通过向按钮发送消息来响应按钮的通知码。
+
+当用户选择自绘按钮时，按钮会向父窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] 消息，其中包含控件标识符以及按钮的尺寸和状态信息。
+
+实际上，上面的一些通知码已经过时了，Windows 程序设计第五版中这样写到：
+
+#+BEGIN_QUOTE
+实际上，大多数按钮值你都不会见到，PUSH 和 UNPUSH 消息用于过时的 BS_USERBUTTON 按钮样式（它已经被 BS_OWNERDRAW 和另外一套机制所取代）。
+#+END_QUOTE
+
+** 颜色消息
+
+系统为按钮提供了默认的颜色值。应用可以通过调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsyscolor][GetSysColor]] 来获取默认值，或通过 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setsyscolors][SetSysColors]] 来设置这些值。
+
+和按钮相关的系统颜色有：
+
+- COLOR_BTNFACE，按钮背景色
+
+- COLOR_BTNHIGHLIGHT，按钮高亮区域颜色
+
+- COLOR_BTNSHADOW，按钮阴影颜色
+
+- COLOR_BTNTEXT，按钮的文字颜色
+
+- COLOR_GRAYTEXT，按钮的灰字（被禁用时）颜色
+
+- COLOR_WINDOW，窗口背景色
+
+- COLOR_WINDOWFRAME，窗口框架颜色
+
+- COLOR_WINDOWTEXT，窗口文字颜色
+
+
+可以通过 SetBkColor 和 SetTextColor 来改变背景和文本的颜色。不过这需要对 WM_CTLCOLORBTN 消息进行处理。
+
+* 按钮状态
+
+用户可以通过三种方法来选择一个按钮：使用鼠标点击、使用 TAB 键移动到它并按下 Enter 键，或（如果按钮使用 WS_GROUP 归入一个组的话）使用 TAB 移动到一个组并使用方向键在组中移动。
+
+对按钮的选择一般会导致以下事件的发生：
+
+- 系统将键盘焦点给该按钮
+
+- 按钮向它的父窗口发送消息通知它被选中了
+
+- 父窗口向它发送消息来改变按钮状态
+
+- 父窗口对按钮进行重绘来反映它的新状态
+
+
+** 焦点状态
+
+焦点状态适用于复选框，单选按钮，按键按钮，或自绘按钮。按钮在用户选择它时获得键盘焦点，并在用户选择其他控件时丢失焦点。在某一时间只有一个控件能拥有焦点。
+
+当按钮拥有键盘焦点时，系统一般会高亮按钮文本，图标或位图。另外，按键按钮在获得焦点时有一圈深色粗线。系统会自动改变自动按钮的高亮，但是应用需要通过发送消息来改变非自动按钮的高亮。
+
+** 按压状态
+
+按压状态适用于按键按钮，复选框，单选按钮或三选框，但不适用于其他按钮。按钮的按压状态可以是按下或没有按下。当按键按钮（使用 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHLIKE]] 样式的任一按钮）被按下时，按钮会被绘制为按下的样子，当不被按压时，它会被绘制为原状。当复选框、单选按钮或三选按钮被点击时，它们的背景会变灰，当不被点击时，按钮背景会复原。
+
+** 选择状态
+
+选择状态适用于复选框、单选按钮或三选按钮，不适用于其他按钮。这个状态可以是选中、清除（cleared）或（对于三选框）不确定。复选框在它拥有选择标记时是被选择状态，没有则是清除状态。单选按钮在它拥有黑点时是选择状态，没有则是清除状态。三选框在有选择标记时是选择状态，没有则是清除状态，当它包含灰色框时则是不确定状态。系统会自动改变自动按钮的选择状态，应用需要改变非自动按钮的选择状态。
+
+** 改变按钮状态
+
+当用户选中按钮时，一般而言是需要改变按钮的某个状态的。系统会自动改变所有按钮的焦点状态，按键按钮的按压状态，以及所有自动按钮的选择状态。应用必须做出其他的状态改变，考虑按钮的类型，样式和当前状态。下面列出了对各个按钮类型必须要做出的改变：
+
+- 复选框必须改变选择状态
+
+- 单选按钮必须改变选择状态。改变在同一组中的其他单选按钮状态也许是必须的，因为要确保单选按钮的天然互斥性
+
+- 因为自绘按钮的状态是依赖于应用的，自绘按钮需要改变的东西可以是多样的。组合框的类型无需改变，因为用户不能选中组合框
+
+
+应用可以向按钮发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] 来获取状态，并通过 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]] 或 [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]] 消息来设置按钮状态。
+
+* 按钮的种类和样式
+
+** 复选框（Check Box）
+
+复选框由方框和表明选项的内容组成，它可以是标签、图标或位图。应用一般使用复选框来允许用户选择一个或多个并不互斥的选项。
+
+复选框可以有四种样式，标准、自动、三选和自动三选，通过 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_CHECKBOX]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTOCHECKBOX]]，[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_3STATE]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTO3STATE]] 来选择。重复点击标准或自动复选框可以将它从选择状态变为清除状态，接着又变回去。重复点击三选框可以将它从选择状态变为清除状态，并接着变为不确定状态，如此往复。
+
+当用户点击复选框时，复选框会得到键盘焦点。系统会向复选框的父窗口发送包含 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 通知码的 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] 消息。如果这个消息来自自动复选框或自动三选框，父窗口不必处理这个消息，因为系统自动设置了选择状态。但是如果消息来自非自动按钮的话，父窗口需要处理这条消息，因为父窗口负责设置复选框的选择状态。不论复选框是什么样式，系统都会在按钮改变状态时进行重绘。
+
+应用可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] 函数来判断复选框的状态。
+
+** 组合框（Group Box）
+
+组合框是一个包含一系列控件的矩形，它的左上角有一个应用定义的文字标签。使用它的唯一目的是将目的相关的一组控件框起来。组合框只有一个样式，那就是 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_GROUPBOX]]。因为它不能被选中，它没有选择状态、焦点状态和按压状态。
+
+** 按键按钮（Push Button）
+
+按键按钮是一个含有应用定义内容的矩形，内容可是是文本，图标或位图。
+
+按键按钮可以是两种样式，标准或默认样式，它们使用 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHBUTTON]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_DEFPUSHBUTTON]] 来定义。标准按键按钮一般用来开始一个操作。它在用户点击它时接收键盘焦点。默认按键按钮一般用来提示通用的或默认的选择，比如关闭对话框。如果在对话框中没有其他按键按钮具有键盘焦点的话，用户按下 Enter 键就可以选中它。
+
+当用户点击按键按钮时，系统会向按键按钮的父窗口发送带有 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 通知码的 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] 消息。
+
+Windows 程序设计中还提到：按键按钮的最佳视觉高度是字符高度的 7/4。
+
+在微软的文档中，还介绍了 split button 和 command link 两种特殊的按键按钮，详情可见于参考资料【5】。
+
+** 单选按钮（Radio Button）
+
+单选按钮由一个圆形按钮和表明按钮作用的应用定义内容组成。应用一般在一个组合框中使用单选按钮来让用户选择一系列相关但互斥的选项。
+
+单选按钮有两种样式，标准或自动，使用 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTORADIOBUTTON]] 定义。每种样式都有两种选择状态：选择（按钮中有个点）或清除（没有点）。
+
+当用户选择状态时，单选按钮会收到键盘焦点。系统会向按钮的父窗口发送带有 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] 通知码的 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] 消息。如果使用了自动样式，父窗口不需要处理这个消息，否则需要处理。系统会在状态改变时自动重绘按钮。
+
+单选按钮一般排列在组合框中，同一时间只能选择一个按钮。如果为某一单选按钮使用了 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_GROUP]] 样式，那么该按钮就是组中的第一个按钮，随后所有的按钮（不含 WS_GROUP 标志的）都是按照 TAB 排列的一组按钮，直到遇到下一个带有 GROUP 标志的单选按钮为止。如果没有单选按钮拥有 WS_GROUP 标志，那么在对话框中的所有单选按钮都被看做一组按钮。
+
+应用可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] 函数来判断单选按钮的状态。
+
+** 其他样式
+
+显示图标或位图：
+
+- BS_BITMAP，指定按钮显示位图
+
+- BS_ICON，指定按钮显示图标
+
+
+显示文本相关：
+
+- BS_TEXT，指定按钮显示文本
+
+- BS_BOTTOM，将文本放在按钮矩形的底端
+
+- BS_VCENTER，文本放置于按钮矩形的垂直中心
+
+- BS_TOP，文本放置于按钮矩形顶端
+
+- BS_lEFT，使文本在按钮矩形中左对齐，如果按钮是组合框或单选按钮且没有 BS_RIGHTBUTTON 标志，文本会在复选框或单选按钮的右边进行左对齐（而不是按钮矩形的左边框处）
+
+- BS_CENTER，文本放置于按钮矩形水平中心处
+
+- BS_RIGHT，使文本在按钮矩形中右对齐，也受到 BS_RIGHTBUTTON 的影响，效果相似
+
+- BS_MULTILINE，如果文本字符串无法一行放下，将文本分成几行
+
+- BS_LEFTTEXT 和 BS_RIGHTBUTTON，将单选按钮的圆或复选框的方框放到按钮矩形的右边
+
+
+通知消息：
+
+- BS_NOTIFY，允许向父窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] 和 [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] 通知。
+
+其他：
+
+- BS_PUSHLIKE，让按钮看起来像是按键按钮。按下时按钮会呈现出下沉效果，松开后回复原状
+
+- BS_OWNERDRAW，创建自绘按钮。当按钮的外观需要发生改变时，父窗口会收到 [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] 消息。这个标志只能单独使用。
+
+
+* 代码示例
+
+鉴于按钮比较简单，这里感觉没必要给出很多的代码，故直接使用官方的教程链接：
+
+[[https://docs.microsoft.com/en-us/windows/win32/controls/create-a-button][How to Create a Button - Win32 apps | Microsoft Docs]]
+
+* 参考资料
+
+<<<【1】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-messages#handling-messages-from-a-button][Button Messages - Win32 apps | Microsoft Docs]]
+
+<<<【2】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/control-messages][Control Messages - Win32 apps | Microsoft Docs]]
+
+<<<【3】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/bumper-button-control-reference-messages][Button Control Messages - Win32 apps | Microsoft Docs]]
+
+<<<【4】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-states][Button States - Win32 apps | Microsoft Docs]]
+
+<<<【5】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-types-and-styles][Button Types - Win32 apps | Microsoft Docs]]
+
+<<<【6】>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][Button Styles (Winuser.h) - Win32 apps | Microsoft Docs]]
+
+<<<【7】>>> /Programming Windows/ —— Charles Petzold
