@@ -1,0 +1,659 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: Scheme的callcc
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-08-11 Tue]
+#+TAGS: scheme lisp
+
+本文是 include-yy 对 scheme 中的 call-with-current-continuation 过程相关知识的总结。内容包括对延续（continuation）的理解，对 call/cc 过程的使用用例，以及对延续传递风格（continuation-passing style, cps）的简单介绍。
+
+那么，先从 continuation 的概念开始吧。
+
+* 什么是 continuation
+
+根据维基百科上【1】的介绍，continuation 是计算机程序控制状态的一种抽象表示，它实现了程序的控制状态。换句话说，continuation 可以是一种数据结构，它表现了程序在运行过程中某一点的状态。在某些编程语言中（比如 scheme），该数据结构可以访问而不是被运行时环境隐藏（比如 C）。continuation 也可以用来表示 first-class continuation，它允许编程语言存储程序执行过程中任何一点的执行状态，并一次或多次向这个点返回。
+
+current continuation 是这样一种 continuation，它从当前程序执行点处得到。
+
+维基百科上的介绍看上去可能有些生涩难懂， /The Scheme Programming Language/ 【2】上有着更好的解释。Kent 在该书的第 3 章第 3 小节这样写到：
+
+#+BEGIN_QUOTE
+在对 Scheme 表达式求值时，Scheme 实现必须搞清楚两件事：
+
+1. 对什么进行求值（what to evaluate）
+
+2. 如何处理这个值（what to do with the value）
+
+我们将 “如何处理这个值” 称为某个表达式求值的 continuation
+#+END_QUOTE
+
+理解了这两句话，就可以说是理解了 continuation 为何物。Kent 在书中使用了以下代码来作为例子：
+
+#+BEGIN_SRC scheme
+(if (null? x) (quote ()) (cdr x))
+#+END_SRC
+
+上面代码的功能是判断 x 是否为空表，若是，则表达式的值为空表 ='()= ，否则为 x 的 cdr 部分。首先，我们需要对表达式 =(null? x)= 进行求值，来判断接下来对 if 子表达式的哪一分支进行求值。现在对照 Kent 的两句话，对这个例子，我们可以得到结构相似的另外两句话：
+
+1. 对 =(null? x)= 进行求值
+
+2. 通过 =(null? x)= 表达式的结果来判断 if 语句执行哪条分支
+
+
+那么， =(null? x)= 在上面的 if 表达式中的 continuation 就是：用于接下来对 if 语句分支执行的判断。通俗一点来说，continuation 就是“表达式求值后下一步该做什么”。
+
+现在，我们来考虑整个 if 表达式，它的求值过程也可以写成：
+
+1. 对 =(if (null? x) (quote ()) (cdr x))= 进行求值
+
+2. 拿得到的值做点什么
+
+
+那么究竟要做点什么呢？这得取决于它的求值环境。如果你是在 REPL 中输入这串表达式，那要做的就是把值丢掉（不考虑输出到屏幕）；如果它是赋值语句的一部分，那么下一步就是把这个值赋给相应的变量；如果它是某个过程的最后的表达式，那么要做的就是把值返回给过程的调用者...... 不论是哪种情况，”求值后下一步要做的事“就是某个表达式的 continuation。
+
+continuation 的概念并不限于 scheme，它是一个普遍的概念，只不过其他编程语言可能不能像 scheme 一样通过 call/cc 对 continuation 进行捕获，并对 continuation 进行显式的操作。以下的 C 代码与上面的 scheme 代码功能相同，并且也可以使用相同的方法来分析它的continuation：
+
+#+BEGIN_SRC c
+if (plist != NULL)
+{
+    return plist->next;
+}
+else
+{
+    return NULL;
+}
+#+END_SRC
+
+为了下文叙述的方便，这里引入一个符号 =[a-zA-z]@exp= 来标识表达式， =@= 前面的字母对作为表达式的 id。上面的例子可以写成：
+
+#+BEGIN_SRC scheme
+a@(if b@(null? x) (quote ()) (cdr x))
+#+END_SRC
+
+同时，将某个表达式的 continuation 记为 =k@[a-zA-Z]= ，即上面的 if 表达式和判断表达式的 continuation 分别记为 k@a和 k@b。此处的记号借鉴于文章【3】。
+
+* 什么是 call/cc
+
+scheme 允许任意表达式的 continuation 通过 call/cc 过程来进行捕获。call/cc 接收一个单参数过程 p，并将 current continuation 的具体表示传递给过程 p，continuation 本身使用过程来表示，这里记作 k。每当 k 被应用到一个值时，它会将这个值返回到调用 call/cc 处的 continuation，这个值就成为了调用 call/cc 的结果值。如果 k 没有被调用，过程 p 的返回值将作为 call/cc 表达式的值。
+
+还是以上面的代码来作为例子，不过这里我们加上 call/cc：
+
+#+BEGIN_SRC scheme
+(if (call/cc (lambda(k) (null? x))) (quote ()) (cdr x))
+#+END_SRC
+
+通过 call/cc，我们捕获了 =(null? x)= 的 continuation。虽然获得了它，但是我们没有做任何其他的事情，所以该表达式的结果与没有加 call/cc 的代码没有什么区别。现在，我们将这个 continuation 保存在一个变量中，并对其进行调用来观察它的行为：
+
+#+BEGIN_SRC scheme
+(define x '(1 2 3))
+(define k-if #f)
+
+(if (call/cc
+       (lambda(k)
+          (set! k-if k)
+          (null? x)))
+    '()
+    (cdr x))
+;; (2 3)
+
+(k-if #t)
+;; ()
+
+(k-if #f)
+;; (2 3)
+#+END_SRC
+
+通过将 continuation 保存到变量中并调用该 continuation，我们改变了表达式的行为。通过将 #t 或 #f 传递给 =(null? x)= 的 continuation，if 的执行分支随之改变。
+
+多看几个例子可能会更容易理解 call/cc，例如，以下代码：
+
+#+BEGIN_SRC scheme
+(let ([x (call/cc (lambda (k) k))])
+ (x (lambda (ignore) "hi")))
+#+END_SRC
+
+这个例子表达式的值为 "hi"，此处 call/cc 捕获的 continuation 是将表达式的值赋给 x。 =(lambda(k) k)= 直接将参数作为返回值，也就是说这个 continuation 被赋给了 x。形式性地表示一下就是：
+
+#+BEGIN_SRC scheme
+(let ([x a@(call/cc (lambda (k) k))])
+ (x (lambda (ignore) "hi")))
+=>
+(let ([x k@a])
+ (x (lambda (ignore) "hi")))
+#+END_SRC
+
+将 x 应用于过程 =(lambda (ignore) "hi")= ，就是回到 continuation 处，也就是将这个过程作为 k@a 的值赋给 x，表达式就变成了：
+
+#+BEGIN_SRC scheme
+(let ([x (lambda (ignore) "hi")])
+ (x (lambda (ignore) "hi")))
+=>
+((lambda (ignore) "hi") (lambda (ignore) "hi"))
+=>
+"hi"
+#+END_SRC
+
+也就是说， =(let ([x (call/cc (lambda(k) k))]) (x f))= 等价于 =(f f)= 。
+
+看完了这个，那么以下表达式也就不难理解了：
+
+#+BEGIN_SRC scheme
+(((call/cc (lambda (k) k)) (lambda (x) x)) "HEY!")
+=>
+"KEY"
+(((call/cc (lambda (k) (k k))) (lambda (x) x)) "HEY!")
+=>
+"KEY"
+#+END_SRC
+
+在 Scheme 中，continuation 是 first-class 的，这意味着你可以相当方便地使用它。 /the Scheme Programming Language/ 上有一道习题：使用 call/cc 编写一个死循环程序，打印出从零开始的递增序列。要求不能使用递归过程，也不能使用任何的赋值语句。我们可以这样做：
+
+#+BEGIN_SRC scheme
+(let ([x (call/cc (lambda(k) k))])
+    (if (pair? x)
+         (begin
+            (display (car x))
+                 ((cdr x) (cons (+ (car x) 1) (cdr x))))
+         (begin
+            (display 0)
+            (x (cons 1 x)))))
+#+END_SRC
+
+更多相关的例子，可以参考 /the Scheme Programming Language/ 。
+
+* call/cc 的使用
+
+/the Scheme Programming Language/ 上面写到：call/cc 可以用来实现非本地退出（nonlocal exits），回溯（backtracking），协程（coroutines）和多任务（multitasking）。它还可以配合宏来创造新的控制结构，比如 return 语句之类的东西。
+
+** nonlocal exits
+
+scheme 标准库中有一个 member 过程，它接收一个元素和一个列表，判断元素是否属于列表。若是则返回包含该元素的表，否则返回 #f。它的一个简单实现如下：
+
+#+BEGIN_SRC scheme
+(define member
+   (lambda (x ls)
+      (cond
+         ((null? ls) #f)
+         ((equal? x (car ls)) ls)
+         (else (member x (cdr ls))))))
+#+END_SRC
+
+这个过程是尾递归的，也就是说它会被优化为循环，如果 ls 中没有找到 x 元素的话，member 会直接向它的调用者返回 #f。但假设（仅仅是假设）没有尾递归的话，#f 需要逐级向上返回，直到返回到第一级 member 调用时才会将 #f 返回给调用者。使用 call/cc 可以在查找不到 x 元素时直接向调用者返回 #f：
+
+#+BEGIN_SRC scheme
+(define member
+   (lambda (x ls)
+      (call/cc (lambda (k)
+                  (let f ([ls ls])
+                    (cond
+                      ((null? ls) (k #f))
+                      ((equal? (car ls) x) (k ls))
+                      (else (f (cdr ls)))))))))
+#+END_SRC
+
+这并不是一个很好的例子，有种没有需求就创造需求的感觉。
+
+** backtracking
+
+说到回溯，有一个运算符与它有着紧密的联系，那就是 =amb= 。amb 是 ambiguous 的一个缩写，它用于非确定性计算。
+
+参考资料【7】对 amb 进行了描述： =amb= 接收一个或多个表达式，并在它们中进行一次非确定选择，这个选择使得程序趋向于有意义。不带参数调用 =amb= 不会有返回值并会出错。
+
+举个例子 =(amb 1 2)= 会返回 1 或 2，因为两个值都是有意义的。但是 =(amb 1 (amb))= 会返回 1，因为 =(amb)= 是无意义的。
+
+参考资料【6】给出了 amb 的一个实现，这里直接拿过来了：
+
+#+BEGIN_SRC scheme
+ ;;; FAIL is called to backtrack when a condition fails.  At the top
+ ;;; level, however, there is no more to backtrack, so we signal an
+ ;;; error with SRFI 23.
+ (define fail
+   (lambda ()
+     (raise "Amb tree exhausted")))
+
+ (define-syntax amb
+   (syntax-rules ()
+     ((amb) (fail))                      ; Two shortcuts.
+     ((amb expression) expression)
+     ((amb expression ...)
+      (let ((fail-save fail))
+        ((call/cc                        ; Capture a continuation to
+           (lambda (k-success)           ;   which we return possibles.
+             (call/cc
+               (lambda (k-failure)       ; K-FAILURE will try the next
+                 (set! fail              ;   possible expression.
+                       (lambda () (k-failure #f)))
+                 (k-success              ; Note that the expression is
+                  (lambda ()             ;   evaluated in tail position
+                    expression))))       ;   with respect to AMB.
+             ...
+             (set! fail fail-save)      ; Finally, if this is reached,
+             fail-save)))))))           ;   we restore the saved FAIL.
+
+ (define (require condition)
+   (if (not condition)
+       (fail)))
+
+ ;;; As an auxiliary example, AMB-POSSIBILITY-LIST is a special form
+ ;;; that returns a list of all values its input expression may return.
+
+ (define-syntax amb-possibility-list
+   (syntax-rules ()
+     ((amb-possibility-list expression)
+      (let ((value-list '()))
+        ;; This requires that AMB try its sub-forms left-to-right.
+        (amb (let ((value expression))
+               (set! value-list (cons value value-list))
+               (fail))
+             (reverse value-list))))))   ; Order it nicely.
+#+END_SRC
+
+上面的定义使用了宏来对参数数量进行判断，零参数时直接调用 fail，单参数时使用参数值作为返回值。这个宏定义的要点在于多参数的情况，而它的核心代码就是：
+
+#+BEGIN_SRC scheme
+(call/cc
+  (lambda (k-failure)
+     (set! fail
+        (lambda () (k-failure #f)))
+     (k-success
+        (lambda ()
+          expression))))
+...
+#+END_SRC
+
+多个表达式的展开表示如下：
+
+#+BEGIN_SRC scheme
+(call/cc
+  (lambda (k-failure)
+     (set! fail
+        (lambda () (k-failure #f)))
+     (k-success
+        (lambda ()
+          expression1))))
+(call/cc
+  (lambda (k-failure)
+     (set! fail
+        (lambda () (k-failure #f)))
+     (k-success
+        (lambda ()
+          expression2))))
+(call/cc
+  (lambda (k-failure)
+     (set! fail
+        (lambda () (k-failure #f)))
+     (k-success
+        (lambda ()
+          expression3))))
+...
+#+END_SRC
+
+初始条件下，将 fail 设置为当前捕获的 k-failure 后，接着调用 k-success 返回当前（第一个）表达式的值。此后，调用 fail 即可返回到 k-failure 处，并将 #f 作为 call/cc 表达式的值，接着向下继续顺序求值。那么应该在什么时候调用 fail 呢？那就是 =require= 条件不满足的时候。调用 fail 后，#f 作为某个 =expression= 的值，并接着使用下一个 expression，直到满足条件为止。
+
+例如，以下代码：
+
+#+BEGIN_SRC scheme
+(let ((a (amb 1 2))
+      (b (amb 1 2)))
+   (require (< a b))
+   (list a b))
+#+END_SRC
+
+得到的结果为 =(1 2)= ，因为只有它满足 =(require (< a b)= 。
+
+上面使用了 raise 过程，如果有的 scheme 实现使用 error，可以将 raise 替换为 error。某些实现也可能已经定义了 require 标识符，可以将它替换为其他的标识符。
+
+** coroutine
+
+协程是一般化的子函数。一个协程可以在某个执行点挂起并在之后从挂起点恢复。与子函数不同的是，协程不需要在它返回前完成整个执行过程。
+
+一个比较简单的例子如下所示：
+
+#+BEGIN_SRC scheme
+(define one
+   (lambda (go)
+      (display 1)
+      (set! go (call/cc go))
+      (display 2)
+      (set! go (call/cc go))
+      (display 3)
+      (set! go (call/cc go))))
+
+(define two
+   (lambda (go)
+      (display #\a)
+      (set! go (call/cc go))
+      (display #\b)
+      (set! go (call/cc go))
+      (display #\c)
+      (set! go (call/cc go))))
+#+END_SRC
+
+调用 =(one two)= ，可以看到输出为 =1a2b3c= ，调用 =(two one)= 则是 =a1b2c3= 。
+
+通过使用 call/cc，上面的程序实现了在两个过程中互相传递 current continuation。
+
+*** 在 Scheme 中使用 generator
+
+维基百科【10】对 generator 的定义是：generator 是一种特殊的子程序，它类似于返回数组的函数，但是它不是一次性构造出所有值并一次性返回，而是每次调用都产生一个值。
+
+使用 call/cc 捕获并存储当前 continuation，使得下一次运行从这一点开始即可。参考资料【11】给出了一种实现：
+
+#+BEGIN_SRC scheme
+(define (make-generator procedure)
+  (define last-return values)
+  (define last-value #f)
+  (define (last-continuation _)
+    (let ((result (procedure yield)))
+      (last-return result)))
+
+  (define (yield value)
+    (call/cc (lambda (continuation)
+               (set! last-continuation continuation)
+               (set! last-value value)
+               (last-return value))))
+
+  (lambda args
+    (call/cc (lambda (return)
+               (set! last-return return)
+               (if (null? args)
+                   (last-continuation last-value)
+                   (apply last-continuation args))))))
+#+END_SRC
+
+上面的过程使用 =last-continuation= 存储了 continuation。
+
+使用它，我们可以定义一个斐波拉契数列的 generator：
+
+#+BEGIN_SRC scheme
+(define fib-gen
+   (make-generator
+      (lambda (collect)
+         (let f ([a 0] [b 1])
+            (collect a)
+            (f b (+ a b))))))
+#+END_SRC
+
+** 添加控制结构
+
+call/cc 配合宏使用，可以在 scheme 中添加一些自定义的控制结构。
+
+这里的例子来自 /the scheme Programming Language/ ，使用 syntax-case 宏定义了一个循环结构：
+
+#+BEGIN_SRC scheme
+(define-syntax loop
+   (lambda (x)
+     (syntax-case x ()
+       [(k e ...)
+         (with-syntax ([break (datum->syntax #'k 'break)])
+            #'(call/cc
+               (lambda (break)
+                 (let f () e ... (f)))))])))
+#+END_SRC
+
+当然，上面的代码重点在于 call/cc 的使用而不是 syntax-case 的使用。上面的代码添加了 break 语句，可以直接退出循环。下面的例子可以说明这一点：
+
+#+BEGIN_SRC scheme
+(let ([n 3] [ls '()])
+ (loop
+    (if (= n 0) (break ls))
+        (set! ls (cons 'a ls))
+    (set! n (- n 1))))
+#+END_SRC
+
+输出结果为 3 个 a，即 =aaa= 。
+
+有关 multitasking 的内容，可以参看 /the Scheme Programming Language/ 的 engine 部分，这里就不介绍了。
+
+* 什么是 CPS
+
+CPS，全称 continuation-passing style，中文意思为延续传递风格。
+
+维基百科上对 CPS 的解释是：在函数式编程语言中显式地将控制通过 continuation 传递的编程风格。
+
+使用 CPS 编写的函数会带有一个额外参数：一个显式的 continuation，也就是一个单参数函数。当 CPS 函数计算出它的返回值后，它通过调用 continuation 函数来进行”返回“。这就意味着在调用 CPS 函数时，调用者需要提供一个函数供 CPS 函数进行返回。
+
+直接风格的函数可以变换得到 CPS 函数，例如：
+
+#+BEGIN_SRC scheme
+(define (add x y)
+   (+ x y)
+=>
+(define (add x y k)
+   (+& x y k)
+#+END_SRC
+
+上面的 =+&= 是 =+= 的 CPS 形式。
+
+更加复杂的例子比如：
+
+#+BEGIN_SRC scheme
+(define (pyth x y)
+ (sqrt (+ (* x x) (* y y)))
+=>
+(define (pyth& x y k)
+ (*& x x (lambda (x2)
+          (*& y y (lambda (y2)
+                   (+& x2 y2 (lambda (x2py2)
+                              (sqrt& x2py2 k))))))))
+#+END_SRC
+
+以及：
+
+#+BEGIN_SRC scheme
+(define (factorial n)
+ (if (= n 0)
+     1     ; NOT tail-recursive
+     (* n (factorial (- n 1)))))
+=>
+(define (factorial& n k)
+ (=& n 0 (lambda (b)
+          (if b                    ; growing continuation
+              (k 1)                ; in the recursive call
+              (-& n 1 (lambda (nm1)
+                       (factorial& nm1 (lambda (f)
+                                        (*& n f k)))))))))
+#+END_SRC
+
+使用 CPS 后表达式显得更加复杂，但是也有一些有用的应用。CPS 允许过程向它的 continuation 传递多个结果，因为实现 continuation 的过程可以接受任意数量的参数。 /the Scheme Programming Language/ 中有一个 =car&cdr= 过程，它的定义如下：
+
+#+BEGIN_SRC scheme
+(define car&cdr
+ (lambda (p k)
+    (k (car p) (cdr p))))
+#+END_SRC
+
+使用不同的 continuation 函数，就可以得到不同的结果：
+
+#+BEGIN_SRC scheme
+(car&cdr '(a b c)
+  (lambda (x y)
+    (list y x))) => ((b c) a)
+(car&cdr '(a b c) cons) =>(a b c)
+(car&cdr '(a b c a d) memv) => (a d)
+#+END_SRC
+
+** 例子：斐波拉契函数的 CPS
+
+使用斐波拉契函数作为 CPS 例子有两个好处：第一，它足够简单；第二，它不是太简单。
+
+根据斐波拉契数列的数学定义，可以直接写出 =fib= 过程：
+
+#+BEGIN_SRC scheme
+(define fib
+   (lambda (n)
+      (cond
+         ((< n 0) #f)
+         ((= n 0) 0)
+         ((= n 1) 1)
+         (else (+ (fib (- n 1))
+                  (fib (- n 2)))))))
+#+END_SRC
+
+当然，我们可以把递归形式改成迭代形式，但是这并不是我们的重点。问题在于怎么把它改成 CPS。这里不考虑初等过程的 CPS，则 =fib= 的 CPS 可以写成：
+
+#+BEGIN_SRC scheme
+(define fib-cps
+  (lambda (n k)
+    (cond
+     ((< n 0) (k #f))
+     ((= n 0) (k 0))
+     ((= n 1) (k 1))
+     (else
+      (fib-cps (- n 1)
+           (lambda (n1)
+              (fib-cps (- n 2) (lambda (n2) (k (+ n1 n2))))))))))
+#+END_SRC
+
+除此之外，还可以这么写：
+
+#+BEGIN_SRC scheme
+(define fib-cps2
+  (lambda (n k)
+    (cond
+     ((< n 0) (k #f #f))
+     ((= n 0) (k 0 0))
+     ((= n 1) (k 1 0))
+     ((= n 2) (k 1 0))
+     (else
+      (fib-cps2 (- n 1)
+         (lambda (n1 n2)
+             (fib-cps2 (- n 2)
+                 (lambda (n3 n4)(k (+ n1 n2) (+ n3 n4))))))))))
+#+END_SRC
+
+* 其他的一些有趣的问题
+
+** (call/cc call/cc)
+
+玩了这么久的 call/cc，不知道你有没有想过将它应用于自身是什么结果。在 chez-scheme 的 REPL 中输入 =(call/cc call/cc)= ，你会得到 =#<system continuation in new-cafe>= 。在 racket 中输入 =(call/cc call/cc)= ，你会得到 =#<continuation>= 。不管怎么说，结果还是个 continuation。参考资料【3】给出了对它的分析。我在这里简单地说明一下。
+
+将 =(call/cc call/cc)= 记作 =a@(call/cc1 call/cc2)= ，即使用 a 作为整个表达式的标识符，同时使用 1 和 2 对两个 call/cc 进行区分。
+
+将 call/cc1 应用于 call/cc2，上面的表达式就变成了 =a@(call/cc2 k@a)= ，也就是使用 a 的 continuation 来作为 call/cc2 的参数。
+
+再次变换，就得到了 =a@(k@a k@a)= ，这里的前一个 k@a是 call/cc1捕获的，后一个 k@a是 call/cc2 捕获的。这个表达式的值是显而易见的：continuation 调用 continuation，得到的还是 continuation。也就是说，最终结果就是 =k@a= 。
+
+可以使用 =((call/cc call/cc) (lambda(x) 1))= 来验证结果的正确性，在 REPL 中输入这串代码，得到的结果应该为 1。
+
+也就是说 =(call/cc call/cc)= 和之前提到过的 =(call/cc (lambda (x) x))= 是等价的。 =(call/cc call/cc)= 等价于 =(lambda(f) (f f))= 。
+
+比较有意思的一点是，这样的构造是幂等的，也就是说， =(call/cc call/cc)= 和 =((call/cc call/cc) call/cc)= 是一样的， =(call/cc (call/cc call/cc))= 也可以。一直构造下去没有任何问题。
+
+已知 Y combinator 的写法是：
+
+#+BEGIN_SRC scheme
+(define (Y f)
+  ((lambda (x)
+     (lambda (n) ((f (x x)) n)))
+   (lambda (x)
+     (lambda (n) ((f (x x)) n)))))
+#+END_SRC
+
+使用 call/cc 就可以改写为：
+
+#+BEGIN_SRC scheme
+(define (Y f)
+  ((lambda (u)
+     (u (lambda (x)
+      (lambda (n) ((f (u x)) n)))))
+   (call/cc (call/cc (lambda (x) x)))))
+#+END_SRC
+
+或：
+
+#+BEGIN_SRC scheme
+(define (Y f)
+  ((lambda (u)
+     (u (lambda (x)
+      (lambda (n) ((f (u x)) n)))))
+   (call/cc call/cc)))
+#+END_SRC
+
+但是， =((call/cc call/cc) (call/cc call/cc))= 却是一个死循环。
+
+上式可以写作 =(a@(call/cc call/cc) b@(call/cc call/cc))= ，变换后的结果为：
+
+=(k@a k@b)= ，a 的 continuation 是接受一个参数来作为 =a@(call/cc call/cc)= 过程的参数，b 的 continuation 是作为 =a@(call/cc call/cc)= 的参数。进一步变换后得到：
+
+=(k@b k@b)= ，这也就是为什么死循环的原因吧。
+
+** 阴阳谜题（yin-yang puzzle）
+
+通过以下的代码：
+
+#+BEGIN_SRC scheme
+(let* ((yin
+        ((lambda (cc) (display #\@) cc)
+         (call/cc (lambda (c) c))))
+       (yang
+        ((lambda (cc) (display #\*) cc)
+         (call/cc (lambda (c) c)))))
+  (yin yang))
+#+END_SRC
+
+可以得到一个死循环程序，程序的输出还非常有规律 =@*@**@***@****@*****@******@*******@********@*********= 。
+
+参考【13】，我们可以一步一步地推出整个式子的来龙去脉。
+
+首先，yin 和 yang 分别与它们的 continuation 绑定，输出 =@*= 。这里，我们将 yin 和 yang 绑定的 continuation 分别记为 C1, C2。
+
+随后，调用表达式 =(yin yang)= ，yin 的绑定值变为 yang 的绑定值 C2，并输出 =@= ，yang 的绑定值更新为 C3，并输出 =*= 。需要注意的是，C3 与 C2 是不同的。
+
+之后再次调用 =(yin yang)= ，yin 的值为 C2，所以此时跳跃到的地方不是 yin 的绑定过程，而是 yang 的绑定过程，yang 被绑定为 C3。因为没有经过 yin 的绑定过程，所以输出的只有 =*= 。此时你可能会认为 yin 是 C2 而 yang 是 C3，但事实并非如此，因为 yin 为 C2，所以 跳回的是 yin 为 C1，yang 为 C2 时的 point。正确的结果应该是 yin 为 C1，yang 为 C3。
+
+接着调用 =(yin yang)= ，又回到了最初的绑定 point，yin 的值被赋为 C3，而 yang 的值更新为 C4，输出 =@*= 。
+
+再次调用 =(yin yang)= ，yin 的值为 C3，回到 C3 处，输出 =*= ，yang 变为 C4，此时 yin 的值成为 C2（因为 yang 为 C3 时 yin 为 C2）。
+
+下一次调用，yin 的值变为 C1，yang 的值变为 C4，输出 =*= 。（因为此时 yin 为 C2，所以回到 yang 为 C2 的 point，而 yang 为 C2 时 yin 为 C1）
+
+.......
+
+让我们看看现在输出了什么 =@*@**@***= ，再继续下去当然没有问题，不过现在已经可以从中看出一些规律出来了，列一张表来观察随着 =(yin yang)= 调用 yin 和 yang 的值的变化。
+
+1. 调用 0 次。yin：C1，yang：C2。输出 @*
+
+2. 调用 1 次。yin：C2，yang：C3。输出 @*
+
+3. 调用 2 次。yin：C1，yang：C3。输出 *
+
+4. 调用 3 次。yin：C3，yang：C4。输出 @*
+
+5. 调用 4 次。yin：C2，yang：C4。输出 *
+
+6. 调用 5 次。yin：C1，yang：C4。输出 *
+
+7. .......
+
+
+规律已经很明显了，由 yin 所在的赋值表达式的 call/cc 只调用了 1 次，也就是产生了 C1。而 yang 处的 call/cc 随调用次数增多不断变大，使得回到 C1 的所需的调用次数也不断增多，从而出现了上面的输出效果。
+
+关于这个结论的证明可以参考【13】。
+
+* 参考资料
+
+<<<【1】>>> Wikipedia:Continuation： https://en.wikipedia.org/wiki/Continuation
+
+<<<【2】>>> /The Scheme Programming Language/, R.Kent Dybvig
+
+<<<【3】>>> (call/cc call/cc) and friends, Pavel Panchekha： https://pavpanchekha.com/blog/callcc-trees.html
+
+<<<【4】>>> Undelimited continuations are not functions： http://okmij.org/ftp/continuations/undelimited.html
+
+<<<【5】>>> Coroutines, exceptions, time-traveling search, generators and threads: Continuations by example： http://matt.might.net/articles/programming-with-continuations--exceptions-backtracking-search-threads-generators-coroutines/
+
+<<<【6】>>> amb： http://community.schemewiki.org/?amb
+
+<<<【7】>>> Scheme 语言简明教程： https://wizardforcel.gitbooks.io/teach-yourself-scheme/content/140-nondeterminism.html
+
+<<<【8】>>> Scheme Coroutine Example： https://wiki.c2.com/?SchemeCoroutineExample
+
+<<<【9】>>> Implementing Coroutines with call/cc： http://pages.cs.wisc.edu/~fischer/cs538.s08/lectures/Lecture20.pdf
+
+<<<【10】>>> Generator (computer programming) - Wikipedia： https://en.wikipedia.org/wiki/Generator_(computer_programming)
+
+<<<【11】>>> generator - Does call/cc in Scheme the same thing with yield in Python and JavaScript? - Stack Overflow： https://stackoverflow.com/questions/44514890/does-call-cc-in-scheme-the-same-thing-with-yield-in-python-and-javascript
+
+<<<【12】>>> Continuation-passing style - Wikipedia： https://en.wikipedia.org/wiki/Continuation-passing_style
+
+<<<【13】>>> scheme - How does the yin-yang puzzle work? - Stack Overflow： https://stackoverflow.com/questions/2694679/how-does-the-yin-yang-puzzle-work
