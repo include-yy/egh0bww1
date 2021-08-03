@@ -1,0 +1,111 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 写个C库-part5
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-06-15 Mon]
+#+TAGS: c
+
+本文翻译自 *Writing a C library part 5*
+
+作者：davidz
+
+作者主页：https://www.blogger.com/profile/18166813552495508964
+
+文章源地址：http://davidz25.blogspot.com/2011/07/writing-c-library-part-5.html
+
+前篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html][part three]] [[http://davidz25.blogspot.com/2011/07/writing-c-library-part-4.html][part four]]
+
+* API 设计
+
+C 库几乎在定义上就是为应用程序提供 [[http://en.wikipedia.org/wiki/Application_programming_interface][API]] 的某种东西。一般而言 API 不能以不兼容的方式改变（然而它可以进行拓展），因此头一次就把事情做好通常是很重要的，因为如果没有做对的话，你和你的用户可能不得不在很长的一段时间内忍受你的错误。
+
+本节不是 API 设计的完整指南，因为在这个主题上已经有很多的文献，课程和展示 —— 比如 [[http://cworth.org/~cworth/papers/guadec_2006/][Designing a library that's easy to use]] —— 但是我们会提及最重要的原则，以及一到两个关于 API 设计好坏的例子。
+
+当谈到 API 设计时，主要的目的当然是让 API 容易使用 —— 这包括为 类型、函数和常数选择好的名字（[[http://stackoverflow.com/questions/143701/what-is-the-worst-class-variable-function-name-you-have-ever-encountered][choosing good names]]）。要注意缩写 —— [[http://www.kernel.org/doc/man-pages/online/pages/man3/atof.3.html][atof]] 可能输入起来很快，但是它的功能看上去可能不是很清楚：解析一个 C 字符串并返回一个 double 值（不是像名字所暗示的 float 值）。一般而言，名词（[[http://en.wikipedia.org/wiki/Noun][nouns]]）用于类型而动词（[[http://en.wikipedia.org/wiki/Verb][verbs]]）用于方法。
+
+另一个需要注意的点是参数的个数 —— 理想情况下每个函数应该只接收少量的参数，以便容易记住如何使用。例如，可能不会有人准确地记住传递给 [[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html#g-spawn-async-with-pipes][g_spawn_async_with_pipes()]] 的参数，因此程序员最后会查阅文档，从而不得不打乱自己的节奏（[[http://www.codinghorror.com/blog/2006/09/the-multi-tasking-myth.html][breaking the rhythm]]）。一个更好的方法（还没有在 GLib 中实现）是创建一个新的类型，这里让我们叫他 GProcess（[[https://bugzilla.gnome.org/show_bug.cgi?id=646635#c96][let's call it GProcess]]），并带有设置它的方法。这样不仅更容易使用，它也更容易拓展，因为为类型添加一个方法不会破坏 API，而为已存在的函数和方法添加参数会造成破坏。这样的 API 的例子有 libudev 的 [[http://www.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-enumerate.html][udev_enumerate]] API —— 例如，在 undev 开始处理 [[http://en.wikipedia.org/wiki/Tag_(metadata][device tags]]) 时，[[http://www.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-enumerate.html][udev_enumerate]] 类型会得到 [[http://www.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-enumerate.html#udev-enumerate-add-match-tag][add_match_tag()]] 方法。
+
+如果使用了常数，通常使用 C 的枚举类型（[[http://en.wikipedia.org/wiki/Enumerated_type][C enum type]]）是比较好的，因为如果选择语句没有处理所有的情况，编译器会发出警告。一般要避免使用布尔类型而使用标志枚举（[[http://en.wikipedia.org/wiki/Flag_(computing][flag enumerations]])）取而代之 —— 这样做有两个优点：其一，有时候 =foo_do_sutff(foo, FOO_FLAGS_FROBNICATOR)= 比 =foo_do_stuff(foo, TRUE)= 更加易读，因为读者不需要费脑子记住 TRUE 到底是翻译为使用 frobnicator 还是不使用。其二，这意味着多个布尔参数可以在一个参数中传递，这样以来，像是 [[http://developer.gnome.org/gtk3/unstable/GtkBox.html#gtk-box-pack-start][gtk_box_pack_start()]] 之类的难用函数是可以避免的（大多数程序员是记不住是 expand 参数还是 boolean 参数在第一个参数位置）。另外，这个方法允许在不破坏 API 的情况下添加新的标志。
+
+通常，编译器会有所帮助 —— 例如，C 函数可以被各种会特定于 gcc 的注解（annotations）所注释（annotated），如果用户没有以恰当方式使用函数，则会引起警告。如果使用了 GLib，一些注解是以 G_GNUC 的前缀提供的，其中最重要的有：[[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-CONST:CAPS][G_GNUC_CONST]]，[[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-PURE:CAPS][G_GNUC_PURE]],[[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-MALLOC:CAPS][G_GNUC_MALLOC]]，[[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-DEPRECATED-FOR:CAPS][G_GNUC_DEPRECATED_FOR]]， [[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-PRINTF:CAPS][G_GNUC_PRINTF]] 和 [[http://developer.gnome.org/glib/unstable/glib-Miscellaneous-Macros.html#G-GNUC-NULL-TERMINATED:CAPS][G_GNUC_NULL_TERMINATED]].
+
+** 清单
+
+- 为类型和函数选择好的名字（表达能力重于长度）
+
+- 保持函数参数数量较少（考虑引入辅助类型）
+
+- 使用类型系统/编译器来发挥优势，而不是与之抗争（enums, flags, compiler annotations）
+
+
+* 文档
+
+如果你的库非常简单，最好的文档可能就是在头文件中带有良好格式的内嵌注释。通常这不会这么简单，使用你的库的人们可能会希望使用功能更丰富且交叉引用的文档，以及代码示例。
+
+许多 C 库，包括在 GLib 和 GNOME 中的那些，使用了内嵌文档 tag ，这样就可以使用像是 [[http://www.gtk.org/gtk-doc/][gtk-doc]] 和 [[http://en.wikipedia.org/wiki/Doxygen][Doxygen]] 的工具进行阅读。gtk-doc 甚至对底层的非 GLib 使用（non-GLib-using）的库也可用 —— 比如 libdev 和 libblkid 的 API 文档。
+
+如果你使用了 GLib 库，gtk-doc 使用 GLIb 的类型系统来画出类型层次（[[http://developer.gnome.org/gio/unstable/gio-hierarchy.html][draw type hierarchies]]）并展示像是 [[http://developer.gnome.org/gtk3/unstable/GtkWidget.html#GtkWidget.properties][properties]] 和 [[http://developer.gnome.org/gtk3/unstable/GtkWidget.html#GtkWidget.signals][signals]] 的类型特定的东西。gtk-doc 也可以与任何产生 [[http://docbook.org/][Docbook]] 文档的工具进行整合，像是 [[http://en.wikipedia.org/wiki/Man_page][manual pages]] 或用于生成描述 D-Bus 接口文档的 [[http://developer.gnome.org/gio/unstable/gdbus-codegen.html][gdbus-codegen(1)]]。（[[http://people.freedesktop.org/~david/udisks2-20110628/][example with C API docs, D-Bus docs and man pages]]）
+
+** 清单
+
+- 决定需要什么层次的文档（HTML, pdf, man pages, etc.）
+
+- 尝试使用标准化的工具，比如 Doxygen 或 gtk-doc
+
+- 如果要传送 commands/daemons/helpers（比如任何在 [[http://en.wikipedia.org/wiki/Ps_(Unix][ps(1)]]) 输出中现实的东西），考虑为这些命令提供 man page
+
+
+* 语言绑定
+
+C 库越来越多地被像是 [[http://en.wikipedia.org/wiki/Python_(programming_language][Python]]) 或 [[http://en.wikipedia.org/wiki/JavaScript][JavaScript]] 的高级语言使用，通过所谓的语言绑定（[[http://en.wikipedia.org/wiki/Language_binding][language binding]]）—— 例如，这就允许了 [[https://live.gnome.org/GnomeShell/][Desktop Shell]] 和 [[http://www.gnome.org/][GNOME 3]] 完全由 JavaScript 编写，但同时仍然能够使用像是 [[http://en.wikipedia.org/wiki/GLib][GLib]]，[[http://www.clutter-project.org/][Clutter]] 和 [[http://git.gnome.org/browse/mutter/][Mutter]] 的 C 库。
+
+对语言绑定细节的讨论超出了本文的范围（然而这里给出的建议大部分还是适用的 —— 也见于 [[https://live.gnome.org/GObjectIntrospection/WritingBindingableAPIs][Writing Bindable APIs]]），但是在这里提到一个叫做 [[https://live.gnome.org/GObjectIntrospection][GObject Introspection]] 的项目（它在 GNOME 的 Shell 中被使用）是有意义的，该项目的目标是 100% 覆盖 GLib 库。例如，这也适用于 [[http://www.kernel.org/pub/linux/utils/kernel/hotplug/gudev/][GUdev library]]（一个对 [[http://www.kernel.org/pub/linux/utils/kernel/hotplug/libudev/][libudev library]] 的高级包装），该库可以被任何支持 GObject Introspection 的语言适用（[[http://git.kernel.org/?p=linux/hotplug/udev.git;a=blob;f=extras/gudev/gjs-example.js;h=5586fd6a61fcd8cfcadd7dc79e25be3e8b210cce;hb=4c748b05a3bd0c36245e71b24dc45e2884f80376][JS example]]）
+
+GObject Intropspection 是很有趣的，因为如果某人为一个新的语言添加了 GObject Introspection 支持，之后 GNOME 平台（以及许多潜在的 Linux 渠道(plumbing) 以及 cf. GUdev）对这个语言是可用的了，而且不需要其他任何工作。
+
+** 清单
+
+- 确保你的 API 很容易绑定（避免像是变参函数（[[http://en.wikipedia.org/wiki/Variadic_function][variadic functions]]）的 C-主义(C-isms)）
+
+- 如果使用了 GLib，建立 GObject Introspection 并使用 GIR/typelibs([[http://blog.verbum.org/2008/10/06/dear-gobjectc-library-authors/][notes]])
+
+- 如果在编写复杂的应用，考虑部分用 C 写，部分用高级语言写
+
+
+* ABI，API 和版本控制
+
+库的 API 描述了程序员如何使用它，[[http://en.wikipedia.org/wiki/Application_binary_interface][ABI]] 则描述了 API 是如何映射到库所运行的目标机器的。粗略的说，如果不需要重新编译的化，一个（动态）库可以说是和先前版本兼容。ABI 涉及许多因素，包括数据对齐规则（[[http://en.wikipedia.org/wiki/Data_structure_alignment][data alignment rules]]），调用约定（[[http://en.wikipedia.org/wiki/Calling_convention][calling conventions]]），文件格式（[[http://en.wikipedia.org/wiki/Executable_and_Linkable_Format][file formats]]）和其他不适合在本文中提到的东西；在编写 C 库时，重点是需要知道当 API 变化时，ABI 是怎么（是否）变化的。特别地，因为某些变化（比如添加新的函数）是向后兼容的，真正有趣的问题在于，哪些种类的 API 变化会导致不向后兼容的 ABI 变化。
+
+假设所有其他因素是恒常的，比如调用约定，那么关于 ABI 级别兼容性的经验规则基本上可以归结为一张非常简短的列表，这些规则允许 API 变化而 ABI 不变：
+
+- 你可以添加新的 C 函数
+
+- 仅当不会造成内存/资源泄露时，你可以为函数添加新的参数
+
+- 仅当不会造成内存泄露时，你可以为返回值为 [[http://en.wikipedia.org/wiki/Void_type][void]] 的函数添加一个返回值
+
+- 像是 [[http://en.wikipedia.org/wiki/Const-correctness][const]] 的修饰符可以被添加/去除，因为它们不是 C 中的 ABI 的一部分
+
+
+后面几条是改变 API 的例子，它们破环了 API（在编译现有的没有警告的程序时会引起编译器警告），但保留了 ABI 不变（仍然允许之前编译的程序运行）—— 例如这个 GLib 提交（[[http://git.gnome.org/browse/glib/commit/?id=cdd04f36cac838f92826cbf415868100a4007741][this GLib commit]]）提供了一个具体例子（注意，由于 C++ 的名字修饰（[[http://en.wikipedia.org/wiki/Name_mangling][name mangling]]），这在 C++ 中做不到）
+
+一般而言，你可能不会扩展那些用户可以在栈上分配并嵌入其他结构的结构体，这也就是为什么通常使用不透明数据类型（[[http://en.wikipedia.org/wiki/Opaque_data_type][opaque data types]]），因为它们可以在用户不知道的情况下进行拓展。在数据类型透明的情况下，通常使用的方法是在结构中添加填充（padding）（[[http://git.gnome.org/browse/glib/tree/gio/gvolumemonitor.h?id=2.29.10#n123][example]]），并在添加新的虚方法或信号函数指针时使用它（[[http://git.gnome.org/browse/glib/commit/?id=7a5a2be92b0502deb171830020124bc6c4b9f65e][example]]）。其他的类型，比如枚举类型，可以用新的常数拓展，但是除非在显式允许的条件下，已存在的常数可能不允许被改变。
+
+函数的语义，比如它的副作用（[[http://en.wikipedia.org/wiki/Side_effect_(computer_science][side effect]])），通常也被看作是 ABI 的一部分。例如，如果一个函数的作用是在标准输出（[[http://en.wikipedia.org/wiki/Standard_output][standard output]]）中打印诊断信息，并且在之后的库版本中它不会这么做，有人可能会说，即便现有程序可以调用该函数，并甚至返回给调用者同样的值，这也破坏了 ABI。
+
+在 Linux 中，共享库（[[http://en.wikipedia.org/wiki/Shared_library#Shared_libraries][shared libraries]]）（和 Windows 中的 [[http://en.wikipedia.org/wiki/Dynamic-link_library][DLL]] 很相似）使用所谓的 [[http://en.wikipedia.org/wiki/Soname][soname]] 来保持并提供向后兼容性，而且也允许同时拥有多个不兼容的运行时版本。后者通过在每次做出不向后兼容的改变时增加库的主版本号来实现。另外，soname 的其他部分有着关联的其他（复杂）规则。（[[http://sourceware.org/autobook/autobook/autobook_91.html#SEC91][more info]]）
+
+在不触碰 so-number 的情况下管理不向后兼容 ABI 变化的一个解决方案是符号版本控制（[[http://www.akkadia.org/drepper/symbol-versioning][symbol versioning]]）—— 然而，先不说它很难使用，它只能用于函数，而不能用于高阶运行时数据结构，比如信号，属性和使用 GLib 类型系统注册的类型。
+
+同时拥有库的不兼容版本和与它们关联的开发工具是可取的 —— 例如，[[http://www.gtk.org/][GTK+]] 的版本 2 和版本 3。要想轻松地实现这一点，许多库（包括 GLib）在库的名字中引入了主版本号（当进行非向后兼容的更改时会碰到它），以及库的工具，等等 —— 看看这个来了解更多信息：[[http://ometer.com/parallel.html][Parallel Installation]] 。
+
+一些库，尤其是处于早期开发阶段的库，通常不保证 ABI（因此，不会在进行非兼容改动时管理 soname）。通常，为了更好地管理期望，这些不稳定的库会要求用户定义一个宏来确认这一点（[[http://git.gnome.org/browse/gnome-online-accounts/tree/src/goa/goa.h?id=3.1.1#n26][example]]）。一旦库“烘烤”好了，这个需求会被移除，一般的 ABI 稳定性规则会被给出（[[http://cgit.freedesktop.org/dbus/dbus/commit/?id=a947713c354462d1235e6ef3d8d3929bf9f080d4][example]]）。
+
+和版本控制相关的，为了你的库可以轻松使用，让它包括 pkg-config 文件和头文件以及其他开发文件是至关重要的（[[http://www.freedesktop.org/wiki/Software/pkg-config][more information]]）。
+
+** 清单
+
+- 确定是否要给出 ABI 保证（以及什么时候）
+
+- 确保用户理解了 ABI 保证（越明显越好）
+
+- 可能的话，做到能够在同一时间拥有多个库的不兼容版本和工具（例如，在库名中引入主版本号）

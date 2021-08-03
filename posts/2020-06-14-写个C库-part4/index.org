@@ -1,0 +1,77 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 写个C库-part4
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-06-14 Sun]
+#+TAGS: c
+
+本文翻译自 *Writing a C library part 4*
+
+作者：davidz
+
+作者主页：https://www.blogger.com/profile/18166813552495508964
+
+文章源地址：http://davidz25.blogspot.com/2011/07/writing-c-library-part-4.html
+
+前篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html][part three]]
+
+* 辅助设施（Helper）和守护进程
+
+有时，程序或库调用外部进程完成工作是非常有用的。这样做的原因有很多 —— 例如，你想要使用的代码：
+
+- 可能在 C 语言中用起来不是很容易 —— 它可以用 [[http://en.wikipedia.org/wiki/Python_(programming_language][python]])，或 gosh，或 [[http://en.wikipedia.org/wiki/Bash_(Unix_shell][bash]]) 写
+
+- 可能和信号处理程序或其他全局进程状态搞混
+
+- 不是线程安全的，或者会泄露或仅仅是膨胀（bloated）
+
+- 它的错误处理与你的库所使用的方式不兼容
+
+- 需要提权
+
+- 你感觉很糟糕，但是又不值得自己重新实现一遍
+
+这里有三种方法来做这件事。
+
+第一种方式是直接调用 [[http://www.kernel.org/doc/man-pages/online/pages/man2/fork.2.html][fork(2)]] 并在子进程中使用这个库 —— 这通常是行不通的，因为存在着一种可能，那就是你使用的库在 fork() 之后无法可靠使用（就像[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][之前]]讨论的那样）。（另外，如果父进程有太多的可写页面映射的话，可能会发生许多不必要的写入时复制 ([[http://en.wikipedia.org/wiki/Copy-on-write][COW]])）如果还要考虑到对 Windows 的移植性，这也不是一个可行的方法（non-starter），因为 Windows 上没有 fork() 或其他任何有意义的等价物。
+
+第二种方法是编写一个小的辅助程序并随你的库一起发布。这种方法也使用了 fork() ，但是不同之处在于：子进程创建后会立即调用 [[http://www.kernel.org/doc/man-pages/online/pages/man3/exec.3.html][exec(3)]]，这样在替换进程映像时所有之前的进程状态会被清除（除了文件描述符，因为它们可以通过 exec() 继承，所以要注意不必要的泄露）。如果使用了 GLib，那就有一系列的实用函数（[[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html][utility functions]]）来做这件事。（包括对自动关闭文件描述符的支持([[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html#GSpawnFlags][automatically closing file descriptors]])）
+
+第三种方式是让你的进程和长期存在（long-lived）的辅助进程进行[[https://en.wikipedia.org/wiki/Inter-process_communication][交流]] （所谓的守护进程（[[http://en.wikipedia.org/wiki/Daemon_(computing][daemon]])）或后台进程）。辅助的守护进程既可以通过 [[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] 启动（如果你使用 [[http://en.wikipedia.org/wiki/D-Bus][D-Bus]] 作为 IPC 机制的话），或通过 [[http://www.freedesktop.org/wiki/Software/systemd][systemd]] （如果你使用初始化脚本 [[http://www.kernel.org/doc/man-pages/online/pages/man7/unix.7.html][Unix domain sockets]]）（[[http://linux.die.net/man/8/uuidd][uuidd(8)]] 被用来做这件事 —— 如果你的库不准备用的话那就是浪费了），或通过你自己的库。
+
+辅助守护进程通常为库用户的多个实例提供服务，然而有时候最好每个库用户实例都有一个辅助守护进程实例。请注意，让一个库生成一个长期存在的进程通常是个坏主意，因为环境和其他的继承进程状态可能是错误的（甚至是不安全的）—— 要了解为什么需要一个好的、可知的、最小的和安全的工作环境，可以参见 [[http://0pointer.de/blog/projects/systemd.html][Rethinking PID 1]] 。另一件很难做对（或者说是很容易做错）的事情是 单例模式（[[http://en.wikipedia.org/wiki/Singleton_pattern][uniqueness]]）—— 例如，你最多只想要一个辅助守护进程的实例 —— 可以看看 [[http://blog.verbum.org/2008/04/26/how-to-share-state-with-applications-for-free-unix-based-desktops/][Colin's notes for details and how D-Bus can be used]] 并注意像是 [[http://developer.gnome.org/gio/unstable/GApplication.html#GApplication.description][GApplication]] 的东西已经对单例内建了支持。同样的，在系统级的守护进程中，你可能需要对像是 [[http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blob;f=include/linux/sched.h;h=781abd13767302cce2ba08db01a211e3178de0d9;hb=61c4f2c81c61f73549928dfd9f3e8f26aa36a8cf#l1374][loginuid]]（[[http://cgit.freedesktop.org/accountsservice/commit/?id=224b7e93a27a1ab5cf2eec2f56bc3adafd02e7af][example of how to do this]]）之类的东西进行设置，来使得 [[http://people.redhat.com/sgrubb/audit/][auditing]] 之类的东西在为客户端提供服务时工作。（这与 Windows 中的 [[http://technet.microsoft.com/en-us/library/cc961980.aspx][impersonation]] 有相似之处）
+
+作为一个例子，GLib 的基于 [[http://code.google.com/p/libproxy/][libproxy]] 实现的 [[http://developer.gnome.org/gio/unstable/GProxy.html][GProxy]] 使用了一个辅助守护进程，因为与 [[http://en.wikipedia.org/wiki/Proxy_server][proxy servers]] 打交道涉及到解释 [[http://en.wikipedia.org/wiki/JavaScript][JavaScript]] ，为每一个想要进行连接的进程初始化一个 JS 解释器的开销太大，更不用说这样做所造成的污染了。（[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/glibpacrunner.c?id=2.28.7#n128][source]]，[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/org.gtk.GLib.PACRunner.service.in?id=2.28.7][D-Bus activation file]] - also note [[http://git.gnome.org/browse/glib-networking/tree/proxy/gnome/gproxyresolvergnome.c?id=2.28.7#n310][how the helper daemon is activated]] by simply creating a [[http://developer.gnome.org/gio/unstable/GDBusProxy.html#GDBusProxy.description][D-Bus proxy]] ）
+
+如果辅助程序需要提权才能运行，使用像是 [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]] 的框架是很方便的（对于检查使用你的库的进程是否被授权），因为它和 [[http://davidz25.blogspot.com/2011/02/gnome-3-authorization.html][desktop shell]] （以及 [[http://davidz25.blogspot.com/2011/02/policykit-textual-authentication.html][console/ssh logins]] ）整合的很好。如果你的库只是使用了短时存在（short-lived）辅助程序，那就更简单了：直接使用 [[http://hal.freedesktop.org/docs/polkit/pkexec.1.html][pkexec(1)]] 命令来启动你的辅助程序（[[http://git.gnome.org/browse/gnome-power-manager/tree/src/gpm-backlight-helper.c?id=GNOME_POWER_MANAGER_3_0_2#n138][example]]，[[http://git.gnome.org/browse/gnome-power-manager/tree/policy/org.gnome.power.policy.in2?id=GNOME_POWER_MANAGER_3_0_2][policy file]]）
+
+顺便说一句（因为本文是关于 C 库的，而不是软件体系结构的），现在的 Linux 桌面中的许多子系统是以系统级守护进程实现的（通常以提权状态运行），它们主要使用的 API 是 D-Bus API（[[http://people.freedesktop.org/~david/udisks2-20110628/ref-dbus.html][example]]）和 C 库，来访问根本不存在的（应用程序随后使用一般的 D-Bus 库或像是 [[http://developer.gnome.org/gio/unstable/gdbus.html][gdbus(1)]] 或 [[http://dbus.freedesktop.org/doc/dbus-send.1.html][dbus-send(1)]] 之类的工具），或从类似 [[http://en.wikipedia.org/wiki/Interface_description_language][IDL]] 的 [[http://cgit.freedesktop.org/udisks/tree/data/org.freedesktop.UDisks2.xml?h=gdbus-port&id=9363381604e807a3b4d2c57b7940cb785c259dcb][D-Bus XML]] 定义文件（[[http://people.freedesktop.org/~david/udisks2-20110628/ref-library.html][example]]）生成（[[http://developer.gnome.org/gio/unstable/gdbus-codegen.html][generated]]）的功能。将这种方法与使用辅助程序的库进行比较是很有用的，因为一种方法与另一种相比总是或多或少的颠倒的。
+
+** 清单
+
+- 确认是否需要一个辅助程序
+
+- 可能的话，为辅助守护进程的单例模式使用 [[http://www.freedesktop.org/wiki/Software/dbus][D-Bus]] （或相似的东西）
+
+- 通过 D-Bus 协议与辅助程序通信（而不是自定义的二进制协议）会添加一个安全层，因为信息的内容会被检查
+
+- 通过 [[http://dbus.freedesktop.org/doc/dbus-specification.html#message-bus][message bus]] 路由（router）使用 D-Bus（而不是对等(peer-to-peer)连接）又会添加一个安全层，因为两个进程通过中间路由进程连接（一个[[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] 实例），该进程也会验证消息，并且会断开发送垃圾消息的进程
+
+- 因此，如果辅助程序是提权的（这就意味着它必须 a) 将使用它的应用程序/库视作不受信任的并且是可能受损的；和 b) 验证所有数据 (see [[http://www.dwheeler.com/secure-programs/][Wheeler's Secure Programming notes]] for details)），在 D-Bus 系统中激活一个辅助守护进程通常比你自己使用 [[http://en.wikipedia.org/wiki/Setuid][setuid root]] 生成的辅助进程要好
+
+- 可能的话，尤其是如果你在编写在 Linux 桌面使用的代码，使用 [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]]（或类似的东西）来检查未提权的代码是否被授权来执行请求的操作
+
+* 测试
+
+当库和应用带着测试套件（[[http://en.wikipedia.org/wiki/Test_suite][test suite]]）发布时，这通常是一个成熟的标志。一个好的测试套件对于确保发行内容大部分无 bug 是很有用的，更重要的，确保维护人员可以放心地发布发行版，而不会丧失睡眠或理智。对测试细节的讨论超出了这个 C 库系列的讨论范围，不过指出 [[http://developer.gnome.org/glib/unstable/glib-Testing.html#glib-Testing.description][GLib test framework]] 的用法 ([[http://git.gnome.org/browse/glib/tree/glib/tests/gvariant.c?id=2.29.8#n4040][example]],[[http://git.gnome.org/browse/glib/tree/gio/tests/gdbus-connection.c?id=2.29.8#n120][example]] and [[http://git.gnome.org/browse/glib/tree/glib/tests/bitlock.c?id=2.29.8][example]]) 和它是如何被 [[http://build.gnome.org/][GNOME buildbots]] 使用的是很有价值的。
+
+评价测试套件好坏（或至少有多广泛）的一个指标是，它覆盖了多少代码 —— 对于这一点，可以使用 [[http://gcc.gnu.org/onlinedocs/gcc/Gcov.html][gcov]] 工具（[[http://people.redhat.com/berrange/dbus-coverage/][notes on how this is used in D-Bus]]）。特别地，如果测试套件没有覆盖一些边沿情况，用于处理边沿情况的代码路径将显示为从未执行。或是如果代码处理了 OOM，但是测试套件没有被设置为处理它（例如，使每一个分配失败（[[http://cgit.freedesktop.org/dbus/dbus/tree/dbus/dbus-internals.c?id=dbus-1.5.2#n952][by failing each allocation]])）处理 OOM 的代码路径应该表现为未测试。
+
+创新的测试方法通常会有所帮助，例如，[[http://www.mozilla.org/][Mozilla]] 使用了叫做 [[http://weblogs.mozillazine.org/roc/archives/2008/12/reftests.html][reftests]] 的技术（[[http://mail.gnome.org/archives/gtk-devel-list/2011-May/msg00003.html][notes on GTK+ reftests]]），[[http://fedoraproject.org/wiki/Dracut][Dracut]] [[http://git.kernel.org/?p=boot/dracut/dracut.git;a=tree;f=test;h=11e80f7337f55aebd0e0c85ebb853c2e85f090e8;hb=829c2585547d86c84cbb3113c73b5dd7fcb7b30d][test suite]] 为 [[http://en.wikipedia.org/wiki/SCSI_initiator_and_target][client and server]] 使用了 [[http://en.wikipedia.org/wiki/Virtual_machine][VMs]] 来测试从 [[http://en.wikipedia.org/wiki/ISCSI][iSCSI]] 启动是否有效。
+
+** 清单
+
+- 尽早开始编写测试套件
+
+- 使用像是 gcov 的工具来估计测试套件的好坏
+
+- 经常运行测试套件 —— 理想条件下把它集成到构建系统、发布产品和版本控制中，等等
