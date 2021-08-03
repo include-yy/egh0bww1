@@ -1,0 +1,122 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 写个C库-part1
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-05-18 Mon]
+#+TAGS: c
+
+本文翻译自 *Writing a C library part 1*
+
+作者：davidz
+
+作者主页：https://www.blogger.com/profile/18166813552495508964
+
+文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html
+
+* 基本库
+
+[[https://en.wikipedia.org/wiki/C_standard_library][libc]] 是一个相当底层的库的集合，还存在一些能够让 C 编程更愉悦的更高层次的库，比如在 [[https://en.wikipedia.org/wiki/GLib][Glib]] 和 [[https://en.wikipedia.org/wiki/GTK][GTK+]] 中的一些库。即使下面写的内容是以 Glib 和 GTK+ 为中心的，它们对任何 C 代码都是有用的，无论是基于 libc，Glib 还是其他的库，比如 [[https://en.wikipedia.org/wiki/Netscape_Portable_Runtime][NSPR]]，[[https://en.wikipedia.org/wiki/Apache_Portable_Runtime][APR]]。
+
+大多数程序员会同意一个观点：为自己实现像是字符串，内存分配，表，数组，哈希表或队列之类的基本数据类型通常不是个好主意 —— 它会让你的代码可读性变差，而且其他人维护的难度也会变大。这就是 Glib 和 GTK+ 之类的 C 库起作用的时候 —— 这些库提供了许多可以开箱即用的东西。另外，当你到头来需要一些不简单的实用函数（non-trivial utility functions），比如 [[https://developer.gnome.org/glib/unstable/glib-Unicode-Manipulation.html][Unicode 处理]]，[[https://developer.gnome.org/pango/stable/pango-Scripts-and-Languages.html][使用复杂脚本]]，[[https://developer.gnome.org/gio/unstable/GDBusConnection.html][D-Bus 支持]] 或 [[https://developer.gnome.org/glib/unstable/glib-Data-Checksums.html#glib-Data-Checksums.description][计算校验和]]，问问你自己（或者更糟：等你的项目经理追着问你）避开经过良好测试和良好维护的库是不是一个明智的决定。
+
+特别是，对于像是密码学之类的东西，自己实现一个通常是个[[https://stackoverflow.com/questions/1914257/when-can-you-trust-yourself-to-implement-cryptography-based-solutions][坏主意]]；取而代之的是，使用已有的良好测试的库会更好，比如 NSS（即便如此，你也要注意用正确的方法来使用库）。具体来说，如果你想要和美国政府打交道的话，这个库可能甚至需要经过 [[https://en.wikipedia.org/wiki/FIPS_140][FIPS-140]] 认证，
+
+类似地，例如，虽然在大型场合使用 epoll 比 poll 更为高效，如果你的应用程序只需要处理大约 10 个文件描述符，在两者中选择哪一个可能对你来说是无关紧要的。另一方面，如果你知道你将要处理上千个文件描述符，你也可以将 Glib 用于大部分的库或应用程序 —— 只需要在专门的线程使用 epoll 即可。同上，如果你需要 O(1) 的表删除操作，你可能就不会使用 [[https://developer.gnome.org/glib/unstable/glib-Doubly-Linked-Lists.html][GList]]，而是使用 [[http://git.ozlabs.org/?p=ccan;a=tree;f=ccan/list][嵌入式]] 的表。
+
+总之，不管你最后使用了哪些库，确保你至少对相关的数据类型，概念和实现细节有一个基本的了解。例如，使用 Glib 时，你可以轻松使用高层次的构造，比如 [[https://developer.gnome.org/glib/unstable/glib-Hash-Tables.html][GHashTable]]，[[https://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#g-timeout-add][g_timeout_add()]] 或 [[https://developer.gnome.org/glib/unstable/glib-File-Utilities.html#g-file-set-contents][g_file_set_contents()]]，而不必知道这些是如何实现的，或文件描述符到底是什么之类的问题。例如，当保存数据时，你想要进行原子操作（来避免数据丢失）而且你只是知道 =g_file_set_contents()= 是这样做的，知道这一点一般就足够了（通常来说，阅读 API 文档就会知道你需要知道的）。另外，确保你理解了你使用的数据类型的算法复杂度和它在硬件上的工作。
+
+最后，尽量不要和[[https://xkcd.com/386/][网上的陌生人]]陷入关于 “臃肿” 的库的荒谬的讨论 —— 这通常是对时间和资源的浪费。
+
+[[./1.jpg]]
+
+** 清单
+
+- 不要重新发明基本数据类型（除非关注性能问题）
+
+- 不要仅仅因为标准库是可移植的就不去使用它
+
+- 在使用多个具重叠功能的库时要小心谨慎
+
+- 尽可能的将库的使用作为私有实现细节（看不出来用了库）
+
+- 用正确的工具做正确的事 —— 不要在荒谬的问题上浪费时间
+
+
+* 库的初始化和关闭
+
+一些库需要一个函数（通常叫做 foo_init()）在其他库函数调用之前先进行调用 —— 该函数一般会初始化全局变量和库使用的数据结构。除此之外，库也可能会提供一个关闭函数（通常叫做 foo_shutdown()）（也可以看到像是 foo_cleanup()，foo_fini()，foo_exit() 和 foo_deinit() 之类的名字） 来释放库使用的资源。使用 shutdown() 函数的主要原因是为了与 [[https://en.wikipedia.org/wiki/Valgrind][Valgrind]] 更好的配合或是为了释放在使用 [[http://man7.org/linux/man-pages/man3/dlsym.3.html][dlopen() 一系列函数]] 时的资源。
+
+一般而言，库的初始化和关闭函数是应该被避免的，因为它们可能会导致两个毫不相关的库在应用程序的依赖链中产生干扰。例如，如果你没有在使用它们之前调用初始化函数，你可能需要在 main() 函数中调用 init()，这只因一些在依赖链中的库使用了这个库，但没有进行初始化。
+
+然而，没有库初始化函数，库中的每个函数将会不得不调用（内部的）初始化函数，这并不总是实际的，而且也可能造成性能问题。在现实中，只需要对几个函数进行检查，因为库中的大多数函数依赖于从库中的其他函数获得的数据结构或对象。因此，在现实中，这样的检查只需要对 _new() （库对象创建）函数和不操作库中对象的函数进行。
+
+例如，每个使用 Glib 类型系统的程序都 [[https://bugzilla.gnome.org/show_bug.cgi?id=628041][不得不调用 g_type_init()]] ，这也包括基于 libgobject-2.0 的库，比如 libpolkit-gobject-1。如果你没有在调用 polkit_authority_get_sync() 之前对 [[https://developer.gnome.org/gobject/unstable/gobject-Type-Information.html#g-type-init][g_type_init()]] 进行调用，那么你的程序很可能会崩溃。这是大多数刚开始使用 Glib 的人会犯的错误，你也没法真正责备他们。g_type_init() 是一个为什么 init() 函数需要尽量避免的绝佳例子。
+
+（注：查阅现在的文档可以发现，现在的类型系统可以自动初始化了，该函数已经被废弃了。 =g_type_init= has been deprecated since version 2.36 and should not be used in newly-written code. the type system is now initialised automatically）
+
+使用库初始化函数的一个原因是不得不进行库的配置，例如特定应用的配置（例如，使用库的应用可能想要一些特殊的行为）或用户端配置（通过使用 argc 和 argv）—— 相应的例子可以由 [[https://developer.gnome.org/gtk3/unstable/gtk3-General.html#gtk-init][gtk_init()]] 来体现。最好的解决方法当然是避免配置，在不能避免配置的情况下，最好使用环境变量来控制库的行为 —— 例如 [[http://developer.gnome.org/gtk3/unstable/gtk-running.html][environment variables supported by libgtk-3.0]] 和 [[http://developer.gnome.org/gio/unstable/ch03.html][environment variables supported by libgio-2.0]] 。
+
+如果你的库一定要有一个初始化函数，一定要确保它是幂等的，而且是线程安全的，也就是说它能够被在同一时间，从多个线程调用多次。如果你的库有关闭函数，确保使用了“初始化计数”（类似于引用计数）来确保库仅在所有的使用者调用了 shutdown() 函数后进行关闭操作。另外，如果可能的话，确保你的库的 init / shutdown 调用了它所依赖的库的 init/shutdown 函数。
+
+通常，库的 init() 和 shutdown() 函数可以通过引入 *上下文对象* （context object）去除。这也解决了全局状态（global state），锁（locking） 和 回调/通知（callbacks / notification）的问题。这方面的例子有 libudev's [[http://www.kernel.org/pub/linux/utils/kernel/hotplug/libudev/libudev-udev-monitor.html][struct udev_monitor]].
+
+** 清单
+
+- 避免 init() / shutdown() 函数 —— 如果你不能避免，一定确保它们是幂等，线程安全和引用计数的
+
+- 使用环境变量来作为库初始化参数，而不是 argc 和 argv
+
+- 你能够在同一线程中使用两个不相关的库 —— 不需要让主应用知道库的存在。确保你的库能够做到这点（也就是上文的：不存在 init() 函数导致的相互依赖）
+
+- 避免使用不安全的 API，如果要考虑可移植性，不要使用不可移植的 library constructors 和 destructors （例如 gcc 的 =__attribute__ ((constructor))= 和 =__attribute__(destructor))=
+
+
+* 内存管理
+
+最好为你的 API 所返回的各种分配内存的对象提供相应的 free() 函数。如果你的库使用了引用计数，那使用后缀 =_unref= 通常比使用 =_free= 更合适。一个例子是 Glib/GTK+ 中的函数 [[https://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#g-object-new][g_object_new()]] ，[[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#g-object-ref][g_object_ref()]] 和 [[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#g-object-unref][g_object_unref()]] ，它们作用于 [[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html][GObject type]] 的实例。类似地，对于 [[http://developer.gnome.org/gtk3/unstable/GtkTextIter.html][GtkTextIter]] 类型，相关的函数有[[http://developer.gnome.org/gtk3/unstable/GtkTextIter.html#gtk-text-iter-copy][gtk_text_iter_copy()]] 和 [[http://developer.gnome.org/gtk3/unstable/GtkTextIter.html#gtk-text-iter-free][gtk_text_iter_free()]]。同样需要注意的是，一些对象是栈分配的（[[https://en.wikipedia.org/wiki/Stack-based_memory_allocation][stack-allocated]]）（比如 GtkTextIter），另一些（比如 GObject）只能是堆分配的（[[https://en.wikipedia.org/wiki/Memory_management#DYNAMIC][heap-allocated]]）。
+
+注意到，一些带有继承类型的面向对象的库可能需要 app 使用基类型的 unref() 方法。例如，一个 [[http://developer.gnome.org/gtk3/unstable/GtkButton.html][GtkButton]] 的实例必须使用 g_object_unref() 进行释放，因为 GtkButton 也是一个 GObject。另外，一些库中可能有浮动引用的概念（floating reference）（例子比如 [[http://developer.gnome.org/gobject/unstable/gobject-The-Base-Object-Type.html#GInitiallyUnowned][GInitiallyUnowned]]，[[http://developer.gnome.org/gtk3/unstable/GtkWidget.html#GtkWidget.object-hierarchy][GtkWidget]] 和 [[http://developer.gnome.org/glib/unstable/glib-GVariant.html][GVariant]] ）—— 这样可以更为方便使用 C 中的类型系统，因为它允许使用 g_variant_new() 构造函数代替参数，如 [[https://developer.gnome.org/gio/unstable/GDBusProxy.html#g-dbus-proxy-call-sync][g_dbus_proxy_call_sync()]] 的示例代码所展示的，不会泄露任何引用。
+
+除非是显而易见的，所有的函数都应该有文档来解释参数是如何管理的。让 API 保持一种一致性通常是个好主意。例如，在 Glib 中，一般规则是调用者 *拥有* 传递给函数的参数（因此，如果参数在函数调用之后要被使用的话，函数需要使用参数的引用或者对参数进行复制），除非函数被多个线程调用（这种情况下调用者需要释放返回的对象），被调用者 *拥有* 返回值（因此，调用者需要对返回值进行复制或增加引用计数）。
+
+注意到，线程安全通常指示了 API 的样子 —— 例如，对于一个线程安全的对象池，函数 lookup()（lookup 单词意思是看一下）（返回一个对象）必须返回一个引用（调用者必须对其进行 unref()）因为返回的对象可以在 lookup() 返回后被从另一个线程中删除 —— 这样的一个例子是 [[http://developer.gnome.org/gio/unstable/GDBusObjectManager.html#g-dbus-object-manager-get-object][g_dbus_object_manager_get_object()]] 。
+
+如果你为一个对象或结构实现了引用计数，确保它使用的是 [[https://en.wikipedia.org/wiki/Linearizability][原子操作]] ，不然就对引用计数进行保护，使之不会在同一时间被多个线程修改。
+
+如果函数返回了一个指向内存的指针，而调用者不想要释放或使用 unref()，用文档说明指针的有效期通常是必须的 —— 例如 [[http://man7.org/linux/man-pages/man3/getenv.3.html][getenv()]] 的文档指出“返回值指针指向的字符串可能是静态分配的，可被 getenv()，putenv，setenv(3) 或 unsetenv(3) 调用修改。”这是有用的信息，因为它表明如果 getenv 的返回值被用于多线程，需要多加小心；同时这类 API 绝对不能用于多线程应用，它起作用的唯一原因是应用程序或库通常不修改环境。
+
+如果内存分配器发出内存耗尽的信号，那么应用程序通常最好不用关心内存耗尽，而直接调用 [[http://man7.org/linux/man-pages/man3/abort.3.html][abort()]] 结束进程。这对于大多数库而言都是可取的，因为它允许写出更简单更好的 API，并且可以减少巨量的代码行数。如果你决定在你的库中处理 OOM（out of memory），一定要保证你测试了所有的代码路径，否则你付出的努力非常可能是白费功夫。另一方面，如果你知道你的库将会在例如 process 1 （初始进程）中或其他关键进程中使用，那样的话， OOM 的处理就不是可选项了。
+
+** 清单
+
+- 为你在库中引入的每种类型提供 free() 或 unref() 函数
+
+- 确保内存管理在你的库中的一致性
+
+- 注意多线程可能会强制（impose）某些类型的 API
+
+- 确保文档清楚地描述了是如何进行内存管理的
+
+- Abort 掉 OOM 的情况，除非有很好的理由来对 OOM 进行处理
+
+
+* 多线程和多进程
+
+一个库应该清楚地在文档中说明它能不能和怎样用于多线程。线程安全通常有多个级别 —— 如果库有对象和对象池的概念（大多数都有），对对象池的管理和枚举可能就是线程安全的，应用程序在从多个线程对单个对象操作时应提供自己的锁。
+
+如果你提供了一个处理同步 I/O 的函数，把它写成线程安全的通常是个好主意，这样应用程序就可以安全地在辅助线程中使用该函数。
+
+如果你的库在内部使用线程，对线程范围状态（process-wide state）的操作要多加小心，比如当前目录，地区，等等。在私有工作线程这样做可能会对使用你的库的应用程序产生不可预料的结果。
+
+库总是应该使用线程安全的函数（比如使用 [[http://man7.org/linux/man-pages/man3/getpwnam.3.html][getpwnam_r()]] 而不是 getpwnam()）并避开不是线程安全的代码。如果你不能做到这点，应当清楚地说明你的库不是线程安全的。如果应用需要线程安全的话，应用可以在一个辅助进程中使用库。
+
+在文档中说明是否使用了内部线程也非常重要，例如是否有一个工作线程池。即便你将线程看作私有实现细节，它的存在能够影响库的使用者；例如，在线程存在的情况下，可能需要以不同的方式处理 [[http://man7.org/linux/man-pages/man7/signal.7.html][Unix signals]] ，当 fork 一个线程应用程序时可能会遇到额外的复杂情况。
+
+如果你的库的接口包含可以通过 [[http://man7.org/linux/man-pages/man2/fork.2.html][fork()]] 继承的资源，比如文件描述符，锁，从 [[http://man7.org/linux/man-pages/man2/mmap.2.html][mmap()]] 获得的内存，等等，你应该尝试建立一个清晰的规则，即应用应该在 fork 的前后如何使用你的库。通常而言，简单的是最好的：在 fork 之后再开始使用函数，或提供一种方法来在使用 fork 后的进程中重新初始化库。对于文件描述符，使用 =FD_CLOEXEC= 是明智之举。在现实中，绝大多数库在 fork() 调用之后都有未定义行为，因此唯一安全的方法是调用 [[http://man7.org/linux/man-pages/man3/exec.3.html][exec()]] 函数。
+
+** 清单
+
+- 为库能否及如何在多线程中使用建立文档
+
+- 为在 fork 之后应该做什么或此时库是否可用建立文档
+
+- 为库是否创建私有工作线程建立文档
