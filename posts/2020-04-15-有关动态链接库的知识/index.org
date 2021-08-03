@@ -1,0 +1,594 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 有关动态链接库的知识
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-04-15 Wed]
+#+TAGS: c windows
+
+* 什么是动态链接库
+
+动态链接库（dynamic-link library）(DLL) 是一个包含函数和数据的模块，它可以被其他模块（应用或 DLL）使用。
+
+在 DLL 中可以定义两种函数：导出函数和内部函数（exported and internal）。导出函数可以被其他模块调用，也可以被它所在的模块调用。内部函数一般而言用于 DLL 内。 DLL 中定义的数据一般只在 DLL 内使用。
+
+DLL 提供了一种模块化应用程序的方法，以便它们的功能能够轻松地进行更新和重用。在多个程序同时使用相同的函数时，使用 DLL 也有助于减少内存占用，因为即便每个程序需要拥有属于自己的 DLL 数据的副本，这些程序共享了 DLL 的代码。
+
+* 动态链接
+
+动态链接允许在 *载入时* 或 *运行时* 确定 DLL 导出函数。这与静态链接不同，静态链接在链接时会将函数库的代码拷贝到调用它的模块中。
+
+** 动态链接的种类
+
+*** 载入时(load-time)的动态链接
+
+模块直接将 DLL 导出函数当作本地函数（local function）进行调用。这需要你在对模块进行链接时链接该 DLL 的导入库。导入库为系统提供了载入 DLL 所需要的信息，并提供了在应用载入时找到导出函数的信息。
+
+当系统运行使用载入时链接的程序时，它会使用链接器放在程序文件中的信息来确定程序所使用的 DLL 的名字。系统在之后开始搜索 DLL。
+
+如果系统不能找到需要的 DLL，它会终止进程并显示一个报告错误的对话框。若顺利找到 DLL，系统会将 DLL 映射到进程的虚拟地址空间中并给 DLL 的引用计数加一。
+
+系统会调用 DLL 的入口点函数。这个函数接收到表明进程载入 DLL 的代码。如果入口点函数的返回值不是 TRUE，系统会终止程序并报告错误。
+
+最后，系统会以 DLL 导入函数的起始地址对函数地址表进行修改，让程序中的函数调用对应到相应的函数地址。
+
+*** 运行时(run-time)的动态链接
+
+*使用运行时链接的方式进行调用不需要提供头文件和导入库*
+
+通过使用特定的函数 =LoadLibrary= 或 =LoadLibraryEx= 来在运行时载入 DLL。在 DLL 载入后，可以通过函数 =GetProcAddress= 来得到 DLL 导出函数或数据的地址。通过该函数返回的指针来使用导出函数。这样就不必使用导入库了。
+
+当应用程序调用 =LoadLibrary= 或 =LoadLibraryEx= 时，系统会尝试定位 DLL。如果搜索成功，系统会将 DLL 模块映射到进程的虚拟地址空间并增加库的引用计数。如果对 =LoadLibrary= 或 =LoadLibraryEx= 的调用指定了一个已经映射到虚拟地址的 DLL，那么函数仅会返回该 DLL 的句柄并增加引用计数。需要注意的是，同名但不同目录的 DLL 不被看作是同一个 DLL。
+
+系统会对入口点函数进行调用，该调用在调用 =LoadLibrary= 或 =LoadLibraryEx= 的上下文中。如果 DLL 已经载入过一次，在没有出现相对应的 =FreeLibrary= 函数的情况下，通过 =LoadLibrary= 或 =LoadibraryEx= 载入的 DLL 的入口点函数不会被调用。
+
+如果系统不能找到 DLL 或入口点函数返回值为 FALSE， =LoadLibrary= 或 =LoadLibraryEx= 会返回 NULL。如果它调用成功，则会返回 DLL 模块的句柄。进程可以使用这个句柄来调用 =GetProcAddress=，=FreeLibrary= 或 =FreeLibraryAndExitThread= 等函数。
+
+=GetModuleHandle= 函数返回一个 DLL 的句柄。仅当 DLL 已经映射到了进程的地址空间， =GetModuleHandle= 的调用才会成功。与 =LoadLibrary= 和 =LoadLibraryEx= 不同的是， =GetModuleHandle= 不会增加模块的引用计数。 =GetModuleFileName= 函数可以检索模块的绝对路径。
+
+=GetProcAddress= 函数可用于获得导出函数的地址，它需要使用 DLL 模块的句柄。
+
+当 DLL 模块不再被需要时，进程可以调用 =FreeLibrary= 或 =FreeLibraryAndExitThread= 。这些函数会减少模块的引用计数，并在引用计数降为零时取消 DLL 的虚拟内存映射。
+
+运行时链接允许进程在即便 DLL 不可用的情况下运行。进程可以使用替代方法来达成它的目的。例如，如果一个进程不能定位一个 DLL，它可以尝试使用另一个，或直接向用户提示错误。如果用户能够提供缺失 DLL 的绝对路径，这个进程可以使用这个路径来载入 DLL，即便该路径不是一般的搜索路径。
+
+对于使用 DllMain 函数来为每一个线程初始化的进程，运行时链接可能会造成一些问题，因为入口点函数不会为在调用 =LoadLibrary= 或 =LoadLibraryEx= 之前就存在的线程进行调用。
+
+** 动态链接库的搜索顺序
+
+*** 影响搜索的因素
+
+- 如果同名的 DLL 已经载入到内存中，不论它在哪个目录，系统只会在检查已载入的 DLL 之前检查重定向。系统不会搜索该 DLL。
+
+- 如果 DLL 存在于应用程序运行的 Windows 版本的 已知 DLL 列表中，系统会使用已知 DLL 的副本而不是寻找 DLL。
+
+- 如果一个 DLL 存在依赖，系统会搜索它依赖的 DLL，并假设它们只有名字信息（没有路径信息）。即使第一个 DLL 以指定的绝对路径载入，其余依赖的 DLL 也只会使用名字进行搜索。
+
+
+*** 桌面应用的搜索顺序
+
+桌面应用可以通过指定绝对路径，使用 DLL 重定向或使用 [[https://docs.microsoft.com/en-us/windows/win32/sbscs/manifests][Manifests]] 来控制 DLL 的载入位置。如果这些方法都没有被使用，系统在载入时的 DLL 搜索操作如下所示。
+
+在开始对 DLL 的搜索之前，系统首先会对如下项进行检查：
+
+- 如果同名的 DLL 模块已经在内存中载入了，系统会使用载入的 DLL，不论它的地址如何。系统不会搜索 DLL。
+
+- 如果 DLL 存在于 已知 DLL 表上。系统不会搜索 DLL，而是使用已载入的 DLL。
+
+
+系统使用的标准 DLL 搜索顺序取决于 DLL 搜索安全模式（SafeDllSearchMode）的打开或关闭。DLL 搜索安全模式将用户的当前路径放在搜索顺序靠后的地方。DLL 搜索安全模式默认打开（Windows XP 默认关闭）。调用 =SetDllDirectory= 来添加库搜索目录会关闭 SafeDllSearchMode。
+
+如果 SafeDllSearchMode 是打开的，搜索顺序如下所示：
+
+1. 应用程序载入的目录。
+
+2. 系统目录。使用 =GetSystemDirectory= 可以得到这个目录的路径。
+
+3. 16位系统目录。没有函数能够获得这个目录的路径，但是它会被搜索。
+
+4. Windows 目录。使用 =GetWindowsDirectory= 函数来获取目录的路径。
+
+5. 当前目录。
+
+6. 列在 PATH 环境变量中的目录。这不包括由 App Path Key 指定的应用目录。
+
+
+如果 SafeDllSearchMode 被关闭了，当前目录会成为第二个被搜索的目录，其余保持不变。
+
+** DLL 中的数据
+
+DLL 中可以包含全局数据和局部数据。
+
+*** 变量作用域
+
+在 DLL 中定义为全局变量的变量会被编译器和链接器作为全局变量对待，每个载入给定 DLL 的进程都会有属于它自己的 DLL 全局变量。静态变量被限制在定义它的区域内。
+
+默认情况下，每个进程都会有属于它的 DLL 全局变量和静态变量实例。
+
+* 动态链接库的优缺点
+
+** 优点
+
+- DLL 减少了代码的重复并节约了存储空间，一个 DLL 可以被多个应用程序使用，这些程序共享一个 DLL，不像静态库那样存在于每个应用程序内。
+
+- 在相同基地址使用相同 DLL 的多个进程在物理内存中共享 DLL 的一个副本。这样就节约了内存。
+
+- 当一个 DLL 中的函数改变时，只要函数的参数，调用约定（calling conventions）和返回值不发生变化的话，使用这个函数的应用程序就不必重新编译或重新链接。与之相比，函数发生变化时，使用静态链接的应用程序需要被重新链接。
+
+- 使用 *不同编程语言* 编写的程序可以调用 DLL 中的函数，只要它遵守与 DLL 中的函数相同的调用约定。 *调用约定* 决定了参数的压栈顺序，函数是否负责清理调用栈，和参数是否传递给寄存器。
+
+
+** 缺点
+
+- 使用 DLL 的程序不是自洽（self-contained）的，它对与它本身分离的 DLL 模块存在依赖。如果载入时的动态链接没有找到它所需要的 DLL，系统会终止进程，并向用户发送错误信息。系统不会终止运行时的动态链接时的情况（没有在载入时检查 DLL 是否载入），但缺失 DLL 的导出函数对使用它的程序是不可用的。
+
+- 运行时载入动态库库会花费一定时间，所以比静态库的执行速度慢一点（差异很小）。
+
+
+* Windows 下创建和使用动态函数库
+
+** 入口点函数（Entry-Point Funciton)
+
+一个 DLL 可以指定一个入口点函数。如果这个函数存在，那么每当一个进程或线程载入或卸载 DLL 时，系统会调用该函数。它可以用作简单的初始化和清理任务。例如，在线程被创建时，它可以建立起线程的局部存储，并在线程结束时进行清理。
+
+*** 入口点函数的调用
+
+在如下事件发生时，系统会调用入口点函数：
+
+- 一个进程载入了 DLL。对于使用载入时链接的进程，DLL 在进程初始化时就被载入。对于使用运行时链接的进程，DLL 的载入发生在 =LoadLibrary= 和 =LoadLibraryEx= 返回之前。
+
+- 一个进程卸载了 DLL。当进程终止时，或调用 =FreeLibrary= 且引用计数归零时，DLL 会被卸载。如果进程是因为 =TerminateProcess= 或 =TerminateThread= 而终止，系统则不会调用 DLL 的入口点函数。
+
+- 在进程中创建的新线程载入了 DLL。你可以在创建线程时使用 =DisableThreadLibraryCalls= 来使其无效化。
+
+- 一个载入了 DLL 的进程的线程正常终止了。对整个进程，入口点函数只会被调用一次，而不是对每个存在于进程中的线程。同样的，可以使用 =DisableThreadLibraryCalls= 来使其无效化。
+
+
+系统在创建进程或线程（进程或线程载入了 DLL）的上下文中调用入口点函数。这就允许 DLL 通过使用入口点函数在进程的虚拟内存空间上分配内存。
+
+*** 入口点函数的定义
+
+入口点函数的函数原型为：
+
+#+BEGIN_SRC c
+BOOL WINAPI DllMain(
+    HINSTANCE hinstDLL,
+    DWORD fdwReason,
+    LPVOID lpReserved);
+#+END_SRC
+
+当库第一次开始和终止时， DllMain 都会被调用。DllMain 的第一个参数是库的实例句柄，第二个参数的值可以是四个值中的一个，用来说明 Windows 调用 DllMain 函数的原因。第三个参数是系统保留参数。如果初始化成功， DllMain 应该返回非 0 值，返回 0 导致 Windows 无法运行该程序。
+
+入口点函数必须声明为标准调用 =__stdcall= 的调用约定。如果 DLL 入口点函数没有被正确地声明，DLL 不会被载入，系统会显示消息来表明：DLL 入口点函数必须声明为 =WINAPI= 。
+
+在函数体中，你可以处理以下消息：
+
+- 进程载入了 DLL （DLL_PROCESS_ATTACH）
+
+- 当前进程创建了新线程（DLL_THREAD_ATTACH）
+
+- 线程正常退出（DLL_THREAD_DETACH）
+
+- 进程卸载 DLL（DLL_PROCESS_DETACH）
+
+
+** 库的导出
+
+DLL 文件的结构与可执行文件（.exe）非常相似，但它们有一个很大的不同 —— DLL 文件包含一张导出函数表。导出表包含了所有的 DLL 导出函数的名字。这些函数是进入 DLL 的入口点函数，只有名字在导出表中的函数才能被其他可执行文件访问。其它任意非出口函数是 DLL 私有。DLL 的导出函数表可以使用工具 dumpbin 进行查看（加上 /EXPORTS 选项）。
+
+如何指定 DLL 中的哪些函数需要导出取决于你所使用的工具。一些编译器允许你在函数声明中使用修饰词（modifier）来直接指定函数需要导出。其他时候，你可能需要在一个传递给链接器（linker）的文件中指定导出函数。
+
+*** 使用 __declspec(dllexport) 指定导出函数
+
+可以通过使用 =__declspec(dllexport)= 关键字来从 DLL 中导出数据，函数，类，或类成员函数。 =__declspec(dllexport)= 将导出指令添加到目标文件中。使用了 =__declspec(dllexport)= 则无需使用 DEF 文件。
+
+对于导出函数，如果指定了调用约定关键字，那么关键字 =__declspec(dllexport)= 必须写在调用约定关键字的左边。例如
+
+#+BEGIN_SRC c
+__declspec(dllexport) __cdecl void Function(void);
+#+END_SRC
+
+（注意： =__declspec(dllexport)= 不能用于使用了 =__clrcall= 调用约定的函数）
+
+要导出类中的所有公共数据成员和成员函数的话，这个关键字应该出现在类名的左边，就像这样：
+
+#+BEGIN_SRC cpp
+class __declspec(dllexport) CExamplaExport : public CObject
+{ ... class definition ... };
+#+END_SRC
+
+创建 DLL 时，一般会创建一个包含导出函数的函数原型和导出的类的头文件（用于 DLL 的构建），并将在这些声明中加上 =__declspec(dllexport)= 。为了让代码的可读性更强，可以为 =__declspec(dllexport)= 定义一个宏，并使用这个宏来标注导出函数。
+
+#+BEGIN_SRC c
+#define DllExport __declspec(dllexport)
+#+END_SRC
+
+**** 导出 C++ 函数供 C 程序使用
+
+如果你想在 C 代码中使用由 C++ 编写的 DLL，你就应该将这些函数声明为 C 的链接（linkage）而不是 C++ 的。如果没有指定的话，C++ 编译器会使用 C++ 的类型安全命名（也叫做名字修饰）和 C++ 的调用约定，这使得 C 很难对其进行调用。
+
+要指定 C 链接，在函数声明中使用 =extern "C"= ，例如：
+
+#+BEGIN_SRC c
+extern "C" __declspec(dllexport) int MyFunc(long parm1);
+#+END_SRC
+
+**** 导出 C 函数供 C/C++ 程序使用
+
+如果你想要在 C 或 C++ 中调用由 C 编写的 DLL，你需要使用 =__cpluscplus= 预处理宏来确定在使用哪种语言。如果正在使用 C++ 语言，应该将这些函数声明为 C 链接。如果你这样做了并为你的 DLL 提供了客户程序使用的头文件，这些函数可以不加改变地在 C 和 C++ 中使用。
+
+#+BEGIN_SRC c
+//MyFunc.h
+#ifdef __cplusplus
+extern "C" { //only need to export C interface if
+             // used by C++ source code
+#endif
+
+__declspec(dllimport) void MyCFunc();
+__declspec(dllimport) void AnotherCFunc();
+
+#ifdef __cplusplus
+}
+#endif
+#+END_SRC
+
+（dllimport 的使用对于函数声明不是必要的，但是这样做可以让编译器生成更好的代码）
+
+（此处的头文件仅作为头文件提供给其它模块使用，不参与编译，函数定义处应使用 dllexport）
+
+如果你需要将 C 函数供 C++ 程序使用，而函数声明头文件又没有向上面那么做，那么可以这样做来避免 C++ 编译器对 C 函数名进行装饰：
+
+#+BEGIN_SRC c
+extern "C" {
+#include "MyCHeader.h"
+}
+#+END_SRC
+
+*** 使用 DEF 文件指定导出函数
+
+DEF 文件（*.def）是一个包含一个或多个模块语句的文本文件，这些语句描述了 DLL 的多种性质。如果没有使用 =__declspec(dllexport)= 来导出 DLL 的函数，那么 DLL 就需要一个 DEF 文件进行相关说明。
+
+一个 DEF 文件必须包含以下模块定义语句
+
+- 文件的第一个语句必须是 LIBRARY 语句。这条语句标识 DEF 所属的 DLL。LIBRARY 后接 DLL 的名称。链接器会将这个名字放在 DLL 的导入库中。
+
+- EXPORT 语句列出了函数名和可选的导出函数的序列值（ordinal）（可选）。通过在函数名后面接上符号（@）和一个数字，你将一个序列值赋给了该函数。序列值的范围从 1 到 N，N 是 DLL 导出函数的个数。
+
+
+一个简定的 DLL 的 DEF 文件可以是这样：
+
+#+BEGIN_SRC c
+LIBRARY MYDLL
+EXPORTS
+    Fun1 @1
+    Fun2 @2
+    Fun3 @3
+    Fun4 @4
+#+END_SRC
+
+如果你要导出 C++ 文件中的函数，你要么将被修饰过的名字放进 DEF 文件，要么通过使用 =extern "C"= 来使用标准 C 链接。修饰名可以通过 dumpbin 工具查看（/MAP 选项）。需要注意的是，由编译器生成的修饰名是特定于编译器的，如果你将由 MSVC 产生的修饰名用在 DEF 文件中，那么使用这个 DLL 的程序必须使用相同于构建 DLL 版本的 MSVC，这样修饰名才会匹配。
+
+** 库的导入
+
+使用了由 DLL 定义的公共符号的程序被看作导入了 DLL。当你为你的应用程序创建用于使用 DLL 的头文件时，对公共符号使用 =__declspec(dllimport)= 。（公共符号即 DLL 导出的函数、对象和数据）
+
+为了使代码的可读性更强，可以为 =__declspec(dllimport)= 定义一个宏，并使用这个宏来声明导入函数：
+
+#+BEGIN_SRC c
+#define DllImport __declspec(dllimport)
+DllImport int j;
+DllImport void func();
+#+END_SRC
+
+=__declspec(dllimport)= 的使用对于函数是可选的，但是如果你使用了这个关键字，编译器能够生成更高效率的代码。然而，你 *必须* 对 DLL 的公共数据符号和对象使用这个关键字。 *注意到，DLL 的使用者需要链接导入库* 。
+
+你可以对 DLL 和客户程序使用同一个头文件。为了做到这一点，需要使用一个特殊的预处理符号来表明你是在构建 DLL 还是在构建客户程序。例如：
+
+#+BEGIN_SRC c
+#ifdef _EXPORTING
+    #define CLASS_DECLSPEC __declspec(dllexport)
+#else
+    #define CLASS_DECLSPEC __declspec(dllimport)
+#endif
+
+class CLASS_DECLSPEC CExampleA : public CObject
+{ ... class definition ...};
+#+END_SRC
+
+*** __decpspec(dllimport) 对函数调用的影响
+
+假设 =func1= 是一个 DLL 中的函数，与包含 main 函数的 .exe 文件分离。
+
+不使用 =__declspec(dllimport)= ，考虑下面的代码
+
+#+BEGIN_SRC c
+int main(void)
+{
+    func1();
+}
+#+END_SRC
+
+编译器会生成类似下面的代码：
+
+#+BEGIN_SRC c
+call func1
+#+END_SRC
+
+链接器会将它翻译成类似这个样子：
+
+#+BEGIN_SRC
+call 0x40000000       ; The address of 'func1'
+#+END_SRC
+
+如果 =func1= 存在于其它 DLL 中（而不是 .exe 中），链接器不能直接对其进行分析，因为它无法知道 =func1= 的地址。在 16 位环境中，链接器将地址添加在 .exe 文件的表中，载入器可以通过它在运行时使用正确的地址进行相应的修补。在 32 位或 64 位环境中，链接器会生成一个 [[https://en.wikipedia.org/wiki/Thunk][*thunk*]] ，它知道地址。在 32 位环境中看起来就像这样：
+
+#+BEGIN_SRC
+call 0x40000000: jmp DWORD PTR __imp_func1
+#+END_SRC
+
+在这里， =imp_func1= 是 .exe 文件中的导入地址表中 =func1= 的地址。这样，链接器就可以识别所有地址。载入器（loader）只需在载入时更新 .exe 文件的导入地址表即可使程序正常运行。
+
+因此，使用 =__declspec(dllimport)= 更好，因为如果不需要的话，链接器就不会生成一个 thunk。Thunk 让代码更多并可能会降低 cache 性能。如果你告诉编译器该函数在 DLL 中，它能为你产生一个间接调用。
+
+使用下面的代码：
+
+#+BEGIN_SRC c
+__decpspec(dllimport) void func1(void);
+int main(void)
+{
+    func1();
+}
+#+END_SRC
+
+会生成这样的指令：
+
+#+BEGIN_SRC
+call DWORD PTR __imp_func1
+#+END_SRC
+
+现在，thunk 和 =jmp= 指令就不存在了，代码变得更小更快。
+
+另一方面，对于 DLL 内的函数调用，不需要使用间接调用。你已经知道了函数的地址。在间接调用之前，载入和存储函数地址需要时间和空间，因此直接调用总是更小更快。你只有在从 DLL 外部调用 DLL 函数时使用 =__declspec(dllimport)= 。不要在构建 DLL 时在 DLL 内使用 =__declspec(dllimport)= 。
+
+*** 使用 __declspec(dllimport) 导入数据
+
+对数据而言，使用 =_declspec(dllimport)= 可以消除一层间接。当你从 DLL 中导出数据时，你仍然需要浏览整个导入地址表，这意味着你当你访问 DLL 导出的数据时，你不得不记住额外的间接层，执行额外的间接寻址，就像这样：
+
+#+BEGIN_SRC c
+//project.h
+#ifdef _DLL //if accessing the data from inside the DLL
+    ULONG ulDataInDll;
+#else       //if accessing the data from outside the DLL
+    ULONG *ulDataInDll;
+#+END_SRC
+
+当你使用 =__declspec(dllimport)= 来标出数据时，编译器会自动为你生成间接代码。你不必担心是否需要解引用，可以直接使用变量而不是指针。
+
+不要在构建 DLL 时使用 =__declspec(dllimport)= ，在 DLL 内的函数不需要使用导入地址表来访问数据对象。
+
+* 实例：一个简单的 DLL
+
+接下来，我用一个 C 语言的例子来展示如何使用 DLL，作为对上文的总结。
+
+下面的代码在 MINGW 和 MSVC 下通过编译并可正确执行。
+
+这个动态库中包含两个函数 =add= 和 =multi= ，它们的功能分别是对两个 =int= 型整数相加，和对两个 =int= 型整数相乘，为了简便起见，要求两个数都不小于 0。它还含有一个值为 0 的变量 =yyzero= 。
+
+动态库还包含一个内部的 =add_in= 函数和内部变量 =zero_in= ，它们不能被 DLL 外访问。
+
+为了让头文件可同时用于 DLL 和客户程序，需要使用宏：
+
+#+BEGIN_SRC c
+//yydll.h
+#ifndef YYDLL_INCLUDE
+#define YYDLL_INCLUDE
+
+#ifdef __cplusplus    //use extern "C" if language is C++
+extern "C" {
+#endif
+
+#ifdef DLL_BUILD    //use macro to detect dll or client program
+#define DECL __declspec(dllexport)
+#else
+#define DECL __declspec(dllimport)
+#endif
+
+DECL int yyzero;
+DECL int add(int, int);
+DECL int multi(int, int);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //correspond to YYDLL_INCLUDE
+#+END_SRC
+
+编写源文件时，可以使用 DEF 文件。下面的源文件是不使用 DEF 文件的情况。
+
+#+BEGIN_SRC c
+//yydll.c
+#include "yydll.h"
+
+// inner data and function
+
+int zero_in = 0;
+
+int add_in(int a, int b)
+{
+    return a + b;
+}
+
+//exprot data and functions
+
+DECL int yyzero = 0;
+
+DECL int add(int a, int b)
+{
+    return a + b;
+}
+
+DECL int multi(int a, int b)
+{
+    if (a == zero_in)
+        return 0;
+    else
+        return add_in(b, multi(a - 1, b));
+}
+#+END_SRC
+
+将 =yydll.c= 和 =yydll.h= 放在同一目录下，就可以开始编译了。
+
+如果使用 MSVC 编译器，首先运行 =vsdevcmd.bat= 并 cd 到源代码目录，再使用如下命令：
+
+#+BEGIN_SRC
+cl /LD /D DLL_BUILD yydll.c
+#+END_SRC
+
+即可得到 yydll.lib 和 yydll.dll。
+
+如果使用 MINGW 下的 gcc 编译器，则使用如下命令：
+
+#+BEGIN_SRC
+gcc -c -D DLL_BUILD yydll.c
+gcc -shared -o yydll.dll yydll.o -Wl,--out-implib,yydll_dll.a
+#+END_SRC
+
+即可得到 yylib.dll 和 yydll_dll.a 文件。.a 文件对应于 MSVC 中的 .lib 导入库。
+
+接下来编写 main.c
+
+#+BEGIN_SRC c
+//main.c
+#include "yydll.h"
+#include <stdio.h>
+
+int main(void)
+{
+    int a = 2;
+    int b = 31;
+    int c = 1847;
+    if ((a != yyzero) && (b != yyzero) && (c != yyzero))
+        printf("all not zero\n");
+
+    printf("%d\n", add(a, add(b, c)));
+    printf("%d\n", multi(a, multi(b, c)));
+
+    return 0;
+}
+#+END_SRC
+
+使用 MSVC 的话，使用如下命令生成 .exe 文件
+
+#+BEGIN_SRC
+cl main.c yydll.lib
+#+END_SRC
+
+若使用 gcc ，则使用如下命令，（因为没有使用 gcc 的库命名规范，所以不能使用 -l 的方法。）
+
+#+BEGIN_SRC
+gcc -o main.exe main.c yydll_dll.a
+#+END_SRC
+
+得到 main.exe 并运行，可以看到：
+
+#+BEGIN_SRC
+all not zero
+1880
+114514
+#+END_SRC
+
+如果将 yydll.dll 移走，运行时会直接弹窗，显示 dll 未找到。
+
+若要在运行时进行库的载入，main 函数应改为：
+
+#+BEGIN_SRC c
+//main.c
+#include<stdio.h>
+#include<windows.h>
+
+typedef int (*myfun)(int, int);
+
+int main(void)
+{
+    HINSTANCE hinstLib;
+    myfun myadd = NULL;
+    myfun mymulti = NULL;
+    int * pyyzero = NULL;
+    BOOL fFreeResult, fRuntimeLinkSuccess = FALSE;
+
+    int a = 2;
+    int b = 31;
+    int c = 1847;
+
+    hinstLib = LoadLibrary(TEXT("yydll.dll"));
+
+    if (hinstLib != NULL)
+    {
+        myadd = (myfun)GetProcAddress(hinstLib, "add");
+        mymulti = (myfun)GetProcAddress(hinstLib, "multi");
+        pyyzero = (int*)GetProcAddress(hinstLib, "yyzero");
+
+        if (myadd != NULL && mymulti != NULL && pyyzero != NULL);
+        {
+            fRuntimeLinkSuccess = TRUE;
+            if ((a != *pyyzero) && (b != *pyyzero) && (c != *pyyzero))
+            {
+                printf("all not zero\n");
+            }
+            printf("%d\n", myadd(a, myadd(b, c)));
+            printf("%d\n", mymulti(a, mymulti(b, c)));
+        }
+        fFreeResult = FreeLibrary(hinstLib);
+    }
+
+    if (!fRuntimeLinkSuccess)
+    {
+        printf("link failed");
+    }
+
+    return 0;
+}
+#+END_SRC
+
+生成 .exe 的 MSVC 和 gcc 命令分别是：
+
+#+BEGIN_SRC
+cl main.c
+gcc -o main.exe main.c
+#+END_SRC
+
+运行之，与使用导入库的结果一致。如果把 yydll.dll 从当前目录移走的话，程序会输出 link failed。
+
+这里没有使用 DEF 文件，想要了解 DEF 文件的用法，可以参考文档：[[https://docs.microsoft.com/en-us/cpp/build/reference/module-definition-dot-def-files?view=vs-2019][Module-Definition (.Def) Files]]
+
+若要在 Visual Studio 中创建并使用 DLL，可以参考微软官方文档：[[https://docs.microsoft.com/en-us/cpp/build/walkthrough-creating-and-using-a-dynamic-link-library-cpp?view=vs-2019][Walkthrough: Create and use your own Dynamic Link Library (C++)]]
+
+* 补充：什么是调用约定
+
+调用约定规定了函数如何接受调用者的参数和它们如何返回函数值。不同调用约定的区别在于：
+
+- 参数和返回值放置的位置
+
+- 参数传递的顺序
+
+- 调用前后栈的清理工作分配
+
+
+** 部分MSVC 提供的调用约定
+
+*** __cdecl
+
+=__cdecl= 是 C 和 C++ 的默认调用约定。因为栈的清理工作由调用者完成，它可以用作 =vararg= 函数。=__cdecl= 调用生成会创建比使用 =__stdcall= 更大的可执行程序，因为它需要为每个函数调用包含清理栈的代码。
+
+*** __stdcall
+
+=__stdcall= 调用约定用于 Win32 API 函数。被调函数负责栈的清理，因此编译器会将 =vararg= 函数变成 =__cdecl= 的调用约定。使用该约定的函数需要一个函数原型。
+
+关于更多的调用约定，可参考 [[https://docs.microsoft.com/en-us/cpp/cpp/calling-conventions?view=vs-2019][Calling Conventions]]
+
+* 参考资料
+
+/Programming Windows/ —— Charles Petzold （Windows 程序设计）
+
+Dynamic-Link Libraries：https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-libraries
+
+Building C/C++ DLLs in Visual Studio：https://docs.microsoft.com/en-us/cpp/build/dlls-in-visual-cpp?view=vs-2019
