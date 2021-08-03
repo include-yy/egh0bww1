@@ -1,0 +1,213 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: Windows窗口与消息：窗口类
+#+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
+#+DATE: [2020-06-22 Mon]
+#+TAGS: windows
+
+* 什么是窗口类
+
+一个窗口类是属性的一个集合，系统使用它作为模板来创建一个窗口。每个窗口都是某个窗口类的成员。
+
+每个窗口都有与之关联的窗口过程，该过程由同一个类的窗口共享。窗口进程处理所有该类窗口的消息，因此它掌握着窗口的行为和外观。
+
+进程必须在创建窗口前先对窗口的窗口类进行注册。注册会将窗口类与窗口过程、类风格和其他窗口属性与类的名字相关联。当进程在 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowa][CreateWindow]] 或 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa][CreateWindowEx]] 函数中指定类名时，系统会根据类关联的窗口过程、风格和其他属性来创建一个窗口。
+
+* 窗口类的种类
+
+窗口类一共有三种，分别是：
+
+- 系统窗口类，[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#system-classes][System Classes]]
+
+- 全局应用窗口类，[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#application-global-classes][Application Global Classes]]
+
+- 局部应用窗口类，[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#application-local-classes][Application Local Classes]]
+
+三者在作用域和注册与注销方式上存在差异。
+
+** 系统窗口类
+
+系统窗口类是由系统注册的窗口类。许多系统类对所有进程都可以使用，但有一部分只由系统内部使用。因为是由系统注册的，进程不能够销毁它们。
+
+在进程的一个线程第一次调用 *用户* （User）或 GDI 接口函数时，系统会为进程注册系统类。每个应用会收到属于它的系统类副本。
+
+下表描述了可被所有进程使用的系统类：
+
+- Button，按钮类
+
+- ComboBox，组框类
+
+- Edit，编辑控件类
+
+- ListBox，列表框类
+
+- MDIClient，MDI 用户窗口类
+
+- ScrollBar，滚动条类
+
+- Static，静态类
+
+** 全局应用类
+
+全局应用类是由可被进程中所有模块使用的可执行文件或 DLL 注册的窗口类。例如，你的 .dll 可以调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassexa][RegisterClassEx]] 函数来将一个定义了自定义控件的窗口类注册为全局应用类，载入了这个 .dll 的进程就可以创建这个自定义空间的实例了。
+
+要创建一个可被所有进程使用的窗口类，可以在 .dll 中创建一个窗口类并在所有进程中载入这个 .dll。要在所有进程中载入 .dll，将它的名字在以下注册表中添加到 *AppInit_DLLs* ：
+
+HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows
+
+当进程启动时，系统会在调用入口点函数前在新开始的进程的上下文中载入指定的 .dll。.dll 必须在它的初始化过程中注册窗口类并指定 *CS_GLOBALCLASS* 。
+
+要移除全局应用类并释放与之相关的内存，使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterclassa][UnregisterClass]] 函数。
+
+** 局部应用类
+
+局部应用类是由可执行文件或 .dll 仅供自己使用所注册的窗口类。即便你可以注册任意数量的局部类，一般你也只会注册一个。这个窗口类为应用主窗口提供窗口过程支持。
+
+当注册了局部类的模块关闭时，系统会销毁这个局部类。应用也可使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterclassa][UnregisterClass]] 来除去局部类并释放与之关联的空间。
+
+根据上面的描述，全局应用类和系统窗口类很相似，都可以被所有的进程使用,通过一些操作，全局应用类的类可以被进程载入。但与系统窗口类不同的是，它需要应用管理类的释放工作。
+
+* 窗口类的搜索顺序
+
+系统维护着一张窗口类结构的表。当应用调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createwindowexa][CreateWindowEx]] 或 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createwindowa][CreateWindow]] 来创建一个指定类的窗口时，系统使用以下过程来对类进行定位：
+
+1. 在应用局部类表中搜索指定名字的类，类的实例句柄与模块的实例句柄相匹配（多个模块可以使用同一个名字在同一进程中注册局部类）
+
+2. 如果在应用局部类表中没有找到，则在全局应用类表中搜索
+
+3. 如果没有在全局类表中找到，在系统类表中搜索
+
+所有由应用创建的窗口都使用上述过程，这也包括由系统在应用上创建的窗口，比如对话框。在不影响其他应用的情况下覆盖系统类是可行的。也就是说，应用可以注册一个和系统类相同名字的应用局部类。这会在应用的上下文中替换掉系统类，但不会影响其他使用系统类的应用。
+
+* 窗口类的注册
+
+窗口类定义了窗口的一系列属性，比如风格、图标、光标、菜单和窗口过程。
+
+注册类的第一步是使用窗口类的信息对 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构进行填充。下一步，将结构传递给 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassexa][RegisterClassEx]] 函数。
+
+若要注册一个全局类，需要在 *WNDCLASSEX* 结构成员 *sytle* 包含 *CS_GLOBALCLASS* 。在注册局部应用类时，不要指定它。
+
+如果使用了 ANSI 版本的注册函数，应用会要求系统使用 ANSI 字符集来将消息的文本参数传递给用该类创建的窗口；如果你使用 Unicode 版本的注册函数，应用会要求系统使用 Unicode 字符集来传递消息的文本参数。
+
+注册类的可执行文件或 DLL 是类的所有者。在类注册时，系统通过传递给 *RegisterClass* 函数的 *WNDCLASSEx* 结构中的 *hInstance* 成员来确定类的所有权。对于 DLL， *hInstance* 成员必须是 .dll 实例的句柄。
+
+在拥有类的 .dll 被卸载时，这个类不会被销毁。因此，如果系统调用了一个使用这个类的窗口的窗口过程，它会造成访问冲突，因为 .dll 包含的窗口过程已经不在内存中了。进程必须在 .dll 卸载前销毁使用该类的窗口，并调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterclassa][UnregisterClass]]。
+
+* 窗口类的元素
+
+窗口的元素定义了属于类的窗口的默认行为。通过为 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构成员设置合适的值并将结构传递给 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassexa][RegisterClassEx]] 函数，应用将元素赋给注册的类。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclassinfoexa][GetClassInfoEx]] 函数和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclasslonga][GetClassLong]] 函数从给定的类中检索信息。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setclasslonga][SetClassLong]] 函数可改变一个已注册的全局或局部类的元素。
+
+虽然一个完整的窗口类包含许多的元素，系统最低只要求应用提供类名、窗口过程地址和实例句柄。使用其他元素来定义类的窗口的属性，比如光标的形状和窗口菜单的内容。你必须将 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 中不使用的成员初始化为 0 或 NULL。窗口类元素在下表中展示。
+
+- 类名（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-name][Class Name]]），用于与其他注册类的区分
+
+- 窗口过程地址（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#window-procedure-address][Window Procedure Address]]），指向过程的指针，该函数处理所有发送到窗口的消息，并定义窗口的行为
+
+- 实例句柄（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#instance-handle][Instance Handle]]），确定注册类的应用或 .dll
+
+- 类光标（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-cursor][Class Cursor]]），定义鼠标在类的窗口上的显示
+
+- 类图标（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-icons][Class Icons]]），定义大图标和小图标
+
+- 类背景画刷（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-background-brush][Class Background Brush]]），定义在窗口打开或绘制时，填充客户区的颜色和填充模式
+
+- 类菜单（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-menu][Class Menu]]），指定窗口的默认菜单，而不是显式定义一个菜单
+
+- 类风格（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#class-styles][Class Styles]]），定义在移动和改变大小后如何更新窗口，如何处理鼠标的双击消息，如何为设备上下文分配空间，和窗口的其他方面
+
+- 额外类内存（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#extra-class-memory][Extra Class Memory]]），指定系统需要为类所保留的额外内存的数量，以字节为单位。所有该类的窗口共享额外内存，并且可用于应用特定的目的。系统将该内存初始化为 0
+
+- 额外窗口内存（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-classes#extra-window-memory][Extra Window Memory]]），指定系统需要为属于类的窗口保留的内存，以字节为单位。额外内存可用于应用特定的目的。系统将该内存初始化为 0
+
+** 类名
+
+每个窗口类需要一个类名来与其他类进行区分。通过将 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构的 *lpszClassName* 成员设置为一个以 null 结尾的，指定类名的字符串，可以为类赋名。因为窗口类是进程指定的，窗口类名只需要保证在同一进程中的唯一性即可。同样，因为类名会占用系统私有原子表的空间，你应该使用尽量短的字符串来作为类名。
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclassname][GetClassName]] 函数会检索给定窗口所属于的类的名字。
+
+** 窗口过程地址
+
+每个类都需要一个窗口过程地址来定义窗口过程的入口点，窗口过程用于处理类的窗口的所有消息。在系统需要窗口执行任务时，它会将消息发送给该过程，比如绘制客户区区域或对用户输入响应。通过将窗口过程地址拷贝到 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构的 *lpfnWndProc* 结构，进程将窗口过程赋给类。
+
+** 实例句柄
+
+每个窗口类都需要一个实例句柄来确定注册类的应用或 .dll。系统需要实例句柄来追踪所有的模块。系统将句柄分派到每个运行的可执行文件或 .dll 的拷贝。
+
+系统把实例句柄传递给可执行文件或 .dll 的入口点函数（[[https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain][WinMain]] 或 [[https://docs.microsoft.com/en-us/windows/desktop/Dlls/dllmain][DllMain]]）。通过将实例句柄拷贝到 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构的 *hInstance* 成员，可执行文件或 .dll 将实例句柄分派到窗口类。
+
+** 类光标
+
+类光标定义了鼠标在类的窗口客户区中的形状。当光标进入窗口用户区时，系统会自动将光标设置为给定的形状，并在光标在客户区内时保持该这个形状。要将一个光标形状赋给窗口类，可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-loadcursora][LoadCursor]] 函数载入一个预定义的光标形状，并将返回的光标句柄赋给 *hCursor* 成员。另外，也可以提供一个光标资源，并使用 *LoadCursor* 函数从应用资源中载入。
+
+系统不强求一个类光标。如果应用将 hCursor 成员设置为 NULL，没有定义类光标，系统会假设窗口在每当光标移动到窗口内时设置了光标形状。窗口可以在收到 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mousemove][WM_MOUSEMOVE]] 消息时，通过调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setcursor][SetCursor]] 设置光标形状。
+
+** 类图标
+
+类图标是系统用来展示某个指定类的窗口的图像。应用可以有两个类图标 —— 一大一小。
+
+要将大图标和小图标赋给窗口类，需要在成员 *hIcon* 和 *hIconSm* 成员中指定图标句柄。图标的尺寸必须符合大图标和小图标所需的尺寸。对大图标，你可以通过在 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]] 函数调用中指定 *SM_CXICON* 和 *SM_CYICON* 来获取所需的尺寸。对小图标，指定 *SM_CXSMICON* 和 *SM_CYSMICON* 。
+
+如果将 *hIcon* 和 *hIconSm* 指定为 *NULL* ，系统会使用默认的应用图标来作为窗口类的图标。如果你指定了大图标而没有指定小图标，系统会根据大图标来创建小图标。然而，如果你指定了小图标而没有指定大图标，系统会使用默认应用图标作为大图标。
+
+你可以通过使用 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-seticon][WM_SETICON]] 消息来覆盖大图标或小图标，你可以通过 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-geticon][WM_GETICON]] 消息检索当前的大小图标。
+
+更多关于图标的信息可见于 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/icons][Icons]]。
+
+** 类背景画刷
+
+类背景画刷为随后的应用绘制准备了窗口的用户区。系统使用实心或其他模式画刷来填充用户区，从而去除所有先前的图像，不论它是否属于窗口。系统通过发送 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-erasebkgnd][WM_ERASEBKGND]] 消息到窗口来提醒它的背景需要被绘制。
+
+要将背景画刷赋给类，可以通过合适的 GDI 函数创建一个画刷并将返回值赋给 *hbrBackground* 成员。
+
+除了创建一个画刷，应用可以将 *hbrBackground* 设置为标准系统颜色值中的一个。标准颜色值可见于 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setsyscolors][SetSysColors]] 。
+
+要使用标准系统颜色，应用必须在背景颜色值上加一。例如， *COLOR_BACKGROUND* + 1 是系统颜色值。另外，你也可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsyscolorbrush][GetSysColorBrush]] 来检索一个对应于标准系统颜色的画刷句柄，并在之后将句柄用于指定 *hbrBackground* 的值。
+
+系统不强求窗口类拥有类背景画刷。如果参数设置为 *NULL* ，窗口必须在它接收到 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-erasebkgnd][WM_ERASEBKGND]] 消息时绘制它自己的背景。
+
+更多画刷的信息可见于 [[https://docs.microsoft.com/en-us/windows/desktop/gdi/brushes][Brushes]]。
+
+** 类菜单
+
+类菜单定义了类的窗口默认使用的菜单，如果在窗口创建时没有显式指定菜单的话。菜单是一个命令列表，用户可以通过它来选择应用执行的命令。
+
+通过设置 *lpszMenuName* 成员为一个指定菜单资源名的 null 结尾字符串，你可以将菜单赋给类。菜单被假设是给定应用的一个资源。在需要的时候，系统会自动载入菜单。如果菜单资源由整数而不是名字确定，应用可以通过 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-makeintresourcea][MAKEINTRESOURCE]] 宏来使用整数。
+
+系统不强求使用菜单。如果应用将 *lpszMenuName* 设置为 *NULL* ，类的窗口就没有菜单栏。即便没有在类中指定菜单，应用仍然可以在创建窗口时定义一个菜单栏。
+
+如果一个类被赋予了菜单，并且创建了该类的子窗口，菜单会被忽略。
+
+关于更多菜单的信息，可见于 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/menus][Menus]]。
+
+** 类风格
+
+类风格定义了窗口类的额外元素。两个或多个风格可以通过位与（OR (|)）组合在一起。将风格赋给 *style* 成员即可设置窗口类的风格。
+
+类风格表可见于 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/window-class-styles][Window Class Styles]]。
+
+** 类和设备上下文
+
+设备上下文是值的特殊集合，它用于绘制窗口的用户区。对每个显示的窗口，系统需要设备上下文，但是在设备上下文的存储方面也存在一定的灵活性。
+
+如果没有指定设备上下文风格，系统会假设每个窗口使用了由系统维护的上下文池中检索得到的设备上下文。在这种情况下，每个窗口必须在绘制前先检索并初始化设备上下文，并在绘制后释放它。
+
+为了避免每次需要绘制时对设备上下文进行检索，应用可为窗口类指定 *CS_OWNDC* 风格。该风格指示系统创建私有设备上下文 —— 也就是说为每个类的窗口分配唯一的设备上下文。应用只需要检索一次，并在随后的绘制中使用它即可。
+
+** 额外类内存
+
+系统为每个类维护一个 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa][WNDCLASSEX]] 结构。当应用注册窗口类时，它可以指示系统在 *WNDCLASSEX* 结构的末尾分配并加上额外的字节。这些内存被称作 *额外类内存* 并被所有属于该类的窗口共享。可以使用它来存储任意和类相关的信息。
+
+因为额外内存时是在系统的局部堆中分配的，应用谨慎地使用额外类内存。如果请求的额外类内存大于 40 字节， [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassexa][RegisterClassEx]] 函数调用会失败。如果应用需要大于 40 字节的内存，它应该分配它自己的内存，并在额外内存中存储一个指向内存的指针。
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setclassword][SetClassWord]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setclasslonga][SetClassLong]] 函数将一个值拷贝到额外类内存。要从额外类内存中检索一个值，可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclassword][GetClassWord]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclasslonga][GetClassLong]] 函数。 *cbClsExtra* 成员指定了要分配的额外类内存大小。不使用额外类内存的应用必须将 *cbClsExtra* 初始化为 0。
+
+** 额外窗口内存
+
+系统为每个窗口维护一个内部数据结构。当注册一个窗口类时，一个应用可以指定一个额外内存字节数，叫做 *额外窗口内存* 。当创建一个该类的窗口时，系统会在窗口结构的末尾分配并加上指定数量的额外窗口内存。应用可以使用内存来存储特定于窗口的数据。
+
+因为额外内存是在系统的局部堆上分配的，应用谨慎使用。如果额外窗口内存请求超过了 40 字节，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassexa][RegisterClassEx]] 函数调用会失败。如果应用需要大于 40 字节的内存，它应该分配它自己的内存，并在额外内存中存储一个指向内存的指针。
+
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlonga][SetWindowLong]] 函数将一个值拷贝给额外内存。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlonga][GetWindowLong]] 从额外内存中检索一个值。 *cbWndExtra* 成员指定额外窗口内存的分配数量。不适用额外内存的应用必须将 *cbWndExtra* 初始化为 0。
+
+* 参考资料
+
+<<<【1】>>> Windows Classes：https://docs.microsoft.com/en-us/windows/win32/winmsg/window-classes
