@@ -22,6 +22,8 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2021-03-22-1-由(λ(x)(x x))看elisp与scheme之区别/index.html][2021-03-22-1-由(λ(x)(x x))看elisp与scheme之区别]]
+- [[./posts/2021-03-21-0-我的从0开始的emacs配置/index.html][2021-03-21-0-我的从0开始的emacs配置]]
 - [[./posts/2021-02-28-Win32编程基础之按钮控件/index.html][2021-02-28-Win32编程基础之按钮控件]]
 - [[./posts/2021-01-25-C的字符串有哪些问题/index.html][2021-01-25-C的字符串有哪些问题]]
 - [[./posts/2021-01-01-怎么写gitignore/index.html][2021-01-01-怎么写gitignore]]

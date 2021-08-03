@@ -1,0 +1,136 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 1-由(λ(x)(x x))看elisp与scheme之区别
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGludGVyZXN0LmNvbS9waW4vNDQyMzM3OTk0NjQ5NDIxMTc0Lw==.jpg" alt="load failed"></div>@@
+#+DATE: [2021-03-22 Mon]
+#+TAGS: emacs
+
+首先，让我们来看一个小问题：如何在不使用循环语句和跳转语句的情况下写出死循环程序来？
+
+自然，比较容易想到的用 C 语言的解决方案是：（在不使用非本地跳转的情况下）
+
+#+BEGIN_SRC c
+int fun(void)
+{
+    return fun();
+}
+#+END_SRC
+
+由上面的程序可以得到 Program finished with exit code 139，也就是说明堆栈溢出了。
+
+如果进一步，不能定义函数呢？这种情况下我暂时还没想出使用 C 语言来解这个问题（宏就算了）。在 Scheme 中，使用匿名的 lambda 函数可以轻松解决：
+
+#+BEGIN_SRC scheme
+((lambda (x) (x x)) (lambda (x) (x x)))
+#+END_SRC
+
+相比于 C 语言，Scheme 还有一个优势，由于 Scheme 进行了尾调用优化，上面的过程调用是不会导致调用栈溢出的情况的。但是在 Emacs 中对这个表达式进行求值时，debugger 会显示如下信息：
+
+#+BEGIN_SRC emacs-lisp
+Debugger entered--Lisp error: (void-function x)
+  (x x)
+  (lambda (x) (x x))((lambda (x) (x x)))
+  eval(((lambda (x) (x x)) #'(lambda (x) (x x))) nil)
+...
+#+END_SRC
+
+自然，接收了 =(lambda(x) (x x))= 作为值的形参 x 的值不可能为空，出现错误的原因肯定和 elisp 的求值方式有关。
+
+* 原因分析
+
+出错了最快的解决方法自然是使用搜索引擎，不过就靠 =(lambda(x) (x x))= 来作为关键词还真搜不出什么来。那就只能读读文档了。在 elisp mannual 的 function-indirection 一节【1】中我找到了原因。
+
+#+BEGIN_QUOTE
+If the first element of the list is a symbol then evaluation examines the symbol’s function cell, and uses its contents instead of the original symbol. If the contents are another symbol, this process, called *symbol function indirection*, is repeated until it obtains a non-symbol.
+#+END_QUOTE
+
+翻译一下：如果表的第一项是一个 symbol，那么求值过程会检查 symbol 的 function cell，使用这个来代替原 symbol。如果它是另一个符号，那么这个过程会继续下去，直到它获得了一个非符号值。这个过程叫做 *函数间接* （function indirection）。
+
+既然是检查 symbol 的 function cell，由于 (lambda (x) (x x)) 中 x 实际上使用的是它的 value cell 来绑定实参，它的 function cell 自然是空的，所以就会有 void-function error。
+
+那么，要怎样对上面的错误进行修正呢？elisp 提供了一个叫做 =funcall= 【2】的函数，它接收一个函数和一个或多个值作为参数，并返回函数返回的值。我们可以这样修改上面的代码：
+
+#+BEGIN_SRC emacs-lisp
+((lambda (x) (funcall x x)) (lambda (x) (funcall x x)))
+#+END_SRC
+
+这样就可以得到“正确”的结果了，即：
+
+#+BEGIN_SRC emacs-lisp
+Debugger entered--Lisp error: (error "Lisp nesting exceeds ‘max-lisp-eval-depth’")
+ funcall((lambda (x) (funcall x x)) (lambda (x) (funcall x x)))
+  (lambda (x) (funcall x x))((lambda (x) (funcall x x)))
+  funcall((lambda (x) (funcall x x)) (lambda (x) (funcall x x)))
+  (lambda (x) (funcall x x))((lambda (x) (funcall x x)))
+  funcall((lambda (x) (funcall x x)) (lambda (x) (funcall x x)))
+  (lambda (x) (funcall x x))((lambda (x) (funcall x x)))
+......
+#+END_SRC
+
+=funcall= 这个函数很有意思，如果它的第一参数值是函数对象的话，它直接使用函数来进行调用，如果值是 symbol 的话，它也会使用 =function indirection= 规则来获取函数对象。在上面的代码中，形参 x 的 value cell 为 =(lambda (x) (funcall x x))= ，对 x 求值就会得到函数对象。
+
+下面的代码可以说明这一点：
+
+#+BEGIN_SRC emacs-lisp
+(defun a (x) (+ x 1))
+(setq a (lambda (x) (+ x 2)))
+
+(funcall a 1)
+=> 3
+
+(funcall 'a 1)
+=> 2
+#+END_SRC
+
+与之相似的还有 =apply= 函数，示例代码如下：
+
+#+BEGIN_SRC emacs-lisp
+(defun a (x) (+ x 1))
+(setq a (lambda (x) (+ x 2)))
+
+(apply a 1 nil)
+=> 3
+(apply 'a 1 nil)
+=> 2
+#+END_SRC
+
+* elisp 的调用规则
+
+elisp 文档中这样写道：
+
+#+BEGIN_QUOTE
+A form that is a nonempty list is either a function call, a macro call, or a special form, according to its first element. These three kinds of forms are evaluated in different ways
+
+- If the first element of a list being evaluated is a Lisp function object, byte-code object or primitive function object, then that list is a *function call*.
+
+- If the first element of a list being evaluated is a macro object, then the list is a *macro call*
+
+- A *special form* is a primitive function specially marked so that its arguments are not all evaluated.
+
+#+END_QUOTE
+
+如果一个表满足上面三种情况中的一种，那么它就是一种调用形式（call form）。
+
+那么，能不能像 Scheme 一样，调用形式的第一项是一个表达式呢？就像这样：
+
+#+BEGIN_SRC scheme
+((car (list + -)) 1 2)
+=> 3
+#+END_SRC
+
+在 elisp 中使用上面相似代码进行测试，得到的错误如下：
+
+=Debugger entered--Lisp error: (invalid-function (car (list (symbol-function '+))))=
+
+这也许说明调用形式的首个项只能是一个元素（element），而不能是一个待求值的表达式。 =((lambda (x) (funcall x x)) (lambda (x) (funcall x x)))= 中是 lambda 函数表达式作为第一项，这样的形式被允许好像是特殊情况。毕竟官方文档【1】中更推荐使用 =funcall= 的形式。
+
+* 总结
+
+这个问题其实就是 Lisp-1 和 Lisp-2 的区别导致的，Lisp-1 的变量命名空间和函数命名空间是统一的，而在 Lisp-2 中两者是分开的。Scheme 的变量和函数显得更加统一一些。
+
+* 参考资料
+
+<<<【1】>>> https://www.gnu.org/software/emacs/manual/html_node/elisp/Function-Indirection.html#Function-Indirection
+
+<<<【2】>>> https://www.gnu.org/software/emacs/manual/html_node/elisp/Calling-Functions.html#Calling-Functions
+
+<<<【3】>>> https://www.gnu.org/software/emacs/manual/html_node/elisp/Function-Forms.html#Function-Forms
