@@ -1,0 +1,675 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 5-emacs的cl扩展
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNzY3NjU4.jpg" alt="load failed"></div>@@
+#+DATE: [2021-05-28]
+#+TAGS: emacs
+
+在一开始学习 elisp 的时候，我想到的学习方法是把用其他语言编写的程序翻译到 elisp 中来。某日我找到了一个解二阶魔方的[[https://comwrg.github.io/2018/12/26/algorithm-solve-pocket-cube/#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0][程序]]。其他都还好说，但是抄到 bfs 的时候我被其中的嵌套循环恶心到了，由于 elisp 中没有 break 之类的局部跳转语句（在不考虑各种宏扩展的情况下），要想跳出 =while= 循环还得靠 =throw/catch= 来完成。[[https://gist.github.com/include-yy/96e35b7b4f86004be0f8a741a7936afd#file-cube-el-L130][这种写法]]可是相当地不好受。通过 google =emacs loop= 我发现了 =cl-loop= 这个神奇的宏，也顺带了解了 =cl-lib= 这个强大的包。
+
+本文的目的是介绍 =cl-lib= 中的一些常用的函数和宏，比如 =incf= ， =decf= 和 =cl-loop= 等。文章的主要组成部分应该是各种各样的函数用法和示例，希望对你有所帮助。由于 cl-lib 是一个很大的包，这里不可能做到面面俱到。
+
+* 什么是 cl-lib
+
+CL 包为 elisp 提供了一系列的 Common Lisp 函数和控制结构，它添加了足够多的功能，使 elisp 编程变得更加方便。但是它也忽略了 Common Lisp 中许多其他的特性，这是出于两方面考虑：某些特性过于复杂，比如 CLOS；某些特性无法在不修改 elisp 解释器的情况下加入 elisp 中，比如大小写不敏感，多值返回等。
+
+cl-lib 之前的名字是 cl，随着新的命名约定的出现，它变成了 cl-lib。如果你使用了一些比较老的包的话，在包加载过程中可能会看到这样的消息：
+
+#+BEGIN_QUOTE
+Package cl is deprecated
+#+END_QUOTE
+
+这是由于老包没有使用较新的 cl-lib。cl-lib 中所有的公开名字都使用 cl- 来作为名字前缀。
+
+* cl-lib 的组成
+
+cl-lib 有四个主要的文件：
+
+- *cl-lib.el* ，它包含了基础的函数，以及关于整个包的信息
+
+- *cl-extra.el* ，它包含了一些更大更复杂的函数，它被单独分离出来是为了在使用像是 =cl-incf= 之类的简单函数时不需要关注其他东西
+
+- *cl-seq.el* ，它包含了操作序列的高级函数
+
+- *cl-macs.el* ，它包含了一些宏，提供了语法扩展
+
+
+*cl-lib.el* 包含了所有必要的 =autoload= 指令。你只需要 =(require 'cl-lib)= ，在需要使用其他文件内的东西时 =autoload= 会处理好的。
+
+本文主要介绍一些简单的函数和宏。所谓二八定律嘛，一些比较复杂和高级的特性只有在被用到时才会有用，但这种机会对我来说应该没有几次。
+
+* 一些常用的控制结构
+
+以下内容大概列举了几个常用的宏，我会用一些代码来作为示例，并使用实现相同功能的 elisp 代码来进行对比，以体现其优越性。
+
+=cl-loop= 我会放在这一节的最后来介绍，它已经可以称得上是一种 dsl 了。
+
+** cl-incf/cl-decf
+
+这里的 inc 和 dec 取 *increase* 和 *decrease* 的前几个字母，尾字母 =f= 指的是 =formal= 的意思，就像是 =setf= 的 =f= 一样，它们和 =setf= 一样可以接受 =formal= 而不仅仅是变量来作为第一个参数，关于什么是 =formal= 我会在下面给出一些例子。
+
+它们接受一个参数，以及一个可选参数，如果只使用一个参数的话， =cl-incf= 会将变量增加 1，并返回增加后的值； =cl-decf= 则会减去 1，并返回减去后的值。它们会对变量进行修改，用修改过的值来作为变量的新值。
+
+#+BEGIN_SRC emacs-lisp
+(setq x 1)
+(cl-incf x)
+=> 2
+x
+=> 2
+(cl-decf x)
+=> 1
+x
+=> 1
+(cl-incf x 114513)
+=> 114514
+(cl-decf x 114495)
+=> 19
+#+END_SRC
+
+相比于下面这种写法，使用 =cl-incf= 可以少打几个字：
+
+#+BEGIN_SRC emacs-lisp
+(setq x 1)
+(progn (setq x (+ x 1)) x)
+;; the better way
+(cl-incf x 1)
+#+END_SRC
+
+通过下面的代码可以说明 =formal= 是什么意思：
+
+#+BEGIN_SRC emacs-lisp
+(setq x (list 1 2 3))
+(cl-incf (car x))
+=> 2
+x
+=> (2 2 3)
+(setq x (vectir 1 2 3))
+(cl-incf (aref x 0) 2)
+=> 3
+x
+=> [3 2 3]
+#+END_SRC
+
+完整的 =formal= 支持可见于 gnu elisp 文档的 general-variable 一节。这种用法我见的不多。
+
+** cl-psetq
+
+这里的 =p= 是 *parallel* 的意思， =setq= 就是符号设置，psetq 表示平行赋值之意，这是相对于 =setq= 的顺序赋值而言的。使用它可以方便地交换两个变量的值，而不需要中间变量：
+
+#+BEGIN_SRC emacs-lisp
+(setq x 1)
+(setq y 2)
+(cl-psetq x y
+          y x)
+(list x y) => (2 1)
+(setq x y
+      y x)
+(list x y) => (1 1)
+#+END_SRC
+
+从上面的代码中我们可以清楚地看出“平行”与“顺序”的区别。下面是一个 =fib= 计算例子：
+
+#+BEGIN_SRC emacs-lisp
+(let ((i 0)
+      (x 0)
+      (y 1))
+  (while (< i 10)
+    (cl-psetq x y y (+ x y))
+    (cl-incf i))
+  x)
+#+END_SRC
+
+=cl-psetq= 也有一个 =formal= 的版本，叫做 =cl-psetf= ，这里就不详述了。
+
+** cl-flet
+
+=f= 就是 *function* 的意思， =let= 是用来绑定值与符号的 value cell 的， =flet= 则是用来绑定函数与符号 function cell 的。它的定义部分的格式必须是 =(name arglist body ...)= 而不能是其他形式。如果要将通过它定义的函数传递给其他调用时，需要对它使用 =#'= （即 =function= ）而不能用 ='= （ =quote= ）。定义的函数使用静态绑定，因为 Common Lisp 就是静态作用域的语言。
+
+#+BEGIN_SRC emacs-lisp
+(cl-flet ((a (x) (+ x 1))
+          (b (x y) (+ x y)))
+  (+ (a 1) (b 2 3)))
+=> 7
+#+END_SRC
+
+就像 =let= 一样，定义的名字在定义时还是不可见的，以下代码是无法正常工作的：
+
+#+BEGIN_SRC emacs-lisp
+(cl-flet ((a (ls)
+             (if (null ls)
+                 0
+               (+ 1 (a (cdr ls))))))
+  (mapcar #'a '((1 2 3) (2 3 4) (3 4 5))))
+=> Debugger entered--Lisp error: (void-function a)
+#+END_SRC
+
+这可以通过使用 =cl-label= 解决，它就像是 =letrec= 一样，不过是针对函数的版本。
+
+#+BEGIN_SRC emacs-lisp
+(cl-labels ((a (ls)
+               (if (null ls)
+                   0
+                 (+ 1 (a (cdr ls))))))
+  (mapcar #'a '((1 2 3) (2 3 4) (3 4 5))))
+=> (3 3 3)
+#+END_SRC
+
+** cl-case
+
+Scheme 中有个类似的结构叫做 =case= ，C 语言中的 Switch 语句也与之类似。它接受一个表达式，对其求值并将得到的值与分支语句中的值比对，相同则进入相应的分支。如果没有分支与之匹配，整个表达式返回 =nil=。
+
+分支的形式是 =(keylist body-forms ...)= ， =keylist= 可以是一个键值，也可以是一个由键值构成的表， =cl-case= 中所有的键值必须是互不相同的。如果键值是 =t= 的话， =cl-case= 会无条件匹配它，这样的语句一般放在表达式的末尾。
+
+#+BEGIN_SRC emacs-lisp
+(defun swt (x)
+  (cl-case x
+   (1 (+ x 1))
+   (2 (+ x 2))
+   ((3 4 5) (+ x 3))
+   (t (+ x 100))))
+
+(swt 1) => 2
+(swt 2) => 4
+(swt 3) => 6
+(swt 4) => 7
+(swt 5) => 8
+(swt 6) => 106
+......
+#+END_SRC
+
+平时貌似 =cond= 用的比较多，连 =pcase= 都没用什么，更不用说 =cl-case= 了。
+
+** Blocks
+
+文章的开头我提到过，写 =while= 表达式时由于没有局部跳转关键字而不得不手写 =catch/throw= 块。cl-lib 的块扩展解决了这个问题，它提供了静态作用域的非局部退出的机制。与之相关的宏有三个： =cl-block=  ， =cl-return-from= 以及 =cl-return= 。通过 =cl-block= 可以建立一个有名字的块，在块内可以通过 =cl-return= 进行跳转，从而直接退出块的执行。
+
+=cl-block= 的使用形式是 =(cl-block name forms ...)= ，如果 =forms= 中没有含 return 的形式的话，它的效果就和 =progn= 是一样的，以最后一个 =form= 的值返回。但是如果存在 =cl-return= 或 =cl-return-from= 的话，它会直接从 =cl-block= 中返回，并以=cl-return= 或 =cl-return-from= 的参数作为返回值。
+
+=block= 看起来和 =catch/throw= 很相似，但它们的机制并不相同。 =block= 的名字是未被求值的符号，不像 =catch= 的名字，它是在运行时被求值得到的 tag。而且 =block= 总是静态作用域的。对于动态作用域的 =catch= ，在 =catch= body 内调用的函数也可以使用 =throw= 来向这个 catch 抛出。但是 =cl-block= 中是不能这样做的， =cl-return-from= 必须出现在 =cl-block= 的 =forms= 里面，不能超出 =block= 的范围。这是它静态性的体现。
+
+在 Common Lisp 中， =defun= 和 =defmacro= 会使用隐含的 =block= 来包住函数体，这样就可以在函数体中直接使用 =cl-return= 了，但是 elisp 中不会这样做。可以使用 =cl-defun= 和 =cl-defmacro= 来创建隐含的 =block= 。隐含 =block= 的还有 =cl-loop= ， =cl-do= ， =cl-dolist= ， =cl-dotimes= 等等。
+
+=cl-return-from= 接受一个名字来作为要返回的块的位置，以及一个可选的返回值来作为 =block= 的值，如果没有返回值的话， =block= 的值为 nil。 =cl-return= 等价于 =cl-return-from nil result)= ，它一般用于隐含了 =block= 的结构中。
+
+=cl-blcok= 所接受的所谓的未求值符号就是裸符号，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(cl-block wocao
+(+ 1 2)
+(setq x 1)
+(while (< x 10)
+  (cl-incf x)
+  (when (= x 5) (cl-return-from wocao x))))
+#+END_SRC
+
+上面的 wocao 就是 cl-block 的名字。使用 nil 作为块名字的话就可以直接使用 =cl-return= 了。
+
+** cl-do
+
+Scheme 中有 =do= 这个关键字， =cl-do= 的用法与它很相似，不过与其说是相似，倒不如说 Scheme 中的 =do= 就是从 Common Lisp 里面抄过去的。
+
+=cl-do= 的语法如下：
+
+#+BEGIN_SRC emacs-lisp
+(cl-do (spec ...) (end-test [result ...]) forms ...)
+spec := (var [init [step]])
+#+END_SRC
+
+这个控制结构与 C 语言中的 for 循环很相似，for 循环的语法是 =for(初始化; 跳出条件; 更新)= ， =spec= 也是如此。 =spec= 包含 =cl-do= 内变量的名字，初始化和每次循环对变量的更新三部分组成。其中只有变量名是必须的，变量的赋值和更新可以在 form 中完成。不过如果没有初值的话，变量的默认值就是 nil 了。
+
+=end-test= 对应 for 语句中的跳出条件，当 end-test 为真时循环结束，如果 =[result ...]= 不空的话，它就作为 =cl-do= 表达式的值。
+
+=forms= 就是循环过程中执行的代码，对应于 for 循环中的循环体。在循环过程中也可以使用 =cl-return= 直接跳出，因为 =cl-do= 有隐含的 =block= 。
+
+初始化过程中变量是不能相互引用的，因为它们还没有被绑定，就像 =let= 一样，不过 cl-lib 也提供了一个叫做 =cl-do*= 的宏，和 =let*= 作用效果相似。
+
+#+BEGIN_SRC emacs-lisp
+(cl-do
+((a '(1 2 3) (cdr a))
+ (b '(4 5 6) (cdr b))
+ (c '(7 8 9) (cdr c))
+ (d))
+((and (null a) (null b) (null c)) d)
+(setq d (cons (list (car a) (car b) (car c)) d)))
+=> ((3 6 9) (2 5 8) (1 4 7))
+#+END_SRC
+
+** cl-loop
+
+第一次使用这个宏时，我被震惊到了，这简直就是实现了一个小语言一样。cl-lib 文档上其他的宏都是简单的描述一下就完了，而它的文档下还有子文档。
+
+cl-loop 的语法大致是这样的：
+
+=(cl-loop name-clause var-clause ... action-clause ...)=
+
+其中的 *name clause* 是可选项，可以赋给 =cl-loop= 的隐含 block 名字，一般来说就来说这个名字是 nil。 *var clause* 指定的是在循环过程中需要绑定的变量。 *action clause* 是在循环过程中需要完成的工作，比如计算，收集或返回值。
+
+上面的描述是很宽泛的，因为 cl-loop 中可选的 clause 实在是太多了。下面描述几种比较常用的 clause。实际上，clause 里面还可以继续细分。如果按照官方文档的顺序来讲的话，那我应该从 for 语句开始。由于 =cl-loop= 实在是有点复杂，我还是再写一篇文章来专门介绍它的用法吧，这里只对几种常用语句进行介绍。
+
+*** 简单的 for 循环
+
+#+BEGIN_SRC emacs-lisp
+for var from exp1 to exp2 by exp3
+#+END_SRC
+
+从字面意思上这个语句是很好理解的，从 exp1 到 exp2，步长是 exp3：
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop
+ for x from 0 to 10 by 2
+ sum x)
+=> 30 ; 0 + 2 + 4 + 6 + 8 + 10
+#+END_SRC
+
+循环可以从小到大，也可以从大到小，还可以限制是小于还是小于等于：
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop
+ for x from 10 downto 1
+ collect x)
+=>
+(10 9 8 7 6 5 4 3 2 1)
+
+(cl-loop
+ for x from 10 above 1
+ collect x)
+=>
+(10 9 8 7 6 5 4 3 2)
+
+(cl-loop
+ for x from 0 below 10
+ collect x)
+=>
+(0 1 2 3 4 5 6 7 8 9)
+#+END_SRC
+
+*** 类 foreach 遍历
+
+#+BEGIN_SRC emacs-lisp
+for var in list by function
+#+END_SRC
+
+其中的 =by function= 部分是可以省略的，它的默认值是 =cdr= ，表示顺着表完成遍历，通过 =by= 语句可以改变这个默认行为。
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop
+ for x in '(1 2 () 3)
+ collect (if (numberp x) x 0))
+=> (1 2 0 3)
+#+END_SRC
+
+还有一种 =in-ref= 的用法，var 在这里就是类似于 C++ 中的引用，对 var 进行的修改操作会反应到表上。不过需要使用可以操作 =formal= 的 cl 函数，比如 =setf= =incf= 等。
+
+#+BEGIN_SRC emacs-lisp
+(setq x (list 2 3 4 5 6 7))
+(cl-loop
+for a in-ref x by 'cddr
+do
+(setf a (+ a 1)))
+x => (3 3 5 5 7 7)
+#+END_SRC
+
+还有一个 =on= 关键字，这时 x 的值就是剩余的表而不是每一个表中的元素：
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop for x on '(1 2 3 4) collect x)
+        ⇒ ((1 2 3 4) (2 3 4) (3 4) (4))
+#+END_SRC
+
+*** 一些迭代语句
+
+=repeat integer= ，表示重复 n 次：
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop repeat 10 sum 1) => 10
+#+END_SRC
+
+=while condition= ，当 condition 为 nil 时循环终止。 =until condition= 与其相反，当条件为真时循环终止。
+
+=always= 和 =never= 表示全为真或全为假，如果有不满足的项，cl-loop 会停止并返回 nil，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+  (cl-loop
+   for x to 10
+   always (> x -1))
+  => t
+
+  (cl-loop
+   for x in '(1 3 4 5 7 9)
+   always (cl-oddp x))
+  => nil
+#+END_SRC
+
+=thereis condition= 当条件不为 nil 时就退出循环，表示“存在”或“找到了”的意思。
+
+*** 积累器
+
+上面我们已经使用过一些积累器了，那就是 =sum= ， =collect= 。它们的作用是把一些值收集起来，作为 =cl-loop= 表达式的值。如果没有中途的中断， =cl-loop= 会使用收集得到的值来作为表达式的值。这里列举一下几个常用的积累器。
+
+- =collect= 表示将值收入结果中，得到的表的顺序与迭代顺序一致
+
+- =append= 表示将表并入结果中
+
+- =sum= 表示将数字加入结果中
+
+- =maximize= 表示使用最大值作为结果值
+
+- =minimize= 表示使用最小值作为结果值
+
+
+这里对上面没有使用过的积累器做个介绍：
+
+#+BEGIN_SRC emacs-lisp
+(cl-loop
+for x to 100
+maximize x into a
+minimize x into b
+finally return (list a b))
+=> (100 0)
+
+(cl-loop
+ for x on '(1 2 3)
+ append x)
+=> (1 2 3 2 3 3)
+#+END_SRC
+
+上面用到了另一种语句，即 =finally return= ，如果没有其他的显式 return 的话，就使用它的值作为 =cl-loop= 的返回值。
+
+上面介绍的只是 =cl-loop= 功能的一小部分，更多内容请见于官方文档。
+
+* 一些数学函数
+
+说来也怪，elisp 没有提供一些非常简单基础的数学函数，比如判断正负，判断奇偶之类的。 =cl-lib= 中提供了这些函数：
+
+- =cl-plusp= 判断数字是否为正数
+
+- =cl-minusp= 判断数字是否为负数
+
+- =cl-oddp= 判断数字是否为奇数
+
+- =cl-evenp= 判断数字是否为偶数
+
+- =cl-digit-char-p= 判断字符是否为合法的数字符号
+
+
+上面的函数都很简单，但 =cl-digit-char-p= 需要提一下，它在默认情况下仅对十进制数进行判断，但是它还可以接受一个 =radix= 参数来判断其他进制的数。=radix= 的范围是 2 - 16。
+
+** 数值函数
+
+一些数学函数，诸如最大公因数和最小公倍数的求取在 elisp 中是没有的，cl-lib 提供了一些数值函数：
+
+- =cl-gcd= ，求数字中的最大公因数，就像这样： =(cl-gcd 1 3 6 60)=
+
+- =cl-lcm= ，求数字中的最小公倍数，就像这样： =(cl-lcm 100 200 250)=
+
+- =cl-isqrt= ，它接受一个整数，返回小于它平方根的最大整数， =(cl-isqrt 99)= 得到 9
+
+
+接下来是一系列取整函数，即上取整，下取整，截断，取整等等。这些函数在 elisp 中也没有。
+
+- =cl-floor= ，即下取整。接受一个数字，返回由整数和小数组成的表。例如： =(cl-floor 1.6) => (1 0.6)= ， =(cl-floor -1.2) => (-2 0.8)=
+
+- =cl-ceiling= ，即上取整，得到由整数和小数组成的表。 =(cl-ceiling 1.7) => (2 -0.3)= ， =(cl-ceiling -1.3) => (-1 -0.3)=
+
+- =cl-truncate= ，即趋零截断， =(cl-truncate 1.5) => (1 0.5)= ， =(cl-truncate -1.6) => (-1 -0.6)= 。elisp 中也有 =truncate= 函数，但它只返回整数部分
+
+- =cl-round= ，即四舍五入， =(cl-round 1.5) => (2 -0.5)= ， =(cl-round 1.4) => (1 0.4)= ， =(cl-round -1.6) => (-2 0.4)= ， =(cl-round -1.4) => (-1 0.4)=
+
+
+其实，上面的四个函数还可以接受一个参数作为 =divisor= ，有点麻烦，这里就不多讲了。
+
+=cl-parse-integer= 可以将字符串解析为整数，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(cl-parse-integer "123") => 123
+(cl-parse-integer "123" :radix 11) => 146
+#+END_SRC
+
+elisp 有一个叫做 =string-to-number= 的函数，功能与之相似，但提供的选项没有它多。
+
+** 随机函数
+
+elisp 中已经有了一个随机函数，叫做 =random= 。据文档所说，cl-random 的实现采用了 [[https://en.wikipedia.org/wiki/ACORN_(PRNG)][addictive-congruential]] 算法，可以产生比许多操作系统提供的生成器更好的随机数。
+
+=cl-random= 接受一个数字作为随机数的范围，并返回在该范围内的非负数字，如果这个数字是整数，那么随机数也是整数，如果是浮点数那么随机数也是浮点数。
+
+它还接受一个可选参数 =state= ，它应该是一个 =random-state= 对象。 =cl-random= 会修改这个对象的状态（它用来记录随机数的信息，以得到下一个随机数）。如果 =state= 参数被忽略了， =cl-random= 会使用内部的 =cl--random-state= ，它是默认的 =random-state= 对象。
+
+由于 =cl--random-state= 被所有的 elisp 程序共用，要想得到两个相同的随机数序列的话，仅仅使用 =cl-random= 是不可能的，这里可以使用 =cl-make-random-state= 来复制 =state= ：
+
+#+BEGIN_SRC emacs-lisp
+(setq ss1 (cl-make-random-state t))
+(setq ss2 (cl-make-random-state ss1))
+(cl-random 100 ss1) => 78
+(cl-random 100 ss2) => 78
+#+END_SRC
+
+使用相同的 =state object= 就会产生相同的随机值。
+
+如果没有参数的话， =cl-make-random-state= 会复制 =cl--random-state= 并返回复制的对象，如果参数是一个 =state object= 的话，它会复制这个对象并返回。如果参数是 =t= ，这个函数会以时间和日期作为种子返回一个新的对象。 =state= 参数也可以是一个整数，函数会以整数作为种子来产生新的对象。
+
+=state object= 是一个可打印的对象，也就是说将它保存到文件中的话还可以再次读取，并再次产生和上次相同的随机数序列。这样对于某些工作是很方便的。
+
+* 其他
+
+上面我就一些简单常用的控制结构和函数进行了简单的介绍。cl-lib 中还有很多的函数，个人感觉本文内容已经足够了，其他函数我并不是特别熟悉，文章再继续下去的话可能重点就不明确了。剩下的内容在今后的使用中再去摸索吧。
+
+使用 Emacs 的 occur 功能，我们可以看出 =cl-lib= 中的函数和宏。在 occur 的 minibuffer 中输入 =^(\(defun\|defmacro\) +cl-[^- ]+= ，我们就可以找到函数和宏了。以下是各个文件中的函数和宏：
+
+cl-lib.el (17)
+
+#+BEGIN_SRC emacs-lisp
+(defmacro cl-incf (place &optional x)
+(defmacro cl-decf (place &optional x)
+(defmacro cl-pushnew (x place &rest keys)
+(defun cl-values-list (list)
+(defun cl-proclaim (spec)
+(defmacro cl-declaim (&rest specs)
+(defun cl-oddp (integer)
+(defun cl-evenp (integer)
+(defun cl-digit-char-p (char &optional radix)
+(defun cl-mapcar (cl-func cl-x &rest cl-rest)
+(defun cl-list* (arg &rest rest)
+(defun cl-ldiff (list sublist)
+(defun cl-copy-list (list)
+(defun cl-adjoin (cl-item cl-list &rest cl-keys)
+(defun cl-subst (cl-new cl-old cl-tree &rest cl-keys)
+(defun cl-acons (key value alist)
+(defun cl-pairlis (keys values &optional alist)
+#+END_SRC
+
+cl-extra.el (39)
+
+#+BEGIN_SRC emacs-lisp
+(defun cl-coerce (x type)
+(defun cl-equalp (x y)
+(defun cl-map (cl-type cl-func cl-seq &rest cl-rest)
+(defun cl-maplist (cl-func cl-list &rest cl-rest)
+(defun cl-mapc (cl-func cl-seq &rest cl-rest)
+(defun cl-mapl (cl-func cl-list &rest cl-rest)
+(defun cl-mapcan (cl-func cl-seq &rest cl-rest)
+(defun cl-mapcon (cl-func cl-list &rest cl-rest)
+(defun cl-some (cl-pred cl-seq &rest cl-rest)
+(defun cl-every (cl-pred cl-seq &rest cl-rest)
+(defun cl-notany (cl-pred cl-seq &rest cl-rest)
+(defun cl-notevery (cl-pred cl-seq &rest cl-rest)
+(defun cl-gcd (&rest args)
+(defun cl-lcm (&rest args)
+(defun cl-isqrt (x)
+(defun cl-floor (x &optional y)
+(defun cl-ceiling (x &optional y)
+(defun cl-truncate (x &optional y)
+(defun cl-round (x &optional y)
+(defun cl-mod (x y)
+(defun cl-rem (x y)
+(defun cl-signum (x)
+(defun cl-random (lim &optional state)
+(defun cl-make-random-state (&optional state)
+(defun cl-float-limits ()
+(defun cl-subseq (seq start &optional end)
+(defun cl-concatenate (type &rest sequences)
+(defun cl-revappend (x y)
+(defun cl-nreconc (x y)
+(defun cl-list-length (x)
+(defun cl-tailp (sublist list)
+(defun cl-get (sym tag &optional def)
+(defun cl-getf (plist tag &optional def)
+(defun cl-remprop (sym tag)
+(defun cl-fresh-line (&optional stream)
+(defun cl-prettyprint (form)
+(defun cl-prettyexpand (form &optional _full)
+(defun cl-find-class (type) (cl--find-class type))
+(defun cl-describe-type (type)
+#+END_SRC
+
+cl-seq (58)
+
+#+BEGIN_SRC emacs-lisp
+(defun cl-endp (x)
+(defun cl-reduce (cl-func cl-seq &rest cl-keys)
+(defun cl-fill (cl-seq cl-item &rest cl-keys)
+(defun cl-replace (cl-seq1 cl-seq2 &rest cl-keys)
+(defun cl-remove (cl-item cl-seq &rest cl-keys)
+(defun cl-remove-if (cl-pred cl-list &rest cl-keys)
+(defun cl-remove-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-delete (cl-item cl-seq &rest cl-keys)
+(defun cl-delete-if (cl-pred cl-list &rest cl-keys)
+(defun cl-delete-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-remove-duplicates (cl-seq &rest cl-keys)
+(defun cl-delete-duplicates (cl-seq &rest cl-keys)
+(defun cl-substitute (cl-new cl-old cl-seq &rest cl-keys)
+(defun cl-substitute-if (cl-new cl-pred cl-list &rest cl-keys)
+(defun cl-substitute-if-not (cl-new cl-pred cl-list &rest cl-keys)
+(defun cl-nsubstitute (cl-new cl-old cl-seq &rest cl-keys)
+(defun cl-nsubstitute-if (cl-new cl-pred cl-list &rest cl-keys)
+(defun cl-nsubstitute-if-not (cl-new cl-pred cl-list &rest cl-keys)
+(defun cl-find (cl-item cl-seq &rest cl-keys)
+(defun cl-find-if (cl-pred cl-list &rest cl-keys)
+(defun cl-find-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-position (cl-item cl-seq &rest cl-keys)
+(defun cl-position-if (cl-pred cl-list &rest cl-keys)
+(defun cl-position-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-count (cl-item cl-seq &rest cl-keys)
+(defun cl-count-if (cl-pred cl-list &rest cl-keys)
+(defun cl-count-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-mismatch (cl-seq1 cl-seq2 &rest cl-keys)
+(defun cl-search (cl-seq1 cl-seq2 &rest cl-keys)
+(defun cl-sort (cl-seq cl-pred &rest cl-keys)
+(defun cl-stable-sort (cl-seq cl-pred &rest cl-keys)
+(defun cl-merge (cl-type cl-seq1 cl-seq2 cl-pred &rest cl-keys)
+(defun cl-member (cl-item cl-list &rest cl-keys)
+(defun cl-member-if (cl-pred cl-list &rest cl-keys)
+(defun cl-member-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-assoc (cl-item cl-alist &rest cl-keys)
+(defun cl-assoc-if (cl-pred cl-list &rest cl-keys)
+(defun cl-assoc-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-rassoc (cl-item cl-alist &rest cl-keys)
+(defun cl-rassoc-if (cl-pred cl-list &rest cl-keys)
+(defun cl-rassoc-if-not (cl-pred cl-list &rest cl-keys)
+(defun cl-union (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-nunion (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-intersection (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-nintersection (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-set-difference (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-nset-difference (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-set-exclusive-or (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-nset-exclusive-or (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-subsetp (cl-list1 cl-list2 &rest cl-keys)
+(defun cl-subst-if (cl-new cl-pred cl-tree &rest cl-keys)
+(defun cl-subst-if-not (cl-new cl-pred cl-tree &rest cl-keys)
+(defun cl-nsubst (cl-new cl-old cl-tree &rest cl-keys)
+(defun cl-nsubst-if (cl-new cl-pred cl-tree &rest cl-keys)
+(defun cl-nsubst-if-not (cl-new cl-pred cl-tree &rest cl-keys)
+(defun cl-sublis (cl-alist cl-tree &rest cl-keys)
+(defun cl-nsublis (cl-alist cl-tree &rest cl-keys)
+(defun cl-tree-equal (cl-x cl-y &rest cl-keys)
+#+END_SRC
+
+cl-macs.el (56)
+
+#+BEGIN_SRC emacs-lisp
+(defun cl-gensym (&optional prefix)
+(defun cl-gentemp (&optional prefix)
+(defmacro cl-defun (name args &rest body)
+(defmacro cl-iter-defun (name args &rest body)
+(defmacro cl-defmacro (name args &rest body)
+(defmacro cl-function (func)
+(defmacro cl-destructuring-bind (args expr &rest body)
+(defmacro cl-eval-when (when &rest body)
+(defmacro cl-load-time-value (form &optional _read-only)
+(defmacro cl-case (expr &rest clauses)
+(defmacro cl-ecase (expr &rest clauses)
+(defmacro cl-typecase (expr &rest clauses)
+(defmacro cl-etypecase (expr &rest clauses)
+(defmacro cl-block (name &rest body)
+(defmacro cl-return (&optional result)
+(defmacro cl-return-from (name &optional result)
+(defmacro cl-loop (&rest loop-args)
+(defmacro cl-do (steps endtest &rest body)
+(defmacro cl-do* (steps endtest &rest body)
+(defmacro cl-dolist (spec &rest body)
+(defmacro cl-dotimes (spec &rest body)
+(defmacro cl-tagbody (&rest labels-or-stmts)
+(defmacro cl-prog (bindings &rest body)
+(defmacro cl-prog* (bindings &rest body)
+(defmacro cl-do-symbols (spec &rest body)
+(defmacro cl-do-all-symbols (spec &rest body)
+(defmacro cl-psetq (&rest args)
+(defmacro cl-progv (symbols values &rest body)
+(defmacro cl-flet (bindings &rest body)
+(defmacro cl-flet* (bindings &rest body)
+(defmacro cl-labels (bindings &rest body)
+(defmacro cl-macrolet (bindings &rest body)
+(defmacro cl-symbol-macrolet (bindings &rest body)
+(defmacro cl-multiple-value-bind (vars form &rest body)
+(defmacro cl-multiple-value-setq (vars form)
+(defmacro cl-locally (&rest body)
+(defmacro cl-the (type form)
+(defmacro cl-declare (&rest specs)
+(defmacro cl-psetf (&rest args)
+(defmacro cl-remf (place tag)
+(defmacro cl-shiftf (place &rest args)
+(defmacro cl-rotatef (&rest args)
+(defmacro cl-letf (bindings &rest body)
+(defmacro cl-letf* (bindings &rest body)
+(defmacro cl-callf (func place &rest args)
+(defmacro cl-callf2 (func arg1 place &rest args)
+(defmacro cl-defsubst (name args &rest body)
+(defmacro cl-defstruct (struct &rest descs)
+(defun cl-struct-sequence-type (struct-type)
+(defun cl-struct-slot-info (struct-type)
+(defun cl-struct-slot-offset (struct-type slot-name)
+(defmacro cl-check-type (form type &optional string)
+(defmacro cl-assert (form &optional show-args string &rest args)
+(defmacro cl-define-compiler-macro (func args &rest body)
+(defun cl-compiler-macroexpand (form)
+(defmacro cl-deftype (name arglist &rest body)
+#+END_SRC
+
+总计 170 个 函数和宏。这些函数和宏的功能主要包括：
+
+- 提供方便的控制结构
+
+- 提供处理 symbol 的功能
+
+- 提供一些方便的数学函数
+
+- 提供序列操作函数，可以统一地处理表，向量等序列
+
+- 提供一些表函数，增强表的功能
+
+- 提供了 =cl-defstruct= ，可以定义结构体了，比 =make-record= 更好用
+
+- 提供了一些和编译、断言有关的功能
+
+- ......
+
+
+这 170 个函数本文只介绍了十几个，但是对于目前的我而言是足够了。如果我在接下来的代码实践中发现了一些好用的函数和宏，我再进行总结吧。
+
+* 后记
+
+考虑到处理表的库并不止 cl-lib 一家，比较有名的还有 =dash= 库，待我都试一试后再回来继续学习 cl-lib。
+
+* 参考资料
+
+<<<【1】>>> https://www.gnu.org/software/emacs/manual/html_node/cl/index.html
