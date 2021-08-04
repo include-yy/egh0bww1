@@ -1,0 +1,672 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 7-emacs的customization
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cuZGV2aWFudGFydC5jb20vc21pbG9jZy9hcnQvY2lybm8tMTY4OTIzMjgz.jpg" alt="load failed"></div>@@
+#+DATE: [2021-06-18 Fri]
+#+TAGS: emacs
+
+本文的主要内容是对 elisp 文档 中的 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Customization.html][Customization]] 一章学习的总结。之所以有总结的必要是因为文档中的示例太少，需要一些例子来对关键字和函数的用法进行补充。同时，本文也对 emacs 中的 easy customization 进行一些介绍，这里主要关注的是使用 =customize= 命令簇来配置一些选项，以及使用 =customization= 的代码对这些选项带来的影响。
+
+本文的目的仅仅是记录一些函数和宏的基本用法，以及简单演示 easy customization 的使用，关于这些函数和宏的具体声明和完整用法请前往官方文档。
+
+所有的代码及演示都在 emacs on windows 27.2 中完成。
+
+本文分为两个小节：
+
+- elisp customization 使用介绍
+
+- emacs 中的 customization interface
+
+
+（话说先演示 customize 是不是更好一些，或者两者应该混在一起？）
+
+* elisp 的 customization
+
+关于 Customization Settings，文档上是这样说的： /Users of Emacs can customize variables and faces without writing Lisp code, by using the Customize interface/ 。 换言之，使用 =customization= 的话可以使用更加方便的 /Customize interface/ 来对 emacs 进行配置。
+
+可以定义的 =customization= 项包括
+
+- 变量，它们通过 =defcustom= 来定义
+
+- 外观（face），它们通过 =defface= 定义
+
+- 组（group），它们通过 =defgroup= 定义
+
+
+其中，组的作用是作为一系列 =customization= 项的容器。我们首先对它进行介绍。另外，由于外观的文档主要在 Emacs Display 一章，且它与 customization 的关系估计仅有 =:group= 一项而已，本文就不在这里介绍外观的定义与使用了。
+
+为了书写（打字）上的方便，下面出现的“自定义”都是指 /customization/ 。
+
+** group
+
+上面说过，组作为自定义项的容器而存在，它是一系列自定义变量，自定义外观和自定义组的总和。它的存在和一般程序中功能栏上的主菜单类似，可以在主菜单中找到选项或者子菜单。Emacs 提供了一些标准组，它们基本覆盖了配置的各个方面，如下所示：
+
+[[./1.gif]]
+
+上面列出的顶级标准组有：
+
+- Editing，基础的编辑功能选项相关
+
+- Convenience，一些偏好特性相关
+
+- Files，文件编辑相关
+
+- Wp，文本文件编辑相关，不过它已经被弃用了
+
+- Text，文本文件编辑相关，和上一项内容一致
+
+- Data，二进制文件编辑相关
+
+- External，外部组件界面
+
+- Communication，通信，网络和远程访问
+
+- Programming，编程相关
+
+- Application，Emacs 中的应用相关
+
+- Development，Emacs 进一步开发支持相关
+
+- Environment，Emacs 所在环境相关
+
+- Faces，多字体相关
+
+- Help，Emacs 帮助系统相关
+
+- Multimedia，多媒体相关
+
+- Local，你的本地代码相关
+
+
+某个组包含的内容可能不能用一个组来概括，这种情况下可以使用一个或多个组来作为它的父组。就像这样：
+
+[[./2.gif]]
+
+这里使用的是 =customize-browse= 命令来列出所有的组，它使用的是类似于 Listbox 的显示方式。可以看到，在 Editing 组中的 mouse 组，它的父组除了 Editing 外还有 Environment。
+
+每个 Emacs Lisp 包都应该有一个包含所有自定义变量、自定义外观和自定义组的主要自定义组。这个组应该是一个或多个标准自定义组的子组（不一定是顶级的标准组）。如果自定义选项很少的话，可以直接把所有东西都塞到包的主组里面。如果有二三十个甚至更多选项的话，可以创建相应的子组来容纳这些选项。
+
+=defgroup= 的语法大致如下：
+
+#+BEGIN_SRC emacs-lisp
+defgroup group members doc [keyword value]...
+#+END_SRC
+
+group 写组的名字；members 是组的成员，可以写一个或多个，也可以不写，一般在 =defgroup= 外定义 member；doc 就是用作注释的字符串，keyword value 是指关键字参数，这部分可用的关键字可以参考[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Common-Keywords.html][这里]]。
+
+下面是一个简单的组定义，除了它自己之外，它还定义了两个子组，其中一个子组还有两个子组：
+
+#+BEGIN_SRC emacs-lisp
+(defgroup incx nil
+"include-yy's group"
+:group 'editing)
+
+(defgroup incy nil
+  "incx's group"
+  :group 'incx
+  :tag "incy_tag")
+
+(defgroup incz nil
+  "incy's subgroup"
+  :group 'incy)
+
+(defgroup inca nil
+  "incz's subgroup"
+  :group 'incz
+  :link '(url-link "www.baidu.com"))
+
+(defgroup incb nil
+  "incz's subgroup"
+  :group 'incz
+  :group 'incy)
+#+END_SRC
+
+可以看到，上面使用了 =:group= 关键字来指定组的父组。除了 =:group= 还用到了 =tag= 和 =link= ， =tag= 的作用是在自定义界面显示 =tag= 指定的字符串， =link= 可以指定链接。它们的使用方式和其他关键字可以参考上面的官方文档。
+
+上面代码的效果如下：
+
+[[./3.gif]]
+
+** variable（option）
+
+自定义变量也称用户选项，他们是全局的 Lisp 变量，可以通过自定义界面进行设置。与普通的全局变量不同的是，它们通过 =defcustom= 宏来定义。 =defcustom= 除了调用 =defvar= 之外还会包括一些额外的内容。
+
+=defcustom= 的语法如下：
+
+#+BEGIN_SRC emacs-lisp
+defcustom option standard doc [keyword value]...
+#+END_SRC
+
+option 就是用户选项的名字；standard 是这个选项的标准值，在 =defcustom= 被求值时它会被求值，并将值绑定到 option 上。doc 就是注释文档。
+
+=defcustom= 的行为和使用 =defvar= 定义的变量是一致的：使用 =defcustom= 定义的变量自然也是动态绑定的。如果 =option= 已经词法绑定了，在退出作用域之前词法作用域还会存在。 =defvar= 的行为是：若变量非空，那么 =defvar= 不会再对其进行初始化，在 =defcustom= 中也可以指定一些关键字参数来做到这一点。
+
+如果没有使用 =:group= 关键字的话，那么 =defcustom= 会使用最近通过 =defgroup= 定义的组。这样使得大多数的 =defcustom= 都不需要显式指定 =:group= 参数，比较方便。
+
+以下是一些关键字参数：
+
+- =:type= 指定选项的类型，具体用法参考官方文档，我后面的一些例子中包含一些“简单”的用法
+
+- =:options= 指定选项的可用值。用户并不被这些值限制，它只是提供一些方便的选项而已。它只对 =hook= ， =plist= 和 =alist= 有用
+
+- =:set= 指定函数来作为使用自定义界面改变选项时的方法，函数接受两个参数，一个符号和一个新的值。函数应该完成更新变量所需的一切工作（这意味着可能不仅仅是设置一个新的值）。它不应该 *修改* 第二个参数。没有指定这个关键字的话，set函数默认为 =set-default=
+
+- =:get= 指定获取当前选项的值的方法函数。它接受一个符号作为参数，需要返回作为当前自定义符号的值（不必是选项变量中的值），它的默认函数是 =default-value=
+
+- =:initialize= 指定一个在 =defcustom= 求值时调用的函数，它接受两个参数，一个符号和一个值，elisp 中已有的函数有： =custom-initialize-set= ， =custom-initialize-default= ， =custom-initialize-reset= ， =custom-initialize-changed= ， =custom-initialize-delay= 。具体定义可以参考文档
+
+- =:local= 若指定 =t= ，那么选项会自动变成 =buffer-local= 的，如果是 =permanent= ，那么除选项变为 =buffer-local= 外，选项的 =permanent-local= 性质也会设为 =t=
+
+- =:risky= 设定选项的 =risky-local-variable= 属性为指定的值
+
+- =:safe= 设定选项的 =safe-local-variable= 属性为指定值
+
+- =:set-after= 接受一个或多个变量，在保存自定义的时候，确保这些变量在选项之前被设定
+
+
+老实说，对于简单的情况，上面的关键字参数可能只需要用到两三个而已。必要的估计只有 =:type= ， =options= 只是用来帮助选择合适选项而已， =:get= 和 =:set= 使用默认的函数大部分时间已经足够了，剩下那几个以我浅薄的见识来看没什么用。但这毕竟是一篇笔记，在这里记录下它们的用法将来可能会用的上。
+
+*** :type 关键字接受的类型
+
+为了方便起见，接下来所有的代码都是在叫做 =yyvar= 的组中完成的，它的定义是：
+
+#+BEGIN_SRC emacs-lisp
+(defgroup yyvar nil
+  "var test"
+  :group 'editing)
+#+END_SRC
+
+这里我没有把所有的类型都列出来，这样做没什么意义，而且等到文档发生变化了我也不一定会更新。这里我会介绍一些看上去比较简单和常用的类型。
+
+=:type= 描述了两件事：（1）什么值是合理的（2）如何在自定义界面显示值来进行编辑，这一点通常和组合类型有关。
+
+=:type= 接受的参数只会被求值一次，即在 =defcustom= 被求值时，因此一般使用 *quoted* 的常值作为它的参数。一般来说，它的参数是一个表，表首元素是一个符号，随后是一些参数。
+
+首先我们介绍一些简单的类型，以它们作为类型时只需要表首元素来作为 =:type= 的参数即可，比如这样：
+
+#+BEGIN_SRC emacs-lisp
+(defcustom one "123"
+  "one custom"
+  :type '(string))
+;; the same, without paren
+(defcustom one "123"
+  "one custom"
+  :type 'string)
+#+END_SRC
+
+除了上面的 =string= 外，简单类型还有： =sexp= 、 =integer= 、 =number= 、 =float= 、 =regexp= 、 =character= 、 =file= 、 =hook= 、 =symbol= 、 =function= 、 =variable= 等。
+
+接下来是一些复合类型，它们的语法是 =(constructor arguments ...)= ， =constructor= 用于指示组合的方式， =argument= 指明具体的类型。比较常见的复合类型有：
+
+- 序对类型： =(cons car-type cdr-type)= ，它表明选项的值必须是序对， =car= 部分必须是 =car-type= 类型， =cdr= 必须是 =cdr-type= 类型。在自定义界面上 car 和 cdr 是分开显示的：就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yycon '(1 . 2)
+  "yy's cons"
+  :type '(cons integer integer))
+
+(setq yycon '(3 . 4))
+#+END_SRC
+
+在自定义界面上它的显示方式是这样：
+
+[[./4.PNG]]
+
+- 表类型： =(list element-types ...)= ，表长和表中各个值的类型必须与类型匹配
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yylst '(1 wo "123")
+  "yy's list"
+  :type '(list integer symbol string))
+#+END_SRC
+
+[[./5.PNG]]
+
+表示表类型的除了 =list= 还有 =group= ，不过 =group= 不会显示使用 =tag= 注释的选项名，两者的差别可以通过以下代码体现：
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yyl1 '(3 4)
+  "yy l1"
+  :tag "hao"
+  :type '(group integer integer))
+
+(defcustom yyl2 '(1 2)
+  "yy l2"
+  :tag "le"
+  :type '(list integer integer))
+#+END_SRC
+
+[[./6.PNG]]
+
+[[./7.PNG]]
+
+- 向量类型： =(vector element-types ...)= ，除了向量和表不是同种类型，其他各项指标都一样
+
+- 关联表： =(alist :key-type key-type :value-type value-type)= ，用户可以添加/删除键值对，并对键和值进行修改。如果忽略了类型，键和值的类型就默认为 =sexp=
+
+
+这个时候， =:options= 的价值就体现出来了，在 =:options= 中指定的键会在自定义界面中显示，旁边有一个按钮来让它加入关联表或从关联表中删除。用户不能对其进行修改。
+
+=:options= 参数格式是 ='(key1 key2 key3 ...)= ，这是最简单的一种，其他高级玩法见文档。
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yyal '((1 . 2) (2 . 3))
+"yy's alist"
+:type '(alist :key-type integer :value-type integer)
+:options '(4 5 6))
+#+END_SRC
+
+[[./8.gif]]
+
+- 属性表： =(plist :key-type key-type :value-type value-type)= ，和关联表基本一致，但是键值以属性表的形式存储
+
+- 选择： =(choice alternative-types ...)= ，它有多种类型可选，值必须是这些类型中的一种，比如 =(choice string integer)=
+
+
+如果某个值满足 =choice= 中的多种类型的话，那么最早出现在 =choice= 中的类型会被选择，这意味着在列写 =choice= 时应注意将最特殊的类型放在最前面，最一般的类型放在最后面。
+
+还有一种类型和 =choice= 是一样的，它叫做 =radio= ，但是它使用圆形按钮而不是菜单来显示选择。
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yyco 123
+"yy's choice"
+:type '(choice
+    (string :tag "str")
+    (integer :tag "int")
+    (symbol :tag "sym")))
+#+END_SRC
+
+choice:
+
+[[./9.gif]]
+
+#+BEGIN_SRC emacs-lisp
+(defcustom yyrad 123
+"yy's radio"
+:type '(radio string integer symbol))
+#+END_SRC
+
+radio:
+
+[[./10.gif]]
+
+- 常值： =(const value)= ，这里的 =value= 必须是一个值， =const= 主要配合 =choice= 使用，用来作为某个选项。
+
+与之相似但很不一样的有 =other= ，相似是指它们都接受一个值，不同指 =ohter= 可以接受任意的值，比如一个变量。
+
+- 函数项： =(function-item function)= ，和 =const= 很像，但它专门用于函数，它可以在自定义界面中显示函数的各种信息。
+
+和函数项相似的还有变量项 =variable-item= ，它可以显示变量的信息。
+
+#+BEGIN_SRC emacs-lisp
+(defun add (x y)
+  "add two number"
+  (+ x y))
+(defcustom yyfun-val 1
+  "yy's fun and val item"
+  :type '(radio (function-item add)
+                (variable-item lexical-binding)
+                integer))
+#+END_SRC
+
+[[./11.PNG]]
+
+- 集合： =(set types ...)= 和重复 ： =(repeat elemet-type)= ，前者表明值是一张表，表中元素的类型可以是集合中指定的任意一种，后者则要求表中只能由指定的那一种类型。
+
+- 限制的sexp： =(restricted-sexp :match-alternatives criteria)= ，这是最通用的一种组合类型，通过指定满足条件即可，例子可见文档
+
+
+类型方面的介绍就到这里，你看累了，我也写累了。文档上还有一些辅助关键字以及定义新类型的方法，通俗易懂，意犹未尽的同学可以去看看。
+
+*** :set 和 :get
+
+通过上面的例子也看到了，想要改变一个选项的值，首先在灰色输入框中输入值，然后单击（或Enter键） =State= 按钮来进行修改。如果我们不设置 =:set= 的话，Emacs 会使用默认的 =set-default= 来对选项进行设置，设置 =:set= 可以改变这一默认行为：
+
+#+BEGIN_SRC emacs-lisp
+(fset 'yyse (lambda (sb va) (set sb (+ va 1))))
+
+(defcustom yyset1 1
+"yy's set1"
+:type 'integer
+:set 'yyse)
+#+END_SRC
+
+[[./12.gif]]
+
+这段代码就比较有意思了，变量的初始化值为 1，但是在自定义界面显示的值却是 2，将变量设置为 3，最后得到的却是 4。这就是 =:set= 的作用。当使用自定义界面来设置选项的值时，set 函数会接受这个输入的值，对其进行处理后再更新选项。
+
+至于 =:get= 关键字，它的作用是返回一个值以便显示：（这里使用了 =dash= 库的 =-map= 函数，和 =mapcar= 一个意思）
+
+#+BEGIN_SRC emacs-lisp
+(defcustom b '(1 2 3)
+"yy's b"
+:type '(repeat integer)
+:get (lambda (s) (-map  (lambda (x) (+ x 1)) (symbol-value s))))
+#+END_SRC
+
+这是对定义求值后得到的自定义界面：
+
+[[./13.PNG]]
+
+*** :initialize
+
+这个关键字参数指定在初始化时一些行为，这里我主要对 Emacs 提供的五个函数进行一些分析。
+
+=custom-initialize-set= 在初始化时使用 =:set= 提供的函数来进行初始化。如果变量已经非空了就不进行初始化。
+
+=custom-initialize-default= 则使用 =set-default= 来作为初始化函数。变量非空则不初始化。
+
+=custom-initialize-reset= 总是使用 =:set= 函数来初始化选项。如果变量在初始化之前已被绑定，则使用由 =:get= 函数得到的值来调用 =:set= 函数，这是默认的 =:initialize= 函数。
+
+=custom-initialize-changed= ，如果变量非空，则使用 =:set= 函数对选项初始化，否则使用 =set-default= 。
+
+=custom-initialize-delay= ，它的行为和第一个函数很像，但是它延迟到下一个 Emacs 启动时才进行实际的初始化。它一般用在预载入（Preload）文件中。
+
+对前四个函数可以写出一些代码来验证其特性：
+
+=set=:
+
+#+BEGIN_SRC emacs-lisp
+;; custom-initialize-set
+;; 1. with void variable
+(defcustom s1 1 ""
+  :type 'number
+  :initialize 'custom-initialize-set
+  :set (lambda (s x) (set s (+ x 1))))
+s1 => 2
+
+;; 2. with non-void variable
+(setq s1 1)
+(defcustom s1 1 ""
+  :type 'number
+  :initialize 'custom-initialize-set
+  :set (lambda (s x) (set s (+ x 1))))
+s1 => 1
+#+END_SRC
+
+=default=:
+
+#+BEGIN_SRC emacs-lisp
+;; 1. with void variable
+(defcustom s2 1 ""
+:type 'number
+:initialize 'custom-initialize-default)
+s2 => 1
+;; 2. with non-void variable
+(setq s2 2)
+(defcustom s2 1 ""
+:type 'number
+:initialize 'custom-initialize-default)
+s2 => 2
+#+END_SRC
+
+=reset=:
+
+#+BEGIN_SRC emacs-lisp
+;; 1. with void variable
+(defcustom s3 1 ""
+:type 'number
+:initialize 'custom-initialize-reset
+:set (lambda (s x) (set s (+ x 1))))
+s3 => 2
+;; 2. with non-void variable
+(setq s3 2)
+(defcustom s3 1 ""
+:type 'number
+:initialize 'custom-initialize-reset
+:set (lambda (s x) (set s (+ x 1))))
+s3 => 3
+#+END_SRC
+
+=changed=:
+
+#+BEGIN_SRC emacs-lisp
+;; 1. with void variable
+(defcustom s4 1 ""
+  :type 'number
+  :initialize 'custom-initialize-changed
+  :set (lambda (s x) (set s (+ x 1))))
+s4 => 1
+;; 2. with non-void variable
+(setq s4 2)
+(defcustom s4 1 ""
+  :type 'number
+  :initialize 'custom-initialize-changed
+  :set (lambda (s x) (set s (+ x 1))))
+s4 => 3
+#+END_SRC
+
+*** :set-after
+
+=:local= ， =:risky= ， =:safe= 这几个关键字我直接过了，因为它们都是用来设置属性值的，但是我现在还不太清楚设置了到底有什么用。
+
+=:set-after= 可以保证选项在其他变量被设定完毕后再进行设定，它应该被用在某些要求顺序设定的场合：
+
+要验证这一点需要两个文件（当然一个也行，在文件内对 =custom-set-variable= 求值即可），一个存放 =defcustom= 叫做 2.el， 另一个存放 custom-set 叫做 my.el，两文件在同一目录下：
+
+#+BEGIN_SRC emacs-lisp
+;; my.el
+(custom-set-variables
+ '(w3 1)
+ '(w2 1)
+ '(w1 1))
+#+END_SRC
+
+首先我们看看不加 =:set-after= 会有什么后果：
+
+#+BEGIN_SRC emacs-lisp
+;; 2.el
+;; wrong
+(setq cnt 0)
+(defgroup wcd nil ""
+  :group 'wp)
+
+(defcustom w1 2 ""
+  :type 'number
+  :set (lambda (s v) (progn (cl-incf cnt) (set s cnt)))
+  :initialize 'custom-initialize-default)
+
+(defcustom w2 3 ""
+  :type 'number
+  :set (lambda (s v) (progn (cl-incf cnt) (set s cnt)))
+  :initialize 'custom-initialize-default
+  ;;:set-after '(w1)
+  )
+
+(defcustom w3 4 ""
+  :type 'number
+  :set (lambda (s v) (progn (cl-incf cnt) (set s cnt)))
+  :initialize 'custom-initialize-default
+  ;;:set-after '(w2)
+  )
+
+(load-file  "./my.el")load-file  "./my.el")
+#+END_SRC
+
+[[./14.gif]]
+
+可以看到， =w3= 为 1， =w2= 为 2， =w1= 为 3。这是它们在 my.el 文件中出现的顺序，如果我们要求按照 =w1, w2, w3= 的顺序来初始化呢？这个时候就需要用到 =:set-after= 了。让我们删掉 =:set-after= 上面的注释再试一次：
+
+[[./15.gif]]
+
+这样就完成了顺序初始化。
+
+另：如果将上面的 =mysel.el= 中的内容改成：
+
+#+BEGIN_SRC emacs-lisp
+(custom-set-variables
+ '(w3 1))
+(custom-set-variables
+ '(w2 1))
+(custom-set-variables
+ '(w1 1))
+#+END_SRC
+
+即使在指定了顺序的情况下，得到的结果仍然是 =w3= 为 1， =w2= 为 2， =w1= 为 3。这一点我还不明所以。或许和 =custom-set-variables= 的内部机制有关。
+
+*** 和 customization variable 相关的一些函数
+
+在文档中提到的函数有：
+
+- custom-add-frequent-value
+
+- custom-reevaluate-setting
+
+- custom-variable-p
+
+- custom-set-variables
+
+- custom-set-faces
+
+
+这些函数中，用的最多的应该是第四个，即 =custom-set-variables= ，这里我只对它进行介绍，因为其他的函数我似乎找不到具体的应用方法。
+
+=custom-set-variables= 用于安装自定义变量，它接受可变个数参数，每个参数的格式是：
+
+=(var expression [now [request [comment]]])= ，上面的例子中我给出了简单的使用方法。
+
+其中，var 是变量名，expression 是作为变量值的待求值表达式，now, request 和 comment 仅在内部使用，它们应该被忽略。
+
+使用 =custom-set-variables= 相当于调用 =:set= 函数，如果直接使用 =setq= 的话则不会调用 =:set= 函数。
+
+如果 =defcustom= 在 =custom-set-variables= 调用之前就被求值过，那么变量的值会被设置为 =custom-set-variables= 求值得到的结果。如果 =defcustom= 在 =custom-set-variables= 求值之后的话，expression 会被存放在变量的 =saved-value= 属性中，当对应的 =defcustom= 被求值时 expression 才会被求值。
+
+** Customization 文档中我没有提到的内容
+
+可以说，这一章的主要内容是 =defcustom= 这个宏以及相应的函数，其他部分的话文档只是一笔带过。这些部分我也不是很熟，因为关于它们的主要文档还在这一章的后面，或者是在 Emacs Mannual 中。
+
+这一章介绍了如何定义主题（theme），但是也仅仅介绍了主题的定义方法和一些简单的函数，文档内容很少，不需要多加说明就可以读明白。
+
+这一章提到了外观（face）的定义，但只是提及而已，所以我也没有做过多的陈述。
+
+还有一些 =defcustom= 的选项我没有提到， =:type= 部分我只介绍了一些基础选项。
+
+** 一些项目中使用 Customizaiton 的例子
+
+以下就是一些在实际项目中使用的例子了，它们的来源主要是 github，我会给出相关的链接，数量大概在 10 个左右。为了避免因为包更新导致的行数对不上，这里我取时间最近的 commit 作为依据：
+
+- powerline [[https://github.com/milkypostman/powerline/blob/cfba2aa9cfa190e7720900f01a946e1e78aac7e2/powerline.el#L149][powerline/powerline.el]]，从 39 行至 149 行
+
+- cnfonts [[https://github.com/tumashu/cnfonts/blob/b967605d571d827c1cb041c174fb363985758729/cnfonts.el][cnfonts/cnfonts.el]]，从 325 行至 432 行
+
+- minions [[https://github.com/tarsius/minions/blob/1be68e8571336672d6cbec86246d1bf7844976be/minions.el][minions/minions.el]]，从 51 行至 112 行
+
+- haskell-mode [[https://github.com/haskell/haskell-mode/blob/3a019e65b504861d7ea23afbfecd14e5ef63e846/haskell-customize.el][haskell-mode/haskell-customize.el]]，几乎整个文件
+
+- curx [[https://github.com/bbatsov/crux/blob/20c07848049716a0e1aa2560e23b5f4149f2a74f/crux.el#L44][crux/crux.el]]，从 44 行至 143 行
+
+- helpful [[https://github.com/Wilfred/helpful/blob/7e4b1f0d5572a4e2b8ee7a9b084ef863d0315a73/helpful.el#L75][helpful/helpful.el]]，从 75 行至 94 行
+
+- avy [[https://github.com/abo-abo/avy/blob/e92cb37457b43336b765630dbfbea8ba4be601fa/avy.el][avy/avy.el]]，从 61 行至 292 行
+
+- find-file-in-project [[https://github.com/redguardtoo/find-file-in-project/blob/2f44af320b4e62053c5b6b523f69a8f16eaaa1c9/find-file-in-project.el#L162][find-file-in-project/find-file-in-project.el]]，从 162 行至 199 行
+
+- smex [[https://github.com/nonsequitur/smex/blob/55aaebe3d793c2c990b39a302eb26c184281c42c/smex.el#L32][smex/smex.el]]，从 32 行至 67 行
+
+- gkroam [[https://github.com/Kinneyzhang/gkroam/blob/2552444f1037240cce4f459bff3ac2b1f331bbb6/gkroam.el][gkroam/gkroam.el]]，从 132 行至 171 行
+
+
+上面的 customization 代码我都过了一遍，大部分都只使用了 =:type= 类型，而且大部分 =:type= 都比较简单。这也许说明 customization 一般用于较简单的配置。
+
+* emacs 的 Easy Customization Interface
+
+*Easy Customization Interface* 即 简单自定义界面 的意思。通过 emacs 提供的这一界面可以相对简单地对 emacs 进行配置。
+
+上面我们也看到了，通过 =customize= 和 =customize-browse= 命令可以直接访问顶级的标准组。但除了从顶级组一层一层向下找，我们还有更加简单的命令。如果我们已经知道了需要配置的组的名字，我们可以使用 =customize-group= 命令：
+
+[[./16.gif]]
+
+如果已经知道了选项的名字，还可以直接使用 =customize-option= ：
+
+[[./17.gif]]
+
+如果变量很简单的话，还可以不用打开自定义界面，使用 =customize-set-varible= 或 =customize-set-value= 直接在 echo-area 的地方使用 mini-buffer 进行设定：
+
+[[./18.gif]]
+
+还用其他的配置命令，可以参考[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Specific-Customization.html][这里]]。
+
+** 选项的设定
+
+上面我们展示了各种各样打开自定义界面的方法，但是对于如何设定选项没有说明。这里就设定的各个方面做一些简单的介绍。
+
+在自定义界面中，设定选项的按钮名字叫做 =STATE= 。就是下图所示的按钮：
+
+[[./19.PNG]]
+
+=STATE= 的后面还有绿色的文字，它用来表示当前选项的状态。
+
+当我们在 =STATE= 按钮上使用 =Enter= 键时，可以看到一个弹出的 minibuffer（在图形界面使用鼠标点击的话会出现一个小悬浮窗）：
+
+[[./20.PNG]]
+
+[[./21.PNG]]
+
+由小悬浮窗的内容我们可以知道 =STATE= 按钮应该提供了 9 种操作：
+
+1. 为当前 =session= 设置
+
+2. 为以后的 =session= 设置，即保存
+
+3. 撤销编辑。如果编辑了值但是还没有设定，使用这个操作会撤销掉你的编辑并显示当前值
+
+4. 还原 =session= 自定义。该操作使用最近一次 *保存* 的值来作为选项的值，如果没有最近的保存值则使用标准值。
+
+5. 擦除自定义。该操作将选项恢复至标准值
+
+6. 设定为备用值。该操作将选项设定为先前设定的值，如果存在的话。
+
+7. 添加注释。
+
+8. 显示当前值。
+
+9. 显示保存的 Lisp 表达式
+
+
+下面是针对 4 种设定操作（3，4，5，6）的演示：
+
+[[./22.gif]]
+
+上面第二次保存的时候我调用了操作 5，但是由于向配置文件写入数据，所以 =echo-area= 没有操作回显。
+
+（如果你在你的 emacs 中使用了这样的测试，请通过编辑配置文件将多余设置的选项删除掉，也就是上面的 =yy-test= 变量）
+
+** 选项的保存
+
+在上面的设定展示 gif 中可以看到，emacs 向我的配置文件中写入了数据，那么它写入的是什么呢？请看以下截图：
+
+[[./23.PNG]]
+
+在 =custom-set-variables= 的最后一行，可以看到 ='(yy-test 1.24)= 。也就是说，通过 Save for future session 操作，我将选项保存在了我的配置文件中。
+
+上图中的注释很有意思，“初始化文件中只能有一个这样的实例，否则不能正常工作”，这就可以解释我上面的 =w1, w2, w3= 设定问题了，它们必须在同一条 =custom-set-variables= 表达式中。
+
+除了通过自定义界面来完成保存，还可以通过 =customize-save-variable= 或 =customize-save-customized= 来保存：
+
+[[./24.gif]]
+
+结果如下：
+
+[[./25.PNG]]
+
+可能你不希望你的配置文件因为这些 =customize= 配置而显得乱糟糟，那可以通过在初始化文件中加入对 =custom-file= 变量的配置来设置选项的存放位置：
+
+#+BEGIN_SRC emacs-lisp
+(setq custom-file "~/.config/emacs-custom.el")
+(load custom-file)
+#+END_SRC
+
+* 后记
+
+应该说，自从我使用 emacs 以来，我基本上就没有碰过和 =customizaiton= 相关的东西，一来初学的时候只知道安装各种包，看着配置文件里面 emacs 自动生成的那一坨 =custom-set-variables= 和 =custom-set-faces= 就不是太敢动，二来学习其他人的配置的时候都是抄配置，毕竟 =customization= 配置是通过界面的，代码根本展现不出来。
+
+Elisp Mannual 的 =customization= 这一章我也没有想读的欲望，变量繁多，几乎没有什么示例。但借着期末后的这一段空闲时间我还是硬着头皮把它读完了。现在看来它的功能就是提供简单的配置方式罢了，也难怪我在搜索 emacs 相关资料时很少找到它的身影。
+
+开源软件 [[https://github.com/NickeManarin/ScreenToGif][NickeManarin/ScreenToGif]] 对本文的完成提供了很大的帮助，没有 gif 图片的话是没办法体现动态的过程的。
+
+希望本文能对你的 Elisp Mannual 之旅有所帮助，如果你也读的话。
+
+* 参考资料
+
+<<<【1】>>> [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Easy-Customization.html][Easy Customization Interface]]
+
+<<<【2】>>> [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Customization.html][Customization Settings]]
