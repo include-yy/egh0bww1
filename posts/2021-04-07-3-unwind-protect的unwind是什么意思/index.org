@@ -1,0 +1,56 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 3-unwind-protect的unwind是什么意思
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9kYW5ib29ydS5kb25tYWkudXMvcG9zdHMvMzE4MzI4MD9xPXBhcmVudCUzQTMxODMyODA=.jpg" alt="load failed"></div>@@
+#+DATE: [2021-04-07 Wed]
+#+TAGS: emacs
+
+在elisp中有一个叫做 =unwind-protect= 的特殊形式（special-form），它可以在出现错误或使用 throw 时进行一些清理操作。在 Scheme 中也有一个类似的东西叫做 =dynamic-wind= ，其中也有 =wind= 这个词。在我参考的【1】 【2】文档中详细讲解了它们的用法，但是关于 =wind/unwind= 这个词的来历并没有作详细说明。
+
+抱着玩玩的心态，我找到了一些解释。
+
+* 百度和谷歌的翻译
+
+对于 wind 的翻译：
+| wind | 百度                     | 谷歌               |
+| 名词 | 风；气流；胃气；肠气     | 风；蜿蜒           |
+| 动词 | 蜿蜒；迂回；卷缠；上发条 | 缠绕；蜿蜒；弯曲； |
+
+对于 unwind 的翻译：
+| unwind | 百度             | 谷歌     |
+| 名词   | 开卷机           | X        |
+| 动词   | 展开；解开；松开 | 放松；摅 |
+
+=unwind-protect= 和 =dynamic-wind= 中的 wind/unwind 和风应该没有太大关系，主要应该是用了和“缠绕”和“放松”差不多的意思。但是这个可能和它们的本意还不够接近。
+
+* 维基百科上的搜索
+
+通过 wikipedia，我在一个叫做 call stack【3】的词条上找到了相关解释。我将这一段的翻译放在这里：
+
+从被调用的函数返回会弹出堆栈的顶帧（也许会留下一个返回值）。更一般地，弹出栈中的一个或多个帧并恢复到程序中的某个执行点的行为被称为 *stack unwinding* ，它必须在非本地控制结构（non-local control structure）被使用时得到执行。这种情况下，栈中的某个帧中的函数应该包含一个或多个异常处理入口。当异常被抛出时，栈会被不断 unwind 直到找到用于处理被抛出异常的入口。
+
+某些语言有其他的需要通用 unwinding 的控制结构。Pascal 允许一个全局的 goto 语句来将控制权从嵌套函数传递到先前调用的外部函数中。这个操作需要对栈进行 unwind，去除掉足够多的栈帧来恢复到合适的上下文并传递转移控制权。相似的，C 有 =setjmp= 和 =longjmp= 函数来用作非本地 goto。Common Lisp 允许使用 unwind-protect 来控制栈被 unwind 时发生的事（也就是 unwind 时还能做点什么）。
+这么看来，unwind 是一种更一般的弹栈过程，它允许一次或多次弹栈。
+
+* C++ exception 中的 unwind
+
+在搜索 unwind 的过程中，我偶然发现这个词在 C++ 中也有，而且 “stack unwind” 已经有了翻译，即“栈展开” 或 “栈回退”。这么看来， =unwind-protect= 的还挺直观的，就是“展开保护”的意思。
+
+关于 stack unwinding 这里就不作过多介绍了，stackoverflow 【4】上面解释的很不错。【3】中有一篇讲解 C++ 异常的文章，讲的很好。作者十几年前写的文章，是个大牛的样子。
+
+* 结语
+
+=unwind-protect= 就是回退保护的意思，而 =dynamic-wind= 我还找不到翻译（也许可以翻译成“动态缠绕”？），理解成和 =unwind-protect= 相似的意思也不是不行。它比 =unwind-protect= 多了一个参数，功能比 =unwind-protect= 强。因为它接收的都是 =thunk= ，它在 Scheme 中是以 procedure 而不是 macro 实现的。
+
+我猜 unwind 这个词作为计算机词汇可能最早出现在 common lisp 中，不过仅仅是猜一下而已，毕竟比它古老的 Lisp 还有不少。在 emacs 的 eval.c 的第一次 commit 中， unwind 相关的函数就 [[https://github.com/emacs-mirror/emacs/commit/db9f027896e815f919b717e699cd3a6c3daef956#diff-3f6891fec05432f415cfd49150db67e2bc72d20e0a94a4e3ac762f7ff55f9921][已经有了]]，而这是在1991 年的 5 月 17 日。
+
+又学到了没有用的知识（笑）。
+
+* 参考资料
+
+<<<【1】>>> [[https://docs.racket-lang.org/reference/cont.html#%28def._%28%28quote._~23~25kernel%29._dynamic-wind%29%29][10.4 Continuations (racket-lang.org)]]
+
+<<<【2】>>> https://www.gnu.org/software/emacs/manual/html_node/elisp/Cleanups.html
+
+<<<【3】>>> [[http://baiy.cn/][白杨的原创免费作品 (baiy.cn)]]
+
+<<<【4】>>> [[https://stackoverflow.com/questions/2331316/what-is-stack-unwinding][c++ - What is stack unwinding? - Stack Overflow]]
