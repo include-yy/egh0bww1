@@ -1,9 +1,11 @@
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/kagamine_rin.ico">
+#+OPTIONS: html-style:nil
 #+OPTIONS: toc:nil num:nil ^:nil
 #+TITLE: Blog Home Page
 #+DATE: [2021-08-03 Tue 00:16]
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
 
-当前目录：
+* 目录：
 
 #+BEGIN_SRC elisp :exports results :wrap raw
     (require 'cl-lib)

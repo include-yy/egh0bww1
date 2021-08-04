@@ -1,83 +1,83 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Windows��������Ϣ����Ϣ����Ϣ����
+#+TITLE: Windows窗口与消息：消息与消息队列
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNTU1MDg4.jpg" alt="load failed"></div>@@
 #+DATE: [2020-06-25 Thu]
 #+TAGS: windows
 
-* ���ڴ�������Ϣ
+* 关于窗口与消息
 
-Windows Ӧ�����¼������ģ����ǲ���ͨ����ʽ�ĺ������ã����� C ����ʱ�⺯�����ã���������롣ȡ����֮���ǣ����ǵȴ�ϵͳ�������롣
+Windows 应用是事件驱动的，它们不会通过显式的函数调用（例如 C 运行时库函数调用）来获得输入。取而代之的是，它们等待系统传递输入。
 
-ϵͳ����һ��Ӧ�õ��������봫�ݸ�Ӧ���еĸ������ڡ�ÿ�����ڶ���һ�����ڹ��̣�ϵͳ�ڶԴ�������ʱ����øú��������ڹ��̶�������д�������������Ȩ������ϵͳ��
+系统将对一个应用的所有输入传递给应用中的各个窗口。每个窗口都有一个窗口过程，系统在对窗口输入时会调用该函数。窗口过程对输入进行处理，并将控制权返还给系统。
 
-����������ڣ�top-level����������û����Ӧ��Ϣ��ϵͳ����Ϊ�ô���������Ӧ״̬����������£�ϵͳ�����ظô��ڣ�����һ��������ͬ Z order�������ص�˳�򣩡�λ�á���С�Ϳ������Ե����鴰�ڴ��������������û��Դ��ڽ����ƶ���������С�������ر�Ӧ�á�Ȼ������Щ����ֻ�ڴ�����������Ӧ������½��С������ڵ���ģʽʱ��ϵͳ�����������鴰�ڡ�
+如果顶级窗口（top-level）超过数秒没有响应消息，系统会认为该窗口是无响应状态。这种情况下，系统会隐藏该窗口，并用一个有着相同 Z order（窗口重叠顺序）、位置、大小和可视属性的幽灵窗口代替它。这允许用户对窗口进行移动，调整大小，甚至关闭应用。然而，这些动作只在窗口真正无响应的情况下进行。当处于调试模式时，系统不会生成幽灵窗口。
 
-* Windows ��Ϣ
+* Windows 消息
 
-��Ϣ���Է�Ϊϵͳ������Ϣ��Ӧ�ö�����Ϣ�����ࡣ
+消息可以分为系统定义消息和应用定义消息两大类。
 
-** ϵͳ������Ϣ
+** 系统定义消息
 
-��ϵͳ��Ӧ�ý���ʱ�����ᷢ�ͻ�Ͷ�ݣ�send or post�����ߵ���������ģ� *ϵͳ������Ϣ* ����ʹ����Щ��Ϣ������Ӧ�õĲ�������ΪӦ���ṩ�����������Ӧ�ô�������Ϣ��Ӧ��Ҳ���Է��ͻ�Ͷ��ϵͳ������Ϣ��Ӧ��һ��ʹ����Щ��Ϣ��������Ԥ���崰���ഴ���Ĵ��ڵĲ�����
+当系统与应用交流时，它会发送或投递（send or post，两者的区别见下文） *系统定义消息* 。它使用这些消息来控制应用的操作，并为应用提供输入和其他让应用处理的信息。应用也可以发送或投递系统定义消息。应用一般使用这些消息来控制用预定义窗口类创建的窗口的操作。
 
-ÿ��ϵͳ������Ϣ����һ��Ψһ�ı�ʶ����һ����Ӧ�ķ��ų��������������� kit��SDK����ͷ�ļ��У������ų���˵������Ϣ��Ŀ�ġ����磬[[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]] ����Ҫ�󴰿ڻ����������ݡ�
+每个系统定义消息都有一个唯一的标识符和一个对应的符号常量（在软件开发 kit（SDK）的头文件中），符号常量说明了消息的目的。例如，[[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]] 常数要求窗口绘制它的内容。
 
-���ų���ָ����ϵͳ������Ϣ�Ĺ�����������ʶ����ǰ׺ȷ�����ܹ����ͺʹ�����Ϣ�Ĵ������͡����ڸ�ʽ������ǰ׺�����Բο�[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues][����]]��
+符号常量指定了系统定义消息的归属。常量标识符的前缀确定了能够解释和处理消息的窗口类型。关于各式各样的前缀，可以参考[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues][这里]]。
 
-һ�㴰����Ϣ�����˹㷺����Ϣ�����󣬰������ͼ��̵����룬�˵��ͶԻ�������룬���ڴ����͹������Լ���̬���ݽ�����DDE����
+一般窗口消息覆盖了广泛的信息和请求，包括鼠标和键盘的输入，菜单和对话框的输入，窗口创建和管理，以及动态数据交换（DDE）。
 
-** Ӧ�ö�����Ϣ
+** 应用定义消息
 
-Ӧ�ÿ��Դ�����Ϣ���Լ��Ĵ���ʹ�û������������еĴ��ڽ��������Ӧ�ô������Լ�����Ϣ��������Ϣ�Ĵ��ڹ��̱������Ϣ���н��Ͳ��ṩ�����Ĵ�����
+应用可以创建消息供自己的窗口使用或与其他进程中的窗口交流。如果应用创建了自己的消息，接收消息的窗口过程必须对消息进行解释并提供合理的处理。
 
-��Ϣ��ʶ����ֵʹ�÷������£�
+消息标识符的值使用方法如下：
 
-- ϵͳ��������Ϣ��ʶ��ֵ�ķ�Χ�� 0x0000 �� 0x03FF��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-user][WM_USER]] - 1����Ӧ�ò���ʹ����Щֵ��Ϊ˽����Ϣ
+- 系统保留的消息标识符值的范围是 0x0000 到 0x03FF（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-user][WM_USER]] - 1）。应用不能使用这些值作为私有消息
 
-- �� 0x0400��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-user][WM_USER]]���� 0x7FFFF ��Χ�ڵ�ֵ����˽�д��������Ϣ��ʶ��
+- 在 0x0400（[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-user][WM_USER]]）到 0x7FFFF 范围内的值用于私有窗口类的消息标识符
 
-- ���� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerwindowmessagea][RegisterWindowMessage]] ����ע��һ����Ϣʱ��ϵͳ�᷵��һ���� 0xC000 �� 0xFFFF ��Χ�ڵ���Ϣ��ʶ����������ص���Ϣ��ʶ����֤������ϵͳ����Ψһ�ġ�ͨ��ʹ������������������Ӧ���Բ�ͬ��Ŀ��ʹ����������������Ա����ͻ��
+- 调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerwindowmessagea][RegisterWindowMessage]] 函数注册一个消息时，系统会返回一个在 0xC000 到 0xFFFF 范围内的消息标识符。这个返回的消息标识符保证在整个系统中是唯一的。通过使用这个函数，如果其他应用以不同的目的使用了这个函数，可以避免冲突。
 
 
-* ��Ϣ·�ɣ�Routing��
+* 消息路由（Routing）
 
-ϵͳʹ�����ַ�ʽ����Ϣ·�ɵ����ڹ��̣�����ϢͶ�ݣ�post����һ�� FIFO �Ķ��У������� *��Ϣ����* ��message queue������ϵͳ������ڴ���󣬸����ݴ���Ϣ�ͽ���Ϣֱ�ӷ��͵����ڹ��̡�
+系统使用两种方式将消息路由到窗口过程：将消息投递（post）到一个 FIFO 的队列，它叫做 *消息队列* （message queue），是系统定义的内存对象，负责暂存消息和将消息直接发送到窗口过程。
 
-Ͷ�ݵ���Ϣ���е���Ϣ���� *������Ϣ* ����Щ��Ϣ�������û�ͨ�����ͼ��̵�����Ľ�������� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mousemove][WM_MOUSEMOVE]]��[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]]��[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keydown][WM_KEYDOWN]]���� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]] ��Ϣ�������Ķ�����Ϣ������ʱ�������ƣ����˳���Ϣ��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]]��[[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]]���� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]]���������������Ϣ���� *�Ƕ�����Ϣ*������ֱ�ӷ��ͣ�send�������ڡ�
+投递到消息队列的消息叫做 *队列消息* 。这些消息基本是用户通过鼠标和键盘的输入的结果，比如 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mousemove][WM_MOUSEMOVE]]，[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]]，[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keydown][WM_KEYDOWN]]，和 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]] 消息。其他的队列消息包括计时器，绘制，和退出消息：[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]]，[[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]]，和 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]]。大多数的其他消息叫做 *非队列消息*，它们直接发送（send）到窗口。
 
-** ������Ϣ
+** 队列消息
 
-ϵͳ������ͬһʱ����ʾ���������Ĵ��ڡ�Ҫ�����ͼ�������·�ɵ����ʵĴ��ڣ�ϵͳʹ������Ϣ���С�
+系统可以在同一时间显示任意数量的窗口。要将鼠标和键盘输入路由到合适的窗口，系统使用了消息队列。
 
-ϵͳά����һ��ϵͳ��Ϣ���У�ҲΪÿ�� GUI �߳�ά����һ���߳�ָ������Ϣ���С�Ϊ�˱������ GUI �̴߳����������Ϣ���У����е��̴߳���ʱ��û����Ϣ���еġ������̵߳�һ�ε������ض����û�������ϵͳ�Ŵ����̵߳���Ϣ���С�GUI �����ĵ��ò��ᵼ����Ϣ���еĴ�����
+系统维护了一个系统消息队列，也为每个 GUI 线程维护了一个线程指定的消息队列。为了避免给非 GUI 线程创建多余的消息队列，所有的线程创建时是没有消息队列的。仅当线程第一次调用了特定的用户函数，系统才创建线程的消息队列。GUI 函数的调用不会导致消息队列的创建。
 
-���û��ƶ���꣬������갴�������ڼ����ϴ��֣�������̵��豸�����Ὣ����ת��Ϊ��Ϣ������ϵͳ��Ϣ���С�ÿ��һ��ʱ�䣬ϵͳ���ϵͳ��Ϣ�������Ƴ���Ϣ��������Բ�������Ŀ�괰�ڣ������ϢͶ�ݵ�����Ŀ�괰�ڵ��̵߳���Ϣ���С��̵߳���Ϣ���л�����̴߳����Ĵ��ڵ��������ͼ�����Ϣ���̴߳Ӷ�����ɾ����Ϣ����ָʾϵͳ�����Ƿ��͵����ʵĴ��ڹ��̽��д�����
+当用户移动鼠标，按下鼠标按键，或在键盘上打字，鼠标或键盘的设备驱动会将输入转化为消息并放入系统消息队列。每隔一段时间，系统会从系统消息队列中移除消息，对其测试并决定其目标窗口，随后将消息投递到创建目标窗口的线程的消息队列。线程的消息队列会接收线程创建的窗口的所有鼠标和键盘消息。线程从队列中删除消息，并指示系统将它们发送到合适的窗口过程进行处理。
 
-���� [[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]]��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]]���� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]] ��������Ϣ֮�⣬ϵͳ���ǻὫ��ϢͶ�ݵ���Ϣ���е�ĩβ���������� FIFO ��˳���������������Ϣ�ġ� Ȼ�� WM_PAINT ��Ϣ��WM_TIMER ��Ϣ�� WM_QUIT ��Ϣ�ᱻ��������Ϣ�����У��������в�����������Ϣʱ�ٷ��͵����ڹ��̡����⣬һ�����ڵĶ�� WM_PAINT ��Ϣ�ᱻ���Ϊ���� WM_PAINT ��Ϣ�����ѿͻ�����������Ч��������Ϊ�������򡣶� WM_PAINT ��Ϣ����ϼ����˴��ڶԿͻ������ݵ��ػ������
+除了 [[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]]，[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]]，和 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]] 这三个消息之外，系统总是会将消息投递到消息队列的末尾。窗口是以 FIFO 的顺序接收它的输入消息的。 然而 WM_PAINT 消息，WM_TIMER 消息和 WM_QUIT 消息会被保留在消息队列中，仅当队列不包含其他消息时再发送到窗口过程。另外，一个窗口的多个 WM_PAINT 消息会被组合为单个 WM_PAINT 消息，并把客户区的所有无效区域整合为单个区域。对 WM_PAINT 消息的组合减少了窗口对客户区内容的重绘次数。
 
-ϵͳͨ�����һ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-msg][MSG]] �ṹ������ϢͶ�ݵ��̵߳���Ϣ���У�����俽������Ϣ�����С� MSG �ṹ����Ϣ������ָ�����ڵľ������Ϣ��ʶ����������Ϣ��������ϢͶ�ݵ�ʱ�䣬�Լ�������λ�á�ͨ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagea][PostMessage]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postthreadmessagea][PostThreadMessage]] �������߳̿��Խ�һ����ϢͶ�ݵ��Լ�����Ϣ���л������̵߳���Ϣ���С�
+系统通过填充一个 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-msg][MSG]] 结构来将消息投递到线程的消息队列，随后将其拷贝到消息队列中。 MSG 结构的信息包括：指定窗口的句柄，消息标识符，两个消息参数，消息投递的时间，以及鼠标光标的位置。通过使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagea][PostMessage]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postthreadmessagea][PostThreadMessage]] 函数，线程可以将一个消息投递到自己的消息队列或其他线程的消息队列。
 
-Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessage][GetMessage]] ��ɾ�������е���Ϣ��Ҫ�ڲ�ɾ����Ϣ������¼�������Ϣ��Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-peekmessagea][PeekMessage]] �������ú�����ʹ����Ϣ��� MSG ��
+应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessage][GetMessage]] 来删除队列中的消息。要在不删除消息的情况下检查队列消息，应用可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-peekmessagea][PeekMessage]] 函数，该函数会使用消息填充 MSG 。
 
-�ڴӶ���ɾ����Ϣ��Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage][DispatchMessage]] ������ָʾϵͳ����Ϣ���͸����ڹ��̽��д�����DispatchMessage ����һ�� MSG �ṹ��ָ�룬�ýṹ�Ѿ�ʹ�� GetMessage �� PeekMessage ������DispatchMessage �����ھ������Ϣ��ʶ������������Ϣ�������ݸ����ڹ��̣��������ᴫ��ʱ��������λ�á�Ӧ���ڴ�����Ϣʱ����ͨ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagetime][GetMessageTime]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagepos][GetMessagePos]] ��������ʱ���λ����Ϣ��
+在从队列删除消息后，应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage][DispatchMessage]] 函数来指示系统把消息发送给窗口过程进行处理。DispatchMessage 接收一个 MSG 结构的指针，该结构已经使用 GetMessage 或 PeekMessage 填充过。DispatchMessage 将窗口句柄，消息标识符，和两个消息参数传递给窗口过程，但它不会传递时间和鼠标光标位置。应用在处理消息时可以通过 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagetime][GetMessageTime]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagepos][GetMessagePos]] 函数检索时间和位置信息。
 
-�����Ϣ������û����Ϣ���߳̿���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-waitmessage][WaitMessage]] ������Ȩ�����������̡߳��ú���������̣߳�ֱ���µ���Ϣ�������̵߳���Ϣ�����вŻ᷵�ء�
+如果消息队列中没有消息，线程可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-waitmessage][WaitMessage]] 将控制权交给其他的线程。该函数会挂起线程，直到新的消息被放在线程的消息队列中才会返回。
 
-�����ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setmessageextrainfo][SetMessageExtraInfo]] ��������һ��ֵ�뵱ǰ�߳���Ϣ���й��������������� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessageextrainfo][GetMessageExtraInfo]] ����������һ��ʹ�� GetMessage �� PeekMessage ��������Ϣ������ֵ��
+你可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setmessageextrainfo][SetMessageExtraInfo]] 函数来将一个值与当前线程消息队列关联起来。随后调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessageextrainfo][GetMessageExtraInfo]] 来获得与最后一个使用 GetMessage 或 PeekMessage 检索的消息关联的值。
 
-** �Ƕ�����Ϣ
+** 非队列消息
 
-�Ƕ�����Ϣֱ�ӷ��͵�Ŀ�괰�ڵĴ��ڹ��̣��ƹ�ϵͳ��Ϣ���к��߳���Ϣ���С�ϵͳһ����򴰿ڷ��ͷǶ�����Ϣ������Ӱ�쵽���ڵ��¼������磬���û�����һ���µ�Ӧ�ô���ʱ��ϵͳ�ᷢ��һϵ����Ϣ�����ڣ����� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-activate][WM_ACTIVATE]]��[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-setfocus][WM_SETFOCUS]]���� [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-setcursor][WM_SETCURSOR]]����Щ��Ϣ��֪ͨ�������Ѿ��������ˣ��������뱻ָ�򴰿ڣ������Ҳ�����˴��ڷ�Χ�ڡ��Ƕ�����ϢҲ����Ӧ�õ���ĳЩϵͳ�������������磬��Ӧ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos][SetWindowPos]] �����ƶ����ں�ϵͳ�ᷢ�� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-windowposchanged][WM_WINDOWPOSCHANGED]] ��Ϣ��
+非队列消息直接发送到目标窗口的窗口过程，绕过系统消息队列和线程消息队列。系统一般会向窗口发送非队列消息来提醒影响到窗口的事件。例如，当用户激活一个新的应用窗口时，系统会发送一系列消息给窗口，包括 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-activate][WM_ACTIVATE]]，[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-setfocus][WM_SETFOCUS]]，和 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-setcursor][WM_SETCURSOR]]。这些消息会通知窗口它已经被激活了，键盘输入被指向窗口，鼠标光标也移入了窗口范围内。非队列消息也可由应用调用某些系统函数产生。例如，在应用使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos][SetWindowPos]] 函数移动窗口后，系统会发送 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-windowposchanged][WM_WINDOWPOSCHANGED]] 消息。
 
-һЩ���Է��ͷǶ�����Ϣ�ĺ����� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessage][BroadcastSystemMessage]]��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessageexa][BroadcastSystemMessage]]��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessage][SendMessage]]��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagetimeouta][SendMessageTimeOut]]���� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendnotifymessagea][SendNotifyMessage]]��
+一些可以发送非队列消息的函数是 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessage][BroadcastSystemMessage]]，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessageexa][BroadcastSystemMessage]]，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessage][SendMessage]]，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagetimeouta][SendMessageTimeOut]]，和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendnotifymessagea][SendNotifyMessage]]。
 
-* ��Ϣ����
+* 消息处理
 
-Ӧ�ñ����Ͷ�ݵ������̵߳���Ϣ����ɾ���ʹ��������߳�Ӧ��ͨ�������� WinMain ��ʹ��һ�� *��Ϣѭ��* ��ɾ���ͷ�����Ϣ�����ڹ��̴��������߳�Ӧ�ÿ����ڴ�������ʱΪÿһ�����ڶ�����һ����Ϣѭ����
+应用必须对投递到它的线程的消息进行删除和处理。单线程应用通常在它的 WinMain 中使用一个 *消息循环* 来删除和发送消息给窗口过程处理。多线程应用可以在创建窗口时为每一个窗口都引入一个消息循环。
 
-** ��Ϣѭ��
+** 消息循环
 
-�򵥵���Ϣѭ���ɶ��������������ĵ�����ɣ�GetMessage��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage][TranslateMessage]] �� DispatchMessage��ע�⣬������ڴ���GetMessage �᷵�� -1�������Ҫ������в��ԣ�
+简单的消息循环由对下列三个函数的调用完成：GetMessage，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage][TranslateMessage]] 和 DispatchMessage。注意，如果存在错误，GetMessage 会返回 -1，因此需要对其进行测试：
 
 #+BEGIN_SRC  c
 MSG msg;
@@ -97,61 +97,61 @@ while((bRet = GetMessage( &msg, NULL, 0, 0 )) != 0)
 }
 #+END_SRC
 
-GetMessage ����Ϣ�����м�����Ϣ�������俽����һ�� MSG �ṹ�С����������� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]] ʱ���� FALSE ����ֹѭ�������ķ���ֵΪһ���� 0 ֵ���ڵ��߳�Ӧ���У�������Ϣѭ��ͨ���ǹر�Ӧ�õĵ�һ����Ӧ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage][PostQuitMessage]] ����������ѭ������ͨ���Ƕ������ڴ��ڹ��̵� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-destroy][WM_DESTROY]] ��Ϣ����Ӧ��
+GetMessage 从消息队列中检索消息，并将其拷贝到一个 MSG 结构中。除了遇到了 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-quit][WM_QUIT]] 时返回 FALSE 并终止循环，它的返回值为一个非 0 值。在单线程应用中，结束消息循环通常是关闭应用的第一步。应用使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage][PostQuitMessage]] 来结束它的循环，这通常是对主窗口窗口过程的 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-destroy][WM_DESTROY]] 消息的响应。
 
-������� GetMessage �����ĵڶ�����ָ����һ�����ھ����ֻ��ָ�����ڵ���Ϣ�Żᱻ�Ӵ����м�����GetMessage �ܹ��Զ�����Ϣ���й��ˣ�ֻ��ָ����Χ����Щ��Ϣ���м�����
+如果你在 GetMessage 函数的第二参数指定了一个窗口句柄，只有指定窗口的消息才会被从窗口中检索。GetMessage 能够对队列消息进行过滤，只对指定范围的那些消息进行检索。
 
-����߳�Ҫ�Ӽ����н����ַ����룬�̵߳���Ϣѭ��������� TranslateMessage��ÿ���û�����һ����ʱ��ϵͳ�������������Ϣ��[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keydown][WM_KEYDOWN]] �� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keyup][WM_KEYUP]]�����������Ϣ����һ����ʶ���°�������������룬�ⲻ�������ַ�ֵ��Ҫ�������ֵ����Ϣѭ��������� TranslateMessage�������������Ϣ����Ϊ�ַ���Ϣ��[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]]��������������Ӧ����Ϣ�����С��ַ���Ϣ������������Ϣѭ���б�ɾ���ͷ��͵����ڹ��̡�
+如果线程要从键盘中接收字符输入，线程的消息循环必须包括 TranslateMessage。每当用户按下一个键时，系统会生成虚拟键消息（[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keydown][WM_KEYDOWN]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-keyup][WM_KEYUP]]）。虚拟键消息包括一个标识按下按键的虚拟键代码，这不是它的字符值。要检索这个值，消息循环必须包含 TranslateMessage，它将虚拟键消息翻译为字符消息（[[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]]），并将它放入应用消息队列中。字符消息可以在随后的消息循环中被删除和发送到窗口过程。
 
-DispatchMessage ��������Ϣ���͵��� MSG �ṹָ���Ĵ��ھ���Ĵ��ڹ��̡�������ھ���� HWND_TOPMOST��DispatchMessage �Ὣ��Ϣ���͵�ϵͳ�����еĶ������ڵĴ��ڹ����С�
+DispatchMessage 函数将消息发送到由 MSG 结构指定的窗口句柄的窗口过程。如果窗口句柄是 HWND_TOPMOST，DispatchMessage 会将消息发送到系统中所有的顶级窗口的窗口过程中。
 
-Ӧ�õ����߳��ڳ�ʼ��Ӧ�úʹ�������һ�����ں�ʼ������Ϣѭ�����ڿ�ʼ����Ϣѭ���������̵߳���Ϣ�����м�����Ϣ���ɷ������ʵĴ��ڡ��� GetMessage ����Ϣ������ɾ�� WM_QUIT ��Ϣ����Ϣѭ���ͽ����ˡ�
+应用的主线程在初始化应用和创建至少一个窗口后开始它的消息循环。在开始后，消息循环持续从线程的消息队列中检索消息并派发到合适的窗口。当 GetMessage 从消息队列中删除 WM_QUIT 消息后，消息循环就结束了。
 
-ÿһ���̶߳���ֻ��Ҫһ����Ϣѭ��������Ӧ�ð���������ڡ�DispatchMessage ���ǻὫ��Ϣ�ɷ������ʵĴ��ڣ�������Ϊ�����е�ÿ����Ϣ���ǰ�����ʶ����Ϣ�����Ĵ��ھ���� MSG �ṹ��
+每一个线程队列只需要一个消息循环，即便应用包含多个窗口。DispatchMessage 总是会将消息派发到合适的窗口；这是因为队列中的每个消息都是包含标识了消息归属的窗口句柄的 MSG 结构。
 
-������ö��ַ�ʽ�޸�һ����Ϣѭ�������磬����ԴӶ����м�����Ϣ�����ɷ������ڡ������Ͷ�ݣ�post����ָ�����ڵ���Ϣ�����õġ������ָʾ GetMessage �����ض�����Ϣ����������Ϣ���ڶ����С�����������ʱ�ƹ�ͨ���� FIFO ˳�����Ǻ����õġ�
+你可以用多种方式修改一个消息循环。例如，你可以从队列中检索消息而不派发给窗口。这对于投递（post）不指定窗口的消息是有用的。你可以指示 GetMessage 搜索特定的消息，把其他消息留在队列中。如果你必须暂时绕过通常的 FIFO 顺序，这是很有用的。
 
-ʹ�ü��ټ���Ӧ�ñ����ܹ���������Ϣ����Ϊ������Ϣ��Ҫ������һ�㣬Ӧ����Ϣѭ���������һ���� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-translateacceleratora][TranslateAccelerator]] �����ĵ��á�������ڼ��ټ�����Ϣ���ɼ��� [[https://docs.microsoft.com/en-us/windows/desktop/menurc/keyboard-accelerators][Keyboard Accelerators]]��
+使用加速键的应用必须能够将键盘消息翻译为命令消息。要做到这一点，应用消息循环必须包含一个对 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-translateacceleratora][TranslateAccelerator]] 函数的调用。更多关于加速键的信息，可见于 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/keyboard-accelerators][Keyboard Accelerators]]。
 
-����߳�ʹ����һ��ģ̬�Ի�����Ϣѭ���������һ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-isdialogmessagea][IsDialogMessage]] �����Ա�Ի����ܹ����ռ������롣
+如果线程使用了一个模态对话框，消息循环必须包含一个 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-isdialogmessagea][IsDialogMessage]] 函数以便对话框能够接收键盘输入。
 
-* ��Ϣ����
+* 消息过滤
 
-ͨ��ʹ�� GetMessage �� PeekMessage ָ��һ����Ϣ��������Ӧ�ÿ���ѡ�����Ϣ�����м����ض�����Ϣ������������Ϣ������������һ����Ϣ��ʶ����Χ���ɵ�һ�������һ����ʶ��ָ������һ�����ھ���������߶��á�GetMessage �� PeekMessage ʹ��һ����Ϣ��������ѡ��Ӷ����м�������Ϣ�����Ӧ�ñ������Ϣ����������֮��ŵ�����Ϣ����Ϣ���������õġ����Ӧ�ñ����ڴ���Ͷ�ݵ���Ϣǰ������Ӳ����������Ϣ����Ҳ�����õġ�
+通过使用 GetMessage 和 PeekMessage 指定一个消息过滤器，应用可以选择从消息队列中检索特定的消息（忽略其他消息）。过滤器是一个消息标识符范围（由第一个和最后一个标识符指定），一个窗口句柄，或两者都用。GetMessage 和 PeekMessage 使用一个消息过滤器来选择从队列中检索的消息。如果应用必须从消息队列中搜索之后才到的消息，消息过滤是有用的。如果应用必须在处理投递的消息前处理（硬件）输入消息，这也是有用的。
 
-WM_KEYFIRST �� WM_KEYLAST �������������������м�����Ϣ�Ĺ���ֵ��WM_MOUSEFIRST �� WM_MOUSELAST �������ڼ������е������Ϣ��
+WM_KEYFIRST 和 WM_KEYLAST 常数可以用作检索所有键盘消息的过滤值；WM_MOUSEFIRST 和 WM_MOUSELAST 可以用于检索所有的鼠标消息。
 
-�κζ���Ϣ���й��˵�Ӧ�ñ��뱣֤������Ϣ����������Ϣ���Ա�Ͷ�ݡ����磬���һ��Ӧ���ڲ����ռ�������Ĵ����й���������Ϣ����Ҫ�õ� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]] ��Ϣ��GetMessage �����ǲ��᷵�صġ������ᡰ���ҡ���Ӧ�á�
+任何对消息进行过滤的应用必须保证满足消息过滤器的消息可以被投递。例如，如果一个应用在不接收键盘输入的窗口中过滤其他消息而想要得到 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-char][WM_CHAR]] 消息，GetMessage 函数是不会返回的。这样会“悬挂”该应用。
 
-* Ͷ�ݣ�posting���ͷ��ͣ�sending����Ϣ
+* 投递（posting）和发送（sending）消息
 
-�κ�Ӧ�ö��ܹ�Ͷ�ݺͷ�����Ϣ����ϵͳһ����Ӧ��Ҳ����ͨ������Ϣ��������Ϣ����Ͷ����Ϣ���Ͱ���Ϣ������Ϊ���ڹ��̵Ĳ�����������Ϣ��ҪͶ����Ϣ��Ӧ�ÿ�ʹ�� PostMessage ������Ӧ�ÿ���ͨ������ SendMessage��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessage][BroadcastSystemMessage]]��[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagecallbacka][SendMessageCallback]]��SendMessageTimeout��SendNotifyMessage���� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-senddlgitemmessagea][SendDlgItemMessage]] ������������Ϣ��
+任何应用都能够投递和发送消息。像系统一样，应用也可以通过把消息拷贝到消息队列投递消息，和把消息数据作为窗口过程的参数来发送消息。要投递消息，应用可使用 PostMessage 函数。应用可以通过调用 SendMessage，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-broadcastsystemmessage][BroadcastSystemMessage]]，[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagecallbacka][SendMessageCallback]]，SendMessageTimeout，SendNotifyMessage，或 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-senddlgitemmessagea][SendDlgItemMessage]] 函数来发送消息。
 
-** Ͷ����Ϣ
+** 投递消息
 
-Ӧ��һ���ָ������Ͷ��һ����Ϣ��ִ��һ������PostMessage Ϊ��Ϣ����һ�� MSG �ṹ��������������Ϣ�����С�Ӧ�õ���Ϣѭ�����ջ����������Ϣ���ɷ������ʵĴ��ڹ��̡�
+应用一般对指定窗口投递一个消息来执行一个任务。PostMessage 为消息创建一个 MSG 结构并将它拷贝到消息队列中。应用的消息循环最终会检索到该消息并派发到合适的窗口过程。
 
-Ӧ�ÿ����ڲ�ָ�����ڵ������Ͷ����Ϣ������ڵ��� PostMessage ʱ��Ӧ���� NULL ��Ϊ���ھ��������ֵ����Ϣ�ᱻͶ�ݵ��뵱ǰ�̹߳����Ķ����С���Ϊû��ָ�����ھ����Ӧ�ñ�������Ϣѭ���д��������Ϣ����������ָ���Ĵ����С�
+应用可以在不指定窗口的情况下投递消息。如果在调用 PostMessage 时，应用以 NULL 作为窗口句柄参数的值，消息会被投递到与当前线程关联的队列中。因为没有指定窗口句柄，应用必须在消息循环中处理这个消息，而不是在指定的窗口中。
 
-��ʱ���������Ҫ��һ����ϢͶ�ݵ�ϵͳ���еĶ��������С�Ӧ�ÿ����ڵ��� PostMessage ʱָ�� HWND_TOPMOST ��Ϊ *hwnd* ������
+有时，你可能想要将一个消息投递到系统所有的顶级窗口中。应用可以在调用 PostMessage 时指定 HWND_TOPMOST 作为 *hwnd* 参数。
 
-һ��ͨ���ı�̴����Ǽٶ� PostMessage ���ǻ�Ͷ��һ����Ϣ������Ϣ�����Ѿ����˵�ʱ�����ǲ��Եġ�Ӧ��Ӧ�ö� PostMessage �ķ���ֵ���м����������Ϣ�Ƿ�Ͷ���ˣ������û�У���Ͷ��һ�Ρ�
+一个通常的编程错误是假定 PostMessage 总是会投递一个消息。当消息队列已经满了的时候这是不对的。应用应该对 PostMessage 的返回值进行检查来决定消息是否被投递了，如果还没有，再投递一次。
 
-** ������Ϣ
+** 发送消息
 
-Ӧ��ͨ���򴰿ڷ�����Ϣ�������Ѵ��ڹ�������ִ�����񡣺��� SendMessage ����Ϣ���͵�ָ�����ڵĴ��ڹ��̡��ú�����ȴ����ڹ�����ɴ���������֮�󷵻���Ϣ����������ں��Ӵ���ͨ��ͨ�����෢����Ϣ�����������磬��������һ���༭�ؼ��Ӵ��ڣ�������ͨ�����Ӵ��ڷ�����Ϣ�������ı����ؼ�Ҳ����ͨ���򸸴��ڷ�����Ϣ��֪ͨ���������û��������ı��ı䡣
+应用通常向窗口发送消息，来提醒窗口过程立即执行任务。函数 SendMessage 将消息发送到指定窗口的窗口过程。该函数会等待窗口过程完成处理，并在之后返回消息结果。父窗口和子窗口通常通过互相发送消息来交流。例如，父窗口有一个编辑控件子窗口，它可以通过向子窗口发送消息来设置文本。控件也可以通过向父窗口发送消息来通知父窗口由用户带来的文本改变。
 
-���� SendMessageCallback Ҳ��ָ���Ĵ��ڵĴ��ڹ��̷�����Ϣ������ͬ���ǣ�����������������ء��ڴ��ڴ�����Ϣ��ϵͳ�����ָ���Ļص�������������ڻص���������Ϣ���ɼ��� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-sendasyncproc][SendAsynaProc]] ��
+函数 SendMessageCallback 也向指定的窗口的窗口过程发送消息。但不同的是，这个函数会立即返回。在窗口处理消息后，系统会调用指定的回调函数。更多关于回调函数的信息，可见于 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-sendasyncproc][SendAsynaProc]] 。
 
-��ʱ���������Ҫ����ϵͳ�е����ж������ڷ�����Ϣ�����磬���Ӧ�øı���ϵͳʱ�䣬�����뷢�� [[https://docs.microsoft.com/en-us/windows/win32/sysinfo/wm-timechange][WM_TIMECHANGE]] ֪ͨ���еĶ������ڡ������ͨ���� SendMessage ������ָ�� HWND_TOPMOST ��Ϊ *hwnd* ��������Ҳ����ָ�� *lpdwRecipients* Ϊ BSM_APPLICATIONS��ͨ������ BroadcastSystemMessage ��������Ӧ�ù㲥��Ϣ��
+有时，你可能想要对在系统中的所有顶级窗口发送消息。例如，如果应用改变了系统时间，它必须发送 [[https://docs.microsoft.com/en-us/windows/win32/sysinfo/wm-timechange][WM_TIMECHANGE]] 通知所有的顶级窗口。这可以通过在 SendMessage 调用中指定 HWND_TOPMOST 作为 *hwnd* 参数。你也可以指定 *lpdwRecipients* 为 BSM_APPLICATIONS，通过调用 BroadcastSystemMessage 来对所有应用广播消息。
 
-ͨ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-insendmessage][InSendMessage]] �� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-insendmessageex][InSendMessageEx]] ���������ڹ��̿����ж��Ƿ��ڴ����������̷߳��͵���Ϣ������Ϣ������������Ϣ��Դʱ��������������õġ�
+通过使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-insendmessage][InSendMessage]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-insendmessageex][InSendMessageEx]] 函数，窗口过程可以判断是否在处理由其他线程发送的消息。当消息处理依赖于消息来源时，这个功能是有用的。
 
-* ��Ϣ����
+* 消息死锁
 
-���� SendMessage ���������̷߳�����Ϣ���߳��ڴ�����Ϣ�Ĵ��ڹ��̷���ǰ�ǲ��ܼ���ִ�еġ����������Ϣ���߳��ڴ���ʱת���˿���Ȩ��������Ϣ���߳̾Ͳ��ܼ���ִ���ˣ���Ϊ���ڵȴ� SendMessage �ķ��ء�������շ������ӵ��뷢�ͷ�һ���Ķ����ϣ��������Ӧ�õ���������journal hook ���԰��̸߳��ӵ���ͬ�Ķ��У�
+调用 SendMessage 来向其他线程发送消息的线程在处理消息的窗口过程返回前是不能继续执行的。如果接收消息的线程在处理时转交了控制权，发送消息的线程就不能继续执行了，因为它在等待 SendMessage 的返回。如果接收方被附加到与发送方一样的队列上，它会造成应用的死锁。（journal hook 可以把线程附加到相同的队列）
 
-���շ�����Ҫ��ʽ�ƽ�����Ȩ������������һ�������ᵼ���߳���ʽ�ƽ�����Ȩ��
+接收方不需要显式移交控制权；调用下面任一函数都会导致线程隐式移交控制权。
 
 - [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-dialogboxa][DialogBox]]
 
@@ -170,117 +170,117 @@ WM_KEYFIRST �� WM_KEYLAST �������������������м�����Ϣ�Ĺ���ֵ��WM_MOUSEFIRST ��
 - SendMessage
 
 
-Ϊ�˱���Ӧ����Ǳ�ڵ�����������ʹ�� SendNotifyMessage �� SendMessageTimeout �������������Ļ������ڹ��̿���ͨ�� InSendMessage �� InSendMessageEx ���ж����յ�����Ϣ�Ƿ����������̡߳�������Ϣʱ���ڵ��������б�����ǰ�����ڹ���Ӧ�����ȵ��� InSendMessage �� InSendMessageEx������������� TRUE�����ڹ��̱����ڵ����κο�����ɿ���Ȩת������ǰ�ȵ��� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-replymessage][ReplyMessage]]��
+为了避免应用中潜在的死锁，考虑使用 SendNotifyMessage 或 SendMessageTimeout 函数。不这样的话，窗口过程可以通过 InSendMessage 或 InSendMessageEx 来判断它收到的消息是否来自其他线程。处理消息时，在调用上面列表函数前，窗口过程应该首先调用 InSendMessage 或 InSendMessageEx。如果函数返回 TRUE，窗口过程必须在调用任何可能造成控制权转交函数前先调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-replymessage][ReplyMessage]]。
 
-* �㲥��Ϣ
+* 广播消息
 
-*��Ϣ�㲥* ���ǽ�һ����Ϣ���͸�ϵͳ�еĽ����ߡ�Ҫ��Ӧ�ù㲥һ����Ϣ����ʹ�� BroadcastSystemMessage ��������ָ����Ϣ�Ľ����ߡ��Ⲣ����ָ�������ߣ�����ָ��һ�����������ߵ����͡������ߵ�������Ӧ�ã���װ��������������������ϵͳ�����豸������ϵͳ���ָ�����͵ĳ�Ա���͹㲥��Ϣ��
+*消息广播* 就是将一个消息发送给系统中的接收者。要从应用广播一个消息，可使用 BroadcastSystemMessage 函数，并指定消息的接收者。这并不是指定接收者，而是指定一个或多个接收者的类型。接收者的类型是应用，安装的驱动，网络驱动，和系统级的设备驱动。系统会对指定类型的成员发送广播消息。
 
-һ����˵��ϵͳͨ���㲥��Ϣ����Ӧϵͳ���豸����������������з����ĸ��ġ���������ص������Ӧ�ú�����������й㲥����֪���Ǳ仯�ķ��������磬���������������豸������⵽���ʸ��ģ����û�������̣�ʱ��������������������㲥��Ϣ��
+一般来说，系统通过广播消息来响应系统级设备驱动程序或相关组件中发生的更改。驱动或相关的组件向应用和其他组件进行广播来告知它们变化的发生。例如，当软盘驱动器的设备驱动检测到介质更改（如用户插入磁盘）时，负责磁盘驱动的组件会广播信息。
 
-ϵͳ�㲥�Ľ�����˳���ǣ�ϵͳ���豸������������������װ���������Լ�Ӧ�á���Ҳ��ζ�ţ����ϵͳ���豸������ѡ�������ߵĻ��������ǻ�õ����ȶ���Ϣ������Ӧ�Ļ��ᡣ�ڸ����Ľ����������У�û�������ܹ���֤����������֮ǰ���յ���Ϣ������ζ�Ŷ�һ��ָ����������Ϣ������һ��ȫ��Ψһ����Ϣ��ʶ������֤�����豸���᲻����䴦������
+系统广播的接收者顺序是：系统级设备驱动，网络驱动，安装的驱动，以及应用。这也意味着，如果系统级设备驱动被选作接收者的话，它总是会得到首先对消息做出反应的机会。在给定的接收者类型中，没有驱动能够保证在其他驱动之前接收到消息。这意味着对一个指定驱动的消息必须有一个全局唯一的消息标识符来保证其他设备不会不经意间处理它。
 
-��Ҳ����ͨ���� SendMessage��SendMessageCallback��SendMessageTimeout �� SendNotifyMessage ������ָ�� HWND_BROADCAST �������еĶ���Ӧ�ù㲥��Ϣ��
+你也可以通过在 SendMessage，SendMessageCallback，SendMessageTimeout 或 SendNotifyMessage 函数中指定 HWND_BROADCAST 来对所有的顶级应用广播消息。
 
-Ӧ��ͨ�����ǵĶ������ڵĴ��ڹ�����������Ϣ����Ϣ���ᱻ���͵��Ӵ��ڡ�
+应用通过它们的顶级窗口的窗口过程来接收消息。消息不会被发送到子窗口。
 
-* ��ѯ��Ϣ��Query Messages��
+* 查询消息（Query Messages）
 
-����Դ�������Զ�����Ϣ��ʹ������Э��Ӧ����ϵͳ��������Ļ�������Ҫ�����Լ��Ŀɰ�װ������ϵͳ���豸����ʱ�����Ǻ����õġ�����Զ�����Ϣ����Я����Ϣ������������ʹ���������豸֮�䡣
+你可以创建你的自定义信息并使用它们协调应用与系统其他组件的活动。如果你要创建自己的可安装驱动或系统级设备驱动时，这是很有用的。你的自定义消息可以携带消息来往于驱动与使用驱动的设备之间。
 
-Ҫ��ѯ��������Ѱ��ִ�и���������Ȩ�ޣ�����ʹ�� *��ѯ��Ϣ* ��query message���������ͨ���ڵ��� BroadcastSystemMessage ʱָ�� *dwFlags* ����Ϊ BSF_QUERY ���������Լ��Ĳ�ѯ��Ϣ��ÿ����ѯ��Ϣ�Ľ����߶����뷵�� TURE ��ʹ����Ϣ�ܹ����͵���һ�������ߡ���������߷����� BROADCAST_QUERY_DENY���㲥�����̽����������᷵�� 0��
+要轮询接收者来寻求执行给定动作的权限，可以使用 *查询消息* （query message）。你可以通过在调用 BroadcastSystemMessage 时指定 *dwFlags* 参数为 BSF_QUERY 来生成你自己的查询消息。每个查询消息的接收者都必须返回 TURE 以使得消息能够发送到下一个接收者。如果接收者返回了 BROADCAST_QUERY_DENY，广播会立刻结束，函数会返回 0。
 
-* ��������Ϣ
+* 常见的消息
 
 ** WM_CREATE
 
-��Ӧ��ͨ������ CreateWindow �� CreateWindow Ҫ�󴴽�һ������ʱ���ᷢ�������Ϣ���ں�������ǰ��Ϣ�ͱ����ͣ����´��ڵĴ��ڹ����ڴ��ڴ��������յ������Ϣ���������ڴ��ڿɼ�֮ǰ��
+当应用通过调用 CreateWindow 或 CreateWindow 要求创建一个窗口时，会发送这个消息（在函数返回前消息就被发送）。新窗口的窗口过程在窗口创建后会接收到这个消息，但是是在窗口可见之前。
 
-���Ǵ��ڹ��̽��յ��ĵ�һ����Ϣ��
+这是窗口过程接收到的第一个消息。
 
-���ո���Ϣʱ�����ڹ��̵� *wParam* ����ֵ����ʹ�ã����� *lParam* ��һ��ָ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-createstructa][CREATESTRUCT]] �ṹ��ָ�롣����ṹ�����˴��ڳ�ʼ���Ĳ�����
+接收该消息时，窗口过程的 *wParam* 参数值不被使用，它的 *lParam* 是一个指向 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-createstructa][CREATESTRUCT]] 结构的指针。这个结构包含了窗口初始化的参数。
 
-��������Ϣ�󣬴��ڹ���Ӧ�÷��� 0 �Լ������ڵĴ�����������ڹ��̷��� -1�����ڻᱻ���٣�CreateWindow �� CreateWindowEx �᷵�ؿվ����
+处理该消息后，窗口过程应该返回 0 以继续窗口的创建。如果窗口过程返回 -1，窗口会被销毁，CreateWindow 或 CreateWindowEx 会返回空句柄。
 
 ** WM_SIZE
 
-�ڴ��ڳߴ�ı���򴰿ڷ��͸���Ϣ��
+在窗口尺寸改变后向窗口发送该消息。
 
-*wParam* �ǳߴ�ı�����ͣ�������������ֵ�е�һ����
+*wParam* 是尺寸改变的类型，它可以是下列值中的一个；
 
-- SIZE_MAXHIDE���������������ʱ������Ϣ�ᷢ�͵����е�����pop-up)����
+- SIZE_MAXHIDE，当其他窗口最大化时，该消息会发送到所有弹出（pop-up)窗口
 
-- SIZE_MAXIMIZED�������Ѿ������
+- SIZE_MAXIMIZED，窗口已经最大化了
 
-- SIZE_MAXSHOW�����������ڻָ���֮ǰ�ߴ�ʱ������Ϣ�ᷢ�͵����е�������
+- SIZE_MAXSHOW，当其他窗口恢复到之前尺寸时，该消息会发送到所有弹出窗口
 
-- SIZE_MINIMIZED�������Ѿ���С����
+- SIZE_MINIMIZED，窗口已经最小化了
 
-- SIZE_RESTORED�����ڵĳߴ�ı��ˣ���������󻯺���С��
+- SIZE_RESTORED，窗口的尺寸改变了，但不是最大化和最小化
 
 
-*lParam* �ĵ�λ�ǿͻ������¿��ȣ���λ�ǿͻ������¸߶ȡ���Ȼ���ڵĿ��Ⱥ͸߶��� 32 λֵ�� *lParam* ֻ��������ֵ�ĵ� 16 λ��
+*lParam* 的低位是客户区的新宽度，高位是客户区的新高度。虽然窗口的宽度和高度是 32 位值， *lParam* 只包含宽高值的低 16 位。
 
-���ڹ��̴�������Ϣ��Ӧ�÷��� 0��
+窗口过程处理该消息后应该返回 0。
 
 ** WM_PAINT
 
-��ϵͳ������Ӧ��Ҫ���Ӧ�ô��ڵĲ��ֽ��л���ʱ���ᷢ�͸���Ϣ������ [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-updatewindow][UpdateWindow]] �� [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-redrawwindow][RedrawWindow]] ����ʱ������Ӧ��ͨ��ʹ�� GetMessage �� PeekMessage ��� WM_PAINT ������ DispatchMessage ��������Ϣ�ᱻ���͵����ڹ��̡�
+当系统或其他应用要求对应用窗口的部分进行绘制时，会发送该消息。调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-updatewindow][UpdateWindow]] 或 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-redrawwindow][RedrawWindow]] 函数时，或在应用通过使用 GetMessage 或 PeekMessage 获得 WM_PAINT 并调用 DispatchMessage 函数后，消息会被发送到窗口过程。
 
-*lParam* �� *wParam* ������ʹ�á�
+*lParam* 和 *wParam* 都不被使用。
 
-WM_PAINT ��Ϣ��ϵͳ���ɣ�����Ӧ��Ӧ�÷��͡�Ҫ��ǿ��Ӧ�û����ض����豸�����ģ�����ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/gdi/wm-print][WM_PRINT]] �� [[https://docs.microsoft.com/en-us/windows/win32/gdi/wm-printclient][WM_PRINTCLIENT]] ��Ϣ��
+WM_PAINT 消息由系统生成，它不应由应用发送。要想强制应用绘制特定的设备上下文，可以使用 [[https://docs.microsoft.com/en-us/windows/win32/gdi/wm-print][WM_PRINT]] 或 [[https://docs.microsoft.com/en-us/windows/win32/gdi/wm-printclient][WM_PRINTCLIENT]] 消息。
 
-��Ӧ����Ϣ������û��������Ϣʱ��ϵͳ��Ѹ���Ϣ������С���Ӧ����Ϣ������û��������Ϣʱ������ GetMessage �᷵�� WM_PAINT��DispatchMessage �����Ϣ���͵����ʵĴ��ڡ�
+当应用消息队列中没有其他消息时，系统会把该消息送入队列。当应用消息队列中没有其他消息时，调用 GetMessage 会返回 WM_PAINT，DispatchMessage 会把消息发送到合适的窗口。
 
-DefWindowProc �����Ὣ����������Ч����
+DefWindowProc 函数会将绘制区域有效化。
 
-���ڿ�����ʹ�� RDW_INTERNALPAINT ���� [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-redrawwindow][RedrawWindow]] ���ܵ��ڲ�������Ϣ������������£����ڿ���û�и�������Ӧ�ÿ��Ե��� [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-getupdaterect][GetUpdateRect]] ���жϴ����Ƿ���ڸ���������� GetUpeateRect ���� 0���򴰿ڲ��ص��� [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-beginpaint][BeginPaint]] �� [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-endpaint][EndPaint]]��
+窗口可能因使用 RDW_INTERNALPAINT 调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-redrawwindow][RedrawWindow]] 而受到内部绘制消息。在这种情况下，窗口可能没有更新区域。应用可以调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-getupdaterect][GetUpdateRect]] 来判断窗口是否存在更新区域。如果 GetUpeateRect 返回 0，则窗口不必调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-beginpaint][BeginPaint]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-endpaint][EndPaint]]。
 
 ** WM_DESTROY
 
-�����ڽ�������ʱ���͸���Ϣ���ڴ��ڱ�����Ļɾ�������ᱻ���͵�ɾ���Ĵ��ڵĴ��ڹ��̡�
+当窗口将被销毁时发送该消息。在窗口被从屏幕删除后，它会被发送到删除的窗口的窗口过程。
 
-����Ϣ���ȱ����͵������ٵĴ��ڣ�֮���͵��Ӵ��ڣ�����еĻ���������Ϣ�������ڴ��������У����Լ��������Ӵ��ڻ��Ǵ��ڵġ�
+该消息首先被发送到被销毁的窗口，之后发送到子窗口（如果有的话）。在消息的主窗口处理过程中，可以假设所有子窗口还是存在的。
 
-*wParam* �� *lParam* ����ʹ�á���������˸���Ϣ�����ڹ���Ӧ���� 0��
+*wParam* 和 *lParam* 不被使用。如果处理了该消息，窗口过程应返回 0。
 
-��������ٵĴ����Ǽ��а�����һ���֣��� WM_DESTROY ��Ϣ��������ǰ�����ڱ��뽫�����������Ƴ���
+如果被销毁的窗口是剪切板链的一部分，在 WM_DESTROY 消息处理返回前，窗口必须将它从链条中移除。
 
 ** WM_COMMAND
 
-���û��Ӳ˵�ѡ��һ������ʱ�ᷢ�ͣ����ؼ������ĸ����ڷ���������Ϣʱ�ᷢ�ͣ������ټ�������ʱ�ᷢ�͡�
+当用户从菜单选中一个命令时会发送，当控件向它的父窗口发送提醒消息时会发送，当加速键被翻译时会发送。
 
-���Ӧ�ô����˸���Ϣ����Ӧ�÷��� 0��
+如果应用处理了该消息，它应该返回 0。
 
-����Ϣ��Դ�ǲ˵�ʱ�� *wParam* �ĸ�λ�� 0����λ�ǲ˵���ʶ����IDM_*���� *lParam* �� 0��
+在消息来源是菜单时， *wParam* 的高位是 0，低位是菜单标识符（IDM_*）， *lParam* 是 0。
 
-��Ϣ��Դ�Ǽ��ټ�ʱ�� *wParam* �ĸ�λ�� 1����λ�Ǽ��ټ���ʶ����IDM_*���� *lParam* �� 0��
+消息来源是加速键时， *wParam* 的高位是 1，低位是加速键标识符（IDM_*）， *lParam* 是 0。
 
-��Ϣ��Դ�ǿؼ�ʱ�� *wParam* �ĸ�λ�ǿؼ��ض���֪ͨ�룬��λ�ǿؼ���ʶ���� *lParam* �ǿؼ����ھ����
+消息来源是控件时， *wParam* 的高位是控件特定的通知码，低位是控件标识符， *lParam* 是控件窗口句柄。
 
 ** WM_SETFOCUS
 
-���ڻ�ü������뽹������ո���Ϣ��
+窗口获得键盘输入焦点后会接收该消息。
 
-*wParam* ��ʧȥ�������뽹��Ĵ��ڵľ����������������� NULL��
+*wParam* 是失去键盘输入焦点的窗口的句柄。这个参数可以是 NULL。
 
-*lParam* ����ʹ�á�
+*lParam* 不被使用。
 
-������Ϣ�󣬴��ڹ���Ӧ���� 0��
+处理消息后，窗口过程应返回 0。
 
 ** WM_KILLFOCUS
 
-��һ�����ڼ���ʧȥ���̽���ǰ�����������͸���Ϣ��
+在一个窗口即将失去键盘焦点前，会向它发送该消息。
 
-*wParam* �ǽ��ռ��̽���Ĵ��ڡ��������� NULL��
+*wParam* 是接收键盘焦点的窗口。它可以是 NULL。
 
-*lParam* ����ʹ�á�
+*lParam* 不被使用。
 
-������Ϣ�󣬴��ڹ���Ӧ���� 0��
+处理消息后，窗口过程应返回 0。
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> About Messages and Message Queues��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues][https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues]]
+<<<【1】>>> About Messages and Message Queues：[[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues][https://docs.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues]]
 
-<<<��2��>>> /Programming Windows/ , Charles Petzold
+<<<【2】>>> /Programming Windows/ , Charles Petzold

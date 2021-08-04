@@ -1,119 +1,119 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Win32±à³Ì»ù´¡Ö®¼üÅÌÊäÈë
+#+TITLE: Win32ç¼–ç¨‹åŸºç¡€ä¹‹é”®ç›˜è¾“å…¥
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2020-07-13 Mon]
 #+TAGS: windows
 
-Ó¦ÓÃÓ¦¸ÃÄÜ¹»½ÓÊÕÀ´×ÔÓÃ»§µÄ¼üÅÌÊäÈë¡£¼üÅÌÊäÈëÒÔÍ¶µİµÄ·½Ê½ÈÃÓ¦ÓÃ½øĞĞ½ÓÊÕ¡£
+åº”ç”¨åº”è¯¥èƒ½å¤Ÿæ¥æ”¶æ¥è‡ªç”¨æˆ·çš„é”®ç›˜è¾“å…¥ã€‚é”®ç›˜è¾“å…¥ä»¥æŠ•é€’çš„æ–¹å¼è®©åº”ç”¨è¿›è¡Œæ¥æ”¶ã€‚
 
-* ¼üÅÌµÄÊäÈëÄ£Ê½
+* é”®ç›˜çš„è¾“å…¥æ¨¡å¼
 
-Í¨¹ıÎªµ±Ç°¼üÅÌ°²×°ºÏÊÊµÄ¼üÅÌÉè±¸Çı¶¯£¬ÏµÍ³Ìá¹©ÁËÉè±¸¶ÀÁ¢µÄ¼üÅÌÖ§³Ö¡£Í¨¹ıÊ¹ÓÃÓïÑÔÌØ¶¨µÄ¼üÅÌ²¼¾Ö£¬ÏµÍ³Ìá¹©ÁËÓïÑÔ¶ÀÁ¢µÄ¼üÅÌ²¼¾Ö£¨keyboard layout£©Ö§³Ö£¬Õâ¸ö¿ÉÒÔÓÉÓÃ»§»òÓ¦ÓÃÉèÖÃ¡£¼üÅÌÉè±¸Çı¶¯´Ó¼üÅÌ½ÓÊÕÉ¨ÃèÂë£¬Ëü±»·¢ËÍµ½¼üÅÌ²¼¾Ö£¬ÔÚÄÇÀïËü±»·­ÒëÎªÏûÏ¢²¢Í¶µİµ½Ó¦ÓÃºÏÊÊµÄ´°¿ÚÖĞ¡£
+é€šè¿‡ä¸ºå½“å‰é”®ç›˜å®‰è£…åˆé€‚çš„é”®ç›˜è®¾å¤‡é©±åŠ¨ï¼Œç³»ç»Ÿæä¾›äº†è®¾å¤‡ç‹¬ç«‹çš„é”®ç›˜æ”¯æŒã€‚é€šè¿‡ä½¿ç”¨è¯­è¨€ç‰¹å®šçš„é”®ç›˜å¸ƒå±€ï¼Œç³»ç»Ÿæä¾›äº†è¯­è¨€ç‹¬ç«‹çš„é”®ç›˜å¸ƒå±€ï¼ˆkeyboard layoutï¼‰æ”¯æŒï¼Œè¿™ä¸ªå¯ä»¥ç”±ç”¨æˆ·æˆ–åº”ç”¨è®¾ç½®ã€‚é”®ç›˜è®¾å¤‡é©±åŠ¨ä»é”®ç›˜æ¥æ”¶æ‰«æç ï¼Œå®ƒè¢«å‘é€åˆ°é”®ç›˜å¸ƒå±€ï¼Œåœ¨é‚£é‡Œå®ƒè¢«ç¿»è¯‘ä¸ºæ¶ˆæ¯å¹¶æŠ•é€’åˆ°åº”ç”¨åˆé€‚çš„çª—å£ä¸­ã€‚
 
-·ÖÅä¸ø¼üÅÌÉÏÃ¿¸ö¼üµÄÊÇÒ»¸ö¸öÎ¨Ò»µÄÉ¨ÃèÂë£¨scan code£©£¬ËüÊÇ¼üÅÌ°´¼üµÄÉè±¸¶ÀÁ¢±êÊ¶·û¡£¼üÅÌÔÚÓÃ»§°´ÏÂÒ»¸ö¼üÊ±Éú³ÉÁ½¸öÉ¨ÃèÂë ¡ª¡ª ÓÃ»§°´ÏÂºÍÊÍ·Å°´¼ü¡£
+åˆ†é…ç»™é”®ç›˜ä¸Šæ¯ä¸ªé”®çš„æ˜¯ä¸€ä¸ªä¸ªå”¯ä¸€çš„æ‰«æç ï¼ˆscan codeï¼‰ï¼Œå®ƒæ˜¯é”®ç›˜æŒ‰é”®çš„è®¾å¤‡ç‹¬ç«‹æ ‡è¯†ç¬¦ã€‚é”®ç›˜åœ¨ç”¨æˆ·æŒ‰ä¸‹ä¸€ä¸ªé”®æ—¶ç”Ÿæˆä¸¤ä¸ªæ‰«æç  â€”â€” ç”¨æˆ·æŒ‰ä¸‹å’Œé‡Šæ”¾æŒ‰é”®ã€‚
 
-¼üÅÌÉè±¸Çı¶¯½âÊÍÉ¨ÃèÂë²¢½«Ëü·­Òë£¨Ó³Éä£©ÎªÒ»¸öĞéÄâ¼üÂë£¨virtual-key code£©£¬ÕâÊÇÏµÍ³¶¨ÒåµÄÉè±¸¶ÀÁ¢Öµ£¬Ëü±êÃ÷ÁË¼üÅÌµÄ°´¼ü¡£ÔÚ·­ÒëÉ¨ÃèÂëºó£¬¼üÅÌ²¼¾Ö»á´´½¨Ò»¸ö°üº¬É¨ÃèÂë¡¢ĞéÄâ¼üÂëºÍÆäËû¹ØÓÚ»÷¼üĞÅÏ¢µÄÏûÏ¢£¬Ëæºó½«ÏûÏ¢·ÅÈëÏµÍ³¶ÓÁĞÖĞ¡£ÏµÍ³½«Ëü´ÓÏµÍ³¶ÓÁĞÖĞÒÆ³ı²¢Í¶µİµ½ºÏÊÊÏß³ÌµÄÏûÏ¢¶ÓÁĞ¡£×îÖÕ£¬Ïß³ÌµÄÏûÏ¢Ñ­»·ÒÆ³ı¸ÃÏûÏ¢²¢½«Ëû´«µİµ½ºÏÊÊµÄ´°¿Ú¹ı³Ì½øĞĞ´¦Àí¡£
+é”®ç›˜è®¾å¤‡é©±åŠ¨è§£é‡Šæ‰«æç å¹¶å°†å®ƒç¿»è¯‘ï¼ˆæ˜ å°„ï¼‰ä¸ºä¸€ä¸ªè™šæ‹Ÿé”®ç ï¼ˆvirtual-key codeï¼‰ï¼Œè¿™æ˜¯ç³»ç»Ÿå®šä¹‰çš„è®¾å¤‡ç‹¬ç«‹å€¼ï¼Œå®ƒæ ‡æ˜äº†é”®ç›˜çš„æŒ‰é”®ã€‚åœ¨ç¿»è¯‘æ‰«æç åï¼Œé”®ç›˜å¸ƒå±€ä¼šåˆ›å»ºä¸€ä¸ªåŒ…å«æ‰«æç ã€è™šæ‹Ÿé”®ç å’Œå…¶ä»–å…³äºå‡»é”®ä¿¡æ¯çš„æ¶ˆæ¯ï¼Œéšåå°†æ¶ˆæ¯æ”¾å…¥ç³»ç»Ÿé˜Ÿåˆ—ä¸­ã€‚ç³»ç»Ÿå°†å®ƒä»ç³»ç»Ÿé˜Ÿåˆ—ä¸­ç§»é™¤å¹¶æŠ•é€’åˆ°åˆé€‚çº¿ç¨‹çš„æ¶ˆæ¯é˜Ÿåˆ—ã€‚æœ€ç»ˆï¼Œçº¿ç¨‹çš„æ¶ˆæ¯å¾ªç¯ç§»é™¤è¯¥æ¶ˆæ¯å¹¶å°†ä»–ä¼ é€’åˆ°åˆé€‚çš„çª—å£è¿‡ç¨‹è¿›è¡Œå¤„ç†ã€‚
 
-* ¼üÅÌ½¹µãÓë»îÔ¾´°¿Ú
+* é”®ç›˜ç„¦ç‚¹ä¸æ´»è·ƒçª—å£
 
-ÏµÍ³½«¼üÅÌÏûÏ¢Í¶µİµ½´´½¨ÁË´°¿ÚÇÒ´°¿Ú´øÓĞ¼üÅÌ½¹µãµÄÏß³ÌµÄÏûÏ¢¶ÓÁĞÖĞ¡£ *¼üÅÌ½¹µã* ÊÇ´°¿ÚµÄÒ»¸öÔİÊ±ÊôĞÔ¡£ÏµÍ³Í¨¹ıÒÆ¶¯¼üÅÌ½¹µãÀ´ÈÃËùÓĞÏÔÊ¾µÄ´°¿Ú¹²Ïí¼üÅÌ£¬Ëü¸ù¾İÓÃ»§µÄÖ¸Áî£¬´ÓÒ»¸ö´°¿ÚÒÆ¶¯µ½ÁíÒ»¸ö¡£ÓµÓĞ¼üÅÌ½¹µãµÄ´°¿Ú½ÓÊÕËùÓĞµÄ¼üÅÌÏûÏ¢£¨´Ó´´½¨ËüµÄÏß³ÌµÄÏûÏ¢¶ÓÁĞÖĞ£©Ö±µ½½¹µãÒÆ¶¯µ½ÁËÁíÒ»¸ö´°¿Ú¡£
+ç³»ç»Ÿå°†é”®ç›˜æ¶ˆæ¯æŠ•é€’åˆ°åˆ›å»ºäº†çª—å£ä¸”çª—å£å¸¦æœ‰é”®ç›˜ç„¦ç‚¹çš„çº¿ç¨‹çš„æ¶ˆæ¯é˜Ÿåˆ—ä¸­ã€‚ *é”®ç›˜ç„¦ç‚¹* æ˜¯çª—å£çš„ä¸€ä¸ªæš‚æ—¶å±æ€§ã€‚ç³»ç»Ÿé€šè¿‡ç§»åŠ¨é”®ç›˜ç„¦ç‚¹æ¥è®©æ‰€æœ‰æ˜¾ç¤ºçš„çª—å£å…±äº«é”®ç›˜ï¼Œå®ƒæ ¹æ®ç”¨æˆ·çš„æŒ‡ä»¤ï¼Œä»ä¸€ä¸ªçª—å£ç§»åŠ¨åˆ°å¦ä¸€ä¸ªã€‚æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹çš„çª—å£æ¥æ”¶æ‰€æœ‰çš„é”®ç›˜æ¶ˆæ¯ï¼ˆä»åˆ›å»ºå®ƒçš„çº¿ç¨‹çš„æ¶ˆæ¯é˜Ÿåˆ—ä¸­ï¼‰ç›´åˆ°ç„¦ç‚¹ç§»åŠ¨åˆ°äº†å¦ä¸€ä¸ªçª—å£ã€‚
 
-Ïß³Ì¿ÉÒÔµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getfocus][GetFocus]] º¯ÊıÀ´µÃÖªËüµÄÄÄÒ»¸ö´°¿Ú£¨Èç¹ûÓĞµÄ»°£©ÏÖÔÚÓµÓĞ¼üÅÌ½¹µã¡£Ïß³Ì¿ÉÒÔÍ¨¹ıµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setfocus][SetFocus]] º¯ÊıÀ´½«¼üÅÌ½¹µã½»¸øËüµÄÒ»¸ö´°¿Ú¡£µ±¼üÅÌ½¹µã´ÓÒ»¸ö´°¿Ú±ä»¯µ½ÁíÒ»¸öÊ±£¬ÏµÍ³»áÏò¶ªÊ§½¹µãµÄ´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-killfocus][WM_KILLFOCUS]] ÏûÏ¢£¬²¢Ïò»ñµÃ½¹µãµÄ´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-setfocus][WM_SETFOCUS]] ÏûÏ¢¡£
+çº¿ç¨‹å¯ä»¥è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getfocus][GetFocus]] å‡½æ•°æ¥å¾—çŸ¥å®ƒçš„å“ªä¸€ä¸ªçª—å£ï¼ˆå¦‚æœæœ‰çš„è¯ï¼‰ç°åœ¨æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹ã€‚çº¿ç¨‹å¯ä»¥é€šè¿‡è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setfocus][SetFocus]] å‡½æ•°æ¥å°†é”®ç›˜ç„¦ç‚¹äº¤ç»™å®ƒçš„ä¸€ä¸ªçª—å£ã€‚å½“é”®ç›˜ç„¦ç‚¹ä»ä¸€ä¸ªçª—å£å˜åŒ–åˆ°å¦ä¸€ä¸ªæ—¶ï¼Œç³»ç»Ÿä¼šå‘ä¸¢å¤±ç„¦ç‚¹çš„çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-killfocus][WM_KILLFOCUS]] æ¶ˆæ¯ï¼Œå¹¶å‘è·å¾—ç„¦ç‚¹çš„çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-setfocus][WM_SETFOCUS]] æ¶ˆæ¯ã€‚
 
-¼üÅÌ½¹µãµÄ¸ÅÄîÓë»îÔ¾´°¿ÚÊÇÏà¹ØµÄ¡£ *»îÔ¾´°¿Ú* ÊÇÓÃ»§ÕıÔÚ¹¤×÷µÄ¶¥¼¶´°¿Ú¡£ÓµÓĞ¼üÅÌ½¹µãµÄ´°¿ÚÒªÃ´ÊÇ»îÔ¾´°¿Ú£¬ÒªÃ´ÊÇ»îÔ¾´°¿ÚµÄ×Ó´°¿Ú¡£ÎªÁË°ïÖúÓÃ»§Ê¶±ğ»îÔ¾´°¿Ú£¬ÏµÍ³½«»îÔ¾´°¿Ú·ÅÔÚ Z order µÄ×îÇ°Ãæ²¢½«ËüµÄ±êÌâÀ¸ºÍ±ß¿ò¸ßÁÁ¡£
+é”®ç›˜ç„¦ç‚¹çš„æ¦‚å¿µä¸æ´»è·ƒçª—å£æ˜¯ç›¸å…³çš„ã€‚ *æ´»è·ƒçª—å£* æ˜¯ç”¨æˆ·æ­£åœ¨å·¥ä½œçš„é¡¶çº§çª—å£ã€‚æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹çš„çª—å£è¦ä¹ˆæ˜¯æ´»è·ƒçª—å£ï¼Œè¦ä¹ˆæ˜¯æ´»è·ƒçª—å£çš„å­çª—å£ã€‚ä¸ºäº†å¸®åŠ©ç”¨æˆ·è¯†åˆ«æ´»è·ƒçª—å£ï¼Œç³»ç»Ÿå°†æ´»è·ƒçª—å£æ”¾åœ¨ Z order çš„æœ€å‰é¢å¹¶å°†å®ƒçš„æ ‡é¢˜æ å’Œè¾¹æ¡†é«˜äº®ã€‚
 
-ÓÃ»§¿ÉÒÔÍ¨¹ıµã»÷¡¢Ê¹ÓÃ =ALT + TAB= »ò =ALT + ESC= ×éºÏ¼üÀ´¼¤»îÒ»¸ö¶¥¼¶´°¿Ú¡£Ïß³Ì¿ÉÒÔÍ¨¹ıÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setactivewindow][SetActiveWindow]] º¯ÊıÀ´¼¤»îÒ»¸ö¶¥¼¶´°¿Ú¡£ËüÒ²¿ÉÒÔÍ¨¹ı [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getactivewindow][GetActiveWindow]] º¯ÊıÀ´ÅĞ¶ÏËû´´½¨µÄÄÄ¸ö¶¥¼¶´°¿Ú´¦ÓÚ¼¤»î×´Ì¬¡£
+ç”¨æˆ·å¯ä»¥é€šè¿‡ç‚¹å‡»ã€ä½¿ç”¨ =ALT + TAB= æˆ– =ALT + ESC= ç»„åˆé”®æ¥æ¿€æ´»ä¸€ä¸ªé¡¶çº§çª—å£ã€‚çº¿ç¨‹å¯ä»¥é€šè¿‡ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setactivewindow][SetActiveWindow]] å‡½æ•°æ¥æ¿€æ´»ä¸€ä¸ªé¡¶çº§çª—å£ã€‚å®ƒä¹Ÿå¯ä»¥é€šè¿‡ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getactivewindow][GetActiveWindow]] å‡½æ•°æ¥åˆ¤æ–­ä»–åˆ›å»ºçš„å“ªä¸ªé¡¶çº§çª—å£å¤„äºæ¿€æ´»çŠ¶æ€ã€‚
 
-µ±Ò»¸ö´°¿Ú±»Í£ÓÃ¶øÁíÒ»¸ö´°¿Ú±»¼¤»îÊ±£¬ÏµÍ³»á·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-activate][WM_ACTIVATE]] ÏûÏ¢¡£ *wParam* µÄµÍÎ»×ÖÈç¹ûÊÇ 0 ÔòËµÃ÷´°¿Ú±»Í£ÓÃ£¬ÊÇ·ÇÁãÔòËµÃ÷´°¿Ú±»¼¤»î¡£µ±Ä¬ÈÏ´°¿Ú¹ı³Ì½ÓÊÕµ½ WM_ACTIVATE ÏûÏ¢Ê±£¬Ëü»á½«¼üÅÌ½¹µãÉèÖÃµ½»îÔ¾´°¿ÚÉÏ¡£
+å½“ä¸€ä¸ªçª—å£è¢«åœç”¨è€Œå¦ä¸€ä¸ªçª—å£è¢«æ¿€æ´»æ—¶ï¼Œç³»ç»Ÿä¼šå‘é€ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-activate][WM_ACTIVATE]] æ¶ˆæ¯ã€‚ *wParam* çš„ä½ä½å­—å¦‚æœæ˜¯ 0 åˆ™è¯´æ˜çª—å£è¢«åœç”¨ï¼Œæ˜¯éé›¶åˆ™è¯´æ˜çª—å£è¢«æ¿€æ´»ã€‚å½“é»˜è®¤çª—å£è¿‡ç¨‹æ¥æ”¶åˆ° WM_ACTIVATE æ¶ˆæ¯æ—¶ï¼Œå®ƒä¼šå°†é”®ç›˜ç„¦ç‚¹è®¾ç½®åˆ°æ´»è·ƒçª—å£ä¸Šã€‚
 
-ÒªÏë½«¼üÅÌºÍÊó±êÊäÈëÊÂ¼ş´ÓËüÃÇ½«Òªµ½´ïµÄ´°¿ÚÆÁ±Îµô£¬¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-blockinput][BlockInput]] º¯Êı¡£×¢Òâ£¬ *BlockInput* º¯Êı²»»áÒ»Ó°ÏìÒì²½¼üÅÌÊäÈë×´Ì¬±í£¨input-state table£©¡£Õâ¾ÍÒâÎ¶×Åµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput][SendInput]] º¯Êı»á¸Ä±äÒì²½¼üÅÌÊäÈë×´Ì¬±í¡£
+è¦æƒ³å°†é”®ç›˜å’Œé¼ æ ‡è¾“å…¥äº‹ä»¶ä»å®ƒä»¬å°†è¦åˆ°è¾¾çš„çª—å£å±è”½æ‰ï¼Œå¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-blockinput][BlockInput]] å‡½æ•°ã€‚æ³¨æ„ï¼Œ *BlockInput* å‡½æ•°ä¸ä¼šä¸€å½±å“å¼‚æ­¥é”®ç›˜è¾“å…¥çŠ¶æ€è¡¨ï¼ˆinput-state tableï¼‰ã€‚è¿™å°±æ„å‘³ç€è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput][SendInput]] å‡½æ•°ä¼šæ”¹å˜å¼‚æ­¥é”®ç›˜è¾“å…¥çŠ¶æ€è¡¨ã€‚
 
-* »÷¼üÏûÏ¢
+* å‡»é”®æ¶ˆæ¯
 
-°´ÏÂÒ»¸ö¼ü»áµ¼ÖÂ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢±»·ÅÔÚÓµÓĞ¼üÅÌ½¹µãµÄ´°¿ÚËùÔÚÏß³ÌµÄÏûÏ¢¶ÓÁĞÖĞ¡£ÊÍ·ÅÊÇ¸ö¼ü»áµ¼ÖÂ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] ÏûÏ¢·ÅÔÚ¶ÓÁĞÖĞ¡£
+æŒ‰ä¸‹ä¸€ä¸ªé”®ä¼šå¯¼è‡´ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯è¢«æ”¾åœ¨æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹çš„çª—å£æ‰€åœ¨çº¿ç¨‹çš„æ¶ˆæ¯é˜Ÿåˆ—ä¸­ã€‚é‡Šæ”¾æ˜¯ä¸ªé”®ä¼šå¯¼è‡´ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] æ¶ˆæ¯æ”¾åœ¨é˜Ÿåˆ—ä¸­ã€‚
 
-°´ÏÂ¼üºÍ·Å¿ª¼üÒ»°ãÊÇ³É¶Ô³öÏÖµÄ£¬µ«ÊÇÈç¹ûÓÃ»§³¤Ê±¼ä°´×¡Ò»¸ö¼ü£¬À´Ê¹ÓÃ¼üÅÌµÄ×Ô¶¯ÖØ¸´ÌØĞÔ£¬ÏµÍ³»áÁ¬ĞøÉú³É´óÁ¿µÄ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢¡£Ëü»áÔÚÓÃ»§ÊÍ·Å¼üÊ±Éú³ÉÒ»¸ö [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] ÏûÏ¢¡£
+æŒ‰ä¸‹é”®å’Œæ”¾å¼€é”®ä¸€èˆ¬æ˜¯æˆå¯¹å‡ºç°çš„ï¼Œä½†æ˜¯å¦‚æœç”¨æˆ·é•¿æ—¶é—´æŒ‰ä½ä¸€ä¸ªé”®ï¼Œæ¥ä½¿ç”¨é”®ç›˜çš„è‡ªåŠ¨é‡å¤ç‰¹æ€§ï¼Œç³»ç»Ÿä¼šè¿ç»­ç”Ÿæˆå¤§é‡çš„ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯ã€‚å®ƒä¼šåœ¨ç”¨æˆ·é‡Šæ”¾é”®æ—¶ç”Ÿæˆä¸€ä¸ª [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] æ¶ˆæ¯ã€‚
 
-** ÏµÍ³ºÍ·ÇÏµÍ³»÷¼ü
+** ç³»ç»Ÿå’Œéç³»ç»Ÿå‡»é”®
 
-ÏµÍ³Çø·ÖÏµÍ³ºÍ·ÇÏµÍ³»÷¼ü¡£ÏµÍ³»÷¼ü»á²úÉúÏµÍ³»÷¼üÏûÏ¢£¬[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]]¡£·ÇÏµÍ³»÷¼ü»á²úÉú·ÇÏµÍ³»÷¼üÏûÏ¢£¬ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]]¡£
+ç³»ç»ŸåŒºåˆ†ç³»ç»Ÿå’Œéç³»ç»Ÿå‡»é”®ã€‚ç³»ç»Ÿå‡»é”®ä¼šäº§ç”Ÿç³»ç»Ÿå‡»é”®æ¶ˆæ¯ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]]ã€‚éç³»ç»Ÿå‡»é”®ä¼šäº§ç”Ÿéç³»ç»Ÿå‡»é”®æ¶ˆæ¯ï¼Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]]ã€‚
 
-Èç¹ûÄãµÄ´°¿Ú¹ı³Ì±ØĞë´¦ÀíÒ»¸öÏµÍ³»÷¼üÏûÏ¢£¬È·±£ÔÚ´¦ÀíÏûÏ¢ºó½«Ëü´«µİ¸ø *DefWindowProc* º¯Êı¡£·ñÔò£¬ËùÓĞ°üÀ¨ ALT ¼üµÄÏµÍ³²Ù×÷»áÔÚÕâ¸ö´°¿ÚÓµÓĞ¼üÅÌ½¹µãÊ±Ê§Ğ§¡£Ò²¾ÍÊÇËµ£¬ÓÃ»§²»ÄÜ¹»Ê¹ÓÃ´°¿ÚµÄ²Ëµ¥»òÏµÍ³²Ëµ¥£¬»òÊ¹ÓÃ =ALT + ESC= »ò =ALT + TAB= Ö®ÀàµÄ×éºÏ¼üÀ´¼¤»îÆäËû´°¿Ú¡£
+å¦‚æœä½ çš„çª—å£è¿‡ç¨‹å¿…é¡»å¤„ç†ä¸€ä¸ªç³»ç»Ÿå‡»é”®æ¶ˆæ¯ï¼Œç¡®ä¿åœ¨å¤„ç†æ¶ˆæ¯åå°†å®ƒä¼ é€’ç»™ *DefWindowProc* å‡½æ•°ã€‚å¦åˆ™ï¼Œæ‰€æœ‰åŒ…æ‹¬ ALT é”®çš„ç³»ç»Ÿæ“ä½œä¼šåœ¨è¿™ä¸ªçª—å£æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹æ—¶å¤±æ•ˆã€‚ä¹Ÿå°±æ˜¯è¯´ï¼Œç”¨æˆ·ä¸èƒ½å¤Ÿä½¿ç”¨çª—å£çš„èœå•æˆ–ç³»ç»Ÿèœå•ï¼Œæˆ–ä½¿ç”¨ =ALT + ESC= æˆ– =ALT + TAB= ä¹‹ç±»çš„ç»„åˆé”®æ¥æ¿€æ´»å…¶ä»–çª—å£ã€‚
 
-ÏµÍ³»÷¼üÏûÏ¢Ò»°ã¸øÏµÍ³¶ø²»ÊÇÓ¦ÓÃÊ¹ÓÃ¡£ÏµÍ³Ê¹ÓÃËüÃÇÀ´Ìá¹©ÏµÍ³µÄÄÚ½¨µÄ²Ëµ¥¼üÅÌ½Ó¿Ú£¬²¢ÔÊĞíÓÃ»§¿ØÖÆ´°¿ÚµÄ»îÔ¾¡£ÏµÍ³»÷¼üÏûÏ¢»áÔÚÓÃ»§°´ÏÂ´øÓĞ =ALT= µÄ×éºÏ¼üÊ±Éú³É£¬»òÊÇÔÚÃ»ÓĞ´°¿ÚÓµÓĞ¼üÅÌ½¹µãÊ±ÓÃ»§½øĞĞ»÷¼ü£¨ÀıÈç£¬ÔÚ»îÔ¾´°¿Ú±»×îĞ¡»¯Ê±£©¡£ÕâÖÖÇé¿öÏÂ£¬ÏûÏ¢»á±»Í¶µİµ½»îÔ¾´°¿ÚµÄÏûÏ¢¶ÓÁĞÖĞ¡£
+ç³»ç»Ÿå‡»é”®æ¶ˆæ¯ä¸€èˆ¬ç»™ç³»ç»Ÿè€Œä¸æ˜¯åº”ç”¨ä½¿ç”¨ã€‚ç³»ç»Ÿä½¿ç”¨å®ƒä»¬æ¥æä¾›ç³»ç»Ÿçš„å†…å»ºçš„èœå•é”®ç›˜æ¥å£ï¼Œå¹¶å…è®¸ç”¨æˆ·æ§åˆ¶çª—å£çš„æ´»è·ƒã€‚ç³»ç»Ÿå‡»é”®æ¶ˆæ¯ä¼šåœ¨ç”¨æˆ·æŒ‰ä¸‹å¸¦æœ‰ =ALT= çš„ç»„åˆé”®æ—¶ç”Ÿæˆï¼Œæˆ–æ˜¯åœ¨æ²¡æœ‰çª—å£æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹æ—¶ç”¨æˆ·è¿›è¡Œå‡»é”®ï¼ˆä¾‹å¦‚ï¼Œåœ¨æ´»è·ƒçª—å£è¢«æœ€å°åŒ–æ—¶ï¼‰ã€‚è¿™ç§æƒ…å†µä¸‹ï¼Œæ¶ˆæ¯ä¼šè¢«æŠ•é€’åˆ°æ´»è·ƒçª—å£çš„æ¶ˆæ¯é˜Ÿåˆ—ä¸­ã€‚
 
-·ÇÏµÍ³»÷¼üÏûÏ¢ÊÇ¸øÓ¦ÓÃ´°¿ÚÊ¹ÓÃµÄ£» *DefWindowProc* º¯Êı²»»á¶ÔËüÃÇ×ö³öÈÎºÎÏìÓ¦¡£´°¿Ú¹ı³Ì¿ÉÒÔ¶ªÆúËü²»ĞèÒªµÄÈÎºÎ·ÇÏµÍ³»÷¼üÏûÏ¢¡£
+éç³»ç»Ÿå‡»é”®æ¶ˆæ¯æ˜¯ç»™åº”ç”¨çª—å£ä½¿ç”¨çš„ï¼› *DefWindowProc* å‡½æ•°ä¸ä¼šå¯¹å®ƒä»¬åšå‡ºä»»ä½•å“åº”ã€‚çª—å£è¿‡ç¨‹å¯ä»¥ä¸¢å¼ƒå®ƒä¸éœ€è¦çš„ä»»ä½•éç³»ç»Ÿå‡»é”®æ¶ˆæ¯ã€‚
 
-** ĞéÄâ¼üÂë
+** è™šæ‹Ÿé”®ç 
 
-»÷¼üÏûÏ¢µÄ *wParam* ²ÎÊı°üº¬×ÅÒ»¸ö±»°´Ñ¹»òÊÍ·ÅµÄ°´¼üµÄĞéÄâ¼üÂë¡£´°¿Ú¹ı³Ì¿ÉÒÔ¸ù¾İĞéÄâ¼üÂëµÄÖµÀ´´¦Àí»òºöÂÔ»÷¼üÏûÏ¢¡£
+å‡»é”®æ¶ˆæ¯çš„ *wParam* å‚æ•°åŒ…å«ç€ä¸€ä¸ªè¢«æŒ‰å‹æˆ–é‡Šæ”¾çš„æŒ‰é”®çš„è™šæ‹Ÿé”®ç ã€‚çª—å£è¿‡ç¨‹å¯ä»¥æ ¹æ®è™šæ‹Ÿé”®ç çš„å€¼æ¥å¤„ç†æˆ–å¿½ç•¥å‡»é”®æ¶ˆæ¯ã€‚
 
-¶ÔÓÚ×ÖÄ¸¼üºÍÊı×Ö¼ü£¬ËüÃÇµÄĞéÄâ¼üÂë¾ÍÊÇ ASCII Âë¡£
+å¯¹äºå­—æ¯é”®å’Œæ•°å­—é”®ï¼Œå®ƒä»¬çš„è™šæ‹Ÿé”®ç å°±æ˜¯ ASCII ç ã€‚
 
-Ò»°ã´°¿Ú¹ı³ÌÖ»´¦ÀíÉÙ²¿·ÖµÄ»÷¼üÏûÏ¢£¬Ëü»áºöÂÔµôÆäËûÊ£ÓàµÄ¡£ÀıÈç£¬´°¿Ú¹ı³Ì¿ÉÄÜÖ»´¦Àí [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] »÷¼üÏûÏ¢£¬²¢ÇÒÖ»´¦ÀíÄÇĞ©¹â±êÒÆ¶¯¼ü£¬shift ¼üºÍ¹¦ÄÜ¼ü¡£Ò»°ãµÄ´°¿Ú¹ı³Ì²»»á´¦ÀíÀ´×Ô×Ö·û¼üµÄ»÷¼üÏûÏ¢¡£È¡¶ø´úÖ®µÄÊÇ£¬ËüÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-translatemessage][TranslateMessage]] º¯Êı½«»÷¼üÏûÏ¢×ª»¯Îª×Ö·ûÏûÏ¢¡£
+ä¸€èˆ¬çª—å£è¿‡ç¨‹åªå¤„ç†å°‘éƒ¨åˆ†çš„å‡»é”®æ¶ˆæ¯ï¼Œå®ƒä¼šå¿½ç•¥æ‰å…¶ä»–å‰©ä½™çš„ã€‚ä¾‹å¦‚ï¼Œçª—å£è¿‡ç¨‹å¯èƒ½åªå¤„ç† [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] å‡»é”®æ¶ˆæ¯ï¼Œå¹¶ä¸”åªå¤„ç†é‚£äº›å…‰æ ‡ç§»åŠ¨é”®ï¼Œshift é”®å’ŒåŠŸèƒ½é”®ã€‚ä¸€èˆ¬çš„çª—å£è¿‡ç¨‹ä¸ä¼šå¤„ç†æ¥è‡ªå­—ç¬¦é”®çš„å‡»é”®æ¶ˆæ¯ã€‚å–è€Œä»£ä¹‹çš„æ˜¯ï¼Œå®ƒä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-translatemessage][TranslateMessage]] å‡½æ•°å°†å‡»é”®æ¶ˆæ¯è½¬åŒ–ä¸ºå­—ç¬¦æ¶ˆæ¯ã€‚
 
-** »÷¼üÏûÏ¢±êÖ¾
+** å‡»é”®æ¶ˆæ¯æ ‡å¿—
 
-»÷¼üÏûÏ¢µÄ *lParam* ²ÎÊı°üº¬Éú³ÉÏûÏ¢µÄ»÷¼üµÄ¶îÍâĞÅÏ¢¡£Õâ¸öĞÅÏ¢°üÀ¨ÖØ¸´¼ÆÊı£¨repeat count£©£¬É¨ÃèÂë£¨scan code£©£¬ÍØÕ¹¼ü±êÖ¾£¨extended-key flag£©£¬ÄÚÈİÂë£¨context code£©£¬Ö®Ç°µÄ¼ü×´Ì¬±êÖ¾£¨previous key-state flag£©£¬ºÍ¹ı¶É×´Ì¬±êÖ¾£¨transition-state flag£©¡£ÏÂÃæµÄ²åÍ¼Õ¹Ê¾ÁËÕâĞ©±êÖ¾µÄÔÚ *lParam* ÖĞµÄÎ»ÖÃ¡£
+å‡»é”®æ¶ˆæ¯çš„ *lParam* å‚æ•°åŒ…å«ç”Ÿæˆæ¶ˆæ¯çš„å‡»é”®çš„é¢å¤–ä¿¡æ¯ã€‚è¿™ä¸ªä¿¡æ¯åŒ…æ‹¬é‡å¤è®¡æ•°ï¼ˆrepeat countï¼‰ï¼Œæ‰«æç ï¼ˆscan codeï¼‰ï¼Œæ‹“å±•é”®æ ‡å¿—ï¼ˆextended-key flagï¼‰ï¼Œå†…å®¹ç ï¼ˆcontext codeï¼‰ï¼Œä¹‹å‰çš„é”®çŠ¶æ€æ ‡å¿—ï¼ˆprevious key-state flagï¼‰ï¼Œå’Œè¿‡æ¸¡çŠ¶æ€æ ‡å¿—ï¼ˆtransition-state flagï¼‰ã€‚ä¸‹é¢çš„æ’å›¾å±•ç¤ºäº†è¿™äº›æ ‡å¿—çš„åœ¨ *lParam* ä¸­çš„ä½ç½®ã€‚
 
 [[./1.png]]
 
-Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃÏÂÃæµÄÖµÀ´²Ù×İ»÷¼ü±êÖ¾
+åº”ç”¨å¯ä»¥ä½¿ç”¨ä¸‹é¢çš„å€¼æ¥æ“çºµå‡»é”®æ ‡å¿—
 
-- *KF_ALTDOWN* £¬²Ù×İ ALT ¼ü±êÖ¾£¬ËüÖ¸Ã÷ ALT ¼üÊÇ·ñ°´ÏÂ
+- *KF_ALTDOWN* ï¼Œæ“çºµ ALT é”®æ ‡å¿—ï¼Œå®ƒæŒ‡æ˜ ALT é”®æ˜¯å¦æŒ‰ä¸‹
 
-- *KF_DLGMODE* £¬²Ù×İ¶Ô»°¿òÄ£Ê½±êÖ¾£¬ËüÖ¸Ã÷¶Ô»°¿òÊÇ·ñÊÇ»îÔ¾µÄ
+- *KF_DLGMODE* ï¼Œæ“çºµå¯¹è¯æ¡†æ¨¡å¼æ ‡å¿—ï¼Œå®ƒæŒ‡æ˜å¯¹è¯æ¡†æ˜¯å¦æ˜¯æ´»è·ƒçš„
 
-- *KF_EXTENDED* £¬²Ù×İÍØÕ¹¼ü±êÖ¾
+- *KF_EXTENDED* ï¼Œæ“çºµæ‹“å±•é”®æ ‡å¿—
 
-- *KF_MENUMODE* £¬²Ù×İ²Ëµ¥Ä£Ê½±êÖ¾£¬ËüÖ¸Ã÷²Ëµ¥ÊÇ·ñÊÇ»îÔ¾µÄ
+- *KF_MENUMODE* ï¼Œæ“çºµèœå•æ¨¡å¼æ ‡å¿—ï¼Œå®ƒæŒ‡æ˜èœå•æ˜¯å¦æ˜¯æ´»è·ƒçš„
 
-- *KF_REPEAT* £¬²Ù×İÖØ¸´¼ÆÊı
+- *KF_REPEAT* ï¼Œæ“çºµé‡å¤è®¡æ•°
 
-- *KF_UP* £¬²Ù×İ¹ı¶É×´Ì¬±êÖ¾
+- *KF_UP* ï¼Œæ“çºµè¿‡æ¸¡çŠ¶æ€æ ‡å¿—
 
 
-*** ÖØ¸´¼ÆÊı
+*** é‡å¤è®¡æ•°
 
-Äã¿ÉÒÔ¼ì²éÖØ¸´¼ÆÊıÀ´ÅĞ¶Ï»÷¼üÏûÏ¢ÊÇ·ñ±íÊ¾¶àÓÚÒ»¸ö»÷¼ü¡£ÏµÍ³ÔÚ¼üÅÌÉú³É [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢¿ìÓÚÓ¦ÓÃ´¦ÀíËÙ¶ÈÊ±»áÔö¼ÓÕâ¸ö¼ÆÊı¡£ÕâÍ¨³£·¢ÉúÔÚÓÃ»§°´×¡Ò»¸ö¼ü×ã¹»³¤µÄÊÂ¼ş¿ªÆô¼üÅÌ×Ô¶¯ÖØ¸´ÌØĞÔÊ±¡£ÏµÍ³²»»á½«Éú³ÉµÄ°´¼üÏûÏ¢ÌîÂúÏµÍ³ÏûÏ¢¶ÓÁĞ£¬¶øÊÇ½«ÏûÏ¢×éºÏ³ÉÒ»¸ö°´¼üÏûÏ¢²¢Ôö¼ÓÖØ¸´¼ÆÊı¡£¶Ô°´¼üÊÍ·Å²»»áÆô¶¯×Ô¶¯ÖØ¸´ÌØĞÔ£¬Òò´Ë [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] ÏûÏ¢µÄÖØ¸´¼ÆÊıÖµ×ÜÊÇ 1¡£
+ä½ å¯ä»¥æ£€æŸ¥é‡å¤è®¡æ•°æ¥åˆ¤æ–­å‡»é”®æ¶ˆæ¯æ˜¯å¦è¡¨ç¤ºå¤šäºä¸€ä¸ªå‡»é”®ã€‚ç³»ç»Ÿåœ¨é”®ç›˜ç”Ÿæˆ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯å¿«äºåº”ç”¨å¤„ç†é€Ÿåº¦æ—¶ä¼šå¢åŠ è¿™ä¸ªè®¡æ•°ã€‚è¿™é€šå¸¸å‘ç”Ÿåœ¨ç”¨æˆ·æŒ‰ä½ä¸€ä¸ªé”®è¶³å¤Ÿé•¿çš„äº‹ä»¶å¼€å¯é”®ç›˜è‡ªåŠ¨é‡å¤ç‰¹æ€§æ—¶ã€‚ç³»ç»Ÿä¸ä¼šå°†ç”Ÿæˆçš„æŒ‰é”®æ¶ˆæ¯å¡«æ»¡ç³»ç»Ÿæ¶ˆæ¯é˜Ÿåˆ—ï¼Œè€Œæ˜¯å°†æ¶ˆæ¯ç»„åˆæˆä¸€ä¸ªæŒ‰é”®æ¶ˆæ¯å¹¶å¢åŠ é‡å¤è®¡æ•°ã€‚å¯¹æŒ‰é”®é‡Šæ”¾ä¸ä¼šå¯åŠ¨è‡ªåŠ¨é‡å¤ç‰¹æ€§ï¼Œå› æ­¤ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] æ¶ˆæ¯çš„é‡å¤è®¡æ•°å€¼æ€»æ˜¯ 1ã€‚
 
-*** É¨ÃèÂë
+*** æ‰«æç 
 
-É¨ÃèÂëÊÇ¼üÅÌÓ²¼şÔÚÓÃ»§°´ÏÂ¼üÊ±Éú³ÉµÄÖµ¡£ËüÊÇÓëÉè±¸Ïà¹ØµÄÖµ£¬ÓÃÓÚ±êÊ¶°´ÏÂµÄ¼ü£¬¶ø²»ÊÇ¼üËù´ú±íµÄ×Ö·û¡£Ó¦ÓÃÒ»°ãºöÂÔÉ¨ÃèÂë£¬Ê¹ÓÃÉè±¸¶ÀÁ¢µÄĞéÄâ¼ü´úÂëÀ´½âÊÍ»÷¼üÏûÏ¢¡£
+æ‰«æç æ˜¯é”®ç›˜ç¡¬ä»¶åœ¨ç”¨æˆ·æŒ‰ä¸‹é”®æ—¶ç”Ÿæˆçš„å€¼ã€‚å®ƒæ˜¯ä¸è®¾å¤‡ç›¸å…³çš„å€¼ï¼Œç”¨äºæ ‡è¯†æŒ‰ä¸‹çš„é”®ï¼Œè€Œä¸æ˜¯é”®æ‰€ä»£è¡¨çš„å­—ç¬¦ã€‚åº”ç”¨ä¸€èˆ¬å¿½ç•¥æ‰«æç ï¼Œä½¿ç”¨è®¾å¤‡ç‹¬ç«‹çš„è™šæ‹Ÿé”®ä»£ç æ¥è§£é‡Šå‡»é”®æ¶ˆæ¯ã€‚
 
-*** ÍØÕ¹¼ü±êÖ¾
+*** æ‹“å±•é”®æ ‡å¿—
 
-ÍØÕ¹¼ü±êÖ¾Ö¸Ã÷ÁË»÷¼üÏûÏ¢ÊÇ·ñÀ´×ÔÔöÇ¿¼üÅÌÉÏ¶îÍâµÄ¼ü¡£ÍØÕ¹¼ü°üÀ¨£º¼üÅÌÓÒÊÖ±ßµÄ ALT ºÍ CTRL ¼ü£»INS£¬DEL£¬HOME£¬END£¬PAGE UP£¬PAGE DOWN£¬Êı×ÖĞ¡¼üÅÌÖĞµÄ¼ıÍ·¼ü£»NUM LOCK£»BREAK ¼ü£»PRINT SCAN ¼ü£»ÒÔ¼°ÔÚÊı×ÖĞ¡¼üÅÌÉÏµÄ³ıºÅ¼ü£¨/£©ºÍ ENTER ¼ü¡£Èç¹û°´¼üÊÇÒ»¸öÍØÕ¹¼üµÄ»°£¬ÍØÕ¹¼ü±êÖ¾»á±»ÉèÖÃ¡£
+æ‹“å±•é”®æ ‡å¿—æŒ‡æ˜äº†å‡»é”®æ¶ˆæ¯æ˜¯å¦æ¥è‡ªå¢å¼ºé”®ç›˜ä¸Šé¢å¤–çš„é”®ã€‚æ‹“å±•é”®åŒ…æ‹¬ï¼šé”®ç›˜å³æ‰‹è¾¹çš„ ALT å’Œ CTRL é”®ï¼›INSï¼ŒDELï¼ŒHOMEï¼ŒENDï¼ŒPAGE UPï¼ŒPAGE DOWNï¼Œæ•°å­—å°é”®ç›˜ä¸­çš„ç®­å¤´é”®ï¼›NUM LOCKï¼›BREAK é”®ï¼›PRINT SCAN é”®ï¼›ä»¥åŠåœ¨æ•°å­—å°é”®ç›˜ä¸Šçš„é™¤å·é”®ï¼ˆ/ï¼‰å’Œ ENTER é”®ã€‚å¦‚æœæŒ‰é”®æ˜¯ä¸€ä¸ªæ‹“å±•é”®çš„è¯ï¼Œæ‹“å±•é”®æ ‡å¿—ä¼šè¢«è®¾ç½®ã€‚
 
-*** ÄÚÈİÂë
+*** å†…å®¹ç 
 
-ÄÚÈİÂëÖ¸Ã÷ÔÚ»÷¼üÏûÏ¢Éú³ÉÊ±ÊÇ·ñ°´ÏÂÁË ALT ¼ü¡£Èç¹û°´ÏÂÁËÔòÄÚÈİÂëÎª 1£¬·ñÔòÎª 0¡£
+å†…å®¹ç æŒ‡æ˜åœ¨å‡»é”®æ¶ˆæ¯ç”Ÿæˆæ—¶æ˜¯å¦æŒ‰ä¸‹äº† ALT é”®ã€‚å¦‚æœæŒ‰ä¸‹äº†åˆ™å†…å®¹ç ä¸º 1ï¼Œå¦åˆ™ä¸º 0ã€‚
 
-*** ÏÈÇ°¼ü×´Ì¬±êÖ¾
+*** å…ˆå‰é”®çŠ¶æ€æ ‡å¿—
 
-ÏÈÇ°¼ü×´Ì¬±êÖ¾Ö¸Ã÷Éú³É»÷¼üÏûÏ¢µÄ°´Å¥Ö®Ç°ÊÇ°´ÏÂ»¹ÊÇ·ÅÆğµÄ×´Ì¬¡£Èç¹ûËüµÄÖµÊÇ 1 ÔòËµÃ÷Ö®Ç°ÊÇ°´ÏÂ×´Ì¬£¬ÊÇ 0 ÔòËµÃ÷ÊÇ·ÅÆğ×´Ì¬¡£Äã¿ÉÒÔÊ¹ÓÃÕâ¸ö±êÖ¾À´ÅĞ¶ÏÏûÏ¢ÊÇ·ñÊÇÓÉ¼üÅÌ×Ô¶¯ÖØ¸´ÌØĞÔÉú³ÉµÄ»÷¼üÏûÏ¢¡£¶ÔÓÉ×Ô¶¯ÖØ¸´ÌØĞÔÉú³ÉµÄ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]]£¬Õâ¸ö±êÖ¾±»ÉèÎª 1¡£¶ÔÓÚ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] ÏûÏ¢£¬Ëü×ÜÊÇ±»ÉèÎª 0¡£
+å…ˆå‰é”®çŠ¶æ€æ ‡å¿—æŒ‡æ˜ç”Ÿæˆå‡»é”®æ¶ˆæ¯çš„æŒ‰é’®ä¹‹å‰æ˜¯æŒ‰ä¸‹è¿˜æ˜¯æ”¾èµ·çš„çŠ¶æ€ã€‚å¦‚æœå®ƒçš„å€¼æ˜¯ 1 åˆ™è¯´æ˜ä¹‹å‰æ˜¯æŒ‰ä¸‹çŠ¶æ€ï¼Œæ˜¯ 0 åˆ™è¯´æ˜æ˜¯æ”¾èµ·çŠ¶æ€ã€‚ä½ å¯ä»¥ä½¿ç”¨è¿™ä¸ªæ ‡å¿—æ¥åˆ¤æ–­æ¶ˆæ¯æ˜¯å¦æ˜¯ç”±é”®ç›˜è‡ªåŠ¨é‡å¤ç‰¹æ€§ç”Ÿæˆçš„å‡»é”®æ¶ˆæ¯ã€‚å¯¹ç”±è‡ªåŠ¨é‡å¤ç‰¹æ€§ç”Ÿæˆçš„ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]]ï¼Œè¿™ä¸ªæ ‡å¿—è¢«è®¾ä¸º 1ã€‚å¯¹äº [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] æ¶ˆæ¯ï¼Œå®ƒæ€»æ˜¯è¢«è®¾ä¸º 0ã€‚
 
-*** ¹ı¶É×´Ì¬±êÖ¾
+*** è¿‡æ¸¡çŠ¶æ€æ ‡å¿—
 
-¹ı¶É×´Ì¬±êÖ¾Ö¸Ã÷ÊÇ°´ÏÂ»òÊÍ·ÅÒ»¸ö¼üÉú³ÉÁË»÷¼üÏûÏ¢¡£¶ÔÓÚ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢Ëü×ÜÊÇ 0£»¶ÔÓÚ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] ÏûÏ¢£¬Ëü×ÜÊÇ 1¡£
+è¿‡æ¸¡çŠ¶æ€æ ‡å¿—æŒ‡æ˜æ˜¯æŒ‰ä¸‹æˆ–é‡Šæ”¾ä¸€ä¸ªé”®ç”Ÿæˆäº†å‡»é”®æ¶ˆæ¯ã€‚å¯¹äº [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯å®ƒæ€»æ˜¯ 0ï¼›å¯¹äº [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup][WM_SYSKEYUP]] æ¶ˆæ¯ï¼Œå®ƒæ€»æ˜¯ 1ã€‚
 
-* ×Ö·ûÏûÏ¢
+* å­—ç¬¦æ¶ˆæ¯
 
-»÷¼üÏûÏ¢Ìá¹©ÁËĞí¶à¹ØÓÚ»÷¼üµÄÏûÏ¢£¬µ«ÊÇËüÃÇÃ»ÓĞÌá¹©×Ö·û»÷¼üµÄ×Ö·û´úÂë¡£ÒªÏëµÃµ½×Ö·ûÂë£¬Ó¦ÓÃ±ØĞëÊ¹ÓÃ *TranslateMessage* º¯Êı¡£ *TranslateMessage* ½« [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] »ò [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢´«µİ¸ø¼üÅÌ²¼¾Ö¡£¼üÅÌ²¼¾Ö»á²âÊÔÏûÏ¢µÄĞéÄâ¼ü´úÂë£¬Èç¹ûËü¶ÔÓ¦ÓëÒ»¸ö×Ö·û¼üµÄ»°£¬ÔòÌá¹©µÈĞ§µÄ×Ö·ûÂë£¨Ëü»á¿¼ÂÇ°´ÏÂ SHIFT ºÍ CAPS LOCK °´¼üµÄÇé¿ö£©¡£ËüËæºóÉú³ÉÒ»¸ö°üÀ¨×Ö·ûÂëµÄ×Ö·ûÏûÏ¢£¬²¢·ÅÔÚÏûÏ¢¶ÓÁĞµÄ×îÇ°Ãæ¡£ÏÂÒ»´ÎµÄÏûÏ¢Ñ­»·µü´ú»á´Ó¶ÓÁĞÒÆ³ı×Ö·ûÏûÏ¢²¢½«ÏûÏ¢·ÖÅÉµ½ºÏÊÊµÄ´°¿Ú¹ı³Ì¡£
+å‡»é”®æ¶ˆæ¯æä¾›äº†è®¸å¤šå…³äºå‡»é”®çš„æ¶ˆæ¯ï¼Œä½†æ˜¯å®ƒä»¬æ²¡æœ‰æä¾›å­—ç¬¦å‡»é”®çš„å­—ç¬¦ä»£ç ã€‚è¦æƒ³å¾—åˆ°å­—ç¬¦ç ï¼Œåº”ç”¨å¿…é¡»ä½¿ç”¨ *TranslateMessage* å‡½æ•°ã€‚ *TranslateMessage* å°† [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯ä¼ é€’ç»™é”®ç›˜å¸ƒå±€ã€‚é”®ç›˜å¸ƒå±€ä¼šæµ‹è¯•æ¶ˆæ¯çš„è™šæ‹Ÿé”®ä»£ç ï¼Œå¦‚æœå®ƒå¯¹åº”ä¸ä¸€ä¸ªå­—ç¬¦é”®çš„è¯ï¼Œåˆ™æä¾›ç­‰æ•ˆçš„å­—ç¬¦ç ï¼ˆå®ƒä¼šè€ƒè™‘æŒ‰ä¸‹ SHIFT å’Œ CAPS LOCK æŒ‰é”®çš„æƒ…å†µï¼‰ã€‚å®ƒéšåç”Ÿæˆä¸€ä¸ªåŒ…æ‹¬å­—ç¬¦ç çš„å­—ç¬¦æ¶ˆæ¯ï¼Œå¹¶æ”¾åœ¨æ¶ˆæ¯é˜Ÿåˆ—çš„æœ€å‰é¢ã€‚ä¸‹ä¸€æ¬¡çš„æ¶ˆæ¯å¾ªç¯è¿­ä»£ä¼šä»é˜Ÿåˆ—ç§»é™¤å­—ç¬¦æ¶ˆæ¯å¹¶å°†æ¶ˆæ¯åˆ†æ´¾åˆ°åˆé€‚çš„çª—å£è¿‡ç¨‹ã€‚
 
-** ·ÇÏµÍ³×Ö·ûÏûÏ¢
+** éç³»ç»Ÿå­—ç¬¦æ¶ˆæ¯
 
-´°¿Ú¹ı³Ì¿ÉÒÔ½ÓÊÕÕâĞ©×Ö·ûÏûÏ¢£º[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char][WM_CHAR]]£¬[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-deadchar][WM_DEADCHAR]]£¬[[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syschar][WM_SYSCHAR]], [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]]£¬ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-unichar][WM_UNICHAR]]¡£ *TranslateMessage* º¯ÊıÔÚ´¦Àí [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] ÏûÏ¢Ê±»áÉú³É *WM_CHAR* »ò *WM_DEADCHAR* ÏûÏ¢¡£ÀàËÆµØ£¬Ëû»áÔÚ´¦Àí [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢Ê±Éú³É *WM_SYSCHAR* »ò *WM_SYSDEADCHAR* ÏûÏ¢¡£
+çª—å£è¿‡ç¨‹å¯ä»¥æ¥æ”¶è¿™äº›å­—ç¬¦æ¶ˆæ¯ï¼š[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char][WM_CHAR]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-deadchar][WM_DEADCHAR]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syschar][WM_SYSCHAR]], [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]]ï¼Œå’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-unichar][WM_UNICHAR]]ã€‚ *TranslateMessage* å‡½æ•°åœ¨å¤„ç† [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æ¶ˆæ¯æ—¶ä¼šç”Ÿæˆ *WM_CHAR* æˆ– *WM_DEADCHAR* æ¶ˆæ¯ã€‚ç±»ä¼¼åœ°ï¼Œä»–ä¼šåœ¨å¤„ç† [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯æ—¶ç”Ÿæˆ *WM_SYSCHAR* æˆ– *WM_SYSDEADCHAR* æ¶ˆæ¯ã€‚
 
-´¦Àí¼üÅÌÊäÈëµÄÓ¦ÓÃÒ»°ã»áºöÂÔ³ıÁË [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char][WM_CHAR]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-unichar][WM_UNICHAR]] ÏûÏ¢Ö®ÍâµÄÆäËû¼üÅÌÏûÏ¢£¬½«ÆäËûµÄÏûÏ¢´«µİ¸ø *DefWindowProc* º¯Êı¡£×¢Òâµ½ *WM_CHAR* Ê¹ÓÃµÄÊÇ 16 Î» Unicode ´«Êä¸ñÊ½£¨UTF£©¶ø *WM_UNICHAR* Ê¹ÓÃµÄÊÇ UTF-32¡£ÏµÍ³Ê¹ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syschar][WM_SYSCHAR]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]] À´ÊµÏÖ²Ëµ¥Öú¼Ç·û£¨menu mnemonics£©¡£
+å¤„ç†é”®ç›˜è¾“å…¥çš„åº”ç”¨ä¸€èˆ¬ä¼šå¿½ç•¥é™¤äº† [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char][WM_CHAR]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-unichar][WM_UNICHAR]] æ¶ˆæ¯ä¹‹å¤–çš„å…¶ä»–é”®ç›˜æ¶ˆæ¯ï¼Œå°†å…¶ä»–çš„æ¶ˆæ¯ä¼ é€’ç»™ *DefWindowProc* å‡½æ•°ã€‚æ³¨æ„åˆ° *WM_CHAR* ä½¿ç”¨çš„æ˜¯ 16 ä½ Unicode ä¼ è¾“æ ¼å¼ï¼ˆUTFï¼‰è€Œ *WM_UNICHAR* ä½¿ç”¨çš„æ˜¯ UTF-32ã€‚ç³»ç»Ÿä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syschar][WM_SYSCHAR]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]] æ¥å®ç°èœå•åŠ©è®°ç¬¦ï¼ˆmenu mnemonicsï¼‰ã€‚
 
-ËùÓĞ×Ö·ûÏûÏ¢µÄ *wParam* ²ÎÊı°üº¬Õâ°´ÏÂµÄ×Ö·û¼üµÄ×Ö·ûÂë¡£×Ö·ûÂëµÄÖµÈ¡¾öÓÚÊÕµ½ÏûÏ¢´°¿ÚµÄ´°¿ÚÀà¡£Èç¹ûÊ¹ÓÃÁË Unicode °æ±¾µÄ *RegisterClass* º¯ÊıÀ´×¢²á´°¿ÚÀà£¬ÏµÍ³»áÎª¸ÃÀàµÄËùÓĞ´°¿ÚÌá¹© Unicode ×Ö·û¡£·ñÔò£¬ÏµÍ³»áÌá¹© ASCII ×Ö·ûÂë¡£¸ü¶àĞÅÏ¢¿É¼ûÓÚ [[https://docs.microsoft.com/en-us/windows/desktop/Intl/unicode-and-character-sets][Unicode and Character Sets]]¡£
+æ‰€æœ‰å­—ç¬¦æ¶ˆæ¯çš„ *wParam* å‚æ•°åŒ…å«è¿™æŒ‰ä¸‹çš„å­—ç¬¦é”®çš„å­—ç¬¦ç ã€‚å­—ç¬¦ç çš„å€¼å–å†³äºæ”¶åˆ°æ¶ˆæ¯çª—å£çš„çª—å£ç±»ã€‚å¦‚æœä½¿ç”¨äº† Unicode ç‰ˆæœ¬çš„ *RegisterClass* å‡½æ•°æ¥æ³¨å†Œçª—å£ç±»ï¼Œç³»ç»Ÿä¼šä¸ºè¯¥ç±»çš„æ‰€æœ‰çª—å£æä¾› Unicode å­—ç¬¦ã€‚å¦åˆ™ï¼Œç³»ç»Ÿä¼šæä¾› ASCII å­—ç¬¦ç ã€‚æ›´å¤šä¿¡æ¯å¯è§äº [[https://docs.microsoft.com/en-us/windows/desktop/Intl/unicode-and-character-sets][Unicode and Character Sets]]ã€‚
 
-×Ö·ûÏûÏ¢µÄ *lParam* ²ÎÊıÓë»÷¼üÏûÏ¢µÄ *lParam* ÊÇÏàÍ¬µÄ¡£
+å­—ç¬¦æ¶ˆæ¯çš„ *lParam* å‚æ•°ä¸å‡»é”®æ¶ˆæ¯çš„ *lParam* æ˜¯ç›¸åŒçš„ã€‚
 
-** ËÀ×Ö·ûÏûÏ¢
+** æ­»å­—ç¬¦æ¶ˆæ¯
 
-Ò»Ğ©·ÇÓ¢Óï¼üÅÌ°üº¬Ò»Ğ©²»±»ÆÚÍû²úÉú×Ö·ûµÄ¼ü£¬ËüÃÇ±»ÓÃÓÚÎªºóĞø»÷¼üµÄ×Ö·ûÌí¼Ó±äÒô·ûºÅ¡£ÕâĞ©¼ü±»½Ğ×ö *ËÀ¼ü*¡£µÂÓï¼üÅÌÉÏµÄÒÖÑïÇÙ¼ü£¨circumflex£©ÊÇÒ»¸öÀı×Ó¡£ÒªÏëÊäÈëÒ»¸öÓÉ "o" ºÍÒÖÑï·û×é³ÉµÄ×Ö·û£¬µÂ¹úÓÃ»§»á°´Ò»´ÎÒÖÑï¼ü£¬²¢Ëæºó°´Ò»´Î "o" ¼ü¡£ÓµÓĞ¼üÅÌ½¹µãµÄ´°¿Ú»áÊÕµ½ÒÔÏÂ×Ö·ûĞòÁĞ£º
+ä¸€äº›éè‹±è¯­é”®ç›˜åŒ…å«ä¸€äº›ä¸è¢«æœŸæœ›äº§ç”Ÿå­—ç¬¦çš„é”®ï¼Œå®ƒä»¬è¢«ç”¨äºä¸ºåç»­å‡»é”®çš„å­—ç¬¦æ·»åŠ å˜éŸ³ç¬¦å·ã€‚è¿™äº›é”®è¢«å«åš *æ­»é”®*ã€‚å¾·è¯­é”®ç›˜ä¸Šçš„æŠ‘æ‰¬ç´é”®ï¼ˆcircumflexï¼‰æ˜¯ä¸€ä¸ªä¾‹å­ã€‚è¦æƒ³è¾“å…¥ä¸€ä¸ªç”± "o" å’ŒæŠ‘æ‰¬ç¬¦ç»„æˆçš„å­—ç¬¦ï¼Œå¾·å›½ç”¨æˆ·ä¼šæŒ‰ä¸€æ¬¡æŠ‘æ‰¬é”®ï¼Œå¹¶éšåæŒ‰ä¸€æ¬¡ "o" é”®ã€‚æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹çš„çª—å£ä¼šæ”¶åˆ°ä»¥ä¸‹å­—ç¬¦åºåˆ—ï¼š
 
 1. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]]
 2. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-deadchar][WM_DEADCHAR]]
@@ -122,58 +122,58 @@
 5. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char][WM_CHAR]]
 6. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup][WM_KEYUP]]
 
-*TranslateMessage* »áÔÚËü´¦ÀíÀ´×ÔËÀ¼üµÄ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] ÏûÏ¢Ê±Éú³É [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-deadchar][WM_DEADCHAR]] ÏûÏ¢¡£¼´Ê¹ *WM_DEADCHAR* ÏûÏ¢µÄ *wParam* ²ÎÊıÖĞ°üº¬ËÀ¼üµÄ±äÒô·û×Ö·ûÂë£¬Ó¦ÓÃÒ»°ã»áºöÂÔÕâ¸öÏûÏ¢¡£È¡¶ø´úÖ®µÄÊÇ£¬Ëü»á´¦ÀíËæºó»÷¼üÉú³ÉµÄ *WM_CHAR* ÏûÏ¢¡£ *WM_CHAR* µÄ *wParam* ²ÎÊı°üº¬×Åº¬ÓĞ±äÒô·ûµÄ×Ö·ûµÄ×Ö·ûÂë¡£Èç¹ûËæºóµÄ»÷¼üÉú³ÉÁË²»ÄÜÓë±äÒô·û×éºÏµÄÒ»¸ö×Ö·û£¬ÏµÍ³»áÉú³ÉÁ½¸ö×Ö·ûÏûÏ¢¡£Ç°ÕßµÄ *wParam* ²ÎÊıÊÇ±äÒô·ûµÄ×Ö·ûÂë£»ºóÕßµÄ *wParam* ÊÇËæºóÊäÈëµÄ×Ö·ûÂë¡£
+*TranslateMessage* ä¼šåœ¨å®ƒå¤„ç†æ¥è‡ªæ­»é”®çš„ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown][WM_KEYDOWN]] æ¶ˆæ¯æ—¶ç”Ÿæˆ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-deadchar][WM_DEADCHAR]] æ¶ˆæ¯ã€‚å³ä½¿ *WM_DEADCHAR* æ¶ˆæ¯çš„ *wParam* å‚æ•°ä¸­åŒ…å«æ­»é”®çš„å˜éŸ³ç¬¦å­—ç¬¦ç ï¼Œåº”ç”¨ä¸€èˆ¬ä¼šå¿½ç•¥è¿™ä¸ªæ¶ˆæ¯ã€‚å–è€Œä»£ä¹‹çš„æ˜¯ï¼Œå®ƒä¼šå¤„ç†éšåå‡»é”®ç”Ÿæˆçš„ *WM_CHAR* æ¶ˆæ¯ã€‚ *WM_CHAR* çš„ *wParam* å‚æ•°åŒ…å«ç€å«æœ‰å˜éŸ³ç¬¦çš„å­—ç¬¦çš„å­—ç¬¦ç ã€‚å¦‚æœéšåçš„å‡»é”®ç”Ÿæˆäº†ä¸èƒ½ä¸å˜éŸ³ç¬¦ç»„åˆçš„ä¸€ä¸ªå­—ç¬¦ï¼Œç³»ç»Ÿä¼šç”Ÿæˆä¸¤ä¸ªå­—ç¬¦æ¶ˆæ¯ã€‚å‰è€…çš„ *wParam* å‚æ•°æ˜¯å˜éŸ³ç¬¦çš„å­—ç¬¦ç ï¼›åè€…çš„ *wParam* æ˜¯éšåè¾“å…¥çš„å­—ç¬¦ç ã€‚
 
-ÔÚ´¦ÀíÀ´×ÔÏµÍ³ËÀ¼ü£¨Óë ALT ¼ü×éºÏµÄËÀ¼ü£©[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] ÏûÏ¢Ê±£¬ *TranslateMessage* »áÉú³É [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]] ÏûÏ¢¡£Ó¦ÓÃÒ»°ã»áºöÂÔµôÕâ¸öÏûÏ¢¡£
+åœ¨å¤„ç†æ¥è‡ªç³»ç»Ÿæ­»é”®ï¼ˆä¸ ALT é”®ç»„åˆçš„æ­»é”®ï¼‰[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown][WM_SYSKEYDOWN]] æ¶ˆæ¯æ—¶ï¼Œ *TranslateMessage* ä¼šç”Ÿæˆ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sysdeadchar][WM_SYSDEADCHAR]] æ¶ˆæ¯ã€‚åº”ç”¨ä¸€èˆ¬ä¼šå¿½ç•¥æ‰è¿™ä¸ªæ¶ˆæ¯ã€‚
 
-* °´¼ü×´Ì¬
+* æŒ‰é”®çŠ¶æ€
 
-µ±´¦Àí¼üÅÌÏûÏ¢Ê±£¬³ıÁËµ±Ç°Éú³ÉÏûÏ¢µÄ¼üÍâ£¬Ó¦ÓÃ¿ÉÄÜĞèÒªÅĞ¶ÏÆäËû¼üµÄ×´Ì¬¡£ÀıÈç£¬ÎÄ×Ö´¦ÀíÓ¦ÓÃÔÊĞíÓÃ»§Ê¹ÓÃ =SHIFT+END= À´Ñ¡È¡Ò»¿éÎÄ±¾£¬Ö»ÒªËü´Ó END ¼ü½ÓÊÕµ½»÷¼üÏûÏ¢£¬¾Í±ØĞë¼ì²é SHIFT ¼üµÄ×´Ì¬¡£Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeystate][GetKeyState]] º¯ÊıÀ´ÅĞ¶ÏÒ»¸öĞéÄâ¼üÔÚµ±Ç°ÏûÏ¢Éú³ÉÊ±µÄ×´Ì¬£»ËüÒ²¿ÉÒÔÊ¹ÓÃ[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate][GetAsyncKeyState]] º¯ÊıÀ´ÅĞ¶ÏĞéÄâ¼üµÄµ±Ç°×´Ì¬¡££¨Á½ÕßµÄÇø±ğÔÚÓÚ¼üÅÌÏûÏ¢Éú³ÉÊ±µÄ×´Ì¬Óëµ±Ç°µ÷ÓÃº¯ÊıÊ±µÄ°´¼ü×´Ì¬£©
+å½“å¤„ç†é”®ç›˜æ¶ˆæ¯æ—¶ï¼Œé™¤äº†å½“å‰ç”Ÿæˆæ¶ˆæ¯çš„é”®å¤–ï¼Œåº”ç”¨å¯èƒ½éœ€è¦åˆ¤æ–­å…¶ä»–é”®çš„çŠ¶æ€ã€‚ä¾‹å¦‚ï¼Œæ–‡å­—å¤„ç†åº”ç”¨å…è®¸ç”¨æˆ·ä½¿ç”¨ =SHIFT+END= æ¥é€‰å–ä¸€å—æ–‡æœ¬ï¼Œåªè¦å®ƒä» END é”®æ¥æ”¶åˆ°å‡»é”®æ¶ˆæ¯ï¼Œå°±å¿…é¡»æ£€æŸ¥ SHIFT é”®çš„çŠ¶æ€ã€‚åº”ç”¨å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeystate][GetKeyState]] å‡½æ•°æ¥åˆ¤æ–­ä¸€ä¸ªè™šæ‹Ÿé”®åœ¨å½“å‰æ¶ˆæ¯ç”Ÿæˆæ—¶çš„çŠ¶æ€ï¼›å®ƒä¹Ÿå¯ä»¥ä½¿ç”¨[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate][GetAsyncKeyState]] å‡½æ•°æ¥åˆ¤æ–­è™šæ‹Ÿé”®çš„å½“å‰çŠ¶æ€ã€‚ï¼ˆä¸¤è€…çš„åŒºåˆ«åœ¨äºé”®ç›˜æ¶ˆæ¯ç”Ÿæˆæ—¶çš„çŠ¶æ€ä¸å½“å‰è°ƒç”¨å‡½æ•°æ—¶çš„æŒ‰é”®çŠ¶æ€ï¼‰
 
-¼üÅÌ²¼¾ÖÎ¬»¤ÁËÒ»ÕÅÃû×Ö±í¡£²úÉúµ¥¸ö×Ö·ûµÄ¼üµÄÃû×ÖºÍËüËù²úÉúµÄ×Ö·ûÊÇÏàÍ¬µÄ¡£ÏñÊÇ TAB ºÍ ENTER µÄ·Ç×Ö·û¼üÒÔ×Ö·û´®µÄĞÎÊ½´¢´æ¡£Ó¦ÓÃ¿ÉÒÔµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeynametexta][GetKeyNameTextA]] º¯ÊıÀ´´ÓÉè±¸Çı¶¯¼ìË÷ÈÎºÎ¼üµÄÃû×Ö¡£
+é”®ç›˜å¸ƒå±€ç»´æŠ¤äº†ä¸€å¼ åå­—è¡¨ã€‚äº§ç”Ÿå•ä¸ªå­—ç¬¦çš„é”®çš„åå­—å’Œå®ƒæ‰€äº§ç”Ÿçš„å­—ç¬¦æ˜¯ç›¸åŒçš„ã€‚åƒæ˜¯ TAB å’Œ ENTER çš„éå­—ç¬¦é”®ä»¥å­—ç¬¦ä¸²çš„å½¢å¼å‚¨å­˜ã€‚åº”ç”¨å¯ä»¥è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeynametexta][GetKeyNameTextA]] å‡½æ•°æ¥ä»è®¾å¤‡é©±åŠ¨æ£€ç´¢ä»»ä½•é”®çš„åå­—ã€‚
 
-* »÷¼üÓë×Ö·û·­Òë
+* å‡»é”®ä¸å­—ç¬¦ç¿»è¯‘
 
-ÏµÍ³°üÀ¨ÁË¼¸¸ö·­ÒëÓÉ¸÷ÖÖ»÷¼üÏûÏ¢Éú³ÉµÄÉ¨ÃèÂë¡¢×Ö·ûÂëºÍĞéÄâ¼üÂëµÄÌØÊâÄ¿µÄº¯Êı¡£ÕâĞ©º¯Êı°üÀ¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapvirtualkeya][MapVirtualKeyA]]£¬[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-toascii][ToAscii]]£¬[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode][ToUnicode]]£¬[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscana][VkKeyScanA]]¡£
+ç³»ç»ŸåŒ…æ‹¬äº†å‡ ä¸ªç¿»è¯‘ç”±å„ç§å‡»é”®æ¶ˆæ¯ç”Ÿæˆçš„æ‰«æç ã€å­—ç¬¦ç å’Œè™šæ‹Ÿé”®ç çš„ç‰¹æ®Šç›®çš„å‡½æ•°ã€‚è¿™äº›å‡½æ•°åŒ…æ‹¬ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapvirtualkeya][MapVirtualKeyA]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-toascii][ToAscii]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode][ToUnicode]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscana][VkKeyScanA]]ã€‚
 
-ÁíÍâ£¬Microsoft ¸»ÎÄ±¾±à¼­Æ÷ 3.0 Ö§³Ö [[https://docs.microsoft.com/en-us/windows/desktop/Intl/hextounicode-ime][HexToUnicode IME]]£¬ËüÔÊĞíÓÃ»§Ê¹ÓÃÈÈ¼üÔÚÊ®Áù½øÖÆºÍ Unicode ×Ö·û¼äÇĞ»»¡£ÕâÒâÎ¶×Åµ±¸»ÎÄ±¾±à¼­Æ÷ 3.0 ÕûºÏµ½Ó¦ÓÃÖĞÊ±£¬Ó¦ÓÃ»á¼Ì³Ğ HexToUnicode IME µÄÌØĞÔ¡£
+å¦å¤–ï¼ŒMicrosoft å¯Œæ–‡æœ¬ç¼–è¾‘å™¨ 3.0 æ”¯æŒ [[https://docs.microsoft.com/en-us/windows/desktop/Intl/hextounicode-ime][HexToUnicode IME]]ï¼Œå®ƒå…è®¸ç”¨æˆ·ä½¿ç”¨çƒ­é”®åœ¨åå…­è¿›åˆ¶å’Œ Unicode å­—ç¬¦é—´åˆ‡æ¢ã€‚è¿™æ„å‘³ç€å½“å¯Œæ–‡æœ¬ç¼–è¾‘å™¨ 3.0 æ•´åˆåˆ°åº”ç”¨ä¸­æ—¶ï¼Œåº”ç”¨ä¼šç»§æ‰¿ HexToUnicode IME çš„ç‰¹æ€§ã€‚
 
-* ÈÈ¼üÖ§³Ö
+* çƒ­é”®æ”¯æŒ
 
-*ÈÈ¼ü* ÊÇÒ»¸öÉú³É [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-hotkey][WM_HOTKEY]] ÏûÏ¢µÄ¼ü×éºÏ£¬ÏµÍ³½«Ëü·ÅÔÚÏß³ÌÏûÏ¢¶ÓÁĞµÄ×îÇ°Ãæ¡£Ê¹ÓÃÊ¹ÓÃÈÈ¼üÀ´´ÓÓÃ»§´¦»ñµÃ¸ßÓÅÏÈ¼¶µÄ¼üÅÌÊäÈë¡£ÀıÈç£¬Í¨¹ı¶¨Òå =CTRL + C= µÄ×éºÏ¼üÎªÈÈ¼ü£¬Ó¦ÓÃÔÊĞíÓÃ»§È¡ÏûÒ»¸öÈß³¤µÄ²Ù×÷¡£
+*çƒ­é”®* æ˜¯ä¸€ä¸ªç”Ÿæˆ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-hotkey][WM_HOTKEY]] æ¶ˆæ¯çš„é”®ç»„åˆï¼Œç³»ç»Ÿå°†å®ƒæ”¾åœ¨çº¿ç¨‹æ¶ˆæ¯é˜Ÿåˆ—çš„æœ€å‰é¢ã€‚ä½¿ç”¨ä½¿ç”¨çƒ­é”®æ¥ä»ç”¨æˆ·å¤„è·å¾—é«˜ä¼˜å…ˆçº§çš„é”®ç›˜è¾“å…¥ã€‚ä¾‹å¦‚ï¼Œé€šè¿‡å®šä¹‰ =CTRL + C= çš„ç»„åˆé”®ä¸ºçƒ­é”®ï¼Œåº”ç”¨å…è®¸ç”¨æˆ·å–æ¶ˆä¸€ä¸ªå†—é•¿çš„æ“ä½œã€‚
 
-ÒªÊ¹ÓÃÈÈ¼ü£¬Ó¦ÓÃ¿ÉÒÔµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey][RegisterHotKey]] º¯Êı£¬²¢Ö¸¶¨Éú³ÉÈÈ¼üÏûÏ¢µÄ×éºÏ¼ü¡¢½ÓÊÕÈÈ¼üµÄ´°¿ÚµÄ¾ä±ú£¬ÒÔ¼°ÈÈ¼üµÄ±êÊ¶·û¡£µ±ÓÃ»§°´ÏÂÈÈ¼üÊ±£¬ *WM_HOTKEY* ÏûÏ¢±»·ÅÔÚ´´½¨ÁË´°¿ÚµÄÏß³ÌµÄÏûÏ¢¶ÓÁĞÖĞ¡£ÏûÏ¢µÄ *wParam* °üº¬ÁËÈÈ¼üµÄ±êÊ¶·û¡£Ó¦ÓÃ¿ÉÒÔÎªÒ»¸öÏß³Ì¶¨Òå¶à¸öÈÈ¼ü£¬µ«Ïß³ÌÖĞµÄÃ¿¸öÈÈ¼ü±ØĞëÓĞÎ¨Ò»µÄ±êÊ¶·û¡£ÔÚÓ¦ÓÃÖÕÖ¹Ç°£¬ËüÓ¦¸ÃÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey][UnregisterHotKey]] º¯ÊıÀ´Ïú»ÙÈÈ¼ü¡£
+è¦ä½¿ç”¨çƒ­é”®ï¼Œåº”ç”¨å¯ä»¥è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey][RegisterHotKey]] å‡½æ•°ï¼Œå¹¶æŒ‡å®šç”Ÿæˆçƒ­é”®æ¶ˆæ¯çš„ç»„åˆé”®ã€æ¥æ”¶çƒ­é”®çš„çª—å£çš„å¥æŸ„ï¼Œä»¥åŠçƒ­é”®çš„æ ‡è¯†ç¬¦ã€‚å½“ç”¨æˆ·æŒ‰ä¸‹çƒ­é”®æ—¶ï¼Œ *WM_HOTKEY* æ¶ˆæ¯è¢«æ”¾åœ¨åˆ›å»ºäº†çª—å£çš„çº¿ç¨‹çš„æ¶ˆæ¯é˜Ÿåˆ—ä¸­ã€‚æ¶ˆæ¯çš„ *wParam* åŒ…å«äº†çƒ­é”®çš„æ ‡è¯†ç¬¦ã€‚åº”ç”¨å¯ä»¥ä¸ºä¸€ä¸ªçº¿ç¨‹å®šä¹‰å¤šä¸ªçƒ­é”®ï¼Œä½†çº¿ç¨‹ä¸­çš„æ¯ä¸ªçƒ­é”®å¿…é¡»æœ‰å”¯ä¸€çš„æ ‡è¯†ç¬¦ã€‚åœ¨åº”ç”¨ç»ˆæ­¢å‰ï¼Œå®ƒåº”è¯¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey][UnregisterHotKey]] å‡½æ•°æ¥é”€æ¯çƒ­é”®ã€‚
 
-ÓÃ»§¿ÉÒÔÊ¹ÓÃÈÈ¼ü¿Õ¼äÀ´¸üÈİÒ×µØÑ¡ÔñÈÈ¼ü¡£ÈÈ¼ü¿Õ¼äÒ»°ãÓÃÓÚ¶¨Òå¼¤»î´°¿ÚµÄÈÈ¼ü£»ËüÃÇ²»Ê¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey][RegisterHotKey]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey][UnregisterHotKey]] º¯Êı¡£ÓÃÊ¹ÓÃÈÈ¼üµÄÓ¦ÓÃÒ»°ã»á·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sethotkey][WM_SETHOTKEY]] ÏûÏ¢À´ÉèÖÃÈÈ¼ü¡£µ±ÓÃ»§°´ÏÂÈÈ¼üÊ±£¬ÏµÍ³»á·¢ËÍÖ¸¶¨ÁË SC_HOTKEY µÄ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syscommand][WM_SYSCOMMAND]] ÏûÏ¢¡£¹ØÓÚ¸ü¶àÈÈ¼ü¿Ø¼şµÄÏûÏ¢£¬¿É¼ûÓÚ[[https://docs.microsoft.com/en-us/windows/win32/controls/hot-key-controls][About Hot Key Controls]]¡£
+ç”¨æˆ·å¯ä»¥ä½¿ç”¨çƒ­é”®ç©ºé—´æ¥æ›´å®¹æ˜“åœ°é€‰æ‹©çƒ­é”®ã€‚çƒ­é”®ç©ºé—´ä¸€èˆ¬ç”¨äºå®šä¹‰æ¿€æ´»çª—å£çš„çƒ­é”®ï¼›å®ƒä»¬ä¸ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey][RegisterHotKey]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unregisterhotkey][UnregisterHotKey]] å‡½æ•°ã€‚ç”¨ä½¿ç”¨çƒ­é”®çš„åº”ç”¨ä¸€èˆ¬ä¼šå‘é€ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-sethotkey][WM_SETHOTKEY]] æ¶ˆæ¯æ¥è®¾ç½®çƒ­é”®ã€‚å½“ç”¨æˆ·æŒ‰ä¸‹çƒ­é”®æ—¶ï¼Œç³»ç»Ÿä¼šå‘é€æŒ‡å®šäº† SC_HOTKEY çš„ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-syscommand][WM_SYSCOMMAND]] æ¶ˆæ¯ã€‚å…³äºæ›´å¤šçƒ­é”®æ§ä»¶çš„æ¶ˆæ¯ï¼Œå¯è§äº[[https://docs.microsoft.com/en-us/windows/win32/controls/hot-key-controls][About Hot Key Controls]]ã€‚
 
-* Ä£ÄâÊäÈë
+* æ¨¡æ‹Ÿè¾“å…¥
 
-ÏëÒªÄ£ÄâÒ»ÏµÁĞ²»¼ä¶ÏÓÃ»§ÊäÈëÊÂ¼ş£¬¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput][SendInput]] º¯Êı¡£Õâ¸öº¯Êı½ÓÊÜÈı¸ö²ÎÊı¡£µÚÒ»¸ö²ÎÊı *cInputs* Ö¸Ã÷½«ÒªÄ£ÄâµÄÊäÈëµÄÊıÁ¿¡£µÚ¶ş¸ö²ÎÊı *rgInputs* ÊÇÒ»¸ö [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-input][INPUT]] ½á¹¹Êı×é£¬ÆäÖĞµÄÔªËØÃèÊöÁËÊäÈëÊÂ¼şÀàĞÍÒÔ¼°¶îÍâµÄÊÂ¼şĞÅÏ¢¡£×îºóÒ»¸ö²ÎÊı *cbSize* £¬½ÓÊÕ *INPUT* ½á¹¹µÄ´óĞ¡£¬ÒÔ×Ö½ÚÎªµ¥Î»¡£
+æƒ³è¦æ¨¡æ‹Ÿä¸€ç³»åˆ—ä¸é—´æ–­ç”¨æˆ·è¾“å…¥äº‹ä»¶ï¼Œå¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput][SendInput]] å‡½æ•°ã€‚è¿™ä¸ªå‡½æ•°æ¥å—ä¸‰ä¸ªå‚æ•°ã€‚ç¬¬ä¸€ä¸ªå‚æ•° *cInputs* æŒ‡æ˜å°†è¦æ¨¡æ‹Ÿçš„è¾“å…¥çš„æ•°é‡ã€‚ç¬¬äºŒä¸ªå‚æ•° *rgInputs* æ˜¯ä¸€ä¸ª [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-input][INPUT]] ç»“æ„æ•°ç»„ï¼Œå…¶ä¸­çš„å…ƒç´ æè¿°äº†è¾“å…¥äº‹ä»¶ç±»å‹ä»¥åŠé¢å¤–çš„äº‹ä»¶ä¿¡æ¯ã€‚æœ€åä¸€ä¸ªå‚æ•° *cbSize* ï¼Œæ¥æ”¶ *INPUT* ç»“æ„çš„å¤§å°ï¼Œä»¥å­—èŠ‚ä¸ºå•ä½ã€‚
 
-*SendInput* º¯ÊıÍ¨¹ı×¢ÈëÒ»ÏµÁĞµÄÄ£ÄâÊäÈëÊÂ¼şµ½Éè±¸µÄÊäÈëÁ÷ÖĞÀ´½øĞĞ¹¤×÷¡£ËüµÄĞ§¹ûºÍÖØ¸´µ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-keybd_event][keybd_event]] »ò [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event][mouse_event]] º¯ÊıºÜÏàËÆ£¬³ıÁËÏµÍ³È·±£Ã»ÓĞÆäËûÊäÈëÊÂ¼şÓëÄ£ÄâÊÂ¼ş»ìºÏÔÚÒ»ÆğÖ®Íâ¡£µ÷ÓÃÍê³ÉÊ±£¬·µ»ØÖµÖ¸Ã÷³É¹¦µÄÊäÈëÊÂ¼ş¸öÊı¡£Èç¹ûÕâ¸öÖµÎª 0£¬ÔòËµÃ÷ÊäÈë±»×èÈûÁË¡£
+*SendInput* å‡½æ•°é€šè¿‡æ³¨å…¥ä¸€ç³»åˆ—çš„æ¨¡æ‹Ÿè¾“å…¥äº‹ä»¶åˆ°è®¾å¤‡çš„è¾“å…¥æµä¸­æ¥è¿›è¡Œå·¥ä½œã€‚å®ƒçš„æ•ˆæœå’Œé‡å¤è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-keybd_event][keybd_event]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event][mouse_event]] å‡½æ•°å¾ˆç›¸ä¼¼ï¼Œé™¤äº†ç³»ç»Ÿç¡®ä¿æ²¡æœ‰å…¶ä»–è¾“å…¥äº‹ä»¶ä¸æ¨¡æ‹Ÿäº‹ä»¶æ··åˆåœ¨ä¸€èµ·ä¹‹å¤–ã€‚è°ƒç”¨å®Œæˆæ—¶ï¼Œè¿”å›å€¼æŒ‡æ˜æˆåŠŸçš„è¾“å…¥äº‹ä»¶ä¸ªæ•°ã€‚å¦‚æœè¿™ä¸ªå€¼ä¸º 0ï¼Œåˆ™è¯´æ˜è¾“å…¥è¢«é˜»å¡äº†ã€‚
 
-*SendInput* º¯Êı²»»áÖØÉè¼üÅÌµ±Ç°µÄ×´Ì¬¡£Òò´Ë£¬Èç¹ûÓÃ»§ÔÚÄãµ÷ÓÃÕâ¸öº¯ÊıÊ±°´ÏÂÁËÈÎÒâ¼ü£¬ËüÃÇ¿ÉÄÜ»áÓëº¯ÊıÉú³ÉµÄÊÂ¼şÏà»¥¸ÉÈÅ¡£Èç¹ûÄãµ£ĞÄ¿ÉÄÜµÄ¸ÉÈÅ£¬¿ÉÊÇÔÚ±ØÒªµÄÊ±ºòÊ¹ÓÃ *GetAsyncKeyState* À´¼ì²é°´¼ü×´Ì¬¡£
+*SendInput* å‡½æ•°ä¸ä¼šé‡è®¾é”®ç›˜å½“å‰çš„çŠ¶æ€ã€‚å› æ­¤ï¼Œå¦‚æœç”¨æˆ·åœ¨ä½ è°ƒç”¨è¿™ä¸ªå‡½æ•°æ—¶æŒ‰ä¸‹äº†ä»»æ„é”®ï¼Œå®ƒä»¬å¯èƒ½ä¼šä¸å‡½æ•°ç”Ÿæˆçš„äº‹ä»¶ç›¸äº’å¹²æ‰°ã€‚å¦‚æœä½ æ‹…å¿ƒå¯èƒ½çš„å¹²æ‰°ï¼Œå¯æ˜¯åœ¨å¿…è¦çš„æ—¶å€™ä½¿ç”¨ *GetAsyncKeyState* æ¥æ£€æŸ¥æŒ‰é”®çŠ¶æ€ã€‚
 
-* ÓïÑÔ£¬µØÇøºÍ¼üÅÌ²¼¾Ö
+* è¯­è¨€ï¼Œåœ°åŒºå’Œé”®ç›˜å¸ƒå±€
 
-*ÓïÑÔ* Ö¸Ò»ÖÖ×ÔÈ»ÓïÑÔ£¬±ÈÈçÓ¢Óï£¬·¨ÓïºÍÈÕÓï¡£ *×ÓÓïÑÔ* ÊÇÒ»ÖÖ×ÔÈ»ÓïÑÔµÄÒ»ÖÖ±äÖÖ£¬Ö¸ÌØ¶¨µØÀíÇøÓòÊ¹ÓÃµÄÓïÑÔ£¬±ÈÈçÔÚÓ¢¹úµÄÓ¢ÓïºÍÃÀ¹úµÄÓ¢Óï¡£Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ½Ğ×öÓïÑÔ±êÊ¶·û£¨[[https://docs.microsoft.com/en-us/windows/desktop/Intl/language-identifiers][language identifiers]]£©µÄÖµÀ´Î¨Ò»µØÈ·¶¨ÓïÑÔºÍ×ÓÓïÑÔ¡£
+*è¯­è¨€* æŒ‡ä¸€ç§è‡ªç„¶è¯­è¨€ï¼Œæ¯”å¦‚è‹±è¯­ï¼Œæ³•è¯­å’Œæ—¥è¯­ã€‚ *å­è¯­è¨€* æ˜¯ä¸€ç§è‡ªç„¶è¯­è¨€çš„ä¸€ç§å˜ç§ï¼ŒæŒ‡ç‰¹å®šåœ°ç†åŒºåŸŸä½¿ç”¨çš„è¯­è¨€ï¼Œæ¯”å¦‚åœ¨è‹±å›½çš„è‹±è¯­å’Œç¾å›½çš„è‹±è¯­ã€‚åº”ç”¨å¯ä»¥ä½¿ç”¨å«åšè¯­è¨€æ ‡è¯†ç¬¦ï¼ˆ[[https://docs.microsoft.com/en-us/windows/desktop/Intl/language-identifiers][language identifiers]]ï¼‰çš„å€¼æ¥å”¯ä¸€åœ°ç¡®å®šè¯­è¨€å’Œå­è¯­è¨€ã€‚
 
-Ó¦ÓÃÒ»°ãÊ¹ÓÃ *µØÇø* £¨locale£© À´ÉèÖÃÓïÑÔµÄÊäÈëÊä³ö´¦Àí¡£ÀıÈç£¬Îª¼üÅÌÉèÖÃÇøÓò»áÓ¦ÓÃÏë¼üÅÌÉú³ÉµÄ×Ö·ûÖµ¡£ÎªÏÔÊ¾Æ÷»ò´òÓ¡»úÉèÖÃÇøÓò»áÓ°ÏìÏÔÊ¾»ò´òÓ¡µÄ×ÖĞÎ¡£Ó¦ÓÃÍ¨¹ıÔØÈëºÍÊ¹ÓÃ¼üÅÌ²¼¾ÖÀ´Îª¼üÅÌÉèÖÃÇøÓò¡£ËüÃÇÍ¨¹ıÑ¡ÔñÖ§³ÖÖ¸¶¨ÇøÓòµÄ×ÖÌåÀ´ÎªÏÔÊ¾Æ÷»ò´òÓ¡»úÉèÖÃÇøÓò¡£
+åº”ç”¨ä¸€èˆ¬ä½¿ç”¨ *åœ°åŒº* ï¼ˆlocaleï¼‰ æ¥è®¾ç½®è¯­è¨€çš„è¾“å…¥è¾“å‡ºå¤„ç†ã€‚ä¾‹å¦‚ï¼Œä¸ºé”®ç›˜è®¾ç½®åŒºåŸŸä¼šåº”ç”¨æƒ³é”®ç›˜ç”Ÿæˆçš„å­—ç¬¦å€¼ã€‚ä¸ºæ˜¾ç¤ºå™¨æˆ–æ‰“å°æœºè®¾ç½®åŒºåŸŸä¼šå½±å“æ˜¾ç¤ºæˆ–æ‰“å°çš„å­—å½¢ã€‚åº”ç”¨é€šè¿‡è½½å…¥å’Œä½¿ç”¨é”®ç›˜å¸ƒå±€æ¥ä¸ºé”®ç›˜è®¾ç½®åŒºåŸŸã€‚å®ƒä»¬é€šè¿‡é€‰æ‹©æ”¯æŒæŒ‡å®šåŒºåŸŸçš„å­—ä½“æ¥ä¸ºæ˜¾ç¤ºå™¨æˆ–æ‰“å°æœºè®¾ç½®åŒºåŸŸã€‚
 
-¼üÅÌ²¼¾Ö²»½öÖ¸¶¨ÁË¼üÅÌ¼üµÄÎïÀíÎ»ÖÃ£¬¶øÇÒ¾ö¶¨ÁË°´¼üµÄ×Ö·ûÖµ¡£Ã¿¸ö²¼¾Ö±êÃ÷ÁËµ±Ç°ÊäÈëÓïÑÔ²¢¾ö¶¨ÁË¼üºÍ¼ü×éºÏËùÉú³ÉµÄ×Ö·ûÖµ¡£
+é”®ç›˜å¸ƒå±€ä¸ä»…æŒ‡å®šäº†é”®ç›˜é”®çš„ç‰©ç†ä½ç½®ï¼Œè€Œä¸”å†³å®šäº†æŒ‰é”®çš„å­—ç¬¦å€¼ã€‚æ¯ä¸ªå¸ƒå±€æ ‡æ˜äº†å½“å‰è¾“å…¥è¯­è¨€å¹¶å†³å®šäº†é”®å’Œé”®ç»„åˆæ‰€ç”Ÿæˆçš„å­—ç¬¦å€¼ã€‚
 
-Ã¿¸ö¼üÅÌ²¼¾ÖÓĞ×Å¶ÔÓ¦µÄ¾ä±ú£¬Ëü±êÊ¶ÁË²¼¾ÖºÍÓïÑÔ¡£¾ä±úµÄµÍÎ»×ÖÊÇÓïÑÔ±êÊ¶·û¡£¸ßÎ»×ÖÊÇÉè±¸¾ä±ú£¬Ö¸¶¨ÁËÎïÀí²¼¾Ö£¬ËüµÄÖµÒ²¿ÉÒÔÊÇ 0£¬±íÊ¾Ä¬ÈÏÎïÀí²¼¾Ö¡£ÓÃ»§¿ÉÒÔ½«ÈÎÒâÊäÈëÓïÑÔÓëÎïÀí²¼¾Ö¹ØÁªÆğÀ´¡£ÀıÈç£¬Ó¢ÓïÊ¹ÓÃÕßÓĞÊ±ÒªÊ¹ÓÃ·¨Óï¹¤×÷£¬Ëû¿ÉÒÔ½«¼üÅÌµÄÊäÈëÓïÑÔ¸ÄÎª·¨Óï£¬¶ø²»ĞèÒª¸Ä±ä¼üÅÌµÄÎïÀí²¼¾Ö¡£ÕâÒâÎ¶×ÅÓÃ»§¿ÉÒÔÊ¹ÓÃÊìÏ¤µÄÓ¢Óï¼üÅÌ²¼¾ÖÀ´ÊäÈë·¨ÓïÎÄ±¾¡£
+æ¯ä¸ªé”®ç›˜å¸ƒå±€æœ‰ç€å¯¹åº”çš„å¥æŸ„ï¼Œå®ƒæ ‡è¯†äº†å¸ƒå±€å’Œè¯­è¨€ã€‚å¥æŸ„çš„ä½ä½å­—æ˜¯è¯­è¨€æ ‡è¯†ç¬¦ã€‚é«˜ä½å­—æ˜¯è®¾å¤‡å¥æŸ„ï¼ŒæŒ‡å®šäº†ç‰©ç†å¸ƒå±€ï¼Œå®ƒçš„å€¼ä¹Ÿå¯ä»¥æ˜¯ 0ï¼Œè¡¨ç¤ºé»˜è®¤ç‰©ç†å¸ƒå±€ã€‚ç”¨æˆ·å¯ä»¥å°†ä»»æ„è¾“å…¥è¯­è¨€ä¸ç‰©ç†å¸ƒå±€å…³è”èµ·æ¥ã€‚ä¾‹å¦‚ï¼Œè‹±è¯­ä½¿ç”¨è€…æœ‰æ—¶è¦ä½¿ç”¨æ³•è¯­å·¥ä½œï¼Œä»–å¯ä»¥å°†é”®ç›˜çš„è¾“å…¥è¯­è¨€æ”¹ä¸ºæ³•è¯­ï¼Œè€Œä¸éœ€è¦æ”¹å˜é”®ç›˜çš„ç‰©ç†å¸ƒå±€ã€‚è¿™æ„å‘³ç€ç”¨æˆ·å¯ä»¥ä½¿ç”¨ç†Ÿæ‚‰çš„è‹±è¯­é”®ç›˜å¸ƒå±€æ¥è¾“å…¥æ³•è¯­æ–‡æœ¬ã€‚
 
-Ò»°ãÓ¦ÓÃ²»±»ÆÚÍûÀ´Ö±½Ó²Ù×İÊäÈëÓïÑÔ¡£ÓÉÓÃ»§À´ÉèÖÃÓïÑÔºÍ²¼¾Ö×éºÏ£¬Ö®ºóÔÚËüÃÇÖ®¼äÑ¡Ôñ¡£µ±ÓÃ»§Ñ¡ÔñÆäËûÓïÑÔ±ê¼ÇµÄÎÄ±¾Ê±£¬Ó¦ÓÃµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-activatekeyboardlayout][ActivateKeyboardLayout]] º¯ÊıÀ´¼¤»îÓÃ»§¶Ô¸ÃÓïÑÔµÄÄ¬ÈÏ¼üÅÌ²¼¾Ö¡£Èç¹ûÓÃ»§Ê¹ÓÃ²»ÔÚ¼¤»î±íÖĞµÄÓïÑÔ½øĞĞ±à¼­µÄ»°£¬Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] º¯ÊıÀ´»ñµÃ»ùÓÚ¸ÃÓïÑÔµÄ²¼¾Ö¡£
+ä¸€èˆ¬åº”ç”¨ä¸è¢«æœŸæœ›æ¥ç›´æ¥æ“çºµè¾“å…¥è¯­è¨€ã€‚ç”±ç”¨æˆ·æ¥è®¾ç½®è¯­è¨€å’Œå¸ƒå±€ç»„åˆï¼Œä¹‹ååœ¨å®ƒä»¬ä¹‹é—´é€‰æ‹©ã€‚å½“ç”¨æˆ·é€‰æ‹©å…¶ä»–è¯­è¨€æ ‡è®°çš„æ–‡æœ¬æ—¶ï¼Œåº”ç”¨è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-activatekeyboardlayout][ActivateKeyboardLayout]] å‡½æ•°æ¥æ¿€æ´»ç”¨æˆ·å¯¹è¯¥è¯­è¨€çš„é»˜è®¤é”®ç›˜å¸ƒå±€ã€‚å¦‚æœç”¨æˆ·ä½¿ç”¨ä¸åœ¨æ¿€æ´»è¡¨ä¸­çš„è¯­è¨€è¿›è¡Œç¼–è¾‘çš„è¯ï¼Œåº”ç”¨å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] å‡½æ•°æ¥è·å¾—åŸºäºè¯¥è¯­è¨€çš„å¸ƒå±€ã€‚
 
-*ActivateKeyboardLayout* º¯ÊıÎªµ±Ç°ÈÎÎñÉèÖÃÊäÈëÓïÑÔ¡£ *hkl* ²ÎÊı¿ÉÒÔÊÇ¼üÅÌ²¼¾ÖµÄ¾ä±ú»òÒ»¸ö 0 Öµ¡£¿ÉÒÔÍ¨¹ı [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist][GetKeyboardLayoutList]] º¯Êı»ñµÃ¼üÅÌ²¼¾Ö¾ä±ú¡£ *HKL_NEXT* ºÍ *HKL_PREV* ¿ÉÒÔÓÃÀ´Ñ¡È¡ÏÂÒ»¸ö»òÉÏÒ»¸ö¼üÅÌ¡£
+*ActivateKeyboardLayout* å‡½æ•°ä¸ºå½“å‰ä»»åŠ¡è®¾ç½®è¾“å…¥è¯­è¨€ã€‚ *hkl* å‚æ•°å¯ä»¥æ˜¯é”®ç›˜å¸ƒå±€çš„å¥æŸ„æˆ–ä¸€ä¸ª 0 å€¼ã€‚å¯ä»¥é€šè¿‡ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist][GetKeyboardLayoutList]] å‡½æ•°è·å¾—é”®ç›˜å¸ƒå±€å¥æŸ„ã€‚ *HKL_NEXT* å’Œ *HKL_PREV* å¯ä»¥ç”¨æ¥é€‰å–ä¸‹ä¸€ä¸ªæˆ–ä¸Šä¸€ä¸ªé”®ç›˜ã€‚
 
-[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutnamea][GetKeyboardLayoutNameA]] º¯ÊıÎªµ÷ÓÃÏß³Ì¼ìË÷»îÔ¾¼üÅÌ²¼¾ÖµÄÃû×Ö¡£Èç¹ûÓ¦ÓÃÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] º¯Êı´´½¨ÁË»îÔ¾¼üÅÌ²¼¾Ö£¬ *GetKeyboardLayoutName* »á¼ìË÷ÓëÓÃÓÚ´´½¨²¼¾ÖµÄÏàÍ¬×Ö·û´®¡£·ñÔò£¬¸Ã×Ö·û´®ÊÇÓë»îÔ¾²¼¾ÖµÄÓïÑÔ¶ÔÓ¦µÄÖ÷ÒªÓïÑÔ±êÊ¶·û¡£ÕâÒâÎ¶×ÅÕâ¸öº¯Êı¿ÉÄÜ²»Ò»¶¨·Ö±æÊ¹ÓÃÏàÍ¬Ö÷ÒªÓïÑÔµÄ²»Í¬²¼¾Ö£¬Òò´ËÒ²²»ÄÜ·µ»ØÊäÈëÓïÑÔµÄÌØ¶¨ĞÅÏ¢¡£È»¶ø£¬[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout][GetKeyboardLayout]] ¿ÉÓÃÀ´ÅĞ¶ÏÊäÈëÓïÑÔ¡£
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutnamea][GetKeyboardLayoutNameA]] å‡½æ•°ä¸ºè°ƒç”¨çº¿ç¨‹æ£€ç´¢æ´»è·ƒé”®ç›˜å¸ƒå±€çš„åå­—ã€‚å¦‚æœåº”ç”¨ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayouta][LoadKeyboardLayoutA]] å‡½æ•°åˆ›å»ºäº†æ´»è·ƒé”®ç›˜å¸ƒå±€ï¼Œ *GetKeyboardLayoutName* ä¼šæ£€ç´¢ä¸ç”¨äºåˆ›å»ºå¸ƒå±€çš„ç›¸åŒå­—ç¬¦ä¸²ã€‚å¦åˆ™ï¼Œè¯¥å­—ç¬¦ä¸²æ˜¯ä¸æ´»è·ƒå¸ƒå±€çš„è¯­è¨€å¯¹åº”çš„ä¸»è¦è¯­è¨€æ ‡è¯†ç¬¦ã€‚è¿™æ„å‘³ç€è¿™ä¸ªå‡½æ•°å¯èƒ½ä¸ä¸€å®šåˆ†è¾¨ä½¿ç”¨ç›¸åŒä¸»è¦è¯­è¨€çš„ä¸åŒå¸ƒå±€ï¼Œå› æ­¤ä¹Ÿä¸èƒ½è¿”å›è¾“å…¥è¯­è¨€çš„ç‰¹å®šä¿¡æ¯ã€‚ç„¶è€Œï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout][GetKeyboardLayout]] å¯ç”¨æ¥åˆ¤æ–­è¾“å…¥è¯­è¨€ã€‚
 
-*LoadKeyboardLayout* º¯ÊıÔØÈëÒ»¸ö¼üÅÌ²¼¾Ö²¢Ê¹Æä¶ÔÓÃ»§¿ÉÓÃ¡£Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ *KLF_ACTIVATE* À´Ê¹¼üÅÌ²¼¾Ö¶Ôµ±Ç°Ïß³ÌÁ¢¼´¿ÉÓÃ¡£Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ *KLF_REORDER* À´¸Ä±ä²¼¾ÖµÄÅÅĞò¶ø²»ĞèÒªÖ¸¶¨ *KLF_ACTIVATE* ¡£Ó¦ÓÃÓ¦¸ÃÔÚÔØÈë¼üÅÌ²¼¾Ö²¢È·±£ÓÃ»§Æ«ºÃÊ±Ê¹ÓÃ *KLF_SUBSTITUTE_OK* ¡£
+*LoadKeyboardLayout* å‡½æ•°è½½å…¥ä¸€ä¸ªé”®ç›˜å¸ƒå±€å¹¶ä½¿å…¶å¯¹ç”¨æˆ·å¯ç”¨ã€‚åº”ç”¨å¯ä»¥ä½¿ç”¨ *KLF_ACTIVATE* æ¥ä½¿é”®ç›˜å¸ƒå±€å¯¹å½“å‰çº¿ç¨‹ç«‹å³å¯ç”¨ã€‚åº”ç”¨å¯ä»¥ä½¿ç”¨ *KLF_REORDER* æ¥æ”¹å˜å¸ƒå±€çš„æ’åºè€Œä¸éœ€è¦æŒ‡å®š *KLF_ACTIVATE* ã€‚åº”ç”¨åº”è¯¥åœ¨è½½å…¥é”®ç›˜å¸ƒå±€å¹¶ç¡®ä¿ç”¨æˆ·åå¥½æ—¶ä½¿ç”¨ *KLF_SUBSTITUTE_OK* ã€‚
 
-* ²Î¿¼×ÊÁÏ
+* å‚è€ƒèµ„æ–™
 
-<<<¡¾1¡¿>>> About Keyboard Input£º https://docs.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
+<<<ã€1ã€‘>>> About Keyboard Inputï¼š https://docs.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
 
-<<<¡¾2¡¿>>>  /Programming Windows/ , Charles Petzold
+<<<ã€2ã€‘>>>  /Programming Windows/ , Charles Petzold

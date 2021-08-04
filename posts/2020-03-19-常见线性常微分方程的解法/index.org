@@ -1,147 +1,147 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: �������Գ�΢�ַ��̵Ľⷨ
+#+TITLE: 常见线性常微分方程的解法
 #+DATE: [2020-03-19 Thu]
 #+TAGS: math
 
-* ����
+* 定义
 
-����ѧ�У�����΢�ַ�����һ��δ֪�������䵼�������Զ���ʽ��ɣ�������ʽΪ��
+在数学中，线性微分方程由一个未知函数及其导数的线性多项式组成，方程形式为：
 
 $a_{\rm 0}(x)y + a_{1}(x)y^{'} + a_{2}(x)y^{''} + ... + a_{n}(x)y^{(n)} + b(x) = 0$
 
-���У�$a_{0}(x), ..., a_{n}(x)$ �� $b(x)$ ������Ŀ�΢���������ǲ��������Եģ�$y^{'}, ..., y^{(n)}$ ��δ֪���� y �Ա��� x �������󵼡�
+其中，$a_{0}(x), ..., a_{n}(x)$ 和 $b(x)$ 是任意的可微函数，它们不必是线性的，$y^{'}, ..., y^{(n)}$ 是未知函数 y 对变量 x 的连续求导。
 
-�÷����е���߽׵�������Ϊ���̵Ľ�����$b(x)$ ��ʱ����Ϊ���̵� *������* �����������ܲ���һ���������̡������������ 0����ô���΢�ַ��̾�����εģ���Ϊ������δ֪���������ĵ�����ɵ���ζ���ʽ����һ������΢�ַ��̵ĳ������� 0 �滻�õ�����η��̱���Ϊԭ���̵� *������η���* ��
+该方程中的最高阶导数被称为方程的阶数，$b(x)$ 有时被称为方程的 *常数项* ，即便它可能不是一个常数方程。如果常数项是 0，那么这个微分方程就是齐次的，因为它是由未知函数和它的导数组成的其次多项式。将一个线性微分方程的常数项用 0 替换得到的齐次方程被称为原方程的 *关联齐次方程* 。
 
-����һ����΢�ַ��̣�ODE��������΢�ַ���Ҳ������ƫ΢�ַ��̣�PDE����
+这是一个常微分方程（ODE），线性微分方程也可以是偏微分方程（PDE）。
 
-����һ������΢�ַ��̣�������Ĺ�����η����ǳ�ϵ���ģ���ô���Ľ�Ϳ���ͨ��������ʽ��ʾ������һ�ױ�ϵ������΢�ַ��̵Ľ�Ҳ���Ա�ʾΪ������ʽ�����׻�߽ױ�ϵ������΢�ַ�����û��һ��Ľⷨ��
+对于一个线性微分方程，如果它的关联齐次方程是常系数的，那么它的解就可能通过积分形式表示出来。一阶变系数线性微分方程的解也可以表示为积分形式。二阶或高阶变系数线性微分方程则没有一般的解法。
 
-* ��ϵ��������η���
+* 常系数线性齐次方程
 
-��ϵ��������η��̵���ʽΪ
+常系数线性齐次方程的形式为
 
 $a_{0}y + a_{1}y^{'} + a_{2}y^{''} + ... + a_{n}y^{(n)} = 0$
 
-���� $a_{0}, ..., a_{n}$ �ǣ�ʵ�����������֡�
+其中 $a_{0}, ..., a_{n}$ 是（实数或复数）数字。
 
-������΢�ַ��̵��о�����׷�ݵ�ŷ������������ָ������ $e^{x}$ ��$e^{x}$ �Ƿ��� $f^{'} = f, f(0) = 1$ ��Ψһ�⡣$e^{cx}$ �� n �׵����� $c^{n}e^{cx}$ ���������ʹ��������η��̵�����÷ǳ��򵥡�
+对这类微分方程的研究可以追溯到欧拉，他引入了指数函数 $e^{x}$ ，$e^{x}$ 是方程 $f^{'} = f, f(0) = 1$ 的唯一解。$e^{cx}$ 的 n 阶导数是 $c^{n}e^{cx}$ ，这个性质使得线性齐次方程的求解变得非常简单。
 
-$a_{0}y + a_{1}y^{'} + a_{2}y^{''} + ... + a_{n}y^{(n)} = 0$ ��һ����ϵ��������η��̣�Ѱ�Ҿ��� $e^{ax}$ ��ʽ�Ľ�ȼ����ҵ�ʹ�����з��̳����� $\alpha$ ��
+$a_{0}y + a_{1}y^{'} + a_{2}y^{''} + ... + a_{n}y^{(n)} = 0$ 是一个常系数线性齐次方程，寻找具有 $e^{ax}$ 形式的解等价于找到使的下列方程成立的 $\alpha$ ：
 
 $a_{0}e^{\alpha x} + a_{1}\alpha e^{\alpha x} + a_{2}\alpha^{2}e^{\alpha x} + ... + a_{n}\alpha^{n}e^{\alpha x} = 0$
 
-��ȡ������ $e^{\alpha x}$ ���Ϳ�֪�� $\alpha$ �ض���ԭ���̵���������ʽ $a_{0} + a_{1}t + a_{2}t^{2} + ... + a_{n}t^{n}$ ��һ������
+提取公因数 $e^{\alpha x}$ ，就可知， $\alpha$ 必定是原方程的特征多项式 $a_{0} + a_{1}t + a_{2}t^{2} + ... + a_{n}t^{n}$ 的一个根。
 
-����Щ�����Ƿ����ģ�û���ظ���ʱ����Щ������������޹ص���ʽ��ʾ���������������һ��΢�ַ��̽�������ռ��һ�����
+当这些根都是分立的（没有重根）时，这些解可以以线性无关的形式表示出来，它们组成了一个微分方程解的向量空间的一组基。
 
-�����ظ�ʱ����Ҫ����������޹ؽ�����ɻ������ǵ���ʽΪ $x^{k}e^{\alpha x}$ �����У�k ��һ���Ǹ�������$\alpha$ ����������ʽ�� m �ظ������� $k < m$ ��
+存在重根时，需要更多的线性无关解来组成基，它们的形式为 $x^{k}e^{\alpha x}$ 。其中，k 是一个非负整数，$\alpha$ 是特征多项式的 m 重根，且有 $k < m$ 。
 
-Ҫ֤����һ���ʣ�ע�⵽ $\alpha$ ����������ʽ�� m �ظ�����������ʽ����д�� $P(t)(t - \alpha)^{m}$ ����ˣ���΢������������΢�ַ��̵ȼ����Ƚ����� $\frac{d}{dx} - \alpha$ �����ڷ��� m �Σ��ٽ� �� ��Ϊ��������ʽ��������������ĵ������ظ���
+要证明这一性质，注意到 $\alpha$ 是特征多项式的 m 重根，特征多项式可以写成 $P(t)(t - \alpha)^{m}$ 。因此，将微分算子作用于微分方程等价于先将算子 $\frac{d}{dx} - \alpha$ 作用于方程 m 次，再将 Ｐ 作为特征多项式，继续求解其他的单根或重根。
 
-�� $(\frac{d}{dx} - \alpha)(x^{k}e^{\alpha x}) = kx^{k - 1}e^{\alpha x}$ ��֪���� $\frac{d}{dx} - \alpha$ ���Ӷ� $x^{k}e^{\alpha x}$ Ӧ�� k + 1 �κ󣬵õ��Ľ��Ϊ 0�������� $x^{k}e^{\alpha x}$ �е� k һ��С�� m���ʾ��� m ������Ӧ�ú󣬽����Ϊ 0��
+由 $(\frac{d}{dx} - \alpha)(x^{k}e^{\alpha x}) = kx^{k - 1}e^{\alpha x}$ 可知，将 $\frac{d}{dx} - \alpha$ 算子对 $x^{k}e^{\alpha x}$ 应用 k + 1 次后，得到的结果为 0。（由于 $x^{k}e^{\alpha x}$ 中的 k 一定小于 m，故经过 m 次算子应用后，结果必为 0）
 
-���磬����΢�ַ��� $y^{''''} - 2y^{'''} + 2y^{''} - 2y^{'} + y = 0$ ��������������Ϊ $z^4 - 2z^3 + 2z^2 - 2z + 1 = 0$ �����̵Ľ�ֱ�Ϊ $i, -i, 1$ ������ 1 Ϊ ���ظ����ɴ˿�֪��ԭ����Ҳ��д����$(\frac {d}{dx} + i)(\frac {d}{dx} - i)(\frac {d}{dx} - 1)^{2}y = 0$ ��ȡ $y = e^{x}\,��\, y = xe^{x}$ ʱ��$(\frac{d}{dx} - 1)^{2}y$ ��Ϊ 0�����˵�����������ʡ�����η��̵Ľ�ռ�Ļ�Ϊ { $e^{ix}, e^{-ix}, e^{x}, xe^{x}$ }��
+例如，线性微分方程 $y^{''''} - 2y^{'''} + 2y^{''} - 2y^{'} + y = 0$ ，它的特征方程为 $z^4 - 2z^3 + 2z^2 - 2z + 1 = 0$ ，方程的解分别为 $i, -i, 1$ ，其中 1 为 二重根，由此可知，原方程也可写作：$(\frac {d}{dx} + i)(\frac {d}{dx} - i)(\frac {d}{dx} - 1)^{2}y = 0$ ，取 $y = e^{x}\,和\, y = xe^{x}$ 时，$(\frac{d}{dx} - 1)^{2}y$ 都为 0，这就说明了上述性质。该齐次方程的解空间的基为 { $e^{ix}, e^{-ix}, e^{x}, xe^{x}$ }。
 
-������ϵ������ʵ��ʱ������ȫ����ʾΪʵֵ������Ϊ���㡣��� $a + ib$ ����������ʽ��һ�����Ļ���$a - ib$ Ҳ��һ�������� $a + ib$ ������ͬ������������ˣ�����ͨ��ŷ����ʽ���õ�ʵ��������$x^{k}e^{(a + ib)x}$ �� $x^{k}e^{(a - ib)x}$ ���� $x^{k}e^{ax}cos(bx)$ �� $x^{k}e^{ax}sin(bx)$ ���档���������е� $e^{ix}, e^{-ix}$ ������ $cos(x), sin(x)$ �����
+当方程系数都是实数时，将基全部表示为实值函数更为方便。如果 $a + ib$ 是特征多项式的一个根的话，$a - ib$ 也是一个根（和 $a + ib$ 具有相同的重数）。因此，可以通过欧拉公式来得到实函数基，$x^{k}e^{(a + ib)x}$ 和 $x^{k}e^{(a - ib)x}$ 可用 $x^{k}e^{ax}cos(bx)$ 和 $x^{k}e^{ax}sin(bx)$ 代替。上面例子中的 $e^{ix}, e^{-ix}$ 可以用 $cos(x), sin(x)$ 替代。
 
-* ��ϵ����������Է���
+* 常系数非齐次线性方程
 
-��ϵ�� n �׷���η��̵���ʽΪ��
+常系数 n 阶非齐次方程的形式为：
 
 $y^{(n)}(x) + a_{1}y^{(n - 1)}(x) + ... + a_{n - 1}y^{'}(x) + a_{n}y(x) = f(x)$
 
-���У�$a_{1}, ..., a_{n}$ ��ʵ��������$f$ �Ǹ����� x �ĺ�����$y$ δ֪������
+其中，$a_{1}, ..., a_{n}$ 是实数或复数，$f$ 是给定的 x 的函数，$y$ 未知函数。
 
-�ж��ַ�ʽ����������̣���õķ�ʽ������ $f$ ʹ�÷��̳�Ϊ����ε���Ȼ���ʡ���� $f$ ��ָ������������ʽ�����Һ��������ǵ�������ϣ���ô�Ϳ���ʹ��ָ����Ӧ��ʽ��exponential response formula)(ERF)������⡣��һ��أ���� $f$ �� $x^{n}e^{ax}, x^{n}cos(ax), x^{n}sin(ax) (n \in N, a \, is \, const)$ ��������ϣ�����ʹ�ô���ϵ������method of undetermined coefficients��������һ��أ���� $f$ �� *holonomic funciton* �Ļ�������ʹ�� *annihilator method* �����ӻ�����
+有多种方式来解这个方程，最好的方式是依赖 $f$ 使该方程称为非齐次的自然性质。如果 $f$ 是指数函数，多项式，正弦函数或它们的线性组合，那么就可以使用指数响应公式（exponential response formula)(ERF)进行求解。更一般地，如果 $f$ 是 $x^{n}e^{ax}, x^{n}cos(ax), x^{n}sin(ax) (n \in N, a \, is \, const)$ 的线性组合，可以使用待定系数法（method of undetermined coefficients）。更更一般地，如果 $f$ 是 *holonomic funciton* 的话，可以使用 *annihilator method* （零子化）。
 
-��һ��ķ����ǳ������׷���variation of constants����
+最一般的方法是常数变易法（variation of constants）。
 
-** ָ����Ӧ��ʽ��ERF��
+** 指数响应公式（ERF）
 
-ERF ��Ӧ����ⳣϵ����������Գ�΢�ַ��̣����̵ĳ�����Ϊ���Һ�����ָ�����������֮������ϡ�
+ERF 适应于求解常系数非齐次线性常微分方程，方程的常数项为正弦函数，指数函数或二者之线性组合。
 
-*** ������
+*** 适用性
 
-�������η��̵ĳ��������д�� $f(t) = B_{1}e^{\gamma _{1}t} + B_{2}e^{\gamma _{2}t} + ... + B_{n}e^{\gamma _{n}t}$ ������ $B, \gamma$ ��ʵ����������ô ERF �������õġ�
+如果非齐次方程的常数项可以写成 $f(t) = B_{1}e^{\gamma _{1}t} + B_{2}e^{\gamma _{2}t} + ... + B_{n}e^{\gamma _{n}t}$ ，其中 $B, \gamma$ 是实数或复数，那么 ERF 就是适用的。
 
-��������Ϊ���Ǻ�����ʽʱ������ʹ��ŷ����ʽ��Ϊָ����ʽ������⣬�����Ϻ�ȡʵ�����������Ϊ�����
+当常数项为三角函数形式时，可以使用欧拉公式变为指数形式进行求解，求解完毕后取实数项或复数项作为结果。
 
-*** LTI ����
+*** LTI 算子
 
-��ʱ���䣨time-invariant��ϵͳ�����Եģ���ô���ͽ�������ʱ����ϵͳ��LTI system����
+当时不变（time-invariant）系统是线性的，那么它就叫做线性时不变系统（LTI system）。
 
-��������� n �����Գ�΢�ַ���
+考虑下面的 n 阶线性常微分方程
 
 $a_{n}\frac{d^{n}y}{dt^{n}} + a_{n - 1}\frac{d^{n - 1}y}{dt^{n - 1}} + ... + a_{1}\frac{dy}{dt} + a_{0}y = f(t)$
 
-��Ǻţ�
+设记号：
 
 \(L = a_{n}D^{n} + a_{n - 1}D^{n - 1} + ... + a_{1}D^{1} + a_{0}I,\)
 
 $D^{k} = \frac{d^{k}}{dt^{k}} (k = 1, 2, ..., n)$
 
-���� $a_{0}, ..., a_{n}$ Ϊ��ϵ������͵õ������� $L$ ��������Ϊ LTI ���ӡ�$L$ �ɴ���������ʽ�õ���$P(s) = a_{n}s^{n} + a_{n - 1}s^{n - 1} + ... + a_{0}$ ��ʹ�� $D$ �滻�����е� $s$ ��
+其中 $a_{0}, ..., a_{n}$ 为常系数。这就得到了算子 $L$ ，它被称为 LTI 算子。$L$ 可从特征多项式得到，$P(s) = a_{n}s^{n} + a_{n - 1}s^{n - 1} + ... + a_{0}$ ，使用 $D$ 替换掉其中的 $s$ 。
 
 $L = P(D)$
 
 $P(D) = a_{n}D^{n} + a_{n - 1}D^{n - 1} + ... + a_{0}I$
 
-����һ����ǰ��ķ��̾Ϳ���д��
+这样一来，前面的方程就可以写成
 
 $P(D)y = f(t)$
 
-*** ERF ����
+*** ERF 方法
 
-��������� LTI ΢�ַ��̣�������Ϊ $f(t) = Be^{\gamma t}$ ʱ�����Եõ�һ���ؽ⣺
+考虑上面的 LTI 微分方程，当输入为 $f(t) = Be^{\gamma t}$ 时，可以得到一个特解：
 
 $y_{p} = \frac{Be^{\gamma t}}{P(\gamma)}, P(\gamma) \not= 0$
 
-֤����
+证明：
 
-��Ϊ��� $P(D)$ ���������ԣ����� $P(D)y = f(t)$ ����߿���д��
+因为算符 $P(D)$ 的线性特性，方程 $P(D)y = f(t)$ 的左边可以写成
 
 $P(D)y_{p} = P(D)(\frac{Be^{\gamma t}}{P(\gamma)}) = \frac{B}{P(\gamma)}P(D)(e^{\gamma t})$
 
-��Ϊ $P(D)(e^{\gamma t}) = P(\gamma)e^{\gamma t}$ $(\frac{d^{n}}{dt^{n}}e^{at} = a^{n}e^{at})$
+因为 $P(D)(e^{\gamma t}) = P(\gamma)e^{\gamma t}$ $(\frac{d^{n}}{dt^{n}}e^{at} = a^{n}e^{at})$
 
-�����滻�����Եõ���
+进行替换，可以得到：
 
 $P(D)y_{p} = P(D)(\frac{Be^{\gamma t}}{P(\gamma)}) = \frac{B}{P(\gamma)}P(D)(e^{\gamma t})= \frac{B}{P(\gamma)}P(\gamma)e^{\gamma t} = Be^{\gamma t}$
 
-֤�ϡ�
+证毕。
 
-�ر�أ��� $P(\gamma) = 0$ ʱ��$P(D)y = f(t)$ ��һ����Ϊ
+特别地，当 $P(\gamma) = 0$ 时，$P(D)y = f(t)$ 的一个解为
 
 $y_{p} = \frac{Bte^{\gamma t}}{P'(\gamma)},P'(\gamma)\not= 0$
 
-ERF ��һ����ʽ��
+ERF 的一般形式：
 
-���� $P(\gamma) = P^{'}(\gamma) = ... P^{(k - 1)}(\gamma) = 0, P^{(k)}(\gamma) \not= 0$ �����
+对于 $P(\gamma) = P^{'}(\gamma) = ... P^{(k - 1)}(\gamma) = 0, P^{(k)}(\gamma) \not= 0$ 的情况
 
 $y_{p}(t) = \frac{Bt^{k}e^{\gamma t}}{P^{(k)}(\gamma)}$
 
-** ����ϵ����
+** 待定系数法
 
-����ϵ������method of undetermined coefficients����һ����ĳЩ�������γ�΢�ַ��̺Ͳ�ַ��̣�recurrence relation���ķ����������糣�����׷��ձ飬��Ϊ��ֻ����ȡ�����ض���ʽ��΢�ַ��̡�
+待定系数法（method of undetermined coefficients）是一种求某些种类非齐次常微分方程和差分方程（recurrence relation）的方法。它不如常数变易法普遍，因为它只能求取几种特定形式的微分方程。
 
-�����ʹ���������͵�΢���������ҵ�����������ܵ���ʽ������ϵ����ʹ�á����롱���ҵ����ʵ���ʽ��֮���ٽ�������뷽�̽�����֤��
+相比于使用特殊类型的微分算子来找到特殊解的最可能的形式，待定系数法使用“猜想”来找到合适的形式，之后再将结果带入方程进行验证。
 
-*** ��������
+*** 方法描述
 
-����������ʽ�ķ���γ�΢�ַ���
+考虑下面形式的非齐次常微分方程
 
 $\sum_{i = 0}^{n} c_{i}y^{(i)} + y^{(n + 1)} = g(x)$
 
-���� $c_{i}$ ��ʾʵ��������
+其中 $c_{i}$ 表示实数或复数。
 
-�����������������ɡ����ȣ��ҵ�������η��� $\sum_{i = 0}^{n} c_{i}y^{(i)} + y^{(n + 1)} = 0$ �Ľ� $y_{c}$ ����Σ��ҵ����� $g(x)$ ���ؽ� $y_{p}$ ��֮����ȫ�����Ա�ʾΪ $y = y_{c} + y_{p}$ ��
+这个方法由两部分组成。首先，找到关联齐次方程 $\sum_{i = 0}^{n} c_{i}y^{(i)} + y^{(n + 1)} = 0$ 的解 $y_{c}$ ，其次，找到基于 $g(x)$ 的特解 $y_{p}$ 。之后，完全解解可以表示为 $y = y_{c} + y_{p}$ 。
 
-��� $g(x)$ ���������� $h(x), w(x)$ �ĺͺ������� $y_{p1}$ �ǻ��� $h(x)$ ���ؽ⣬$y_{p2}$ �ǻ��� $w(x)$ ���ؽ⣬�� $g(x)$ ���ؽ�Ϊ $y_{p} = y_{p1} + y_{p2}$ ��
+如果 $g(x)$ 是两个函数 $h(x), w(x)$ 的和函数，且 $y_{p1}$ 是基于 $h(x)$ 的特解，$y_{p2}$ 是基于 $w(x)$ 的特解，则 $g(x)$ 的特解为 $y_{p} = y_{p1} + y_{p2}$ 。
 
-�ؽ�ĵ�����ʽ
+特解的典型形式
 
-| x �ĺ���                                                                                       | �ؽ����ʽ                                                                          |
+| x 的函数                                                                                       | 特解的形式                                                                          |
 |------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------|
 | $ke^{ax}$                                                                                      | $Ce^{ax}$                                                                           |
 | $kx^{n}, n = 0, 1, 2$                                                                          | $\sum_{i = 0}^{n}K_{i}x^{i}$                                                        |
@@ -150,130 +150,130 @@ $\sum_{i = 0}^{n} c_{i}y^{(i)} + y^{(n + 1)} = g(x)$
 | $(\sum_{i = 0}^{n}k_{i}x^{i})cos(bx) \, or \, (\sum_{i = 0}^{n}k_{i}x^{i})sin(bx)$             | $(\sum_{i = 0}^{n}Q_{i}x^{i})cos(bx) + (\sum_{i = 0}^{n}R_{i}x^{i})sin(bx)$         |
 | $(\sum_{i = 0}^{n}k_{i}x^{i})e^{ax}cos(bx) \, or \, (\sum_{i = 0}^{n}k_{i}x^{i})e^{ax}sin(bx)$ | $e^{ax}((\sum_{i = 0}^{n}Q_{i}x^{i})cos(bx) + (\sum_{i = 0}^{n}R_{i}x^{i})sin(bx))$ |
 
-** �������׷�
+** 常数变易法
 
-�������׷���variation of parameters����variation of constants����һ������������Գ�΢�ַ��̵��ձ鷽����
+常数变易法（variation of parameters）（variation of constants）是一种求解非齐次线性常微分方程的普遍方法。
 
-*��������*
+*方法描述*
 
-���� n �׷��������΢�ַ���
+考虑 n 阶非齐次线性微分方程
 
 $y^{n}(x) + \sum_{i = 0}^{n - 1}a_{i}(x)y^{(i)}(x) = b(x) \quad (1)$
 
-�� $y_{1}(x), ..., y_{n}(x)$ Ϊ��Ӧ����η��̵Ļ�����ϵ
+令 $y_{1}(x), ..., y_{n}(x)$ 为对应的齐次方程的基础解系
 
 $y^{(n)}(x) + \sum_{i = 0}^{n - 1}a_{i}(x)y^{(i)}(x) = 0 \quad (2)$
 
-����η��̵�һ���ؽ������������
+非齐次方程的一个特解可以这样给出
 
 $y_{p}(x) = \sum_{i}^{n}c_{i}(x)y_{i}(x) \quad (3)$
 
-���У�$c_{i}(x)$ ���������������Ŀ�΢����
+其中，$c_{i}(x)$ 是满足下列条件的可微函数
 
 $\sum_{i = 1}^{n}c_{i}^{'}(x)y_{i}^{j}(x) = 0, j = 0, ..., n - 2 \quad (4)$
 
-�� $(3)$ ��ʼ���ظ�ʹ�� $(4)$ ���õ�
+从 $(3)$ 开始，重复使用 $(4)$ ，得到
 
 $y_{p}^{(j)}(x) = \sum_{i = 1}^{n}c_{i}(x)y_{i}^{(j)}(x), j = 0, ..., n - 1 \quad (5)$
 
-���õ�
+最后得到
 
 $y_{p}^{(n)}(x) = \sum_{i = 1}^{n}c_{i}^{'}(x)y_{i}^{(n - 1)}(x) + \sum_{i = 1}^{n}c_{i}(x)y_{i}^{(n)}(x) \quad (6)$
 
-�� $(3)$ ���� $(1)$ ������ʹ�� $(5) (6)$ ���õ�
+将 $(3)$ 代入 $(1)$ ，并将使用 $(5) (6)$ ，得到
 
 $\sum_{i = 1}^{'}(x)y_{i}^{(n - 1)}(x) = b(x) \quad (7)$
 
-����������ͨ������ķ�����������ϵͳ���õ�
+接下来可以通过克莱姆法则求解线性系统，得到
 
 $c_{i}^{'} = \frac{W_{i}(x)}{W(x)}, i = 1, ..., n$
 
-�ؽ�Ϊ
+特解为
 
 $\sum_{i = 1}^{n}y_{i}(x) \int \frac{W_{i}(x)}{W(x)}dx$
 
-** һ�ױ�ϵ�����Գ�΢�ַ���
+** 一阶变系数线性常微分方程
 
-һ�����Գ�΢�ַ��̵�һ����ʽΪ
+一阶线性常微分方程的一般形式为
 
 $y^{'}(x) = f(x)y(x) + g(x)$
 
-���÷���Ϊ�����ʽʱ��$g(x)$ Ϊ�㺯���������̿���д��
+当该方程为齐次形式时（$g(x)$ 为零函数），方程可以写作
 
 $\frac{y^{'}}{y} = f$
 
-�򵥻��ֵõ� $log(y) = F + k$ ������ $k$ �ǻ��ֳ�����$F = \int fdx$ �� $f$ �Ĳ������֡���η��̵�һ������д�� $y = ce^F, c = e^k$ ��
+简单积分得到 $log(y) = F + k$ ，其中 $k$ 是积分常数，$F = \int fdx$ 是 $f$ 的不定积分。齐次方程的一般解可以写成 $y = ce^F, c = e^k$ 。
 
-������η���ʱ�����Զ��������̳���һ����η��̵Ľ� $e^{-F}$ ���õ�
+求解非齐次方程时，可以对整个方程乘上一个齐次方程的解 $e^{-F}$ ，得到
 
 $y^{'}e^{-F} - yfe^{-F} = ge^{-F}$
 
-�� $-fe^{-F} = \frac{d}{dx}(e^{-F})$ , �ɽ�����д��
+由 $-fe^{-F} = \frac{d}{dx}(e^{-F})$ , 可将方程写成
 
 $\frac{d}{dx}(ye^{-F}) = ge^{-F}$
 
-���ֵ�
+积分得
 
 $y = ce^{F} + e^{F}\int ge^{-F}dx$
 
-�����������ַ���֮�⣬������ʹ�ó������׷������Ƶ���
+除了以上这种方法之外，还可以使用常数变易法进行推导。
 
-*** �������׷��Ƶ�
+*** 常数变易法推导
 
-�跽��Ϊ $y^{'} + p(x)y = q(x)$
+设方程为 $y^{'} + p(x)y = q(x)$
 
-���Ķ�Ӧ��η���Ϊ $y^{'} + p(x)y = 0$
+它的对应齐次方程为 $y^{'} + p(x)y = 0$
 
-��η��̵Ľⷨ�кܶ࣬���������õ��ķ����������������Ľ������η��̵Ľ�Ϊ
+齐次方程的解法有很多，比如上面用到的分离变量，利用上面的结果，齐次方程的解为
 
 $y_{c} = C_{0}e^{- \int p(x)dx }$
 
-ʹ�ó������׷����ؽ����д��ͨ����δ֪���� $C(x)$ �˻�����ʽ
+使用常数变易法，特解可以写成通解与未知函数 $C(x)$ 乘积的形式
 
 $y_{p} = C(x)e^{- \int p(x)dx}$
 
-ͨ�����ؽ�������η��̣���������� $C(x)$
+通过将特解代入非齐次方程，我们来求解 $C(x)$
 
 $C^{'}(x)e^{- \int p(x)dx} - C(x)p(x)e^{- \int p(x)dx} + p(x)C(x)e^{- \int p(x)dx} = q(x)$
 
-����ʽ�ɵ�
+由上式可得
 
 $C^{'}(x)e^{- \int p(x)dx} = q(x)$
 
-�Ӷ�
+从而
 
 $C(x) = \int q(x)e^{\int p(x)dx} + C_{1}$
 
-����ֻ��Ҫһ���ؽ⣬�����ǿ���ȡ $C_{1} = 0$ ���ؽ�Ϊ
+我们只需要一个特解，故我们可以取 $C_{1} = 0$ ，特解为
 
 $y_{p} = e^{- \int p(x)dx} \int q(x)e^{\int p(x) dx} dx$
 
-���ս��Ϊ
+最终结果为
 
 $y = y_{c} + y_{p} =$
 
 $C_{0}e^{\int p(x)dx} + e^{- \int p(x)dx}\int q(x)e^{p(x)dx}dx$
 
-* ����-ŷ������
+* 柯西-欧拉方程
 
-����-ŷ�����̣�Cauchy-Eular equation��Ҳ��ŷ��-�������̣�Euler-Cauchy equation������ֱ�ӳ�Ϊŷ�����̡�����һ��������γ�΢�ַ��̡�����������ʽ
+柯西-欧拉方程（Cauchy-Eular equation）也叫欧拉-柯西方程（Euler-Cauchy equation），或直接称为欧拉方程。它是一个线性齐次常微分方程。具有以下形式
 
 $a_{n}x^{n}y^{(n)}(x) + a_{n - 1}x^{n - 1}y^{(n - 1)}(x) + ... + a_{0}y(x) = 0$
 
-����ƽ���� $y = x^m$ ��$m$ ����á�
+它有平凡解 $y = x^m$ ，$m$ 易求得。
 
-* �ο�����
+* 参考资料
 
-���źŷ����봦�������� ������ ��ΰ
+《信号分析与处理》—— 马立玲 沈伟
 
-����΢�ַ��̣�https://en.wikipedia.org/wiki/Linear_differential_equation
+线性微分方程：https://en.wikipedia.org/wiki/Linear_differential_equation
 
-ָ����Ӧ��ʽ��https://en.wikipedia.org/wiki/Exponential_response_formula
+指数响应公式：https://en.wikipedia.org/wiki/Exponential_response_formula
 
-����ϵ������https://en.wikipedia.org/wiki/Method_of_undetermined_coefficients
+待定系数法：https://en.wikipedia.org/wiki/Method_of_undetermined_coefficients
 
-���ӻ���[^1]https://en.wikipedia.org/wiki/Annihilator_method
+零子化：[^1]https://en.wikipedia.org/wiki/Annihilator_method
 
-�������׷���https://en.wikipedia.org/wiki/Variation_of_parameters
+常数变易法：https://en.wikipedia.org/wiki/Variation_of_parameters
 
-����-ŷ�����̣�https://en.wikipedia.org/wiki/Cauchy�CEuler_equation
+柯西-欧拉方程：https://en.wikipedia.org/wiki/Cauchy–Euler_equation

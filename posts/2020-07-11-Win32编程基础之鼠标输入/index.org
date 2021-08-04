@@ -1,48 +1,48 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Win32��̻���֮�������
+#+TITLE: Win32编程基础之鼠标输入
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMjk1ODQw.jpg" alt="load failed"></div>@@
 #+DATE: [2020-07-11 Sat]
 #+TAG: windows
 
-�����һ����Ҫ��������Դ��Ӧ��Ӧ��Ϊ��������ṩ���õ�֧�֣�������Ҳ��Ӧ����ȫ��������������û��������롣Ӧ��Ӧ���ṩ�걸�ļ���֧�֡�
+鼠标是一个重要的输入来源。应用应该为鼠标输入提供良好的支持，但是它也不应该完全依赖于鼠标来让用户进行输入。应用应该提供完备的键盘支持。
 
-* �����
+* 鼠标光标
 
-���û��ƶ����ʱ��ϵͳ���ƶ�����Ļ����ʾ�ģ����� *�����* ��λͼ��������һ�������ȵ㣨hot spot���ĵ������صĵ㣬ϵͳ�������׷�٣���������λ����Ϊ����λ�á���������¼�����ʱ�������ȵ�Ĵ���һ�����ܵ��¼����µ������Ϣ�����ڲ���Ҫ�ǻ�Ծ�Ļ�ӵ�м��̽���Ϳ��Խ��������Ϣ��
+当用户移动鼠标时，系统会移动在屏幕上显示的，叫做 *鼠标光标* 的位图。光标包括一个叫做热点（hot spot）的单个像素的点，系统对其进行追踪，并将它的位置作为光标的位置·。当鼠标事件发生时，包含热点的窗口一般会接受到事件导致的鼠标消息。窗口不需要是活跃的或拥有键盘焦点就可以接受鼠标消息。
 
-ϵͳά����һ����������ٶȵı��� ���� Ҳ���ǵ��û��ƶ����ʱ����ƶ��ľ��롣�����ʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ��������������������ٶȣ��ֱ�ͨ��ʹ�� *SPI_GETMOUSE* �� *SPI_SETMOUSE* ��־�����ڸ�����������Ϣ���ɼ��� [[https://docs.microsoft.com/en-us/windows/desktop/menurc/cursors][Cursors]]��
+系统维护着一个控制鼠标速度的变量 —— 也就是当用户移动鼠标时光标移动的距离。你可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数来检索或设置鼠标速度，分别通过使用 *SPI_GETMOUSE* 或 *SPI_SETMOUSE* 标志。关于更多鼠标光标的信息，可见于 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/cursors][Cursors]]。
 
-* ��겶��
+* 鼠标捕获
 
-������¼�����ʱ��ϵͳһ��Ὣ�����ϢͶ�ݵ���������ȵ�Ĵ����С�Ӧ�ÿ���ͨ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setcapture][SetCapture]] �����������Ϣ·�ɵ�ָ���Ĵ��ڡ����ڻ�������е������Ϣ��ֱ��Ӧ�õ��� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasecapture][ReleaseCapture]] ������ָ�������Ĳ��񴰿ڣ���ֱ���û�������������̴߳����Ĵ��ڡ�
+当鼠标事件发生时，系统一般会将鼠标消息投递到包含鼠标热点的窗口中。应用可以通过使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setcapture][SetCapture]] 函数将鼠标消息路由到指定的窗口。窗口会接收所有的鼠标消息，直到应用调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasecapture][ReleaseCapture]] 函数或指定其他的捕获窗口，或直到用户点击了由其他线程创建的窗口。
 
-�����Ĳ������ı�ʱ��ϵͳ����ʧȥ��겶��Ĵ��ڷ��� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-capturechanged][WM_CAPTURECHANGED]] ��Ϣ����Ϣ�� *lParam* �ǵõ���겶�񴰿ڵľ����
+当鼠标的捕获发生改变时，系统会向失去鼠标捕获的窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-capturechanged][WM_CAPTURECHANGED]] 消息。消息的 *lParam* 是得到鼠标捕获窗口的句柄。
 
-ֻ����ǰ��Ĵ��ڲ��ܲ���������롣������Ĵ�����Ҫ�����������ʱ������������ȵ��ڴ��ڵĿɼ�����ʱ���ܽ�������¼�����Ϣ��
+只有在前面的窗口才能捕获鼠标输入。当后面的窗口想要捕获鼠标输入时，它仅在鼠标热点在窗口的可见部分时才能接收鼠标事件的消息。
 
-������ڱ���������е������Ϣ�������Ǵ��������Ϣ�Ļ����������в����Ǻ����õġ����磬Ӧ��һ�������갴ť�����¼�����������λ�ý���׷�٣�ֱ�������ɿ����¼����������Ӧ��û�ж����������в��񣬶��û����ڴ��������ɿ��˰�ť�Ļ������ڲ�����յ���ť�ɿ�����Ϣ��
+如果窗口必须接受所有的鼠标消息，甚至是窗口外的消息的话，对鼠标进行捕获是很有用的。例如，应用一般会在鼠标按钮按下事件发生后对鼠标位置进行追踪，直到按键松开的事件发生。如果应用没有对鼠标输入进行捕获，而用户又在窗口外面松开了按钮的话，窗口不会接收到按钮松开的消息。
 
-�߳̿���ʹ�� *SetCapture* ���������������ĸ����ڲ�����ꡣ����̵߳�һ�������Ѿ���������꣬ *GetCapture* �����ָ�����ڵľ����
+线程可以使用 *SetCapture* 函数来决定它的哪个窗口捕获鼠标。如果线程的一个窗口已经捕获了鼠标， *GetCapture* 会检索指定窗口的句柄。
 
-* �������
+* 鼠标配置
 
-���������һ����Ҫ��Ӧ�������豸�����������е��û�������ʹ����ꡣӦ�ÿ���ͨ��ʹ�� *SM_MOUSEPRESENT* ��־���� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]] �������ж�ϵͳ�Ƿ������һ����ꡣ
+即便鼠标是一种重要的应用输入设备，并不是所有的用户都必须使用鼠标。应用可以通过使用 *SM_MOUSEPRESENT* 标志调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]] 函数来判断系统是否包括了一个鼠标。
 
-Windows ���֧��������������ꡣ��һ����������ϣ���ť�����Ϊ������м����Ҽ�������갴ť��ص���Ϣ�ͳ���ʹ����ĸ L��M �� R ����ʶ��ť���������İ�������������������� WIndows ֧�ֶ����ť���������Ӧ��ֻʹ�������
+Windows 最多支持三个按键的鼠标。在一个三键鼠标上，按钮被设计为左键，中键和右键。与鼠标按钮相关的消息和常量使用字母 L，M 和 R 来标识按钮。单键鼠标的按键被看作是左键。即便 WIndows 支持多个按钮，大多数的应用只使用左键。
 
-Ӧ��Ҳ����֧�������֡������ֿ��Ա����º͹������������ֱ�����ʱ��������Ϊ�м�����Ӧ�÷�����ͨ���м���Ϣ������������ʱ��������Ϣ�ᱻ���͵�Ӧ�á�������ֵ���Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/about-mouse-input#the-mouse-wheel][The Mouse Wheel]]��
+应用也可以支持鼠标滚轮。鼠标滚轮可以被按下和滚动。当鼠标滚轮被按下时，它会作为中键，向应用发送普通的中键消息。当它被滚动时，滚轮消息会被发送到应用。更多滚轮的消息可见于 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/about-mouse-input#the-mouse-wheel][The Mouse Wheel]]。
 
-Ӧ�ÿ���֧��Ӧ�����ť����Щ��ť���� X ��ť�����Ǳ�������������׵ط���������������ʼ���ý����񡣵� X ��ť������ʱ��[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-appcommand][WM_APPCOMMAND]] ��Ϣ�ᱻ���͵����Ӧ�á�
+应用可以支持应用命令按钮。这些按钮叫做 X 按钮，它们被设计用来更容易地访问浏览器，电子邮件和媒体服务。当 X 按钮被按下时，[[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-appcommand][WM_APPCOMMAND]] 消息会被发送到你的应用。
 
-Ӧ�ÿ����� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]] �ĵ�����ָ�� *SM_CMOUSEBUTTONS* ������ȡ��갴ť�ĸ�����Ҫ�뽫�������Ϊ��Ʋ���û�ʹ�ã�Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-swapmousebutton][SwapMouseButton]] ��������ת������Ҽ������塣�� *SPI_SETMOUSEBUTTONSWAP* ���ݸ� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ��������һ��ת����갴ť�ķ�������Ҫע����ǣ������һ��������Դ�������ĵ�ת��Ӱ�����е�Ӧ�á�
+应用可以在 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]] 的调用中指定 *SM_CMOUSEBUTTONS* 了来获取鼠标按钮的个数。要想将鼠标配置为左撇子用户使用，应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-swapmousebutton][SwapMouseButton]] 函数来调转左键和右键的意义。将 *SPI_SETMOUSEBUTTONSWAP* 传递给 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数是另一种转换鼠标按钮的方法。需要注意的是，鼠标是一个共享资源，对鼠标的调转会影响所有的应用。
 
-* X ��ť
+* X 按钮
 
-�� Windows ֧��������ʱ������������֮�⣬���� XBUTTON1 �� XBUTTON2����������ʹ���������ʱ���ṩ����ǰ����󵼺��Ĺ��ܡ�
+当 Windows 支持五键鼠标时，除了左中右之外，还有 XBUTTON1 和 XBUTTON2，它们在你使用浏览器的时候提供了向前和向后导航的功能。
 
-ͨ�� *WM_XBUTTON** �� *WM_NCXBUTTON** ��Ϣ�����ڹ������ṩ�˶� XBUTTON1 �� XBUTTON2 ��֧�֡���Щ��Ϣ�� *WPARAM* �е� HIWORD ������һ����־��������ȷ���ĸ� X ��ť�������ˡ�
+通过 *WM_XBUTTON** 和 *WM_NCXBUTTON** 消息，窗口管理器提供了对 XBUTTON1 和 XBUTTON2 的支持。这些消息的 *WPARAM* 中的 HIWORD 包含了一个标志，它用于确定哪个 X 按钮被按下了。
 
-������Ϣ֧�� XBUTTON1 �� XBUTTON2�������һ������깳�ӹ��̵Ľṹ��
+以下消息支持 XBUTTON1 和 XBUTTON2：（最后一个是鼠标钩子过程的结构）
 
 - [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-appcommand][WM_APPCOMMAND]]
 - [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-ncxbuttondblclk][WM_NCXBUTTONDBLCLK]]
@@ -53,7 +53,7 @@ Windows ���֧��������������ꡣ��һ����������ϣ���ť�����Ϊ������м����Ҽ���
 - [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttonup][WM_XBUTTONUP]]
 - [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-mousehookstructex][MOUSEHOOKSTRUCTEX]]
 
-����� API ��������֧����Щ��ť��
+下面的 API 被调整以支持这些按钮：
 
 - [[https://msdn.microsoft.com/library/ms646260(v=VS.85.aspx)][mouse_event]]
 - [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644991(v=vs.85)][ShellProc]]
@@ -61,194 +61,194 @@ Windows ���֧��������������ꡣ��һ����������ϣ���ť�����Ϊ������м����Ҽ���
 - [[https://msdn.microsoft.com/library/ms646273(v=VS.85.aspx)][MOUSEINPUT]]
 - [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/inputmsg/wm-parentnotify][WM_PARENTNOTIFY]]
 
-���Ӧ�ã�component allpication���е��Ӵ��ڲ�̫����ֱ��ʵ�� XBUTTON1 �� XBUTTON2 �������˵� X ��ť�����ʱ�� *DefWindowProc* ���򴰿ڷ��� *WM_APPCOMMAND* ��Ϣ�� *DefWindowProc* Ҳ�������ĸ����ڷ��� *WM_APPCOMMAND* ��Ϣ������ı��˵����Ҽ������ķ�ʽ���� ���� *DefWindowProc* �ᷢ�� [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-contextmenu][WM_CONTEXTMENU]] ���˵��Լ����ĸ����ڡ����⣬��� *DefWindowProc* ���յ��˶������ڵ� *WM_APPCOMMAND* ��Ϣ������ʹ�� HSHELL_AAPPCOMMAND �������� shell ���ӡ�
+组件应用（component allpication）中的子窗口不太可能直接实现 XBUTTON1 和 XBUTTON2 的命令。因此当 X 按钮被点击时， *DefWindowProc* 会向窗口发送 *WM_APPCOMMAND* 消息。 *DefWindowProc* 也会向它的父窗口发送 *WM_APPCOMMAND* 消息。这和文本菜单被右键调动的方式很像 —— *DefWindowProc* 会发送 [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-contextmenu][WM_CONTEXTMENU]] 给菜单以及它的父窗口。另外，如果 *DefWindowProc* 接收到了顶级窗口的 *WM_APPCOMMAND* 消息，它会使用 HSHELL_AAPPCOMMAND 码来调用 shell 钩子。
 
-* �����Ϣ
+* 鼠标消息
 
-���û��ƶ������ǰ��º��ͷ���갴ťʱ����������һ�������¼���ϵͳ�Ὣ��������¼�ת��Ϊ��Ϣ��������Ͷ�ݵ����ʵ��߳���Ϣ�����С��������Ϣ��ϢͶ���ٶȿ����̵߳Ĵ����ٶ�ʱ��ϵͳ�Ὣ��������������Ϣ������
+当用户移动鼠标或是按下和释放鼠标按钮时，鼠标会生成一个输入事件。系统会将鼠标输入事件转化为消息并将它们投递到合适的线程消息队列中。当鼠标消息消息投递速度快于线程的处理速度时，系统会将除了最近的鼠标消息撤销。
 
-��������ڴ��ڷ�Χ�ڻ򴰿ڲ�׽����꣬����¼������󴰿ڻ��յ������Ϣ�������Ϣ����Ϊ�������ࣺ�ͻ�����Ϣ�ͷǿͻ�����Ϣ��һ����ԣ�Ӧ�ûᴦ���ͻ�����Ϣ�����Ե��ǿͻ�����Ϣ��
+当鼠标光标在窗口范围内或窗口捕捉了鼠标，鼠标事件发生后窗口会收到鼠标消息。鼠标消息被分为两个大类：客户区消息和非客户区消息。一般而言，应用会处理客户区消息并忽略掉非客户区消息。
 
-** �ͻ��������Ϣ
+** 客户区鼠标消息
 
-����ڴ�����ʱ������¼�����ʱ���ڻ��յ��ͻ�����Ϣ��������ڿͻ������ƶ����ʱϵͳ���򴰿�Ͷ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousemove][WM_MOUSEMOVE]] ��Ϣ�����û����»��ͷ���갴��ʱ������Ͷ��������Ϣ֮һ��
+鼠标在窗口内时，鼠标事件发生时窗口会收到客户区消息。当鼠标在客户区内移动鼠标时系统会向窗口投递 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousemove][WM_MOUSEMOVE]] 消息。当用户按下或释放鼠标按键时，它会投递以下消息之一。
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondblclk][WM_LBUTTONDBLCLK]]�����˫��
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondblclk][WM_LBUTTONDBLCLK]]，左键双击
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]]���������
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]]，左键按下
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttonup][WM_LBUTTONUP]]������ͷ�
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttonup][WM_LBUTTONUP]]，左键释放
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondblclk][WM_MBUTTONDBLCLK]]���м�˫��
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondblclk][WM_MBUTTONDBLCLK]]，中键双击
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondown][WM_MBUTTONDOWN]]���м�����
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondown][WM_MBUTTONDOWN]]，中键按下
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttonup][WM_MBUTTONUP]]���м��ͷ�
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttonup][WM_MBUTTONUP]]，中键释放
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttondblclk][WM_RBUTTONDBLCLK]]���Ҽ�˫��
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttondblclk][WM_RBUTTONDBLCLK]]，右键双击
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttondown][WM_RBUTTONDOWN]]���Ҽ�����
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttondown][WM_RBUTTONDOWN]]，右键按下
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttonup][WM_RBUTTONUP]]���Ҽ��ͷ�
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-rbuttonup][WM_RBUTTONUP]]，右键释放
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttondblclk][WM_XBUTTONDBLCLK]]��X ��˫��
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttondblclk][WM_XBUTTONDBLCLK]]，X 键双击
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttondown][WM_XBUTTONDOWN]]��X ������
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttondown][WM_XBUTTONDOWN]]，X 键按下
 
-- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttonup][WM_XBUTTONUP]]��X ���ͷ�
-
-
-���⣬Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent][TrackMouseEvent]] ������ϵͳ��������������Ϣ���������һ��ĳ���ͻ�������ͣ����һ��ʱ���ϵͳ��Ͷ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousehover][WM_MOUSEHOVER]] ��Ϣ��������뿪�ͻ���ʱ��ϵͳ��Ͷ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave][WM_MOUSELEAVE]] ��Ϣ��
-
-*** ��Ϣ����
-
-�ͻ��������Ϣ�� *lParam* ����ָ���˹���ȵ��λ�á���λ����ָ�����ȵ�� x ���꣬��λ��ָ���� y ���ꡣ����ʹ�õ��ǿͻ������ꡣ�ڿͻ�������ϵͳ�У�ԭ���ǿͻ������ϽǵĶ��㡣
-
-*wParam* ������ָ��������갴���Լ� CTRL �� SHIFT ����������¼�����ʱ��״̬�����������Ҫ������갴����Ϣ�� CTRL �� SHIFT ������Ϣʱ�����Щ��־�� *wParam* ����������ֵ��λ����ϣ�
-
-- *MK_CONTROL* ��CTRL ������
-
-- *MK_LBUTTON* ���������
-
-- *MK_MBUTTON* ���м�����
-
-- *MK_RBUTTON* ���Ҽ�����
-
-- *MK_SHIFT* ��SHIFT ������
-
-- *MK_XBUTTON1* ����һ�� X ��ť����
-
-- *MK_XBUTTON2* ���ڶ��� X ��ť����
+- [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttonup][WM_XBUTTONUP]]，X 键释放
 
 
-*** ˫����Ϣ
+另外，应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent][TrackMouseEvent]] 函数让系统发送其他两个消息。当光标在一个某个客户区上悬停超过一段时间后，系统会投递 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousehover][WM_MOUSEHOVER]] 消息。当鼠标离开客户区时，系统会投递 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave][WM_MOUSELEAVE]] 消息。
 
-���û���������������갴ťʱ��ϵͳ������˫����Ϣ�����û�������ťʱ��ϵͳ�Ὠ��һ���Թ���ȵ�Ϊ���ĵľ��Σ���Ҳ�����굥��������ʱ����б�ǡ����û��ڶ��ΰ���ͬ���İ�ťʱ��ϵͳ���ж��ȵ��Ƿ����ھ����У��������һ�ε������ȥ��ʱ�䡣����ȵ����ھ������ҹ�ȥ��ʱ��û�г���˫����ʱ�����ֵ��ϵͳ������һ��˫����Ϣ��
+*** 消息参数
 
-Ӧ�ÿ��Ի�ȡ������˫����ʱ����ޣ�ͨ��ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime][GetDoubleClickTime]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdoubleclicktime][SetDoubleClickTime]] ���������⣬Ӧ�ÿ���ʹ�ô��� *SPI_SETDOUBLECLICKTIME* ��־�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ����������˫��ʱ�����ֵ��Ӧ��Ҳ����ʹ�� *SPI_SETDOUBLECLKWIDTH* �� *SPI_SETDOUBLECLKHEIGHT* ��־���� *SetParametersInfo* ����������˫�����εĴ�С����Ҫע����ǣ���Щ���û�Ӱ�����е�Ӧ�á�
+客户区鼠标消息的 *lParam* 参数指明了光标热点的位置。低位的字指定了热点的 x 坐标，高位字指定了 y 坐标。坐标使用的是客户区坐标。在客户区坐标系统中，原点是客户区左上角的顶点。
 
-Ӧ�ö���Ĵ���Ĭ�ϲ������˫����Ϣ����������˫����Ϣ���漰ϵͳ��������Щ˫����Ϣֻ��Ϊ����ʹ���� *CS_DBLCLKS* �������Ĵ������ɡ�
+*wParam* 包含着指明其他鼠标按键以及 CTRL 和 SHIFT 按键在鼠标事件发生时的状态。你可以在需要其他鼠标按键消息或 CTRL 和 SHIFT 按键信息时检查这些标志。 *wParam* 可以是以下值的位与组合：
 
-˫����Ϣ������һ������Ϣ���еĵ�������ͷ������Ϣ���ɵ�һ�ε��������İ�ť���º��ͷ���Ϣ���ڶ��ε���������˫����Ϣ��˫����Ϣ������Ű�ť�ͷ���Ϣ�����磬����İ�ť��������˳������˫����Ϣ���У�
+- *MK_CONTROL* ，CTRL 键按下
+
+- *MK_LBUTTON* ，左键按下
+
+- *MK_MBUTTON* ，中键按下
+
+- *MK_RBUTTON* ，右键按下
+
+- *MK_SHIFT* ，SHIFT 键按下
+
+- *MK_XBUTTON1* ，第一个 X 按钮按下
+
+- *MK_XBUTTON2* ，第二个 X 按钮按下
+
+
+*** 双击消息
+
+当用户连续单击两次鼠标按钮时，系统会生成双击消息。当用户单击按钮时，系统会建立一个以光标热点为中心的矩形，它也会对鼠标单击发生的时间进行标记。当用户第二次按下同样的按钮时，系统会判断热点是否仍在矩形中，并计算第一次单击后过去的时间。如果热点仍在矩形中且过去的时间没有超过双击的时间界限值，系统会生成一个双击消息。
+
+应用可以获取和设置双击的时间界限，通过使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime][GetDoubleClickTime]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdoubleclicktime][SetDoubleClickTime]] 函数。另外，应用可以使用带有 *SPI_SETDOUBLECLICKTIME* 标志的 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数来设置双击时间界限值。应用也可以使用 *SPI_SETDOUBLECLKWIDTH* 和 *SPI_SETDOUBLECLKHEIGHT* 标志用于 *SetParametersInfo* 函数来设置双击矩形的大小。需要注意的是，这些设置会影响所有的应用。
+
+应用定义的窗口默认不会接收双击消息。由于生成双击消息会涉及系统开销，这些双击消息只会为属于使用了 *CS_DBLCLKS* 类风格的类的窗口生成。
+
+双击消息总是在一个四消息序列的第三个。头两个消息是由第一次单击产生的按钮按下和释放消息。第二次单击会生成双击消息，双击消息后面跟着按钮释放消息。例如，左键的按钮会以如下顺序生成双击消息序列：
 
 1. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]]
 2. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttonup][WM_LBUTTONUP]]
 3. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondblclk][WM_LBUTTONDBLCLK]]
 4. [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttonup][WM_LBUTTONUP]]
 
-��Ϊ�������ǻ��ڽ���˫����Ϣǰ�յ���ť������Ϣ��Ӧ��ͨ��ʹ��˫����Ϣ����չһ���Ե�����Ϣ��ʼ������
+因为窗口总是会在接收双击消息前收到按钮按下消息，应用通常使用双击消息来拓展一个以单击消息开始的任务。
 
-** �ǿͻ��������Ϣ
+** 非客户区鼠标消息
 
-������¼������ڴ��ڳ��˿ͻ����Ĳ���ʱ�����ڻ��յ�һ���ǿͻ��������Ϣ�����ڵķǿͻ����ɱ߿򡢲˵��������������������������ڲ˵�����С����ť����󻯰�ť��ɡ�
+当鼠标事件发生在窗口除了客户区的部分时，窗口会收到一个非客户区鼠标消息。窗口的非客户区由边框、菜单栏、标题栏、滚动条栏、窗口菜单、最小化按钮和最大化按钮组成。
 
-ϵͳ���ɷǿͻ�����Ϣ�Թ����Լ�ʹ�á����磬������ȵ��ƶ������ڱ߿�ʱ��ϵͳʹ�÷ǿͻ�����Ϣ���������״�ı�Ϊһ��˫��ͷ�����ڱ��뽫�ǿͻ��������Ϣ���ݸ� *DefWindowProc* �����������ڽ������ӿڡ�
+系统生成非客户区消息以供它自己使用。例如，当光标热点移动到窗口边框时，系统使用非客户区消息来将光标形状改变为一个双箭头。窗口必须将非客户区鼠标消息传递给 *DefWindowProc* 函数来利用内建的鼠标接口。
 
-��ÿһ���ͻ��������Ϣ������һ����֮��Ӧ�ķǿͻ��������Ϣ����Щ��Ϣ�����ֺ����ƣ����˷ǿͻ�����Ϣ�Ŀ�ͷ�� NC �⡣���磬�ڷǿͻ����ƶ��������� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-ncmousemove][WM_NCMOUSEMOVE]] ��Ϣ���ڷǿͻ������������������� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nclbuttondown][WM_NCLBUTTONDOWN]] ��Ϣ��
+对每一个客户区鼠标消息，都有一个与之对应的非客户区鼠标消息。这些消息的名字很相似，除了非客户区消息的开头是 NC 外。例如，在非客户区移动光标会生成 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-ncmousemove][WM_NCMOUSEMOVE]] 消息，在非客户区按下鼠标左键会生成 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nclbuttondown][WM_NCLBUTTONDOWN]] 消息。
 
-�ǿͻ�����Ϣ�� *lParam* ������һ����������ȵ� x �� y ����Ľṹ����ͻ��������Ϣ�������᲻ͬ���������������Ļ����������ǿͻ������ᡣ����Ļ����ϵͳ�У����еĵ��ԭ������Ļ�����Ͻǡ�
+非客户区消息的 *lParam* 参数是一个包含鼠标热点 x 和 y 坐标的结构。与客户区鼠标消息的坐标轴不同，这个坐标轴是屏幕坐标轴而不是客户坐标轴。在屏幕坐标系统中，所有的点的原点是屏幕的左上角。
 
-*wParam* �����ŵ�����ԣ�hit-test��ֵ����ָ���˷ǿͻ�������¼��ķ����ء�
+*wParam* 包含着点击测试（hit-test）值，它指明了非客户区鼠标事件的发生地。
 
-*** WM_NCHITTEST ��Ϣ
+*** WM_NCHITTEST 消息
 
-������¼�����ʱ��ϵͳ�������������ȵ��׽�����Ĵ��ڷ��� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest][WM_NCHITTEST]] ��Ϣ��ϵͳʹ�������Ϣ���ж��Ƿ��Ϳͻ�����Ϣ���Ƿǿͻ�����Ϣ����������ƶ���Ϣ����갴ť��Ϣ��Ӧ�ñ��뽫�����ݸ� *DefWindowProc* ������
+当鼠标事件发生时，系统会向包含鼠标光标热点或捕捉了鼠标的窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest][WM_NCHITTEST]] 消息。系统使用这个消息来判断是发送客户区消息还是非客户区消息。接收鼠标移动消息和鼠标按钮消息的应用必须将它传递给 *DefWindowProc* 函数。
 
-*lParam* ���������˹���ȵ����Ļ���ꡣ *DefWindowProc* ������������м��飬������һ��ָ���ȵ���������ĵ������ֵ�����ֵ����������֮һ��
+*lParam* 参数包含了光标热点的屏幕坐标。 *DefWindowProc* 函数对坐标进行检验，并返回一个指明热点所在区域的点击测试值。这个值可以是以下之一：
 
-- HTBORDER����û�гߴ�߿�Ĵ��ڱ߿���
+- HTBORDER，在没有尺寸边框的窗口边框中
 
-- HTBOTTM���ڱ߿����ƽ����
+- HTBOTTM，在边框的下平面中
 
-- HTBOTTOMLEFT���ڴ��ڱ߿�����½�
+- HTBOTTOMLEFT，在窗口边框的左下角
 
-- HTBOTTOMRIGHT���ڴ��ڱ߿�����½�
+- HTBOTTOMRIGHT，在窗口边框的右下角
 
-- HTCAPTION���ڱ�����
+- HTCAPTION，在标题栏
 
-- HTCLIENT���ڿͻ���
+- HTCLIENT，在客户区
 
-- HTCLOSE���ڹرհ�ť��
+- HTCLOSE，在关闭按钮处
 
-- HTERROR������Ļ�����ϻ��ڴ��ڵķֽ�����
+- HTERROR，在屏幕背景上或在窗口的分界线上
 
-- HTGROWBOX���ڳߴ����
+- HTGROWBOX，在尺寸盒中
 
-- HTHELP���ڰ�����ť��
+- HTHELP，在帮助按钮上
 
-- HTHSCROLL����ˮƽ��������
+- HTHSCROLL，在水平滚动条上
 
-- HTLEFT���ڴ��ڵ���߿�
+- HTLEFT，在窗口的左边框
 
-- HTMENU���ڲ˵���
+- HTMENU，在菜单上
 
-- HTMAXBUTTON������󻯰�ť��
+- HTMAXBUTTON，在最大化按钮上
 
-- HTMINBUTTON������С����ť��
+- HTMINBUTTON，在最小化按钮上
 
-- HTNOWHERE���� HTERROR һ��
+- HTNOWHERE，与 HTERROR 一样
 
-- HTREDUCE������С����ť��
+- HTREDUCE，在最小化按钮上
 
-- HTRIGHT���ڴ��ڵ��ұ߿�
+- HTRIGHT，在窗口的右边框
 
-- HTSIZE�� �� HTGROWBOX һ��
+- HTSIZE， 和 HTGROWBOX 一样
 
-- HTSYSMENU����ϵͳ�˵����Ӵ��ڵĹرհ�ť��
+- HTSYSMENU，在系统菜单或子窗口的关闭按钮上
 
-- HTTOP���ڴ��ڿ�������ˮƽ����
+- HTTOP，在窗口框的上面的水平线上
 
-- HTTOPRIGHT���ڴ��ڿ�����Ͻ�
+- HTTOPRIGHT，在窗口框的右上角
 
-- HTTOPLEFT���ڴ��ڿ�����Ͻ�
+- HTTOPLEFT，在窗口框的左上角
 
-- HTTRANSPARENT���ڱ����ǵģ���ͬһ�̵߳Ĵ�����
+- HTTRANSPARENT，在被覆盖的，且同一线程的窗口中
 
-- HTVSCROLL���ڴ�ֱ��������
+- HTVSCROLL，在垂直滚动条上
 
-- HTZOOM������󻯰�ť��
+- HTZOOM，在最大化按钮上
 
 
-�������ڴ��ڵĿͻ����У� *DefWindowProc* �᷵�� *HTCLIENT* �������ڹ�����ϵͳ�������ֵʱ��ϵͳ�Ὣ��Ļ����ת��Ϊ�ͻ������꣬��Ͷ�ݺ��ʵĿͻ��������Ϣ��
+如果光标在窗口的客户区中， *DefWindowProc* 会返回 *HTCLIENT* 。当窗口过程向系统返回这个值时，系统会将屏幕坐标转化为客户区坐标，并投递合适的客户区鼠标消息。
 
-������ȵ��ڴ��ڵķǿͻ���ʱ�� *DefWindowProc* �᷵�������Ļ��в���ֵ�������ڹ��̷�����Щֵ�е�һ��ʱ��ϵͳ��Ͷ�ݷǿͻ��������Ϣ�������в���ֵ������Ϣ�� *wParam* �У�������������ֵ���� *lParam* �С�
+当光标热点在窗口的非客户区时， *DefWindowProc* 会返回其他的击中测试值。当窗口过程返回这些值中的一个时，系统会投递非客户区鼠标消息，将击中测试值放在消息的 *wParam* 中，并将光标的坐标值放在 *lParam* 中。
 
-* ������
+* 鼠标滚轮
 
-���Ĺ��ֽ���˰����͹��֡��������в������ģ����ȷֲ��İ��ڡ������������ʱ��ÿ������һ�����ڣ�������Ϣ�ᱻ���͵����Ӧ�á����ְ���Ҳ������Ϊͨ�� Windows ���м���ť����ѹ���ͷ������ֻᷢ�ͱ�׼ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttonup][WM_MBUTTONUP]] �� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondown][WM_MBUTTONDOWN]] ��Ϣ��˫�����ֻᷢ�ͱ�׼ [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondblclk][WM_MBUTTONDBLCLK]] ��Ϣ��
+鼠标的滚轮结合了按键和滚轮。滚轮上有不连续的，均匀分布的凹口。当你滚动滚轮时，每当滚过一个凹口，滚轮消息会被发送到你的应用。滚轮按键也可以作为通常 Windows 的中键按钮。按压和释放鼠标滚轮会发送标准 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttonup][WM_MBUTTONUP]] 和 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondown][WM_MBUTTONDOWN]] 消息。双击滚轮会发送标准 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mbuttondblclk][WM_MBUTTONDBLCLK]] 消息。
 
-������Ϣͨ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel][WM_MOUSEWHEEL]] ��Ϣ�õ�֧�֡�
+滚轮消息通过 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel][WM_MOUSEWHEEL]] 消息得到支持。
 
-�������ᷢ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel][WM_MOUSEWHEEL]] ��Ϣ���۽��Ĵ��ڡ� *DefWindowProc* ��������Ϣ�������ڵĸ����ڡ������Ϣ��Ӧ�����ڲ�ת������Ϊ *DefWindowProc* �Ὣ��Ϣ���Ÿ�����parent chain�����ݣ�ֱ���ҵ���������Ϣ�Ĵ���Ϊֹ��
+滚动鼠标会发送 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel][WM_MOUSEWHEEL]] 消息到聚焦的窗口。 *DefWindowProc* 函数将消息传到窗口的父窗口。这个消息不应该在内部转发，因为 *DefWindowProc* 会将消息沿着父链（parent chain）传递，直到找到处理该消息的窗口为止。
 
-** �жϹ���������
+** 判断滚动的行数
 
-Ӧ��Ӧ��ʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ����������ÿ������������ÿ�����ڣ�����ɵĹ���������Ҫ����������Ӧ�ÿ����������ã�
+应用应该使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数来检索每个滚动操作（每个凹口）所造成的滚动行数。要检索行数，应用可以这样调用：
 
 #+BEGIN_SRC c
 SystemParametetsInfo(SPI_GETWHELLSCROLLLINES, 0, pulScrollLines, 0);
 #+END_SRC
 
-���� =pulScrollLines= ָ��һ���޷������������������ս���Ĺ���������
+变量 =pulScrollLines= 指向一个无符号整数，它用来接收建议的滚动行数。
 
-- ���ֵΪ 0����Ӧ�ý��й���
+- 如果值为 0，不应该进行滚动
 
-- ���ֵΪ *WHELL_PAGESCROLL* �����ֵĹ���Ӧ�ñ�����Ϊ�������� page down �� page up
+- 如果值为 *WHELL_PAGESCROLL* ，滚轮的滚动应该被解释为滚动条的 page down 或 page up
 
-- ���ֵ���ڿɼ���������������Ӧ�ñ�����Ϊ��ҳ����
+- 如果值大于可见行数，滚动操作应该被解释为翻页操作
 
 
-����������Ĭ��ֵΪ 3������û�ͨ����������е��������ҳ�ı��˹�������������ϵͳ������еĶ������ڹ㲥 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-settingchange][WM_SETTINGCHANGE]] ��Ϣ����������ָ�� *SPI_SETWHELLSCROLLLINES* ����Ӧ�ý��յ��˸���Ϣ����Ӧ��������ȡ���µĹ���������
+滚动行数的默认值为 3。如果用户通过控制面板中的鼠标属性页改变了滚动行数，操作系统会对所有的顶级窗口广播 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-settingchange][WM_SETTINGCHANGE]] 消息，并在其中指定 *SPI_SETWHELLSCROLLLINES* 。当应用接收到了该消息，它应该这样来取得新的滚动行数：
 
 #+BEGIN_SRC c
 SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, pulScrollLines, 0);
 #+END_SRC
 
-Ҫ�ж������û�й��֣�����ʹ�� *SM_MOUSEWHEELPRESENT* ��־���� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]]������ *TRUE* ��˵����������ˡ�
+要判断鼠标有没有滚轮，可以使用 *SM_MOUSEWHEELPRESENT* 标志调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsystemmetrics][GetSystemMetrics]]。返回 *TRUE* 则说明鼠标连接了。
 
-* �������
+* 鼠标点击锁
 
-���ĵ������ClickLock�����������û���һ�ε����������갴ť����Ӧ�ÿ�������ť��Ȼ�Ǵ��ڰ�ѹ״̬��Ҫ�԰�ť������Ӧ�ÿ��Է�������������Ϣ���û����Ե����κ���갴ť����ʹ���û����Ը��򵥵���һЩ���ӵ���������ϡ����ڸ������Ϣ�����Զ� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ����ʹ�����±�־��
+鼠标的点击锁（ClickLock）特性允许用户在一次点击后锁定鼠标按钮。在应用看来，按钮仍然是处于按压状态。要对按钮解锁，应用可以发送任意的鼠标消息，用户可以单击任何鼠标按钮。这使得用户可以更简单的做一些复杂的鼠标操作组合。关于更多的消息，可以对 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数使用以下标志：
 
 - *SPI_GETMOUSECLICKLOCK*
 
@@ -259,68 +259,68 @@ SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, pulScrollLines, 0);
 - *SPI_SETMOUSECLICKLOCKTIME*
 
 
-* �������
+* 鼠标声呐
 
-����������Կ������û����²��ͷ� CTRL ��ʱ��Χ�����ָ�������ʾ���ͬ��Բ��������԰����û��ڻ��ҵ���Ļ�ϡ��߷ֱ��ʵ���Ļ�ϡ����ʵ���ʾ���϶�λ���ָ�롣
+鼠标声呐特性可以在用户按下并释放 CTRL 键时，围绕鼠标指针短暂显示多个同心圆。这个特性帮助用户在混乱的屏幕上、高分辨率的屏幕上、劣质的显示器上定位鼠标指针。
 
-������Ϣ����ͨ���ڵ��� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ����ʱʹ�����±�־����ã�
+更多消息可以通过在调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 函数时使用以下标志来获得：
 
 - *SPI_GETMOUSESONAR*
 
 - *SPI_SETMOUSESONAR*
 
 
-* �����ʧ��vanish��
+* 鼠标消失（vanish）
 
-�����ʧ���������û��ڴ��ֵ�ʱ������ָ�롣���û��ƶ����ʱ�����ָ������³��֡�������Ա��������ָ���������ı���ɸ��ţ����磬�� e-mail �������ĵ��С�������Ϣ����ʹ�����±�־���� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfoA]]
+鼠标消失功能允许用户在打字的时候隐藏指针。在用户移动鼠标时，鼠标指针会重新出现。这个特性避免了鼠标指针对输入的文本造成干扰，例如，在 e-mail 或其他文档中。更多消息可以使用以下标志调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfoA]]
 
 - *SPI_GETMOUSEVANISH*
 
 - *SPI_SETMOUSEVANISH*
 
 
-* ���ڼ���
+* 窗口激活
 
-���û����һ������Ծ�Ķ������ڻ������Ӵ���ʱ��ϵͳ��������������ڻ��Ӵ��ڷ��� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseactivate][WM_MOUSEACTIVATE]] ��Ϣ��ϵͳ��Ͷ�� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest][WM_NCHITTEST]] ��Ϣ���򴰿ڷ��������Ϣ�����������ڰ�ť������Ϣ֮ǰ�ġ��� *WM_MOUSEACTIVATE* ��Ϣ�����ݸ� *DefWindowProc* ����ʱ��ϵͳ�ἤ������ڲ�����ť���µ���Ϣ�����������ڻ��Ӵ��ڡ�
+当用户点击一个不活跃的顶级窗口或它的子窗口时，系统会向这个顶级窗口或子窗口发送 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseactivate][WM_MOUSEACTIVATE]] 消息。系统在投递 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest][WM_NCHITTEST]] 消息后向窗口发送这个消息，但是它是在按钮按下消息之前的。当 *WM_MOUSEACTIVATE* 消息被传递给 *DefWindowProc* 函数时，系统会激活顶级窗口并将按钮按下的消息发给顶级窗口或子窗口。
 
-ͨ���� [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseactivate][WM_MOUSEACTIVATE]] ���������ڿ��Կ��ƶ��������Ƿ���Ϊ�������������Լ������Ƿ�������İ�ť������Ϣ����ͨ���������µ�ֵ���������Ŀ�ģ�
+通过对 [[https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mouseactivate][WM_MOUSEACTIVATE]] 处理，窗口可以控制顶级窗口是否因为鼠标点击而被激活，以及窗口是否接收随后的按钮按下消息。它通过返回以下的值来达成它的目的：
 
-- *MA_ACTIVATE* ������ڲ������������Ϣ
+- *MA_ACTIVATE* ，激活窗口并不撤销鼠标消息
 
-- *MA_NOACTIVATE* ��������ڣ���������Ϣ
+- *MA_NOACTIVATE* ，不激活窗口，不撤回消息
 
-- *MA_ACTIVATEANDEAT* ������ڲ�������Ϣ
+- *MA_ACTIVATEANDEAT* ，激活窗口并撤回消息
 
-- *MA_NOACTIVATEANDEAT* ��������ڣ�������Ϣ��
+- *MA_NOACTIVATEANDEAT* ，不激活窗口，撤回消息。
 
 
-* ����ʾ��
+* 代码示例
 
-�������ʹ�õ�һЩ���ӣ��ɼ���΢�����ĵ���[[https://docs.microsoft.com/en-us/windows/win32/inputdev/using-mouse-input][Using Mouse Input]]����������ϸ������һ����깦�ܵ�ʹ�á������Ҷ������ֵ�ʹ�ú������ͣ���뿪��Ϣ��ʹ�ø��������򵥵����ӡ�
+关于鼠标使用的一些例子，可见于微软的文档：[[https://docs.microsoft.com/en-us/windows/win32/inputdev/using-mouse-input][Using Mouse Input]]，它上面详细介绍了一般鼠标功能的使用。这里我对鼠标滚轮的使用和鼠标悬停与离开消息的使用给出两个简单的例子。
 
-** �����ֵ�ʹ��
+** 鼠标滚轮的使用
 
-�����ֵ���Ϣ�� *WM_MOUSEWHEEL* ������ *wParam* ��λ���ǹ��ֹ����ľ��룬�� *WHEEL_DELTA* ����������ʾ������ֵ�� 120�����ֵ������˵��������ǰ������Զ���û����Ǹ�����˵�������������������û�������ֵ���¹�����ֵ���Ϲ���
+鼠标滚轮的消息是 *WM_MOUSEWHEEL* ，它的 *wParam* 高位字是滚轮滚动的距离，以 *WHEEL_DELTA* 的整数倍表示，它的值是 120。这个值是正数说明滚轮向前滚动，远离用户；是负数则说明滚轮向后滚动，朝向用户。（负值向下滚，正值向上滚）
 
-*wParam* �ĵ�λ��ָ��������Ƿ��¡� *lParam* ������λ�á�
+*wParam* 的低位字指明虚拟键是否按下。 *lParam* 是鼠标的位置。
 
-ʹ�����´�������ù����������������״̬��
+使用以下代码来获得滚动距离和其他按键状态：
 
 #+BEGIN_SRC c
 fwKeys = GET_KEYSTATE_WPARAM(wParam);
 zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
 #+END_SRC
 
-ʹ�����´�������������ֵ��
+使用以下代码获得鼠标的坐标值：
 
 #+BEGIN_SRC c
 xPos = GET_X_LPARAM(lParam);
 yPos = GET_Y_LPARAM(lParam)
 #+END_SRC
 
-ʹ�� *SystemParametersInfo* �������Ի�ȡһ�ι�����Ҫ������������ʹ�� *WHELL_DELTA* ���Ի�õ�ֵ����ÿ����һ������Ҫ�Ĺ������롣
+使用 *SystemParametersInfo* 函数可以获取一次滚轮需要滚动的行数。使用 *WHELL_DELTA* 除以获得的值就是每滚动一行所需要的滚动距离。
 
-��ʾ�������У���ʹ����һ�������� 0 - 999 �����ֵ��ַ���ָ�룬���� 1000 ���ַ�����Ϊ��ʾ�����ݡ��ַ����ı�������ͳ�ʼ������������ʾ��
+在示例程序中，我使用了一个包含从 0 - 999 的数字的字符串指针，以这 1000 个字符串作为显示的内容。字符串的变量定义和初始化函数如下所示：
 
 #+BEGIN_SRC c
 char Nums[1000][4];
@@ -334,7 +334,7 @@ void GenZero2Thousand(char a[][4])
 }
 #+END_SRC
 
-�����Ǵ��ڹ��̺�����ʹ�� *ScrollWindow* ��������Ļ
+下面是窗口过程函数，使用 *ScrollWindow* 来滚动屏幕
 
 #+BEGIN_SRC c
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -444,15 +444,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #+END_SRC
 
-���벢���У����Կ����ͻ����ϵ����֣��������֣����������ƶ�����ൽ 999��
+编译并运行，可以看到客户区上的数字，滚动滚轮，可以上下移动，最多到 999。
 
-** ��ͣ���뿪��Ϣ
+** 悬停与离开消息
 
-��ͣ��Ϣ������˼�壬������ڴ�������ͣ��һ���¼���ᴥ�����¼����뿪��Ϣ��������뿪ĳ������ʱ�������¼���
+悬停消息，顾名思义，当鼠标在窗口区域停留一段事件后会触发该事件。离开消息即是鼠标离开某个窗口时触发的事件。
 
-ʹ�� *WM_MOUSEHOVER* �� *WM_MOUSELEAVE* ��Ϣǰ����Ҫ���� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent][TrackMouseEvent]] �������ô����ܹ�������������Ϣ��
+使用 *WM_MOUSEHOVER* 和 *WM_MOUSELEAVE* 消息前，需要调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent][TrackMouseEvent]] 函数来让窗口能够接收这两个消息。
 
-*TrackMouseEvent* ��������һ������ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/ns-winuser-trackmouseevent][TRACKMOUSEEVENT]] �Ľṹ��ָ�룬�������������ʾ��
+*TrackMouseEvent* 函数接收一个叫做 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/ns-winuser-trackmouseevent][TRACKMOUSEEVENT]] 的结构的指针，它的组成如下所示：
 
 #+BEGIN_SRC c
 typedef struct tagTRACKMOUSEEVENT {
@@ -463,26 +463,26 @@ typedef struct tagTRACKMOUSEEVENT {
 } TRACKMOUSEEVENT, *LPTRACKMOUSEEVENT;
 #+END_SRC
 
-��Ա *cbSize* �ǽṹ�Ĵ�С���� =sizeof(TRACKMOUSEEVENT)= ��
+成员 *cbSize* 是结构的大小，即 =sizeof(TRACKMOUSEEVENT)= 。
 
-��Ա *dwFlags* ����ָ������Ҫ�ķ�������ֵ����������ֵ����ϣ�
+成员 *dwFlags* 用来指定所需要的服务，它的值可以是以下值的组合：
 
-- *TME_CANCEL* ����ʾ��������Ҫȡ����ǰ��׷�����󣬵�����Ӧ��ͬ��ָ����Ҫȡ����׷�ٵ����ͣ����磬��Ҫȡ����ͣ׷�٣������߱���ָ�� *TME_CANCEL* �� *TME_HOVER* ��
+- *TME_CANCEL* ，表示调用者想要取消先前的追踪请求，调用者应该同事指定想要取消的追踪的类型，例如，想要取消悬停追踪，调用者必须指定 *TME_CANCEL* 和 *TME_HOVER* 。
 
-- *TME_HOVER* ����ʾ��������Ҫ׷����ͣ��Ϣ��֪ͨ�� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mousehover][WM_MOUSEHOVER]] ��Ϣ���͡������ͣ׷���Ѿ����ڻ�Ծ״̬���ٴ�ʹ�������־���ú����������ʱ����������ָ�벻�ڴ��ڻ������ϣ������־�ᱻ���ԡ�
+- *TME_HOVER* ，表示调用者想要追踪悬停消息。通知以 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mousehover][WM_MOUSEHOVER]] 消息发送。如果悬停追踪已经处于活跃状态，再次使用这个标志调用函数会重设计时器。如果鼠标指针不在窗口或区域上，这个标志会被忽略。
 
-- *TME_LEAVE* ����������Ҫ����뿪��֪ͨ��֪ͨʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mouseleave][WM_MOUSELEAVE]] ��Ϣ���͡������겻��ָ�����ڻ������뿪֪ͨ�ᱻ�������ɣ����Ҳ����ٽ���׷�١�
+- *TME_LEAVE* ，调用者想要鼠标离开的通知。通知使用 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-mouseleave][WM_MOUSELEAVE]] 消息发送。如果鼠标不在指定窗口或区域，离开通知会被立即生成，并且不会再进行追踪。
 
-- *TME_NONCLIENT* ����������Ҫ���ڿͻ�������ͣ���뿪��Ϣ����Щ֪ͨ�� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-ncmousehover][WM_NCMOUSEHOVER]] �� [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-ncmouseleave][WM_NCMOUSELEAVE]] ���͡�
+- *TME_NONCLIENT* ，调用者想要不在客户区的悬停和离开消息。这些通知以 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-ncmousehover][WM_NCMOUSEHOVER]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-ncmouseleave][WM_NCMOUSELEAVE]] 发送。
 
-- *TME_QUERY* ���������������ṹ��������ʹ��������Ϊ׷������
+- *TME_QUERY* ，函数会填充这个结构，而不是使用它来作为追踪请求。
 
 
-��Ա *hwndTrack* ����Ҫ׷�ٵĴ��ڵľ��
+成员 *hwndTrack* 是想要追踪的窗口的句柄
 
-��Ա *dwHoverTime* ����ͣ��Ҫ��ʱ�䣨time-out�����Ժ���Ϊ��λ��������ʹ�� *HOVER_DEFAULT* ��ָ��ϵͳĬ�ϵ���ͣʱ�䡣
+成员 *dwHoverTime* 是悬停的要求时间（time-out），以毫秒为单位。它可是使用 *HOVER_DEFAULT* 来指定系统默认的悬停时间。
 
-���´�����߼������������봰��ʱ������ TrackMouseEvent �Բ�׽��ͣ��Ϣ��������ͣ����ڿͻ�����ӡ In���˺󣬵��� TrackMouseEvent ��׷���뿪��Ϣ��������뿪���ӡ Out��
+以下代码的逻辑即：当鼠标进入窗口时，调用 TrackMouseEvent 以捕捉悬停消息，发现悬停后会在客户区打印 In。此后，调用 TrackMouseEvent 以追踪离开消息，当鼠标离开后打印 Out。
 
 #+BEGIN_SRC c
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -547,16 +547,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #+END_SRC
 
-������ڴ������ƽ��Ƴ����Ϳ��Կ����ͻ��������Ͻǵĵ��ʵĲ��ϱ仯��
+把鼠标在窗口上移进移出，就可以看见客户区的左上角的单词的不断变化。
 
-* ���䣺Programming Windows �ϵ�Ҫ��
+* 补充：Programming Windows 上的要点
 
-- GetCursorPos �� SetCursorPos �������Ի�ú���������λ�ã���������Ļ���꣩
+- GetCursorPos 和 SetCursorPos 函数可以获得和设置鼠标的位置（坐标是屏幕坐标）
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> About Mouse Input�� https://docs.microsoft.com/en-us/windows/win32/inputdev/about-mouse-input
+<<<【1】>>> About Mouse Input： https://docs.microsoft.com/en-us/windows/win32/inputdev/about-mouse-input
 
-<<<��2��>>> TrackMouseEvent function�� https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent
+<<<【2】>>> TrackMouseEvent function： https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent
 
-<<<��3��>>> /Programming Windows/ , Charles Petzold
+<<<【3】>>> /Programming Windows/ , Charles Petzold

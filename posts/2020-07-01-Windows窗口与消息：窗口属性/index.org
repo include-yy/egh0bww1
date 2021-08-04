@@ -1,41 +1,41 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Windows��������Ϣ����������
+#+TITLE: Windows窗口与消息：窗口属性
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNTAxODg5.jpg" alt="load failed"></div>@@
 #+DATE: [2020-07-01 Wed]
 #+TAGS: windows
 
-* ʲô�Ǵ�������
+* 什么是窗口属性
 
-���������Ƿ�������ڵ��������ݡ���������ͨ���Ǵ����ض����ݵľ��������Ҳ��Ϊ�κε�ֵ��ÿ������������һ���ַ������ֱ�ʶ��
+窗口属性是分配给窗口的任意数据。窗口属性通常是窗口特定数据的句柄，但它也可为任何的值。每个窗口属性由一个字符串名字标识。
 
-* ʹ�ô������Եĺô�
+* 使用窗口属性的好处
 
-��������һ�����������������໯�Ĵ�����ϵ�������������ڶ��ĵ����棨MDI��Ӧ���С��������������ʹ�ö���Ĵ����ֽڻ����ֽڶ��ǲ�̫����ģ�ԭ�����£�
+窗口属性一般用来将数据与子类化的窗口联系起来，或是用在多文档界面（MDI）应用中。不论哪种情况，使用额外的窗口字节或类字节都是不太方便的，原因如下：
 
-- Ӧ�ÿ��ܲ�֪���ж��ٶ����ֽ��ǿ��õģ��Լ��ռ��ʹ�÷�ʽ��ʹ�ô������ԣ�Ӧ�ÿ����ڲ�ʹ�ö����ֽڵ�����½������봰�ڹ���
+- 应用可能不知道有多少额外字节是可用的，以及空间的使用方式。使用窗口属性，应用可以在不使用额外字节的情况下将数据与窗口关联
 
-- Ӧ�ñ���ʹ������ֵ�����ʶ����ֽڡ�Ȼ��������������ʹ���ַ�����ʶ�����������������з��ʵġ�
+- 应用必须使用索引值来访问额外字节。然而，窗口属性是使用字符串标识符而不是索引来进行访问的。
 
 
-* ���䴰������
+* 分配窗口属性
 
-[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropa][SetProp]] ������һ���������Ժ������ַ�����ʶ�������һ�����ڡ�[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getpropa][GetProp]] ����ͨ��ָ���ַ����������������ԡ�[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-removepropa][RemoveProp]] ���������ٴ����봰������֮��Ĺ������������������ݡ�Ҫ�������ݣ���Ҫʹ�ú��ʵĺ������ͷ��� RemoveProp ���صľ����
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropa][SetProp]] 函数将一个窗口属性和它的字符串标识符分配给一个窗口。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getpropa][GetProp]] 函数通过指定字符串来检索窗口属性。[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-removepropa][RemoveProp]] 函数会销毁窗口与窗口属性之间的关联，但不会销毁数据。要销毁数据，需要使用合适的函数来释放由 RemoveProp 返回的句柄。
 
-* ö�ٴ�������
+* 枚举窗口属性
 
-[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] ����ͨ��ʹ��Ӧ�ö���Ļص�������ö�����еĴ������ԡ�����ö�ٻص���������Ϣ���ɼ��� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-propenumproca][PropEnumProc]] ��
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] 函数通过使用应用定义的回调函数来枚举所有的窗口属性。关于枚举回调函数的信息，可见于 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-propenumproca][PropEnumProc]] 。
 
-* ����ʾ��
+* 代码示例
 
-�ӹٷ��ĵ������г���ʹ��ԭ�������������Ƕ� *wndextrabytes* �ĸĽ���ʹ�ö����ֽڲ���ʹ���ַ���������������
+从官方文档上面列出的使用原因来看，这大概是对 *wndextrabytes* 的改进，使用额外字节不如使用字符串来进行索引。
 
-΢���ٷ���������غ����ľ���ʹ�÷�ʽ�������� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/using-window-properties][Using Window Properties]] ������
+微软官方给出了相关函数的具体使用方式，可以在 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/using-window-properties][Using Window Properties]] 看到。
 
-*Programming Windows* ��������һ������һ������ CHECKER ��ʾ����������һ�����ڷ�Ϊ�������Ρ�����굥����ĳһ�����Σ������Ϊ���λ������ཻ�ĶԽ��ߡ��������Ѿ����˶Խ��ߣ�������Խ��ߡ����ϵĴ����ڴ��ڻص�������ʹ����һ����̬��������¼ÿ��С���εĻ����������ô����Ҳ���Խ���¼���ݵ��������ӵ����������С����е���ڴ������ˣ�
+*Programming Windows* 的鼠标操作一章中有一个叫做 CHECKER 的示例程序，它将一个窗口分为数个矩形。若鼠标单击了某一个矩形，程序会为矩形画两条相交的对角线。若矩形已经画了对角线，则擦除对角线。书上的代码在窗口回调函数中使用了一个静态数组来记录每个小矩形的绘制情况。那么这里也可以将记录数据的数组添加到窗口属性中。（有点大炮打蚊子了）
 
-�� VS 2019 �д���һ�� Win32 ������Ŀ��
+在 VS 2019 中创建一个 Win32 窗口项目。
 
-���ȣ�ָ���ַ������Լ�ָ�����ڵĺ��ݷָ�������
+首先，指定字符串，以及指定窗口的横纵分隔数量：
 
 #+BEGIN_SRC c
 TCHAR fState[] = TEXT("yystate");
@@ -43,13 +43,13 @@ TCHAR wndSize[] = TEXT("yysize");
 #define DIV 5
 #+END_SRC
 
-�ڴ��ڴ���ʱ��ͬʱ����һ������״̬�����飬����ָ����Ϊ������ӵ����������С�
+在窗口创建时，同时创建一个保存状态的数组，并将指针作为句柄添加到窗口属性中。
 
-���ڸı��Сʱ���ᷢ�� WM_SIZE ��Ϣ�����а������ڵ��µĿ��͸ߣ���Ҳ���Է��봰�������С�
+窗口改变大小时，会发送 WM_SIZE 消息，其中包含窗口的新的宽和高，这也可以放入窗口属性中。
 
-���ڴ�С�ı�ʱ����Ҫ�������������½��л��ƣ����԰ѶԽ��ߵĻ����߼����� WM_PAINT ����Ϣ�����С�
+窗口大小改变时，需要对整个窗口重新进行绘制，可以把对角线的绘制逻辑放入 WM_PAINT 的消息处理中。
 
-���ڻص��������£�
+窗口回调函数如下：
 
 #+BEGIN_SRC c
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -166,17 +166,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #+END_SRC
 
-����㿴�� *Programming Windows* �ϵĳ���������Ըо��������γ���Ҫ���˲��٣�������Ĳ��־��Ƕ����ִ������Եĳ�ʼ���ʹ�ȡ��ʹ�þ�̬��������Ҫ��Щ getter ������
+如果你看过 *Programming Windows* 上的程序，你会明显感觉上面的这段程序要长了不少，多出来的部分就是对两种窗口属性的初始化和存取，使用静态变量则不需要这些 getter 操作。
 
-���ҿ����������еľ�̬����һ�������壬���͡���ɢ���������������У�����ʹ�÷�Χ���ܻ᲻����䳬���ҵ�Ԥ�ϡ�ȫ�ֱ���Ҳ����ˣ����������ȫ�ֱ�������������ʹ�÷�Χ������Ӧ�����ƵĻ��������ټ����൱������׽����
+在我看来，函数中的静态变量一旦被定义，它就“弥散”到了整个函数中，它的使用范围可能会不经意间超出我的预料。全局变量也是如此，如果定义了全局变量而不对它的使用范围进行相应的限制的话，它的踪迹是相当的难以捉摸。
 
-��Ȼ�������������Ĵ�����ʹ�þ�̬��������Ҳһ������ʹ�� getter/setter �����������һ�°�װ����ôʹ�ô������Եĺô����ģ����Ҹ��������Ļ����������Խ������봰�ڽ����˰󶨣�����ͬ��һϵ�е�ȫ�ֱ���������һ���ṹ�У������ڶ����Ե�ͳһ�����������ֽ�Ҳ�����ڴ��ڵģ�����û�д�����������ֱ�ӣ����ʺ��ڼ򵥵����ݴ洢��
+自然，如果我在上面的代码中使用静态变量，我也一样可以使用 getter/setter 函数对其进行一下包装，那么使用窗口属性的好处在哪？就我个人来看的话，窗口属性将数据与窗口进行了绑定，就如同将一系列的全局变量放入了一个结构中，有利于对属性的统一管理。额外字节也是属于窗口的，但是没有窗口属性那样直接，它适合于简单的数据存储。
 
-** �������Ե�ö��
+** 窗口属性的枚举
 
-������Ĵ����У��ҽ����ڵĿ��Ⱥ͸߶��Լ����ڵĵ��״̬����Ϊ�˴������ԡ����Ҫö�ٵ�ǰȫ���Ĵ������ԣ�����ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] ������ö�ٲ������û�����Ļص�������ɡ�
+在上面的代码中，我将窗口的宽度和高度以及窗口的点击状态设置为了窗口属性。如果要枚举当前全部的窗口属性，可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsa][EnumProps]] 或 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumpropsexa][EnumPropsEx]] 函数。枚举操作由用户定义的回调函数完成。
 
-�ص������ĺ���ԭ�����£�
+回调函数的函数原型如下：
 
 #+BEGIN_SRC c
 BOOL Propenumproca(
@@ -187,13 +187,13 @@ BOOL Propenumproca(
 {...}
 #+END_SRC
 
-*Arg1* ��Ҫ����ö�ٵĴ���
+*Arg1* 是要进行枚举的窗口
 
-*Arg2* �����Ե��ַ���
+*Arg2* 是属性的字符串
 
-*Arg3* �����Եľ��
+*Arg3* 是属性的句柄
 
-��������ĳ���������ֻ���ǽ����Ĵ�������ȫ���г����ص���������д������������Ҫ strsafe ͷ�ļ���
+对于上面的程序，这里我只考虑将它的窗口属性全部列出，回调函数可以写成这样：（需要 strsafe 头文件）
 
 #+BEGIN_SRC c
 BOOL CALLBACK EnumProc(HWND hwnd, LPCTSTR lpstr, HANDLE hd)
@@ -215,7 +215,7 @@ BOOL CALLBACK EnumProc(HWND hwnd, LPCTSTR lpstr, HANDLE hd)
 }
 #+END_SRC
 
-ͨ���Ҽ����������������ַ����Ĵ�ӡ��
+通过右键来触发窗口属性字符串的打印：
 
 #+BEGIN_SRC c
 case WM_RBUTTONDOWN:
@@ -223,12 +223,12 @@ case WM_RBUTTONDOWN:
         break;
 #+END_SRC
 
-���г��򣬵���������Ҽ�ʱ�����ӡ�����еĴ��������ַ������������������ӵ� yystate �� yysize�������Կ���һ������ =ShellPositionerManager:PriortyList= �������ַ�����
+运行程序，当按下鼠标右键时，会打印出所有的窗口属性字符串。除了上面我添加的 yystate 和 yysize，还可以看到一个叫做 =ShellPositionerManager:PriortyList= 的属性字符串。
 
-������������Ҽ��¼�������ö�ٺ����ı䴰�ڳߴ磬���� =DispatchMessage= ���׳��쳣����ʱû�з��������ԭ��
+当添加了这个右键事件处理和枚举后，若改变窗口尺寸，会在 =DispatchMessage= 处抛出异常。暂时没有发现问题的原因。
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> About Window Properties��https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-properties
+<<<【1】>>> About Window Properties：https://docs.microsoft.com/en-us/windows/win32/winmsg/about-window-properties
 
-<<<��2��>>> /Programming Windows/ , Charles Petzold
+<<<【2】>>> /Programming Windows/ , Charles Petzold

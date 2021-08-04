@@ -1,66 +1,66 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: ʲô��base64����
+#+TITLE: 什么是base64编码
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2020-05-06 Wed]
 #+TAGS: c wasistwas
 
 
-* ʲô�� Base64
+* 什么是 Base64
 
-Base64 �Ƕ����Ƶ��ַ������һ�ַ�����������������ʹ�� ASCII �ַ�����ʽ��ʾ��������Ϊ����Ϊ 64 ��һ�ֱ�ʾ��ÿ�� Base64 ���ֱ�ʾһ�� 6 ���ص����ݡ������ֽڣ��� 24 �����أ���˿��Ա���ʾΪ 4 �� Base64 ���֡�
+Base64 是二进制到字符编码的一种方案，将二进制数据使用 ASCII 字符串格式表示，即翻译为基数为 64 的一种表示。每个 Base64 数字表示一个 6 比特的数据。三个字节（共 24 个比特）因此可以被表示为 4 个 Base64 数字。
 
-Base64 �����ڴ����ı����ݵĳ��ϣ���ʾ�����䡢�洢һЩ���������ݡ�
+Base64 常用于处理文本数据的场合，表示、传输、存储一些二进制数据。
 
-* Base64 �����
+* Base64 编码表
 
-�� 0 �� 25 ��Ҳ���Ǵ� 000000 �� 011001���� ASCII �ַ� A - Z
+从 0 到 25 ，也就是从 000000 到 011001，是 ASCII 字符 A - Z
 
-�� 26 �� 51��Ҳ���Ǵ� 011010 �� 110011���� ASCII �ַ� a - z
+从 26 到 51，也就是从 011010 到 110011，是 ASCII 字符 a - z
 
-�� 52 �� 61��Ҳ���Ǵ� 110100 �� 111101���� ASCII �ַ� 0 - 9
+从 52 到 61，也就是从 110100 到 111101，是 ASCII 字符 0 - 9
 
-62 ��111110���� ASCII �ַ� +
+62 （111110）是 ASCII 字符 +
 
-63 ��111111���� ASCII �ַ� /
+63 （111111）是 ASCII 字符 /
 
-* ׺�ʣ�padding�� =
+* 缀词（padding） =
 
-��Ϊ Base64 ��ÿ 6 �����ؽ���һ�α��룬���ִ������ϵı���ֵ����Ϊ��һ���� 8 ���ص��ֽڣ���ˣ��� Base64 ������ı��У�ÿ 4 ���ַ���ʾ�����ֽڵ�δ������ı������ݡ������ζ�ţ���δ�����������ֽ������� 3 �ı���ʱ����������������׺����ʹ������ĳ����� 4 �ı��������׺�ʱ��� === ����������������Ҫ����ı��������н��롣
+因为 Base64 是每 6 个比特进行一次编码，而现代电脑上的编码值被分为了一个个 8 比特的字节，因此，在 Base64 编码的文本中，每 4 个字符表示三个字节的未编码的文本或数据。这就意味着，当未编码的输入的字节数不是 3 的倍数时，编码输出必须加上缀词来使得输出的长度是 4 的倍数。这个缀词便是 === ，它表明：不再需要更多的比特来进行解码。
 
-=== �����������£�
+=== 数量规则如下：
 
-- ��Դ���ݵ��ֽ����� 3 �ı���������Ҫ�� ===
+- 若源数据的字节数是 3 的倍数，则不需要加 ===
 
-- ��Դ���ݵ��ֽ����� 3 �� 1��������� ===
+- 若源数据的字节数除 3 余 1，则加两个 ===
 
-- ��Դ���ݵ��ֽ����� 3 �� 2�����һ�� ===
+- 若源数据的字节数除 3 余 2，则加一个 ===
 
 
-�ٸ�������˵�� === ��ʹ�ã�
+举个例子来说明 === 的使用：
 
-�ַ��� "Man" �� ASCII ������ =01001101= �� =01100001= �� =01101110= ����0x4d��0x61��0x6e�����������һ�飬���� =010011= �� =010110= �� =000101= �� =101110= ����Ӧ�� Base64 ������е� T��W��F��u���ʱ���� ASCII �����"Man" ��Ӧ�� "TWFu"��
+字符串 "Man" 的 ASCII 编码是 =01001101= ， =01100001= ， =01101110= ，（0x4d，0x61，0x6e）。拆成六个一组，就是 =010011= ， =010110= ， =000101= ， =101110= 。对应于 Base64 编码表中的 T，W，F，u，故编码后 ASCII 编码的"Man" 对应于 "TWFu"。
 
-�ַ��� "Ma" �� ASCII �� =01001101= �� =01100001= ���𿪵õ� =010011= �� =010110= �� =0001= �����һ�黹���������أ�����õ� =000100= ����Ӧ�� Base64 ����õ� T��W��E��������Ϊ "TWE="���˴��� === ���������������ء�
+字符串 "Ma" 的 ASCII 是 =01001101= ， =01100001= 。拆开得到 =010011= ， =010110= ， =0001= 。最后一组还少两个比特，补零得到 =000100= 。对应于 Base64 编码得到 T，W，E，编码结果为 "TWE="。此处的 === 表明补了两个比特。
 
-�ַ��� "M" �� ASCII �� =01001101= ����֮���õ� =010011= �� =01= �����һ��Ҫ���ĸ��㣬�õ� =010000= ����Ӧ Base64 �õ� T��Q��������Ϊ "TQ=="�� ==== ���������ĸ����ء�
+字符串 "M" 的 ASCII 是 =01001101= ，拆开之，得到 =010011= ， =01= 。最后一组要补四个零，得到 =010000= 。对应 Base64 得到 T，Q。编码结果为 "TQ=="， ==== 表明补了四个比特。
 
-ʵ���ϣ�׺�� === �����Ǳ���ģ���Ϊȱ�ٵ��ֽڿ��Դӱ����ı��ĳ����м���õ������� ��YW55IGNhcm5hbCBwbGVhc3VyZS4�� ������봮���� 27 ���ַ������� 4 �ı����� ���� mod(27, 4) = 1 ��֪���������������ء�ͨ����Щ��Ϣ�Ϳ���֪��Դ�ı��������ݣ�����Ϊ ASCII ���룩�� ��any carnal pleasure.�������ǣ������� Base64 �����ַ�����������һ��, === �Ǳ�Ҫ�ģ���Ϊ��Ҫʹ���������ֲ�ͬ��Դ���ַ�����
+实际上，缀词 === 并不是必须的，因为缺少的字节可以从编码文本的长度中计算得到。例如 “YW55IGNhcm5hbCBwbGVhc3VyZS4” 这个编码串共有 27 个字符，不是 4 的倍数， 且由 mod(27, 4) = 1 可知它补充了两个比特。通过这些信息就可以知道源文本（或数据）（若为 ASCII 编码）是 “any carnal pleasure.”。但是，如果多个 Base64 编码字符串被连接在一起, === 是必要的，因为需要使用它来区分不同来源的字符串。
 
-* Base64 �Ľ���
+* Base64 的解码
 
-���� Base64 ���н���ʱ���ĸ��ַ�ͨ���ᱻת��Ϊ�����ֽڡ�������׺��ʱ�������������һ����һ�� === �����ĸ��ַ��ᱻת��Ϊ�����ֽڣ����� === �������ַ��ᱻתΪһ���ֽڡ���������ӱ�����ˡ�
+当对 Base64 进行解码时，四个字符通常会被转化为三个字节。当存在缀词时则可能是两个或一个，一个 === 表明四个字符会被转化为两个字节，两个 === 表明四字符会被转为一个字节。上面的例子便是如此。
 
-���û��׺�ʣ��ڶ����е����ַ������ת���������ʣ�µ��ַ���ʣ�µ��ַ���һ��С���ġ���������£�ֻ����ʣ�������������ַ�����ʣ�������ַ�����תΪһ���ֽڣ���Ϊ������תΪ�����ֽڡ�
+如果没有缀词，在对所有的四字符组进行转码后，若还有剩下的字符，剩下的字符数一定小于四。这种情况下，只可能剩下两个或三个字符。若剩下两个字符，则转为一个字节，若为三个则转为两个字节。
 
-* һ���򵥵� C ʵ��
+* 一个简单的 C 实现
 
-���´����� MINGW ��ͨ�����벢ͨ��������Ĳ��ԡ�
+以下代码在 MINGW 下通过编译并通过了下面的测试。
 
-����������û��ʹ�� stdint ͷ�ļ�����������Ĵ�����Ҫ��ȷ���еĻ����������� =int= �� 32 λ��
+简便起见，我没用使用 stdint 头文件，所有下面的代码想要正确运行的话，必须满足 =int= 是 32 位。
 
-** ����
+** 编码
 
-Ҫ�뽫һ�����ֽڱ���Ϊ Base64��������Ҫһ�Ŷ������루000000 - 111111���� 64 ���ַ���ӳ�����
+要想将一个个字节编码为 Base64，首先需要一张二进制码（000000 - 111111）到 64 个字符的映射表：
 
 #+BEGIN_SRC c
 char base64_encode_table[64] =
@@ -73,7 +73,7 @@ char base64_encode_table[64] =
 };
 #+END_SRC
 
-�������ڵļ������һ���ֽ��� 8 λ���� Base64 ������ÿ 6 λ����һ�α��룬�ڴ�����������ֱ��ʹ���ֽڣ��ַ���������ܲ���̫���㡣���ǵ� 3 * 8 = 4 * 6���ȱ�дһ���Զ� 3 ���ֽڽ��д����ĺ����᷽�㲻�٣����������ʣ�� 1 �� 2 ���ֽڣ�����һ��������
+由于现在的计算机中一个字节是 8 位，而 Base64 编码中每 6 位进行一次编码，在处理过程中若直接使用字节（字符）数组可能不是太方便。考虑到 3 * 8 = 4 * 6，先编写一次性对 3 个字节进行处理的函数会方便不少，而且若最后还剩下 1 或 2 个字节，可以一并处理。
 
 #+BEGIN_SRC c
 void base64_convert3(char * dststr, unsigned char c1, unsigned char c2, unsigned char c3, int num)
@@ -97,11 +97,11 @@ void base64_convert3(char * dststr, unsigned char c1, unsigned char c2, unsigned
 }
 #+END_SRC
 
-����ĺ����������ַ����� =c1, c2, c3= ��˳�����е� 3 ���ֽڣ����� =num= �Ǵ����ֽڵĸ�������� =num= ��ֵ��Ϊ 3����ô c2 �� c3 ��ֵӦ����Ϊ 0 ��ȷ���õ���ȷ�Ľ����
+上面的函数的三个字符参数 =c1, c2, c3= 是顺序排列的 3 个字节，参数 =num= 是处理字节的个数。如果 =num= 的值不为 3，那么 c2 或 c3 的值应该设为 0 来确保得到正确的结果。
 
-�������û�жԲ����ĺ����Խ��м��顣
+这个函数没有对参数的合理性进行检验。
 
-�������Ϳ�����ɱ��뺯���ˡ�
+接下来就可以完成编码函数了。
 
 #+BEGIN_SRC c
 int base64_encoder(char * dststr, char * srcstr, int num, int * dstlength)
@@ -151,11 +151,11 @@ int base64_encoder(char * dststr, char * srcstr, int num, int * dstlength)
 }
 #+END_SRC
 
-�ú�����������޶ȵĲ�����顣 =dststr= ����������ַ�����Ŀ��λ�ã� =srcstr= ��ʾԴ�ַ����� =num= ��Դ�ַ����ĳ��ȣ� =dstlength= ָ��һ�����ͱ��������ڴ洢�õ��ı���ĳ��ȡ�
+该函数做了最低限度的参数检查。 =dststr= 代表编码后字符串的目标位置， =srcstr= 表示源字符串， =num= 是源字符串的长度， =dstlength= 指向一个整型变量，用于存储得到的编码的长度。
 
-** ����
+** 解码
 
-��������ƣ�����Ҳ��Ҫһ��ӳ��������� Base64 ֻ�涨�˴Ӷ����Ƶ��ַ����б��룬��û�й涨�ַ��ı��룬�����ַ������� ASCII ���������ı��� UTF-8��EBCDEC ��Ϊ�˼�����������ʹ�� ASCII������ʹ��һ��һ�� if else ��ȥ���ַ��������ԣ�����Ҳ̫�鷳�˵㣺
+与编码相似，解码也需要一张映射表，不过 Base64 只规定了从二进制到字符进行编码，而没有规定字符的编码，至于字符编码是 ASCII 还是其他的比如 UTF-8，EBCDEC 。为了简便起见，这里使用 ASCII。可以使用一个一个 if else 来去掉字符集依赖性，不过也太麻烦了点：
 
 #+BEGIN_SRC c
 unsigned char base64_decode_table(unsigned char ch)
@@ -188,7 +188,7 @@ unsigned char base64_decode_table(unsigned char ch)
 }
 #+END_SRC
 
-ͬ������������ƣ�����ʱҲ���Կ��ǽ��ĸ��ַ�����һ�飬���������� === ʱ�����㣺
+同样，与编码类似，解码时也可以考虑将四个字符看成一组，这样处理带 === 时更方便：
 
 #+BEGIN_SRC c
 void base64_convert4(char * dststr, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, int num)
@@ -208,7 +208,7 @@ void base64_convert4(char * dststr, unsigned char c1, unsigned char c2, unsigned
 }
 #+END_SRC
 
-�������Ϳ��Ա�д���뺯���ˣ���ΪҪ����ʹ�� === �Ͳ�ʹ�� === ������������ѡ��֧�е�࣬�������е㳤��
+接下来就可以编写解码函数了，因为要处理使用 === 和不使用 === 的情况，代码的选择支有点多，看起来有点长：
 
 #+BEGIN_SRC c
 int base64_decoder(char * dststr, char * srcstr, int num, int *dstlength)
@@ -275,7 +275,7 @@ int base64_decoder(char * dststr, char * srcstr, int num, int *dstlength)
 }
 #+END_SRC
 
-** ����
+** 测试
 
 #+BEGIN_SRC c
 int main(void)
@@ -327,7 +327,7 @@ int main(void)
 }
 #+END_SRC
 
-������Ӧ��Ϊ��
+输出结果应该为：
 
 #+BEGIN_SRC
 TWFu
@@ -343,67 +343,67 @@ aW5jbHVkZS15eQ==
 include-yy
 #+END_SRC
 
-* �� Python ��ʹ�� Base64
+* 在 Python 中使用 Base64
 
-Python �洦�ɼ���������Ҳ�� C ����Ķ࣬��ѧϰ Python ���÷��϶��������õġ�
+Python 随处可见，用起来也比 C 方便的多，故学习 Python 的用法肯定还是有用的。
 
-** Python �� base64 ģ��
+** Python 的 base64 模块
 
-base64 ģ���ṩ�˽����������ݱ���Ϊ�ɴ�ӡ ASCII �ַ��ͽ��������Ϊ���������ݵĺ�����
+base64 模块提供了将二进制数据编码为可打印 ASCII 字符和将编码解码为二进制数据的函数。
 
-base64 ģ���ṩ�ĺ��������ڲ��� base64������ base16��base32 �ȣ���������ֻ��ע base64 �ı���ͽ��롣
+base64 模块提供的函数不限于操作 base64，还有 base16，base32 等，不过这里只关注 base64 的编码和解码。
 
-** �ӿں���
+** 接口函数
 
 #+BEGIN_SRC python
 base64.b64encode(s, altchars=None)
 #+END_SRC
 
-�ú�����[[https://docs.python.org/3/glossary.html#term-bytes-like-object][���ֽڶ���]]��bytes-like object��ʹ�� base64 ���б��룬�����ر������ֽڡ�
+该函数将[[https://docs.python.org/3/glossary.html#term-bytes-like-object][类字节对象]]（bytes-like object）使用 base64 进行编码，并返回编码后的字节。
 
-=altchars= �����ǳ�������Ϊ 2 �����ֽڶ�����Щ�ַ�ָ���˴��� =+= �� =/= ���ַ�����������ú������� URL ��ȫ�� Base64 �ַ�����
+=altchars= 必须是长度至少为 2 的类字节对象，这些字符指定了代替 =+= 和 =/= 的字符。这就允许该函数生成 URL 安全的 Base64 字符串。
 
 #+BEGIN_SRC python
 base64.b64decode(s, altchars=None, validate=False)
 #+END_SRC
 
-�ú�����������ַ������벢���ؽ����ֽڡ�
+该函数被编码的字符串解码并返回解码字节。
 
-=altchars= �����ǳ�������Ϊ 2 �����ֽڶ���� ASCII �ַ�������Щ�ַ���ָ������������ =+= �� =/= ���ַ���
+=altchars= 必须是长度至少为 2 的类字节对象或 ASCII 字符串，这些字符串指定了用来代替 =+= 和 =/= 的字符。
 
-=validate= Ĭ��Ϊ =False= ���Ȳ��� base-64 �ַ�Ҳ���Ǳ�����ĸ���е��ַ��ᱻ��������� =validate= Ϊ =True= ���� base64 �ַ��ᵼ�� [[https://docs.python.org/3/library/binascii.html#binascii.Error][binascii.Error]] ��
+=validate= 默认为 =False= ，既不是 base-64 字符也不是备用字母表中的字符会被丢弃。如果 =validate= 为 =True= ，非 base64 字符会导致 [[https://docs.python.org/3/library/binascii.html#binascii.Error][binascii.Error]] 。
 
-** �����÷�
+** 具体用法
 
-���ȣ����� python �� base64 ģ��
+首先，导入 python 的 base64 模块
 
 #+BEGIN_SRC python
 import base64
 #+END_SRC
 
-����һ���ַ�������ʹ�� encode ����������ת��Ϊ�ֽڶ���
+创建一个字符串，并使用 encode 方法，将其转化为字节对象：
 
 #+BEGIN_SRC python
 s = 'include-yy'
 s = s.encode()
 #+END_SRC
 
-��encode ������Ĭ�ϱ����� 'uft-8'��
+（encode 方法的默认编码是 'uft-8'）
 
-����ʹ�� `base64.b64encode()` ����ɵõ������
+接着使用 `base64.b64encode()` ，便可得到结果：
 
 #+BEGIN_SRC python
 base.b64encode(s)
 #+END_SRC
 
-��Ҫ���룬����� `base64.b64decode()`
+想要解码，则调用 `base64.b64decode()`
 
 #+BEGIN_SRC python
 s2 = base.b64encode(s)
 base64.b64decode(s2.encode());
 #+END_SRC
 
-* �ο�����
+* 参考资料
 
 https://en.wikipedia.org/wiki/Base64
 

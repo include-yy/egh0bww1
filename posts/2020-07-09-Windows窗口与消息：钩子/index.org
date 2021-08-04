@@ -1,28 +1,28 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Windows��������Ϣ������
+#+TITLE: Windows窗口与消息：钩子
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNTEzNTQ5.jpg" alt="load failed"></div>@@
 #+DATE: [2020-07-09 Thu]
 #+TAGS: windows
 
-* ʲô�ǹ��ӣ�hook��
+* 什么是钩子（hook）
 
-������ϵͳ��Ϣ���������е�һ���㣬Ӧ�ÿ��԰�װһ���Ӻ�����subroutine��������ϵͳ����Ϣ��ͨ��message traffic����������Ϣ����Ŀ�괰�ڹ���֮ǰ����ĳЩ���͵���Ϣ��
+钩子是系统消息处理机制中的一个点，应用可以安装一个子函数（subroutine）来监视系统的消息交通（message traffic），并在消息到达目标窗口过程之前处理某些类型的消息。
 
-*����* ��һ�ֻ��ƣ�ͨ����Ӧ�ÿ��Լ����¼���������Ϣ����궯�����ͻ���������ĳһ�ض��¼����͵ĺ������� *���ӹ���* �����ӹ��̿��ԶԽ��յ���ÿ���¼����в�����Ȼ���޸Ļ������¼���
+*钩子* 是一种机制，通过它应用可以监听事件，比如消息，鼠标动作，和击键。监听某一特定事件类型的函数就是 *钩子过程* 。钩子过程可以对接收到的每个事件进行操作，然后修改或丢弃该事件。
 
-�����ӻ�ʹϵͳ��������Ϊ����������ϵͳ��ÿ����Ϣ�Ĵ�����������Ӧ�ý��ڱ����ʱ��Ű�װ���ӣ�����ʱ��ȥ������
+（钩子会使系统变慢，因为它们增加了系统对每条消息的处理总量。你应该仅在必须的时候才安装钩子，并及时地去掉它）
 
-* ������
+* 钩子链
 
-ϵͳ֧�������ֲ�ͬ���͵Ĺ��ӣ�ÿ�ֹ����ṩ�˷��ʲ�ͬ�������Ϣ�������Ƶ����������磬Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_mouse][WH_MOUSE]] ���������������Ϣ����Ϣ��ͨ��
+系统支持许多种不同类型的钩子；每种钩子提供了访问不同方面的消息处理机制的能力。例如，应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_mouse][WH_MOUSE]] 钩子来监视鼠标消息的消息交通。
 
-ϵͳΪÿ�����͵Ĺ��ӷֱ�ά����һ������Ĺ������� *������* ��һ��ָ����������ָ��ָ��Ӧ�ö���Ļص���������Щ�������� *���ӹ���* ������ĳ�ֹ������͹�������Ϣ����ʱ��ϵͳ�����Ϣһ����һ�����͵�������ָ���ÿ�����ӹ��̡����ӹ��̵���Ϊ�����ڹ��ӵ����͡�ĳЩ���͵Ĺ���ֻ�ܼ�����Ϣ�������Ŀ����ڹ��������޸���Ϣ�������Ϣ�Ĵ��ݣ�ʹ����Ϣ���ܵ�����һ�����ӹ��̻�Ŀ�괰�ڹ��̡�
+系统为每种类型的钩子分别维护着一个分离的钩子链。 *钩子链* 是一张指针表，上面的指针指向应用定义的回调函数，这些函数就是 *钩子过程* 。当与某种钩子类型关联的消息出现时，系统会把消息一个接一个发送到钩子链指向的每个钩子过程。钩子过程的行为依赖于钩子的类型。某些类型的钩子只能监视消息；其他的可以在钩子链中修改消息或结束消息的传递，使得消息不能到达下一个钩子过程或目标窗口过程。
 
-* ���ӹ���
+* 钩子过程
 
-Ҫ������һ���ض����͵Ĺ��ӣ���Ҫ�ṩ��Ӧ�Ĺ��Ӻ�����ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexa][SetWindowsHookEx]] ����������װ����Ӧ�Ĺ������С�
+要想利用一种特定类型的钩子，需要提供相应的钩子函数并使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexa][SetWindowsHookEx]] 函数将它安装到相应的钩子链中。
 
-���ӹ��̵��﷨���£�
+钩子过程的语法如下：
 
 #+BEGIN_SRC c
 LRESULT CALLBACK HookProc(
@@ -38,19 +38,19 @@ LRESULT CALLBACK HookProc(
 }
 #+END_SRC
 
-*nCode* ������һ�������룬���ӹ���ͨ����������Ҫ���еĶ������������ֵȡ���ڹ������ͣ�ÿ�����Ͷ������Լ������������뼯�ϡ�
+*nCode* 参数是一个钩子码，钩子过程通过它来决定要进行的动作。钩子码的值取决于钩子类型；每种类型都有它自己的特征钩子码集合。
 
-*wParam* �� *lParam* ������ֵ�����ڹ����룬��������һ��������뷢�ͻ�Ͷ�ݵ���Ϣ��ص���Ϣ��
+*wParam* 和 *lParam* 参数的值依赖于钩子码，但是它们一般包含着与发送或投递的消息相关的信息。
 
-*SetWindowsHookEx* �����ܻὫһ�����ӹ��̰�װ�ڹ�������ͷ��������ĳ�ֹ��Ӽ��ӵ���Ϣ����ʱ��ϵͳ��ӹ���������ͷ��ʼ����������͹��ӹ����Ĺ��ӹ��̡��������е�ÿ�����Ӿ������Ƿ���Ϣ���ݸ���һ�����̡�ͨ������ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callnexthookex][CallNextHookEx]]�����ӹ��̽��¼����ݸ���һ�����̡�
+*SetWindowsHookEx* 函数总会将一个钩子过程安装在钩子链的头部。当被某种钩子监视的消息出现时，系统会从钩子链的链头开始调用与该类型钩子关联的钩子过程。钩子链中的每个钩子决定了是否将消息传递给下一个过程。通过调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callnexthookex][CallNextHookEx]]，钩子过程将事件传递给下一个过程。
 
-*ȫ�ֹ���* ��global hook���������������calling thread����ͬһ�����е������̡߳� *�߳�ָ������* ��thread-specific hook��ֻ���ӵ����������߳���Ϣ��ȫ�ֹ��ӹ��̿��Ա��ں������߳���ͬ�������е��κ�Ӧ�õ��������е��ã����������̱�������һ������� DLL ģ���С�ָ���̵߳Ĺ��ӹ���ֻ�ڹ����߳��б����á����Ӧ��Ϊ����һ���̰߳�װ�˹��ӹ��̣����ӹ��̿�����Ӧ�õĴ����У����� DLL �С����Ӧ��Ϊ����Ӧ�õ��̰߳�װ�˹��ӣ����ӹ��̱����� DLL �С�
+*全局钩子* （global hook）会监视与主调（calling thread）在同一桌面中的所有线程。 *线程指定钩子* （thread-specific hook）只监视单个独立的线程消息。全局钩子过程可以被在和主调线程相同的桌面中的任何应用的上下文中调用，因此这个过程必须是在一个分离的 DLL 模块中。指定线程的钩子过程只在关联线程中被调用。如果应用为它的一个线程安装了钩子过程，钩子过程可以在应用的代码中，或在 DLL 中。如果应用为其他应用的线程安装了钩子，钩子过程必须在 DLL 中。
 
-��ע�⣬��ֻ�ý�ȫ�ֹ������ڵ���Ŀ�ģ�������Ӧ�ñ���ʹ�����ǡ�ȫ�ֹ��ӻ��˺�ϵͳ�����ܣ����һ�������ʵ������ͬ����ȫ�ֹ��ӵ�Ӧ�ò���ì�ܡ���
+（注意，你只该将全局钩子用于调试目的；否则，你应该避免使用它们。全局钩子会伤害系统的性能，并且会与其他实现了相同类型全局钩子的应用产生矛盾。）
 
-* ��������
+* 钩子类型
 
-��΢�����ĵ��У���ʹ�õĹ��������� 15 �֣����Ƿֱ��ǣ�
+在微软的文档中，可使用的钩子种类有 15 种，它们分别是：
 
 - [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_callwndproc-and-wh_callwndprocret][WH_CALLWNDPROC and WH_CALLWNDPROCRET]]
 - [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_cbt][WH_CBT]]
@@ -66,113 +66,113 @@ LRESULT CALLBACK HookProc(
 - [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_msgfilter-and-wh_sysmsgfilter][WH_MSGFILTER and WH_SYSMSGFILTER]]
 - [[https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks#wh_shell][WH_SHELL]]
 
-** WH_CALLWNDPROC �� WH_CALLWNDPROCRET
+** WH_CALLWNDPROC 和 WH_CALLWNDPROCRET
 
-*WH_CALLWNDPROC* �� *WH_CALLWNDPROCRET* �����ܹ�������ӷ��͵����ڹ��̵���Ϣ��ϵͳ�ڽ���Ϣ���ݵ�������Ϣ�Ĵ��ڹ���ǰ�����һ�� *WH_CALLWNDPROC* ���ӹ��̣����ڴ��ڹ��̴�����Ϣ����� *WH_CALLWNDPROCRET* ���ӹ��̡�
+*WH_CALLWNDPROC* 和 *WH_CALLWNDPROCRET* 钩子能够让你监视发送到窗口过程的消息。系统在将消息传递到接收消息的窗口过程前会调用一个 *WH_CALLWNDPROC* 钩子过程，并在窗口过程处理消息后调用 *WH_CALLWNDPROCRET* 钩子过程。
 
-*WH_CALLWNDPROCRET* ���ӻὫһ��ָ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-cwpretstruct][CWPRETSTRUCT]] �ṹ��ָ�봫�ݸ����ӹ��̡�����ṹ�����˴�����Ϣ�󴰿ڹ��̵ķ���ֵ���Լ�����Ϣ��������Ϣ������
+*WH_CALLWNDPROCRET* 钩子会将一个指向 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-cwpretstruct][CWPRETSTRUCT]] 结构的指针传递给钩子过程。这个结构包含了处理消息后窗口过程的返回值，以及与消息关联的消息参数。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644975(v=vs.85)][CallWndProc]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-hookproc][CallWndRetProc]]��
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644975(v=vs.85)][CallWndProc]] 和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-hookproc][CallWndRetProc]]。
 
 ** WH_CBT
 
-�ڴ��ڼ�����������١���С������󻯡��ƶ���ı�ߴ��ǰһ�̣������ϵͳ�����ǰһ�̣��ڴ�ϵͳ��Ϣ�����Ƴ���������¼���ǰһ�̣����������뽹���ǰһ�̣�������ϵͳ��Ϣ����ͬ����ǰһ�̣�ϵͳ����� *WH_CBT* ���ӹ��̣����ӹ��̵ķ���ֵ������ϵͳ����������ֹ��Щ������ *WB_CBT* ������Ҫ���ڻ��ڼ�����Ľ�ѧӦ�á���computer-based training (CBT)��
+在窗口激活、创建、销毁、最小化、最大化、移动或改变尺寸的前一刻；在完成系统命令的前一刻；在从系统消息队列移除鼠标或键盘事件的前一刻；在设置输入焦点的前一刻；或在与系统消息队列同步的前一刻，系统会调用 *WH_CBT* 钩子过程；钩子过程的返回值决定了系统是允许或阻止这些操作。 *WB_CBT* 钩子主要用于基于计算机的教学应用。（computer-based training (CBT)）
 
-������Ϣ�ɼ���[[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644977(v=vs.85)][CBTProc]] �� [[https://docs.microsoft.com/en-us/windows/desktop/WinAuto/winevents-infrastructure][WinEvents]]��
+更多信息可见于[[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644977(v=vs.85)][CBTProc]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/WinAuto/winevents-infrastructure][WinEvents]]。
 
 ** WH_DEBUG
 
-�ڵ�����ϵͳ�е��������ӹ����Ĺ��ӹ���ǰ��ϵͳ����� *WH_DEBUG* ���ӹ��̡����������������������Ƿ�����ϵͳ�����������͹��ӵĹ��Ӻ�����
+在调用与系统中的其他钩子关联的钩子过程前，系统会调用 *WH_DEBUG* 钩子过程。你可以用这个钩子来决定是否允许系统调用其他类型钩子的钩子函数。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644978(v=vs.85)][DebugProc]]��
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644978(v=vs.85)][DebugProc]]。
 
 ** WH_FOREGROUNDIDLE
 
-*WH_FOREGROUNDIDLE* ������������ǰ̨�߳����ã�idle��ʱ���������ȼ������񡣵�ǰ̨�߳̽�Ҫ����ʱ��ϵͳ����� *WH_FOREGROUNDIDLE* ���ӹ��̡�
+*WH_FOREGROUNDIDLE* 钩子允许你在前台线程闲置（idle）时处理低优先级的任务。当前台线程将要闲置时，系统会调用 *WH_FOREGROUNDIDLE* 钩子过程。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644980(v=vs.85)][ForegroundIdleProc]]��
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644980(v=vs.85)][ForegroundIdleProc]]。
 
 ** WH_GETMESSAGE
 
-*WH_GETMESSAGE* ������Ӧ���ܹ����ӽ�Ҫ�� *GetMessage* �� *PeekMessage* �������ص���Ϣ�������ʹ�� *WH_GETMESSAGE* �������������������룬�Լ�����Ͷ�ݵ���Ϣ���е���Ϣ��
+*WH_GETMESSAGE* 钩子让应用能够监视将要被 *GetMessage* 或 *PeekMessage* 函数返回的消息。你可以使用 *WH_GETMESSAGE* 钩子来监视鼠标键盘输入，以及其他投递到消息队列的消息。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644981(v=vs.85)][GetMsgProc]]��
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644981(v=vs.85)][GetMsgProc]]。
 
 ** WH_JOURNALPLAYBACK
 
-*WH_JOURNALPLAYBACK* ������Ӧ���ܹ���ϵͳ��Ϣ�����в�����Ϣ�������ʹ������������ط�֮ǰʹ�� *WH_JOURNALRECORD* ���Ӽ�¼��һϵ�����ͼ����¼����ڰ�װ�� *WH_JOURNALPLAYBACK* ���Ӻ����ͼ�������һ��ᱻ���á� *WH_JOURNALPLAYBACK* ������ȫ�ֹ��� ���� ��������Ϊ�߳��ض�����ʹ�á�
+*WH_JOURNALPLAYBACK* 钩子让应用能够在系统消息队列中插入消息。你可以使用这个钩子来回放之前使用 *WH_JOURNALRECORD* 钩子记录的一系列鼠标和键盘事件。在安装了 *WH_JOURNALPLAYBACK* 钩子后，鼠标和键盘输入一般会被禁用。 *WH_JOURNALPLAYBACK* 钩子是全局钩子 —— 它不能作为线程特定钩子使用。
 
-*WH_JOURNALPLAYBACK* ���ӷ���һ��ʱ��ֵ�����ֵ����ϵͳ�ڴ�����ǰ���ԻطŹ��ӵ���Ϣǰ��Ҫ�ȴ��ĺ����������ù����ܹ�����ʱ��طŵ�ʱ�䡣
+*WH_JOURNALPLAYBACK* 钩子返回一个时间值。这个值告诉系统在处理当前来自回放钩子的消息前需要等待的毫秒数。这让钩子能够控制时间回放的时间。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644982(v=vs.85)][JournalPlaybackProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644982(v=vs.85)][JournalPlaybackProc]] 回调函数。
 
 ** WH_JOURNALRECORD
 
-*WH_JOURNALRECORD* ���������ܹ����������¼���һ����˵�����ʹ�������������¼һϵ�е����ͼ����¼�����ʹ�� *WH_JOURNALPLAYBACK* ����������Щ��Ϣ���лطš� *WH_JOURNALRECORD* ������һ��ȫ�ֹ��� ���� ��������Ϊ�߳��ض�����ʹ�á�
+*WH_JOURNALRECORD* 钩子让你能够监视输入事件。一般来说，你会使用这个钩子来记录一系列的鼠标和键盘事件，并使用 *WH_JOURNALPLAYBACK* 钩子来对这些消息进行回放。 *WH_JOURNALRECORD* 钩子是一个全局钩子 —— 它不能作为线程特定钩子使用。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644983(v=vs.85)][JournalRecordPorc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644983(v=vs.85)][JournalRecordPorc]] 回调函数。
 
 ** WH_KEYBOARD_LL
 
-*WH_KEYBOARD_LL* ���������ܹ����ӽ�ҪͶ�ݵ�һ���̵߳���������еļ��������¼���
+*WH_KEYBOARD_LL* 钩子让你能够监视将要投递到一个线程的输入队列中的键盘输入事件。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644985(v=vs.85)][LowLevelKeyboardProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644985(v=vs.85)][LowLevelKeyboardProc]] 回调函数。
 
 ** WH_KEYBOARD
 
-*WH_KEYBOARD* ��������Ӧ�ü��ӽ�Ҫ�� *GetMessage* �� *PeekMessage* ���ص� *WM_KEYDOWN* �� *WM_KEYUP* ��Ϣ�������ʹ�� *WH_KEYBOARD* ����������Ͷ�ݵ���Ϣ���еļ������롣
+*WH_KEYBOARD* 钩子允许应用监视将要由 *GetMessage* 和 *PeekMessage* 返回的 *WM_KEYDOWN* 和 *WM_KEYUP* 消息。你可以使用 *WH_KEYBOARD* 钩子来监视投递到消息队列的键盘输入。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644984(v=vs.85)][KeyboardProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644984(v=vs.85)][KeyboardProc]] 回调函数。
 
 ** WH_MOUSE_LL
 
-*WH_MOUSE_LL* ������������ӽ�ҪͶ�ݵ��߳���Ϣ���е���������¼���
+*WH_MOUSE_LL* 钩子允许你监视将要投递到线程消息队列的鼠标输入事件。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)][LowLevelMouseProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)][LowLevelMouseProc]] 回调函数。
 
 ** WH_MOUSE
 
-*WH_MOUSE* ������������ӽ�Ҫ�� *GetMessage* �� *PeekMessage* ���ص������Ϣ�������ʹ����������Ͷ�ݵ���Ϣ���е�������롣
+*WH_MOUSE* 钩子允许你监视将要由 *GetMessage* 或 *PeekMessage* 返回的鼠标消息。你可以使用它来监视投递到消息队列的鼠标输入。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644988(v=vs.85)][MouseProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644988(v=vs.85)][MouseProc]] 回调函数。
 
-** WH_MSGFILTER �� WH_SYSMSGFILTER
+** WH_MSGFILTER 和 WH_SYSMSGFILTER
 
-*WH_MSGFILTER* �� *WH_SYSMSGFILTER* ������������ӽ��ɲ˵�������������Ϣ���Ի���������Ϣ�����û�ʹ�� =ALT+TAB= �� =ALT+ESC= ��ϼ���������һ�����ڵ���Ϊ���м��ӡ�*WH_MSGFILTER* ����ֻ�ܼ��Ӵ�����Ӧ�ô����Ĳ˵�������������Ϣ���Ի�����Ϣ��*WH_SYSMSGFILTER* ���ӿ��Լ�������Ӧ�õ���Ϣ��
+*WH_MSGFILTER* 和 *WH_SYSMSGFILTER* 钩子允许你监视将由菜单，滚动条，消息框或对话框处理的消息，对用户使用 =ALT+TAB= 或 =ALT+ESC= 组合键来激活另一个窗口的行为进行监视。*WH_MSGFILTER* 钩子只能监视传递由应用创建的菜单，滚动条，消息框或对话框消息。*WH_SYSMSGFILTER* 钩子可以监视所有应用的消息。
 
-*WH_MSGFILTER* �� *WH_SYSMSGFILTER* ������������ģ̬ѭ��ʱ������Ϣ�������ѭ���еĹ����ǵȼ۵ġ����磬�ڴӶ��м�����Ϣ֮��ͷ�����Ϣ֮ǰ��Ӧ��ͨ��������ѭ���ж��µ���Ϣ���в��ԡ�Ȼ������ģ̬ѭ���У�ϵͳ�ڼ����ͷ�����Ϣʱ������Ӧ������ѭ���н��й��˲��������Ӧ�ð�װ�� *WH_MSGFILTER* �� *WH_SYSMSGFILTER* ���ӹ��̣�ϵͳ������ģ̬ѭ���е��øù��̡�
+*WH_MSGFILTER* 和 *WH_SYSMSGFILTER* 钩子允许你在模态循环时过滤消息，这和主循环中的过滤是等价的。例如，在从队列检索消息之后和分派消息之前，应用通常会在主循环中对新的消息进行测试。然而，在模态循环中，系统在检索和分派消息时不允许应用在主循环中进行过滤操作。如果应用安装了 *WH_MSGFILTER* 或 *WH_SYSMSGFILTER* 钩子过程，系统可以在模态循环中调用该过程。
 
-Ӧ�ÿ���ͨ��ֱ�ӵ��� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callmsgfiltera][CallMsgFilter]] ���������� *WM_MSGFILTER* ���ӡ�ͨ��ʹ�øú�����Ӧ�ÿ�����ģ̬ѭ����ʹ�ú�������ѭ������ʹ�õ�һ������Ϣ���ˡ�Ҫ������һ�㣬�����˲�����װ��*WH_MSGFILTER* ���ӹ����в���*GetMessage* �� *DispatchMessage* ֮����� *CallMsgFilter* ��
+应用可以通过直接调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callmsgfiltera][CallMsgFilter]] 函数来调用 *WM_MSGFILTER* 钩子。通过使用该函数，应用可以在模态循环中使用和它在主循环中所使用的一样的消息过滤。要做到这一点，将过滤操作封装到*WH_MSGFILTER* 钩子过程中并在*GetMessage* 和 *DispatchMessage* 之间调用 *CallMsgFilter* 。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/messageproc][MessageProc]] �� [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644992(v=vs.85)][SysMsgProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/messageproc][MessageProc]] 和 [[https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644992(v=vs.85)][SysMsgProc]] 回调函数。
 
 ** WH_SHELL
 
-shell Ӧ�ÿ���ʹ�� *WH_SHELL* ������������Ҫ��֪ͨ��ϵͳ�� shell Ӧ�ý�Ҫ�������Լ��������ڱ�����������ʱ���� *WH_SHELL* ���ӹ��̡�
+shell 应用可以使用 *WH_SHELL* 钩子来检索重要的通知。系统在 shell 应用将要被激活以及顶级窗口被创建或销毁时调用 *WH_SHELL* 钩子过程。
 
-��Ҫע����ǣ�shell Ӧ�ò������ *WH_SHELL* ��Ϣ����ˣ��κν��Լ�ע��ΪĬ�� shell ��Ӧ�ñ������ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] ��ʹ���ܹ����� *WH_SHELL* ��Ϣ���ú�������ʹ�� *SPI_SETMINIMIZEDMETRICS* ��־�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-minimizedmetrics][MINIMIZEDMETRICS]] �ṹ�����ѽṹ�� *iArrange* ��Ա����Ϊ *ARW_HIDE* ��
+需要注意的是，shell 应用不会接收 *WH_SHELL* 消息。因此，任何将自己注册为默认 shell 的应用必须调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfoa][SystemParametersInfo]] 以使他能够接收 *WH_SHELL* 消息。该函数必须使用 *SPI_SETMINIMIZEDMETRICS* 标志和 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-minimizedmetrics][MINIMIZEDMETRICS]] 结构，并把结构的 *iArrange* 成员设置为 *ARW_HIDE* 。
 
-������Ϣ�ɼ��� [[https://docs.microsoft.com/en-us/windows/win32/winmsg/shellproc][ShellProc]] �ص�������
+更多信息可见于 [[https://docs.microsoft.com/en-us/windows/win32/winmsg/shellproc][ShellProc]] 回调函数。
 
-* ���ӵ�ʹ��
+* 钩子的使用
 
-�����ͨ������ *SetWindowsHookEx* ��������װһ�����ӹ��̣���������ָ�����ӹ������͡�������ڵ��Լ������Ƿ����������߳�����������߳��������
+你可以通过调用 *SetWindowsHookEx* 函数来安装一个钩子过程，并在其中指定钩子过程类型、过程入口点以及钩子是否与在主调线程桌面的所有线程相关联。
 
-��Ҫ��װһ��ȫ�ֹ��ӣ�����뽫����Ӧ�÷ֿ���ţ�����һ������� DLL �С���װȫ�ֹ��ӵ�Ӧ�ñ����ڰ�װǰ�õ� DLL ģ��ľ����Ҫ�õ� DLL ģ��ľ�������Ե��� *LoadLibrary* �������ڻ�þ��������Ե��� *GetProcAddress* ���õ����ӹ��̵�ָ�롣���գ�ʹ�� *SetWindowsHookEx* ����װ���ӹ��̡�
+若要安装一个全局钩子，你必须将它与应用分开存放，放在一个分离的 DLL 中。安装全局钩子的应用必须在安装前得到 DLL 模块的句柄。要得到 DLL 模块的句柄，可以调用 *LoadLibrary* 函数。在获得句柄后，你可以调用 *GetProcAddress* 来得到钩子过程的指针。最终，使用 *SetWindowsHookEx* 来安装钩子过程。
 
-�����ͨ������ [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unhookwindowshookex][UnhookWindowsHookEx]] ���ͷ��߳��ض��Ĺ��ӹ��̣��ں���������ָ�����ӹ��̵ľ����
+你可以通过调用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-unhookwindowshookex][UnhookWindowsHookEx]] 来释放线程特定的钩子过程，在函数调用中指定钩子过程的句柄。
 
-�㵱Ȼ����ʹ�� *UnhookWindowsHookEx* ���ͷ�һ��ȫ�ֹ��ӣ����Ǹú��������ͷŰ������ӹ��̵� DLL��������Ϊȫ�ֹ��ӹ������������е�ÿ�������������е��õġ���Ϊ���� *FreeLibrary* ��������������һ�����̣�����û�а취���ͷ� DLL���������� DLL ���ӵĽ�����ֹ������� *FreeLibrary* ���������е����˹��ӹ��̵Ľ��̶����� DLL ��resumed processing outside the DLL����ϵͳ���ջ��ͷ� DLL��
+你当然可以使用 *UnhookWindowsHookEx* 来释放一个全局钩子，但是该函数不会释放包含钩子过程的 DLL。这是因为全局钩子过程是在桌面中的每个进程上下文中调用的。因为调用 *FreeLibrary* 函数不能用于另一个进程，所以没有办法来释放 DLL。在所有与 DLL 链接的进程终止或调用了 *FreeLibrary* ，并且所有调用了钩子过程的进程都脱离 DLL 后（resumed processing outside the DLL），系统最终会释放 DLL。
 
-* ����ʾ��
+* 代码示例
 
-΢���Ĺٷ��ĵ�������һ�����ӣ�[[https://docs.microsoft.com/en-us/windows/win32/winmsg/using-hooks][Using Hooks]] �����Բο��ο���
+微软的官方文档给出了一个例子，[[https://docs.microsoft.com/en-us/windows/win32/winmsg/using-hooks][Using Hooks]] 。可以参考参考。
 
-�������һ�����򵥵����ӣ�ʹ�ù������������ĵ���¼���
+这里给出一个更简单的例子，使用钩子来监视鼠标的点击事件。
 
-���ӳ���Ĺ����ǣ���ʼ�����£���������������һ����ɫ�ľ��Σ�������꣨���²��ص�����ʹ������ɫ��Ϊ��ɫ���ص��������ɫ�ָ�ԭ����ɫ��
+例子程序的功能是：初始条件下，窗口正中央会绘制一个黑色的矩形，单击鼠标（按下不回弹）会使矩形颜色变为红色，回弹后矩形颜色恢复原来颜色。
 
-�ص��������£�
+回调函数如下：
 
 #+BEGIN_SRC c
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -239,13 +239,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #+END_SRC
 
-����ص���������ʵ���˾��ο��ɫ�Ĺ��ܣ����Ǵ���һ�����⣬�Ǿ��ǣ���������������ڰ���״̬ʱ������Ƴ����ڣ��������ڴ����ⲿ�ɿ����������������ڵľ�����Ȼ���Ǻ�ɫ��
+这个回调函数基本实现了矩形块变色的功能，但是存在一个问题，那就是：如果在鼠标左键处于按下状态时将鼠标移出窗口，即便你在窗口外部松开的鼠标左键，窗口内的矩形仍然会是红色。
 
-�ڿͻ�����ʱ�������ǽ��ղ�������¼��ġ� *Programming Windows* ���һ���и�����һ�ַ������Ǿ���ʹ�� *SetCapture* ���������øú�����Windows ������������Ϣ���͸���Ϊ *SetCapture* �����ľ������Ӧ�Ĵ��ڹ��̡������Ҫ�ͷ���꣬���Ե��� *ReleaseCapture* ������
+在客户区外时，窗口是接收不到鼠标事件的。 *Programming Windows* 鼠标一章中给出了一种方法，那就是使用 *SetCapture* 函数。调用该函数后，Windows 会把所有鼠标消息发送给作为 *SetCapture* 参数的句柄所对应的窗口过程。如果想要释放鼠标，可以调用 *ReleaseCapture* 函数。
 
-��򵥵Ľ���������ǰ������ʱ���� *SetCapture* �����������ɿ������ *ReleaseCapture* ������
+最简单的解决方法就是按下左键时调用 *SetCapture* 函数，并在松开后调用 *ReleaseCapture* 函数。
 
-�޸ĺ����Ϣ�������£�
+修改后的消息处理如下：
 
 #+BEGIN_SRC c
 case WM_LBUTTONDOWN:
@@ -267,15 +267,15 @@ case WM_LBUTTONDOWN:
         return 0;
 #+END_SRC
 
-����һ������������Ѿ��ƿ��˴��ڣ�������Ȼ���Խ��յ����ĵ����Ϣ��
+这样一来，即便鼠标已经移开了窗口，窗口依然可以接收到鼠标的点击消息。
 
-ʹ��������������������Ժܺõؽ��������⣬��ô����ôʹ�ù�������������أ�
+使用上面的这两个函数可以很好地解决这个问题，那么，怎么使用钩子来解决问题呢？
 
-** ʹ�ù��ӵĴ���
+** 使用钩子的代码
 
-ͨ��ʹ�ù��ӣ����Լ�⵽�����̵߳������Ϣ����Ҫʹ�ú������Ϣ��صĹ��ӡ�
+通过使用钩子，可以检测到所有线程的鼠标消息。需要使用和鼠标消息相关的钩子。
 
-�������ӹ��̵� dll �������£�
+包含钩子过程的 dll 代码如下：
 
 #+BEGIN_SRC c
 //mousehook module
@@ -324,11 +324,11 @@ void ReleaseMouseHook(void)
 }
 #+END_SRC
 
-�� DLL ���������������� =SetMouseHook= ����װ���ӣ� =ReleaseMouseHook= �����ͷŹ��ӡ�
+该 DLL 导出了两个函数， =SetMouseHook= 负责安装钩子， =ReleaseMouseHook= 负责释放钩子。
 
-����װ�˹���֮�󣬵��������ͷź󣬹��ӹ��̻��ڴ������������ͷŵĴ������Լ��򴰿ڷ��� =WM_USER + 1= ����Ϣ��
+当安装了钩子之后，当鼠标左键释放后，钩子过程会在窗口上输出左键释放的次数，以及向窗口发送 =WM_USER + 1= 的消息。
 
-���ڴ����������£�
+窗口处理过程如下：
 
 #+BEGIN_SRC c
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -435,18 +435,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #+END_SRC
 
-��δ�����ʹ�� *SetCapture* �Ĵ�������ͬ��Ч����
+这段代码与使用 *SetCapture* 的代码有相同的效果。
 
-ע�⣬����ʹ�õ��� *WH_MOUSE_LL* ���ӣ������� *WH_MOUSE* �������� *SetWindowsHookEx* ʱָ������ *WH_MOUSE* ��������Ƴ����ڲ��ɿ������û�з�Ӧ�������ٰ����ɿ�һ�Ρ����ݲο����ϡ�3���� *WH_MOUSE_LL* �Ĺ��ӹ��̲�û��ע�����������С���Ϣ����ʱ�������Ļ��л�����װ���ӵĽ��̲���ԭʼ�����ĵ��ù��ӹ��̣���������Ļص�����ʱ���Ӧ�á��� *WH_MOUSE* �Ĺ��ӹ�����Ҫע�롣
+注意，这里使用的是 *WH_MOUSE_LL* 钩子，而不是 *WH_MOUSE* 。若调用 *SetWindowsHookEx* 时指定的是 *WH_MOUSE* ，将鼠标移出窗口并松开左键并没有反应，必须再按下松开一次。根据参考资料【3】， *WH_MOUSE_LL* 的钩子过程并没有注入其他进程中。消息产生时，上下文会切换到安装钩子的进程并在原始上下文调用钩子过程，随后上下文回到生成时间的应用。而 *WH_MOUSE* 的钩子过程需要注入。
 
-�ɴ��������룺������Ƴ����ں��ɿ����ʱ����ʹ�õ��� *WH_MOUSE* ���ӣ����ӹ��̿��ܻ�û��ע�뵽���������У����Ե�һ�ε��û�з�Ӧ���ٴε��ʱ�����ӹ�����ע�룬������ԭ���ڷ�����Ϣ���Ӷ�ʹ�ô������»��ƾ��Ρ�
+由此做出猜想：在鼠标移出窗口后松开左键时，若使用的是 *WH_MOUSE* 钩子，钩子过程可能还没有注入到其他进程中，所以第一次点击没有反应，再次点击时，钩子过程已注入，钩子向原窗口发送消息，从而使得窗口重新绘制矩形。
 
-���Ϲ��������ֹ�����������������޼����ο����ϡ�3���Ѿ��� 11 ��ǰ�������ˣ������������㣬�������Ҳֻ����Ϊ��������������Ժ��ٽ����
+网上关于这两种钩子区别的内容寥寥无几，参考资料【3】已经是 11 年前的内容了，由于能力不足，这个猜想也只能作为猜想留在这里，待以后再解决。
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> Hooks Overview�� https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks
+<<<【1】>>> Hooks Overview： https://docs.microsoft.com/en-us/windows/win32/winmsg/about-hooks
 
-<<<��2��>>> /Programming Windows/, Charles Petzold
+<<<【2】>>> /Programming Windows/, Charles Petzold
 
-<<<��3��>>> What are all the differences between WH_MOUSE and WH_MOUSE_LL hooks? - Stack Overflow https://stackoverflow.com/questions/872677/what-are-all-the-differences-between-wh-mouse-and-wh-mouse-ll-hooks
+<<<【3】>>> What are all the differences between WH_MOUSE and WH_MOUSE_LL hooks? - Stack Overflow https://stackoverflow.com/questions/872677/what-are-all-the-differences-between-wh-mouse-and-wh-mouse-ll-hooks

@@ -1,14 +1,14 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 4-�����������һ��С��
+#+TITLE: 4-关于作用域的一个小结
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2021-04-17 Sat]
 #+TAGS: emacs
 
-* д��ǰ��
+* 写在前面
 
-�Һ���֮ǰ�����ܽ�һ����������ص�֪ʶ�ˣ��������ڸ���ˮƽһֱû��д�������������أ���һ��ԭ����û���ҵ���̬����������ԣ�û�о��������������ѧϰ���⡣ͨ�� scheme �� =fulid-let= �� racket �� =parameterize= ����ʹ�ö�̬�����򣬵���Ҳ�����ã�һֱ����Ҳûʲôӡ��
+我很早之前就想总结一下作用域相关的知识了，但是限于个人水平一直没有写。除开能力因素，另一个原因是没有找到动态作用域的语言，没有具体的例子来供我学习理解。通过 scheme 的 =fulid-let= 和 racket 的 =parameterize= 可以使用动态作用域，但我也不常用，一直以来也没什么印象。
 
-ֱ�� 2021 ��� 2 �·ݣ���д�������µ�һ�� elisp ������Ҵ�����ֱ�۵ĸо���
+直到 2021 年的 2 月份，我写（抄）下的一段 elisp 代码给我带来了直观的感觉：
 
 #+BEGIN_SRC emacs-lisp
 (defun split-window-instead (way-func)
@@ -25,45 +25,45 @@
    ("C-x _" . (split-window-instead 'split-window-vertically))))
 #+END_SRC
 
-�������Ĵ�����ʵ��ˮƽ/��ֱ�������������ÿ�ݼ���Ϊ�˷�����ʹ���˺�����������д�������ǵ��Ұ��¿�ݼ�ʱ�������� =void function way-func= �Ĵ���˼����ȥ���Ҳŷ�����������������⣬�հ�����������������ܷ���ȷ��ֵ�Ĺؼ�����һ�γ���ʹ�ҶԶ�̬�������������������顣
+上面代码的大意是实现水平/垂直分屏函数并设置快捷键，为了方便我使用了函数生成器的写法。但是当我按下快捷键时，出现了 =void function way-func= 的错误。思来想去，我才发现这是作用域的问题，闭包的有无是上面代码能否正确求值的关键。这一次尝试使我对动态作用域有了切身的体验。
 
-���ˣ��л���˵��ǰ�Բ��ֵ���ҪĿ���ǽ������µ���Ҫ���ݡ����ĵ����ݿ��Է�Ϊ�������֣�
+好了，闲话少说，前言部分的主要目的是介绍文章的主要内容。本文的内容可以分为几个部分：
 
-- һЩ������ʵĽ��ܺͽ���
+- 一些相关名词的介绍和解释
 
-- ��������Ľ��ܺͽ���
+- 对作用域的介绍和解释
 
-- �� elisp �� lexical-binding ʹ�õĽ���
-
-
-���һ������ scheme �� syntax-case ���ʹ�ý��ܡ�Ҫ˵�Ļ��ͱ��Ĺ�ϵ�����󣬵�����Ҳ�����پ�����ˮһƪ�����ˣ����ο���������������Ҳ�е��ϵ��ϣ���ò��ֵļ��������ܶ�������������
-
-���ĳ��������ĵı羭���ҳ���һƥ�����������Ȥ�����ݾ����ˡ�
+- 对 elisp 中 lexical-binding 使用的介绍
 
 
-* һЩ����
+最后一部分是 scheme 的 syntax-case 宏的使用介绍。要说的话和本文关系并不大，但是我也懒得再就它再水一篇文章了，更何况它和作用域问题也有点关系。希望该部分的几个例子能对你有所帮助。
 
-������׼��ֱ�Ӵ�������ʼ�����ǲ������Ϻ��ҷ���ҪŪ�����������Ҫ������һЩ�����һС������������֮��صĶ������������ְ󶨡������ģ������ȡ�
+本文充满了无聊的辩经而且长的一匹，看看你感兴趣的内容就行了。
 
-** ʲô�����ְ󶨣�name binding��
 
-���ְ�ָʵ�����ʶ��֮��Ĺ�������ʶ���󶨵�ʵ�屻��Ϊ���øö�����򵥵ģ����´���ͽ����˱����� =a= �� =int= ������ 19 �İ󶨣�
+* 一些名词
+
+本来我准备直接从作用域开始，但是查阅资料后我发现要弄清楚作用域还需要其他的一些概念。这一小节用来介绍与之相关的东西，比如名字绑定、上下文，环境等。
+
+** 什么是名字绑定（name binding）
+
+名字绑定指实体与标识符之间的关联。标识符绑定到实体被称为引用该对象。最简单的，以下代码就建立了变量名 =a= 与 =int= 型整数 19 的绑定：
 
 #+BEGIN_SRC c
 int a = 19;
 #+END_SRC
 
-���ְ󶨲������ڱ��������綨������Ҳ�������ְ󶨣�
+名字绑定并不限于变量，比如定义类型也算是名字绑定：
 
 #+BEGIN_SRC c
 typedef int (*wocao)(int, int);
 #+END_SRC
 
-�������������źܽ��ܵĹ�ϵ����Ϊ�������������Щ���ְ󶨵���Щ����
+绑定与作用域有着很紧密的关系，因为作用域决定了哪些名字绑定到哪些对象。
 
-�󶨿��Է�Ϊ���࣬�� *��̬��* ��dynamic/late binding���� *��̬��* ��static/early binding������̬��ָ���ְ󶨷����ڳ�������ʱ������̬��ָ���ְ󶨷����ڳ���ʼ����֮ǰ����2��
+绑定可以分为两类，即 *动态绑定* （dynamic/late binding）和 *静态绑定* （static/early binding）。动态绑定指名字绑定发生在程序运行时，而静态绑定指名字绑定发生在程序开始运行之前。【2】
 
-�����صĸ���� *�ذ�* ��rebinding���� *�޸�* ��mutation����ǰ��ָ�����ʶ�����õĶ��󣬺���ָ�Զ�������޸ġ����ߵľ���һ�������ϵĸ����ã�side effect����������Ĵ����У�ǰ�����ذ󶨣����������޸ģ���2��
+与绑定相关的概念还有 *重绑定* （rebinding）和 *修改* （mutation），前者指变更标识符引用的对象，后者指对对象进行修改。后者的就是一般意义上的副作用（side effect）。在下面的代码中，前者是重绑定，而后者是修改：【2】
 
 #+BEGIN_SRC c
 //the former
@@ -82,107 +82,107 @@ typedef int (*wocao)(int, int);
 }
 #+END_SRC
 
-** ʲô�������ģ�context��
+** 什么是上下文（context）
 
-�������ġ���һ���ǳ������ĸ��Ʋ����̲��ܵĻ�����Ҳ��ʱ��ʱ�������������������������Ŀ�еġ���ϵ�����Ľ������д�����Ҳ��˲��ִ�����ʵ䣬���Ľ��ͺ��������£�
-
-#+BEGIN_QUOTE
-�����ģ�ָ���»�˵������ĳһ������ľ����������ĺ�����
-
-���䣺����ʵĺ�����ϵ�����Ĳ�������
-
-���ģ����л�������ĳһ�λ�ĳһ����ǰ�Ĳ���
-
-���ģ���1�����л�������ĳһ�λ�ĳһ���Ժ�Ĳ��֣�2��ָ����ķ�չ����
-#+END_QUOTE
-
-��ͬ�Ĵ����ڲ�ͬ���������п��ܻ���ﲻͬ����˼�����硰�Բۡ�����������������ӣ�
-
-- ����ͣ��ʱ����һ�̣�������һ��������ô������Բ�
-
-- �Բۣ�ά��54%����9%�����Բۣ�
-
-- �Բۣ��������˺��𣿣�
-
-
-�л��͵�������������ǿ�������е�������ָ����ʲô��
-
-��ά���ٿơ�3�������������������ĵģ�
+“上下文”是一个非常宽泛的概念，撇开编程不管的话我们也会时不时碰到这个词语，例如出现在语文题目中的“联系上下文解释文中词语”。我查了查现代汉语词典，它的解释和例句如下：
 
 #+BEGIN_QUOTE
-�ڼ������ѧ�У�һ������� *������* �Ǳ��������������ǽ��̡��̻߳��˳̣�ʹ�õ����ݵ���С���ϣ������뱻���������������жϣ�����֮����жϵ����ִ�С������ĵĸ����ڿ��ж������о�����Ҫ�����壬�������ж�ʱ�������������������Ĳ�����Ϊ�жϳ����ṩ����
+上下文：指文章或说话中与某一词语或文句相连的上文和下文
+
+例句：这个词的含义联系上下文不难理解
+
+上文：书中或文章中某一段或某一句以前的部分
+
+下文：（1）书中或文章中某一段或某一句以后的部分（2）指事情的发展或结果
 #+END_QUOTE
 
-����һ�£�������������ִ�е���С���ݼ��ϣ�������ϱ���������ִ���������С��Ϣ��
+相同的词语在不同的上下文中可能会表达不同的意思，例如“卧槽”，下面给出三个例子：
 
-�� 8086 �����˵�Ļ��������С��Ϣ������ IP��CS �Ĵ�����ֵ��CS �Ǵ���μĴ�������Ŷλ�ַ��IP ��ָ��ָ��Ĵ�������Ŷ���ƫ�Ƶ�ַ���������ж�ʱ��CS �� IP �ᱻѹ���ջ�����������Ա�֤�жϽ������ܹ��������ز�����ִ�С�
+- 网吧停电时的那一刻，人生第一次听到这么整齐的卧槽
 
-Scheme �е� call/cc ���Բ��� continuation����һ�λ��εػص������������ִ�С�call/cc ��������ǳ���ִ�е������ġ�
+- 卧槽！维普54%，万方9%！！卧槽！
 
-����һ����˵�� *�����ľ���ĳ����Ҫ������ȥ������Ҫ�Ķ���* ���Ͼ���ƾ���Բۡ������������ƶϲ�������������ľ�����еġ���������ˣ�����Ҳ֪����һ����������̾��
+- 卧槽！吓死人了好吗？！
 
-** ʲô�ǻ�����environment��
 
-��������Ҳ��һ���ܳ����ĸ�����Ҳ������һ������ȥ�����绷��Ӱ��ܴ�Ļ����¼��� (  ^��^)�������ȿ����ֵ��϶�����ʵĽ��Ͱɣ�
+闲话就到这里，接下来我们看看编程中的上下文指的是什么。
+
+在维基百科【3】中是这样定义上下文的：
 
 #+BEGIN_QUOTE
-��������1����Χ�ĵط���2����Χ�����������
-
-���䣺��1������������2���͹ۻ���
+在计算机科学中，一个任务的 *上下文* 是被该任务（它可以是进程、线程或纤程）使用的数据的最小集合，它必须被保存来允许任务被中断，并在之后从中断点继续执行。上下文的概念在可中断任务中具有重要的意义，在任务被中断时，处理器将保存上下文并继续为中断程序提供服务。
 #+END_QUOTE
 
-���������й��ڻ������������£�
+概括一下，上下文是任务执行的最小数据集合，这个集合保存了任务执行所需的最小信息。
 
-- ��ͥ������ѧϰ������������Լ���ỷ����Ӱ��һ���˵�ѧϰ�ͳɳ�
+拿 8086 汇编来说的话，这个最小信息可以是 IP，CS 寄存器的值。CS 是代码段寄存器，存放段基址，IP 是指令指针寄存器，存放段内偏移地址。当出现中断时，CS 和 IP 会被压入堆栈保存起来，以保证中断结束后能够正常返回并继续执行。
 
-- ��������Ľ�����������Ӧ�˸��ּ��˻���������������Ȼ�����µļ��˻���������������ľ��԰�����������ģ�����Ȼ�Ļ���
+Scheme 中的 call/cc 可以捕获 continuation，并一次或多次地回到这个捕获点继续执行。call/cc 捕获的正是程序执行的上下文。
 
-- ����������ָĳһʱ��������йص����������ϵĻ�������
+宽泛一点来说， *上下文就是某件事要进行下去最少需要的东西* ，毕竟光凭“卧槽”两个字你是推断不出它里面包含的具体情感的。（话虽如此，我们也知道它一般用来表惊叹）
+
+** 什么是环境（environment）
+
+”环境“也是一个很常见的概念，最近也发生了一件看上去对世界环境影响很大的环境事件呢 (  ^ω^)。我们先看看字典上对这个词的解释吧：
+
+#+BEGIN_QUOTE
+环境：（1）周围的地方（2）周围的情况和条件
+
+例句：（1）环境保护（2）客观环境
+#+END_QUOTE
+
+对于生活中关于环境的例句如下：
+
+- 家庭环境，学习环境，生活环境以及社会环境都影响一个人的学习和成长
+
+- 几百万年的进化，人类适应了各种极端环境，不过都是自然条件下的极端环境。而静音房里的绝对安静，是人造的，不自然的环境
+
+- 心理环境是指某一时刻与个体有关的所有心理上的环境因素
 
 
-���������Ҳ���̫��ͱ����صĶԻ����Ľ��ͣ�����ò�ƺ������ĸ�һ���ˣ������������������������ĺͻ����������õ�һ�ѹ��� javascript �ġ������Ļ�������������������¹��ڻ����Ľ������ҵĸ������⣬�����и��õ����ⲻ�����ҽ���������
+我在网上找不到太多和编程相关的对环境的解释，环境貌似和上下文搁一起了，比如你在网上搜索“上下文和环境”，你会得到一堆关于 javascript 的“上下文环境”的搜索结果。以下关于环境的解释是我的个人理解，若您有更好的理解不妨与我交流交流。
 
-Marx ˵��������һ������ϵ���ܺ͡�������������ӷ�дһ�£�����ĳ��������ԣ�����Ҳ�����ǡ���Χһ��������ܺ͡�������Χ��������õĺ�ģ��������һ������˵��С���Լ��ķ��䣬���������������������涼������Ϊ����Χ������ô���Ƿ����������Ϊ�����ǿ�����ĳ���彻���Ķ��������������򱻶����������ڸø���Ļ�����һ���֡�
+Marx 说过“人是一切社会关系的总和”，根据这个句子仿写一下，对于某个个体而言，环境也可以是“周围一切事物的总和”。“周围”这个词用的很模糊，对于一个人来说，小到自己的房间，大到整个地球，甚至整个宇宙都可以作为“周围”。那么我是否可以这样认为：凡是可以与某个体交互的东西，不论主动或被动，它就属于该个体的环境的一部分。
 
-����˵�����ҶԻ�������ʶ����������ĳ���彻���Ķ������Ǹø��廷����һ���֡���ô�������Ƿ��������Ļ���������˵˵�ҵ����⣺���߱������ܶ��Եĸ��岻�������Ļ��������������ܶ��Եĸ����������Ļ�����һ������ʶ�ʵ���û�취����������ʲô���õģ�����һ�������Լ�һ���ƻ��ۡ��������ܶ����������ֻ���������ã��Ҳ�̫������ľ�����˼����������������˼�����Լ�����
+上面说明了我对环境的认识：凡可以与某个体交互的东西都是该个体环境的一部分。那么，个体是否属于它的环境？下面说说我的理解：不具备主观能动性的个体不属于它的环境，具有主观能动性的个体属于它的环境。一个无意识质点是没办法对自身产生什么作用的，但是一个人扇自己一巴掌会疼。（主观能动性这个词我只是拿来用用，我不太清楚它的具体意思，这里我想表达的意思是能自己动）
 
-��Ȼ�������ҵ�˵�����������֮����������ﹹ�����ҵĻ��������������еľ�������������ҵ���ϵ��ν��΢����΢���ҿɲ��ں����ٹ��������ҷɹ����Ĺ⡣Ҫ���û�����������ø������ã����ǿ�����ȥ������Ĵ�Ҫ���֣�ֻ��ע��Ҫ���֡����ڱ�̿�������������ν�ı�̿�����������������������ʱ�������ȵȡ�
+自然，按照我的说法，宇宙除我之外的所有事物构成了我的环境，但是宇宙中的绝大多数东西与我的联系可谓是微乎其微，我可不在乎多少光年外向我飞过来的光。要想让环境这个概念变得更加有用，我们可以舍去大多数的次要部分，只关注主要部分。对于编程开发，我们有所谓的编程开发环境，程序运行有运行时环境，等等。
 
-** �ܽ�
+** 总结
 
-���ҿ����������ľ���ĳ����Ҫ������ȥ������Ҫ�Ķ�����������������ĳ�����н��������ж������ɵ����塣������ô����Ļ���������Ҳ����һ�ֻ��������ü��ϵĸ������ĳ���µĻ������ӻ�����
+在我看来，上下文就是某件事要进行下去最少需要的东西，而环境就是与某个体有交互的所有东西构成的总体。按我这么理解的话，上下文也算是一种环境，借用集合的概念，它是某件事的环境的子环境。
 
-��Ȼ�ˣ���ֻ���ҵ�һ�����⡣ *�������ĺͻ�������ͬһ����Ҳ��һ������* �����Ĳ������߽������Ե����֣����ܻ���ڻ��á�
+当然了，这只是我的一种理解。 *把上下文和环境看作同一事物也是一种理解* 。下文不对两者进行明显的区分，可能会存在混用。
 
-* ʲô��������scope��
+* 什么是作用域（scope）
 
-���ȣ�������Ҫ֪������������������ʲô�� ���� �������������ְ��ڳ����еĿɼ��ԡ� *ĳ�����ְ󶨵���������ǳ����иð󶨿ɼ�����һ����* ��
+首先，我们需要知道作用域是用来描述什么的 —— 它描述的是名字绑定在程序中的可见性。 *某个名字绑定的作用域就是程序中该绑定可见的那一部分* 。
 
-�����á���ʾӰ�죬�����򡱱�ʾӰ�췶Χ����ô���Ļ��е��������еĵ�Ų���ֻҪ���ڷ���Դ�Ļ��������е�����εĲ��֣���Χ�����е�Ų����ڡ�
+“作用”表示影响，而“域”表示影响范围，这么看的话有点像物理中的电磁波，只要存在发射源的话，除了有电磁屏蔽的部分，周围都会有电磁波存在。
 
-�������� Ҳ��������ָ�ڳ����ĳ�����ֻ�ĳ�������пɼ������ְ󶨣��������ʱ��ʹ�������Ļ򻷾����Ӻ��ʡ��Ͼ���������������ĳ�����ְ󶨵����÷�Χ������������������ĳһ��ɼ����������֡�
+“作用域” 也可以用来指在程序的某个部分或某个点所有可见的名字绑定，但是这个时候使用上下文或环境更加合适。毕竟作用域描述的是某个名字绑定的作用范围，而上下文描述的是某一点可见的所有名字。
 
-** ΪʲôҪ��������
+** 为什么要有作用域
 
-�ⷽ����Ҳ�����ϼ����Ҳ���ʲô���ϣ����������������򡱶��᲻�ɱ�����ѵ� javascript ��صĶ��������Ҵ�඼�Ǳհ��������� let ��������֮��Ķ��������ԣ���һС�ڵ����ݴ�������ҵĸ��˷����ˣ�����в�ͬ��ĵط�����ӭ���ҽ�����
+这方面我也在网上几乎找不到什么资料，凡是搜索“作用域”都会不可避免的搜到 javascript 相关的东西，而且大多都是闭包啊，引入 let 块作用域啊之类的东西。所以，这一小节的内容纯粹就是我的个人发挥了，如果有不同意的地方，欢迎与我交流。
 
-�����ѧ��һ��򵥵Ļ��Ļ�����Ӧ��֪�����������������αָ�ͨ��������ı�����û��ʲô������ĸ������˵�������������ȫ���������ڻ��Դ�ļ����κεط��㶼����ʹ��������������һ���Ͳ��ò���Ա�������ͻ�����⣬��Ϊ�ļ��ڲ��ô�������������ͬ�ı������壬�ڶ��������ʱ����Ҫ�����Ƿ����������
+如果你学过一点简单的汇编的话，你应该知道有用来定义变量的伪指令。通过它定义的变量并没有什么作用域的概念，或者说它的作用域就是全局作用域，在汇编源文件的任何地方你都可以使用它。但这样以一来就不得不面对变量名冲突的问题，因为文件内不得存在两个名字相同的变量定义，在定义变量的时候还需要考虑是否存在重名。
 
-������Ȼ�ǲ�����ģ�黯�ģ��ڱ�дһ���ִ���ʱ�����ò�������һ���֡����ǵ��������еı�����Ҫ��������ʹ�ã�����������һ������������������Ĵ��뿴�����ñ����Ļ��� ok �ˡ�������Ը���������������Χ����һ�����֣������ڸ��õ�ģ�黯��ά���ٿơ�8��������д����
+这样自然是不利于模块化的，在编写一部分代码时还不得不考虑另一部分。考虑到不是所有的变量都要被所有人使用，给变量划分一个作用区域，让区域外的代码看不见该变量的话就 ok 了。作用域对各个变量的势力范围做了一个划分，有利于更好的模块化。维基百科【8】上这样写道：
 
 #+BEGIN_QUOTE
 It is considered good programming practice to make the scope of variables as narrow as feasible so that different parts of a program do not accidentally interact with each other by modifying each other's variables.
 #+END_QUOTE
 
-** ���ָ�����������
+** 各种各样的作用域
 
-��������Թ�����һ���򵥵ı�ʾʽ��Ҳ������������������ȡ���ھ�����������������С����������֮�仹��������������������
+作用域可以龟缩于一个简单的表示式，也可以囊括整个程序，这取决于具体的作用域规则。在最小与最大的两者之间还存在许多其他的作用域。
 
-��򵥵�������������ȫ�������� ���� ���������������е�ʵ�嶼�ǿɼ��ġ��������ģ�黯��������һ����������������ȫ��������ͺ����ֲ���������ɡ�
+最简单的作用域规则就是全局作用域 —— 在整个程序中所有的实体都是可见的。最基础的模块化作用域是一种两层作用域，它由全局作用域和函数局部作用域组成。
 
-*** ����ʽ������expression scope��
+*** 表达式作用域（expression scope）
 
-����ʽ������ָ���ְ󶨵���������һ������ʽ�����������ж��б���ʽ�������������ṩ�� let ����ʽ�ĺ���ʽ���ԡ����������ʹ�� elisp ˵���˱���ʽ������ķ�Χ��ʹ�� =;= Χ�ɵ�С���Ӿ��� =a= �� let ����ʽ�е�������
+表达式作用域指名字绑定的作用域是一个表达式。许多语言中都有表达式作用域，尤其是提供了 let 表达式的函数式语言。下面的例子使用 elisp 说明了表达式作用域的范围，使用 =;= 围成的小盒子就是 =a= 在 let 表达式中的作用域：
 
 #+BEGIN_SRC emacs-lisp
 (let ((a 1))
@@ -193,17 +193,17 @@ It is considered good programming practice to make the scope of variables as nar
   ;;;;;;;;;;;;;;;;;;;;;
 #+END_SRC
 
-�� C �����У�����ԭ���еı�������������Ҳ�Ǳ���ʽ������ģ���������������ں���ԭ�ͣ������� function protocol scope����������������ܻ��������𵽵�����Ҳ�����Ǹ�������һ�����֣�����ȷʵ��һ��������
+在 C 语言中，函数原型中的变量名的作用域也是表达式作用域的，它的作用域仅限于函数原型，被称作 function protocol scope。这个作用域看起来很滑稽，它起到的作用也仅仅是给各参数一个名字，但它确实是一个作用域。
 
-*** ��������block scope��
+*** 块作用域（block scope）
 
-���ְ󶨵���������һ���飬��������������ǿ����������������������еĿ�ṹ����������У����� C ϵ���ԡ����������¿�һ�㶼�ں����ڡ�
+名字绑定的作用域是一个块，这样的作用域就是块作用域。它几乎存在于所有的块结构化编程语言中，例如 C 系语言。大多数情况下块一般都在函数内。
 
-��������һ�����ڿ����������� if��while �� for ѭ��������ӵ�п������������һ�㶼������ʹ�á���¶���Ŀ飬�����Ϳ����ڿ��ж��帨��������ʹ�ã��ڿ��ս�ʱ���١�
+块作用域一般用于控制流，比如 if，while 和 for 循环。但是拥有块作用域的语言一般都会允许使用“裸露”的块，这样就可以在块中定义辅助变量并使用，在块终结时销毁。
 
-����������������ְ󶨡�����ڿ�����涨���� n���ڿ������Ҳ���Զ������� n �ı����������ڸ������ n�����������ķ��һ�㱻��Ϊ�ǲ��õģ���Ϊ�����ܻᵼ��Ǳ�ڵ����ĳЩ֧�ֿ�����������Բ������ֲ������ڱ���һ�ֲ�������
+块可以用来隐藏名字绑定。如果在块的外面定义了 n，在块的里面也可以定义名叫 n 的变量，它会遮盖外面的 n。但是这样的风格一般被认为是不好的，因为它可能会导致潜在的作物。某些支持块作用域的语言不允许局部变量遮蔽另一局部变量。
 
-������һЩ������������ӣ���Щ��������������ע�ͷ��������ˣ�
+下面是一些块作用域的例子，这些变量的作用域用注释方框标出来了：
 
 #+BEGIN_SRC c
 for (i = 0; i < N; ++i) {
@@ -240,13 +240,13 @@ int factor(int n)
 }
 #+END_SRC
 
-�� elisp ��ò�Ʋ����ڿ������򣬲��� let ����ʽ�������Ѿ������ˡ�
+在 elisp 中貌似不存在块作用域，不过 let 表达式作用域已经够用了。
 
-*** ����������function scope��
+*** 函数作用域（function scope）
 
-���ְ󶨵���������������������������Ǻ��������򡣼������е������ж��к��������������ṩ��һ���ں������������д����ֲ������ķ���������������Ӻ���ͷ��ʼ���ں���������䴦���������������£������������ھ��Ǻ������õĹ��� ���� ���ں������ÿ�ʼʱ���������ں�������ʱ�����١�����ĳЩ�����ṩ�˾�̬�ֲ����������� C���������������ڹᴩ������������ڣ�����������������������ڵĺ�����
+名字绑定的作用域是整个函数的作用域就是函数作用域。几乎所有的语言中都有函数作用域，语言提供了一种在函数或子例程中创建局部变量的方法：它的作用域从函数头开始，在函数返回语句处结束。大多数情况下，它的生命周期就是函数调用的过程 —— 它在函数调用开始时被创建，在函数返回时被销毁。不过某些语言提供了静态局部变量（比如 C），它的生命周期贯穿程序的生命周期，但是它的作用域仅限于所在的函数。
 
-���������һ�û���ᵽ��̬������;�̬�����򣬹��ں��������������������������н��ܡ��������� C ���Եĺ�������Ϊ���ӣ����� C ���Եĺ���������Ƕ�ף����ԱȽϼ򵥣�
+由于这里我还没有提到动态作用域和静态作用域，关于函数作用域的例子我留到下面进行介绍。这里先用 C 语言的函数来作为例子，由于 C 语言的函数不允许嵌套，所以比较简单：
 
 #+BEGIN_SRC c
 int add (int a, int b)
@@ -262,21 +262,21 @@ int add (int a, int b)
 }
 #+END_SRC
 
-*** �ļ�������file scope��
+*** 文件作用域（file scope）
 
-���ְ󶨵���������һ���ļ�Ŀ������������ļ��������ļ����������ֽз�һ�㶼��ָ C ���ԣ��� C ������������Ϊ�ļ����ӡ����ļ��� top level ����ĺ����ͱ�������������Ǵ����ǵ�������ֱ���ļ�ĩβ����Ҳ���Ա�������һ��ģ��������
+名字绑定的作用域是一个文件目的作用域就是文件作用域。文件作用域这种叫法一般都是指 C 语言，在 C 语言中它被称为文件链接。在文件的 top level 定义的函数和变量的作用域就是从它们的声明处直到文件末尾。这也可以被看做是一种模块作用域。
 
-*** ģ��������module scope��
+*** 模块作用域（module scope）
 
-���ֵ���������һ��ģ�飬���������������ģ��������ģ�������������ģ�黯���������ʹ�ã���Щ������ģ����Ϊ���ӳ���ĵ�Ԫ����������������Ϣ����¶���޵Ľӿڡ�Python ��һ���ܵ��͵����ӡ�
+名字的作用域是一个模块，这样的作用域就是模块作用域。模块作用域可以在模块化编程语言中使用，这些语言以模块作为复杂程序的单元，它们允许隐藏信息并暴露有限的接口。Python 是一个很典型的例子。
 
-*** ȫ��������global scope��
+*** 全局作用域（global scope）
 
-����������������������򱻳�Ϊȫ��������һ����˵��ʹ�þ���ȫ��������ı�������ȫ�ֱ���������Ϊ�ǻ�ϰ�ߣ���Ϊ������ܵ������ֳ�ͻ��С���ڸǱ�����ȫ��������һ�������������͵����֣����纯������������������������
+作用域是整个程序的作用域被称为全局作用域。一般来说，使用具有全局作用域的变量（即全局变量）被认为是坏习惯，因为它会可能导致名字冲突或不小心掩盖变量。全局作用域一般用于其他类型的名字，比如函数名，类名和数据类型名。
 
-** �����������ֽ�����name resolution��
+** 作用域与名字解析（name resolution）
 
-�᲻���������������ͬ�����ְ󶨵������򲿷��ص�������أ������Ĵ�������������������ȫ�ֱ���������ͬ����������Լ���Ƕ���е�����������
+会不会存在两个名字相同的名字绑定的作用域部分重叠的情况呢？这样的代码很容易想出来，比如全局变量与块变量同名的情况，以及块嵌套中的重名变量：
 
 #+BEGIN_SRC c
 // global variable and block varibale
@@ -296,63 +296,63 @@ int yy1 = 1;
 }
 #+END_SRC
 
-����һ������ͬ���ֵİ󶨵�������ʹ����غϣ����غ�������ʹ�ø����ֵĻ���ָ���ĸ�ʵ���أ������������Ĵ���Ļ���incp10 ���ӡ 43�����ڶ��δ������� 2�����Ƕ�ʹ��������������ְ󶨡�
+这样一来，相同名字的绑定的作用域就存在重合，在重合区域内使用该名字的话会指向哪个实体呢？如果运行上面的代码的话，incp10 会打印 43，而第二段代码会输出 2。它们都使用了最里面的名字绑定。
 
-���� wikipedia �����ҵ���һ�������������Ե���������ֽ�����7�����ڱ�������У� *���ֽ���ָͨ���������ʽ�еķ����ҵ���Ӧ��ʵ��* �����ڱ������ԣ������ҵ�������ֵ�����ֽ������򲢲�ֻ���������йأ�΢���ٿ������и�����ϸ����������������ֻ��ע�������������ݾʹ����ˡ�
+我在 wikipedia 上面找到了一个描述这种特性的术语，即名字解析【7】。在编程语言中， *名字解析指通过程序表达式中的符号找到对应的实体* 。对于变量而言，就是找到变量的值。名字解析规则并不只和作用域有关，微机百科上面有更加详细的描述，由于这里只关注作用域其他内容就从略了。
 
-�������濴���ģ�ֻ�����������ְ��������á��������������ֽ������᳢���ҵ����С���С������������ְ󶨣������Ĺ��򱻽����ڱΣ�shadowing���������ڸǣ�name masking�������ڴ����ص�������ʱ�����á�
+就像上面看到的，只有最里层的名字绑定起到了作用。大多数情况下名字解析都会尝试找到具有“最小”作用域的名字绑定，这样的规则被叫做遮蔽（shadowing）或名字掩盖（name masking），它在存在重叠作用域时起作用。
 
-��û���˽����ֽ����������֮ǰ����һֱ��Ϊ�����ڸ����������һ���֣���������������ʱ������ı����������ı�����������ҧ����һ�ڣ��������������������������������������ǲ����ڵġ����ڿ���������Ӧ���Ƕ����ĸ���Ͼ��һ������޸Ĺ���Ϊʹ�����������ְ󶨣���Ȼ�������϶�����־����ˡ�
+在没有了解名字解析这个概念之前，我一直以为名字遮盖是作用域的一部分，当两个变量重名时，里面的变量会把外面的变量的作用域“咬”掉一口，外面变量的作用域在里面变量的作用域那里是不存在的。现在看来，它们应该是独立的概念，毕竟我还可以修改规则为使用最外层的名字绑定，虽然看起来肯定很奇怪就是了。
 
-����һ�䣬���ֽ���Ҳ���ж�̬�;�̬֮�ֵģ���̬���ֽ�����������ʱȷ�����ֶ�Ӧ��ʵ�壬����̬���ֽ�����������ǰȷ��������������Ƕ�̬���Ǿ�̬�йء�
+最后插一句，名字解析也是有动态和静态之分的，动态名字解析即在运行时确定名字对应的实体，而静态名字解析是在运行前确定，这和作用域是动态还是静态有关。
 
-** �������������ڣ�extent��
+** 作用域与生存期（extent）
 
-˵��������Ͳ��ò�̸��һ������Ǿ��� extent���������˽��䷭��Ϊ���������ڡ����������Ѿ��� lifetime �ķ����ˣ�������ͷ���Ϊ�������ڡ���5���������֡�
+说到作用域就不得不谈另一个概念，那就是 extent。网上有人将其翻译为“生命周期”，但是这已经是 lifetime 的翻译了，我这里就翻译为“生存期”【5】与其区分。
 
-���˵�����������������ְ󶨵Ŀռ䷶Χ�Ļ�����ô�����������ľ������ְ󶨵�ʱ�䷶Χ���������������ְ󶨵Ķ�̬���ԡ�������ʱ��ÿ���󶨶������Լ��������ڣ��󶨵������ڴӰ󶨿�ʼ���ڿ�ʼ��������ʧ���������󶨵��������ǳ���ִ��ʱ���һ���֣��ڴ��ڼ����ְ󶨲������仯����������������ͬ��ʵ�塣
+如果说作用域描述的是名字绑定的空间范围的话，那么生存期描述的就是名字绑定的时间范围，它描述的是名字绑定的动态特性。在运行时，每个绑定都有它自己的生存期，绑定的生存期从绑定开始存在开始，到绑定消失而结束。绑定的生存期是程序执行时间的一部分，在此期间名字绑定不发生变化，名字总是引用相同的实体。
 
-�Ƚϼ򵥵����Ӿ��� C �����еĺ���������������������Ǻ����壬���������ڴӺ������ÿ�ʼ���ں������غ������
+比较简单的例子就是 C 语言中的函数变量，它的作用域就是函数体，它的生存期从函数调用开始，在函数返回后结束。
 
-����������û���������ջ��ƵĻ�������ִ�е��뿪�������������Ȼ���ڵı������ܻᵼ���ڴ�й©����Ϊ�����Ѿ����ɼ��ˣ�Ϊ����������ڴ治���ܱ��ͷ��ˡ���������£��������������ǳ��ڳ���ִ�е�ͣ���ڱ����������ڵ�ʱ��ģ����� C ���Եľ�̬������ Lisp �еıհ�����������һ������������������ʱ������������ֿ��Ա������ˡ�
+如果编程语言没有垃圾回收机制的话，程序执行点离开变量作用域后，仍然存在的变量可能会导致内存泄漏，因为名字已经不可见了，为变量分配的内存不可能被释放了。这种情况下，变量的生存期是长于程序执行点停留在变量作用域内的时间的，比如 C 语言的静态变量和 Lisp 中的闭包。当程序再一次来到变量的作用域时，这个变量就又可以被访问了。
 
-�ڲο����ϡ�6�����г��˼������õ�������������ڣ��Ұ������������档
+在参考资料【6】中列出了几种有用的作用域和生存期，我把它们列在下面。
 
-����������
+对于作用域：
 
-- �ʷ�������lexical scope������ĳ�����ֵ�����ֻ�ܳ����ڳ����ĳ�����ڣ��ⲿ�ֳ��򱻰�����ĳ�����ְ󶨹���ṹ�С������ᵽ�ı���ʽ�����򡢿�������ͺ���������ȶ����ڴʷ�������
+- 词法作用域（lexical scope），对某个名字的引用只能出现在程序的某部分内，这部分程序被包含在某个名字绑定构造结构中。上面提到的表达式作用域、块作用域和函数作用域等都属于词法作用域。
 
-- ����������indefinite scope���������ֵ����ÿ��Գ����ڳ��������λ�á������ȫ��������
-
-
-���������ڣ�
-
-- ��̬�����ڣ�dynamic extent���������ְ󶨽��������ְ��߽��ڼ���Զ����ֽ��з��ʡ����ж�̬�����ڵİ󶨾���ջһ�������Ȱ󶨵�����߽⡣�����Ĳ��������;��ж�̬�����ڡ�
-
-- ���������ڣ�indefinite extent����ֻҪ�������ִ������ã���ô���ְ󶨾ͻ�һֱ���ڡ����� C ��������ľ�̬������ȫ�ֱ�����
+- 不定作用域（indefinite scope），对名字的引用可以出现在程序的任意位置。这就是全局作用域。
 
 
-�ڡ�6���л�����д����
+对于生存期：
+
+- 动态生存期（dynamic extent），在名字绑定建立到名字绑定瓦解期间可以对名字进行访问。带有动态生存期的绑定就像栈一样，最先绑定的最后瓦解。函数的参数变量就具有动态生存期。
+
+- 不定生存期（indefinite extent），只要还对名字存在引用，那么名字绑定就会一直存在。例如 C 语言里面的静态变量或全局变量。
+
+
+在【6】中还这样写道：
 
 #+BEGIN_QUOTE
 In addition to the above terms, it is convenient to define *dynamic scope* to mean *indefinite scope and dynamic extent*
 #+END_QUOTE
 
-��̬�����򱻶���Ϊͬʱ���в���������Ͷ�̬�����ڵ����ְ󶨡�������6����Ҳ�ᵽ��dynamic scope ��һ����ƣ���Ϊ�����������������������������ڣ������ж�̬�󶨣�dynamic binding�����ܸ���Щ��
+动态作用域被定义为同时具有不定作用域和动态生存期的名字绑定。不过【6】中也提到，dynamic scope 是一个误称，因为它除了描述了作用域还描述了生存期，管它叫动态绑定（dynamic binding）可能更好些。
 
-���ˣ���������������Ľ��ܺ��й����ӣ��������ڿ���̸̸ʲô�� *��̬�;�̬������* �ˡ�
+好了，有了上面诸多概念的介绍和有关例子，我们终于可以谈谈什么是 *动态和静态作用域* 了。
 
-** ʲô�ǡ���̬������
+** 什么是“静态作用域”
 
-�ڿ�ʼ���������֮ǰ���Ҿ����б�Ҫ�Զ�̬������;�̬������������������һ��˵������̬������;�̬������Ľз��ǲ�̫׼ȷ�ģ���Ϊ�ϸ���˵������������ֻ�ǰ󶨵Ŀռ����ʡ������ǽС���̬��������򡱺͡���̬��������򡱿��ܸ���һЩ���һ��������и����еĶ�̬�;�̬���������˫���ţ��Դ˺ʹ���������������֡�
+在开始具体的讨论之前，我觉得有必要对动态作用域和静态作用域这两个名字做一个说明。动态作用域和静态作用域的叫法是不太准确的，因为严格来说作用域描述的只是绑定的空间性质。管它们叫“动态作用域规则”和“静态作用域规则”可能更好一些。我会在下文中给所有的动态和静态作用域加上双引号，以此和纯粹的作用域相区分。
 
-���ȣ�ʲô�������ģ�������ָ���ǳ���ĳһ�����пɼ������֣�ĳһ��Ĵʷ����������ǳ���δ����ʱ�����пɼ����֣������Ŀ��Ը��ݳ�������ı��ƶϳ���������ڴʷ������ģ���̬�����������˵���ջ��Ϣ��
+首先，什么是上下文？上下文指的是程序某一点所有可见的名字，某一点的词法上下文则是程序未运行时它所有可见名字，上下文可以根据程序代码文本推断出来。相比于词法上下文，动态上下文增加了调用栈信息。
 
-�ڡ���̬�������У�һ����������ָ�����Ĵʷ������ġ���Ϊ���ֽ���ֻ��Ҫ������������������̬�ĳ����ı���������Ҳ���������ʷ������򡱡�
+在“静态作用域”中，一个名字总是指向它的词法上下文。因为名字解析只需要根据作用域规则分析静态的程序文本，所以它也被叫做“词法作用域”。
 
-��Ȼͨ�������ı��Ϳ���ȷ�����ֵ�ָ��������Ȼ����������Ϊ��һ�������ڶ����ʱ���ȷ�������Ĵʷ������ģ���ȷ�������ܹ����õ����֣���������ʱ�������ò��䡣
+既然通过代码文本就可以确定名字的指向，那我自然可以这样认为：一个函数在定义的时候就确定了它的词法上下文，即确定了它能够引用的名字，并在运行时保持引用不变。
 
-�ٸ����ӵĻ��������� Scheme �е�������һ��������
+举个例子的话，比如在 Scheme 中的这样的一个函数：
 
 #+BEGIN_SRC scheme
 (define add-gen
@@ -361,7 +361,7 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
         (+ x y))))
 #+END_SRC
 
-������ʹ��һ���������� =add-gen= �����ǻ�õ�һ������������������̿��Կ������������ y Ϊ�βε��Ǹ����������Ķ��塣���ݡ���̬�����򡱵Ĺ���������� x ���� =add-gen= ���յĲ��� x����������������Ĺ��ܾ��ǽ���һ������Ȼ���� add-gen ���յ� x ��ӡ��� =add-gen= ���ǿ��Դ��������಻ͬ���������������ǵĲ�֮ͬ���������ǵ� body �ڵ� x ָ��ͬ�� x�����磺
+当我们使用一个参数调用 =add-gen= ，我们会得到一个匿名函数，这个过程可以看成是完成了以 y 为形参的那个匿名函数的定义。根据“静态作用域”的规则，它里面的 x 就是 =add-gen= 接收的参数 x，所以它这个函数的功能就是接收一个参数然后与 add-gen 接收的 x 相加。由 =add-gen= 我们可以创建出许多不同的匿名函数，它们的不同之处在于它们的 body 内的 x 指向不同的 x，例如：
 
 #+BEGIN_SRC scheme
 (define add1 (add-gen 1))
@@ -372,9 +372,9 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
 => 11
 #+END_SRC
 
-�� =add-gen= ������ =x= ���к��������򣬵������������ڲ���ֹ�ں��������ڣ����ǲ��������ڣ���Ϊ =add-gen= ����������������Ҫʹ����� =x= ������������������Ϊ���ö�������֮ǰ����Ӧ������ =x= һ����Ȼ���ڡ���̬�󶨾��в����������ڡ�
+随 =add-gen= 创建的 =x= 具有函数作用域，但是它的生存期并不止于函数生存期，而是不定生存期，因为 =add-gen= 创建的匿名函数需要使用这个 =x= ，至少在匿名函数因为无用而被回收之前，对应于它的 =x= 一定仍然存在。静态绑定具有不定的生存期。
 
-��Ϊ�������ڶ���ʱ���Ѿ�ȷ���ˣ���������ʱ���ӵ����ֲ������Ӱ�죬������ֶ�����������Ķ���û�����ã����磺
+因为上下文在定义时就已经确定了，所以运行时添加的名字不会产生影响，这个名字对它作用域外的东西没有作用，例如：
 
 #+BEGIN_SRC scheme
 (define x 1)
@@ -384,15 +384,15 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
 => 2
 #+END_SRC
 
-�о���ν�ġ���̬�����򡱾����ܹ��ڳ�������ǰ�����ݲ�ͬ���ֵ���������ȷ��ÿ���������õľ���λ�á����е�о�����̬�����򡱺;�̬�����ֽ�����һ���£���˵���ֽ�����Ҫ�õ����������
+感觉所谓的“静态作用域”就是能够在程序运行前，根据不同名字的作用域来确定每个名字引用的具体位置。我有点感觉“静态作用域”和静态的名字解析是一回事，虽说名字解析需要用到作用域规则。
 
-** ʲô�ǡ���̬������
+** 什么是“动态作用域”
 
-��������Ĺ��ڡ���̬�����򡱵��ܽᣬ����������ʲô�ǡ���̬�����򡱡�
+有了上面的关于“静态作用域”的总结，我们来看看什么是“动态作用域”。
 
-��������˵����̬�����ıȾ�̬�����Ķ��˵���ջ��Ϣ��Ҳ����˵�ڡ���̬�������£������ֵĽ�����Ҫ�õ���̬�����ģ���ʱ�Ľ���������ν�Ķ�̬���ֽ����ˡ�����һ�����ڶ��庯����ʱ����޷���֪������ʹ�õ����ֵ�ָ�򣬱���ȵ�����ʱ����ȷ������Ҳ����Ϊʲô����������̬��ԭ��
+上面我们说到动态上下文比静态上下文多了调用栈信息，也就是说在“动态作用域”下，对名字的解析需要用到动态上下文，这时的解析就是所谓的动态名字解析了。这样一来，在定义函数的时候就无法得知函数中使用的名字的指向，必须等到运行时才能确定。这也就是为什么它被叫做动态的原因。
 
-�����ǰ����������������ʹ�ö�̬������� elisp ���ظ�һ�£�
+让我们把上面的两个例子在使用动态作用域的 elisp 中重复一下：
 
 #+BEGIN_SRC emacs-lisp
 (defun add-gen (x)
@@ -411,9 +411,9 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
 => 3
 #+END_SRC
 
-���Կ����� =add-gen= �ڶ�̬�������в���������������Ϊ�����ɵĺ����е� =x= ��Ҫ�ȵ�����ʱ�Ž��н���������û�ж���ȫ�ֵ� =x= �������Ҳ��� =x= �Ӷ����ִ����ڵڶ��������У����㶨�� =add= ʱ�Ѿ�������ȫ�ֵ� =x= ����������ʱ��Ȼȡ��������� =x= ֵ��������˵�ġ������Ӧ������Ϊʱ���ϵ��������͸�����ջ���Գ��Ϲ�ϵ�ˡ�
+可以看到， =add-gen= 在动态作用域中不能正常工作，因为它生成的函数中的 =x= 需要等到运行时才进行解析，由于没有定义全局的 =x= ，函数找不到 =x= 从而出现错误。在第二个例子中，即便定义 =add= 时已经定义了全局的 =x= ，函数调用时仍然取决于最近的 =x= 值，这里所说的“最近”应该理解为时间上的最近，这就跟调用栈可以扯上关系了。
 
-�ڡ���̬�������д���һ�����ְ󶨾����ǽ���ѹ�����ֵ�ȫ��ջ�У������˳�������ֵ�������󱻵�������̬�������е����ְ� *����ȫ�ֵ�* ��������� push/pop ���ƿ�����ͬһ�����ڲ�ͬ��ʱ��󶨲�ͬ��ʵ�塣�������´����������ֲ��˵�����ʹ���˶�̬���Ǿ�̬������ģ�
+在“动态作用域”中创建一个名字绑定就像是将绑定压入名字的全局栈中，并在退出这个名字的作用域后被弹出。动态作用域中的名字绑定 *总是全局的* ，依靠这个 push/pop 机制可以让同一名字在不同的时间绑定不同的实体。根据以下代码你是区分不了到底是使用了动态还是静态作用域的：
 
 #+BEGIN_SRC emacs-lisp
 (let ((a 1))
@@ -421,51 +421,51 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
 => 3
 #+END_SRC
 
-�������Ĵ��������ڡ���̬�������£���ôÿ�� let �е� a ʹ�õĶ��Ǳ���ʽ�����򣬵��������Ĵ��������ڶ�̬�������£�a ��ʼ���ն��ǲ��������򣬼�ȫ�������򡣡���̬����������û����ν�Ĵʷ�������ģ�ֻ���ڲ���������
+如果上面的代码运行在“静态作用域”下，那么每个 let 中的 a 使用的都是表达式作用域，但如果上面的代码运行在动态作用域下，a 至始至终都是不定作用域，即全局作用域。“动态作用域”中是没有所谓的词法作用域的，只存在不定作用域。
 
-** �ܽ�
+** 总结
 
-��һ�����Ҷ������������һ���Ƚ���ϸ�Ľ��ܡ��ҽ���������������ã�����������࣬�Լ����ֽ���������
+这一节中我对作用域进行了一个比较详细的介绍。我介绍了作用域的作用，作用域的种类，以及名字解析这个概念。
 
-���ڡ���̬�����򡱺͡���̬�����򡱵���������֪�����ҵ���һ�������Ļش�9������Ȼ��Щ���������Ƿǳ��������⣺
+关于“动态作用域”和“静态作用域”的区别，我在知乎上找到了一个不错的回答【9】，虽然有些不完整但是非常容易理解：
 
 #+BEGIN_QUOTE
-�ʷ�������ĺ����������Ȳ����β�Ҳ���Ǻ����ڲ�����ľֲ������ı���ʱ��ȥ��������ʱ�Ļ����в�ѯ��
+词法作用域的函数中遇到既不是形参也不是函数内部定义的局部变量的变量时，去函数定义时的环境中查询。
 
-��̬��ĺ����������Ȳ����β�Ҳ���Ǻ����ڲ�����ľֲ������ı���ʱ������������ʱ�Ļ����в顣
+动态域的函数中遇到既不是形参也不是函数内部定义的局部变量的变量时，到函数调用时的环境中查。
 #+END_QUOTE
 
-�Ҹо�����̬�����򡱺͡���̬�����򡱲�����һ�������򣬶������ֽ����Ĳ�ͬ����
+我感觉“动态作用域”和“静态作用域”并不是一种作用域，而是名字解析的不同规则。
 
-���ڡ���̬�����򡱺͡���̬�����򡱸��Ե���ȱ����û���ᣬ��ϸ�ĶԱȿ��Բο�ά���ٿơ�
+关于“动态作用域”和“静态作用域”各自的优缺点我没有提，详细的对比可以参考维基百科。
 
-* elisp �� lexical-binding
+* elisp 的 lexical-binding
 
-�������˵����ô�࣬�����ǵ����ĵ���Ҫ���֡��������ǣ�
+啰里啰唆的说了那么多，总算是到本文的主要部分。（并不是）
 
-����һ���У������Ȼ���� elisp �ĵ��жԶ�̬������;�̬�������������Ȼ�����һЩʹ��������
+在这一节中，我首先会介绍 elisp 文档中对动态作用域和静态作用域的描述，然后加上一些使用用例。
 
-** elisp �ĵ��е�����
+** elisp 文档中的内容
 
-ÿ���ֲ��󶨶���һ����������������ڡ�������ָԴ�����ı��п��Է��ʰ󶨵�λ�á�������ָ����ִ��ʱ�󶨴��ڵ�ʱ�䡣
+每个局部绑定都有一定的作用域和生存期。作用域指源代码文本中可以访问绑定的位置。生存期指程序执行时绑定存在的时间。
 
-Ĭ������£�Emacs �д����ľֲ��󶨶��Ƕ�̬�󶨡������İ󶨾��ж�̬����������ζ�ų�������ⲿ�ֶ����ܷ��ʵ�������Ҳ���ж�̬�����ڣ�����ζ�Ű�ֻ�ڰ󶨽ṹ������ let �� body ���֣���ִ��ʱ�Ŵ��ڡ�
+默认情况下，Emacs 中创建的局部绑定都是动态绑定。这样的绑定具有动态作用域，这意味着程序的任意部分都可能访问到它。它也具有动态生存期，这意味着绑定只在绑定结构（比如 let 的 body 部分）被执行时才存在。
 
-Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����λ���ı��ϵİ󶨽ṹ�ڡ���Ҳ���в��������ڣ�����ζ����ĳЩ����°󶨿����ڰ󶨽ṹִ����ɺ���Ȼ���ڣ�����ͨ�������հ���������������ġ�
+Emacs 也可以创建词法绑定，词法绑定具有词法作用域，这意味着对变量的任何引用都必须位于文本上的绑定结构内。它也具有不定生存期，这意味着在某些情况下绑定可以在绑定结构执行完成后仍然存在，这是通过叫做闭包的特殊对象做到的。
 
-���������ж�̬��ʱ����������λ�õĵ�ǰ�󶨾��������ʱ�������ϣ������ľֲ���̬�󶨣���������ľֲ��󶨲���������ȫ�ְ󶨡���̬���� Emacs �е�ʵ�ַ�ʽ�ǳ��򵥡�ÿ����������һ�� value cell����ָ������ĵ�ǰ��ֵ̬��Ҳ����Ϊ��ֵ������ĳ�����ű�����ֲ���̬��ʱ��Emacs �� value cell �е����ݱ�����һ��ջ�У����µľֲ�ֵ���� value cell�����󶨽ṹ��������ʱ��Emacs ���ջ�е�����ֵ������ value cell��
+当变量具有动态绑定时，它在任意位置的当前绑定就是最近（时间意义上）创建的局部动态绑定，如果这样的局部绑定不存在则是全局绑定。动态绑定在 Emacs 中的实现方式非常简单。每个变量都有一个 value cell，它指向变量的当前动态值（也可以为空值）。当某个符号被赋予局部动态绑定时，Emacs 将 value cell 中的内容保存在一个栈中，把新的局部值放入 value cell。当绑定结构结束运行时，Emacs 会从栈中弹出旧值并放入 value cell。
 
-��̬����һ��ǿ�������ԣ��������������ò����ı��������ж���ı�����Ȼ��������������Ƶ�ʹ�õĻ�����Ҳ���ó������������⡣
+动态绑定是一个强力的特性，它允许程序引用不在文本作用域中定义的变量。然而，如果不加限制的使用的话，它也会让程序变得难以理解。
 
-�ʷ����� Emacs 24.1 �汾��Ϊ��ѡ�������롣�ʷ��󶨸��������Ż���ʹ�����ĳ�����δ���� Emacs �汾�п��ܻ����еĸ��졣ʹ�ôʷ���ʱ��ÿ���󶨽ṹ�ᶨ��һ���ʷ�������lexical environment���дʷ�������Ӧ��Ҳ�У�����ָ���˰󶨹����ڵı�������ֵ���� Lisp ��ֵ����Ҫ��ȡ�����ĵ�ǰֵʱ�������Ȼ��ڴʷ�������Ѱ�ң����û�ҵ�������ҷ��ŵ� value cell���������ŵ��Ƕ�ֵ̬��
+词法绑定在 Emacs 24.1 版本作为可选特性引入。词法绑定更有利于优化，使用它的程序在未来的 Emacs 版本中可能会运行的更快。使用词法绑定时，每个绑定结构会定义一个词法环境（lexical environment，叫词法上下文应该也行），它指定了绑定构造内的变量及其值。当 Lisp 求值器想要获取变量的当前值时，它首先会在词法环境中寻找，如果没找到它会查找符号的 value cell，这里面存放的是动态值。
 
-�ʷ��󶨾��в��������ڣ�����󶨹����Ѿ�����ִ���ˣ����Ĵʷ���������ͨ���հ����󱻱��棨keep around�����ڶ�����������������ʱ�ᴴ���հ����հ���һ�������ʷ������ĺ�������������ں���������ʱ�ʹ����ˡ����հ�������ʱ���ں��������ڵ����дʷ�������ʹ�ôʷ�������
+词法绑定具有不定生存期，即便绑定构造已经结束执行了，它的词法环境可以通过闭包对象被保存（keep around）。在定义有名或匿名函数时会创建闭包，闭包是一个包含词法环境的函数，这个环境在函数被定义时就存在了。当闭包被调用时，在函数定义内的所有词法变量会使用词法环境。
 
-** ��������� defvar
+** 特殊变量与 defvar
 
-���������˴ʷ��󶨣�ĳЩ������Ȼ�Ƕ�̬�󶨣����Ǳ��������������special variables����ʹ�� defvar��defcustom �� defconst ����ı����������������
+即便启用了词法绑定，某些变量仍然是动态绑定，它们被称作特殊变量（special variables）。使用 defvar，defcustom 和 defconst 定义的变量就是特殊变量。
 
-�������£�
+例子如下：
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding t)
@@ -477,19 +477,19 @@ Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����
 => 3
 #+END_SRC
 
-** lexical-binding ��ʹ��
+** lexical-binding 的使用
 
-ͨ����������ӿ��Կ������ı���� =lexical-binding= ��ֵ�Ϳ���ȷ��������ʹ�ö�̬�󶨻��Ǿ�̬�󶨡����� =lexical-binding= Ϊ =nil= ʹ�ö�̬�󶨣�����ʹ�ôʷ��󶨡�
+通过上面的例子可以看到，改变变量 =lexical-binding= 的值就可以确定到底是使用动态绑定还是静态绑定。设置 =lexical-binding= 为 =nil= 使用动态绑定，否则使用词法绑定。
 
-����趨��һ����Ҫʹ�� =setq= ����Դ�ļ���ͷ���������´���Ҳ�ɣ������������ļ�����ʱ�������ж���������̬�󶨹�������ֵ��
+这个设定不一定需要使用 =setq= ，在源文件的头部加上以下代码也可，这样在配置文件载入时里面所有东西都按静态绑定规则来求值：
 
 #+BEGIN_SRC emacs-lisp
 ;;; -*- lexical-binding: t -*-
 #+END_SRC
 
-һ����˵��һ���Ե�ʹ��ĳһ�ְ󶨷�ʽ�Ϳ����ˡ����´���ֻ����һ��ʵ�飬�۲�һ����ĳһ�󶨷�ʽ����ֵ�õ��Ķ�������һ�ְ󶨷�ʽ�µ�ֵ��
+一般来说，一致性地使用某一种绑定方式就可以了。以下代码只是做一个实验，观察一下在某一绑定方式下求值得到的东西在另一种绑定方式下的值。
 
-�ڶ�̬���µõ��ĺ����ŵ��ʷ�������ȡ��ֵ��
+在动态绑定下得到的函数放到词法绑定那里取求值：
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding nil)
@@ -502,7 +502,7 @@ Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����
 => 3
 #+END_SRC
 
-�ڴʷ����µõ��ĺ����ŵ���̬������ȡ��ֵ
+在词法绑定下得到的函数放到动态绑定那里取求值
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding t)
@@ -515,9 +515,9 @@ Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����
 => 3
 #+END_SRC
 
-�����δ���Ľ����һ���ģ���һ���ڵ��� =yy= ʱʹ�õ�������󶨵� =y= Ҳ���� let �е��Ǹ����ڶ���ʹ�õ� =y= ��ȫ�ְ󶨵� =y= Ҳ���� =(setq y 1)= �� =y= �������ڶ�̬�󶨻����³���ͬ����ʱ���ŵ� value cell �ᱻ�滻Ϊ���µ�ֵ����Ȼ���� =yy= ʱ���е� y ָ�����ȫ�ֵ� =y= ������ʹ�õ�ֵ�������µ� value cell �е�ֵ��
+这两段代码的结果是一样的，第一段在调用 =yy= 时使用的是最近绑定的 =y= 也就是 let 中的那个，第二段使用的 =y= 是全局绑定的 =y= 也就是 =(setq y 1)= 的 =y= ，但是在动态绑定环境下出现同名绑定时符号的 value cell 会被替换为最新的值，虽然调用 =yy= 时其中的 y 指向的是全局的 =y= ，但是使用的值仍是最新的 value cell 中的值。
 
-������ֻ�ᵽ�˺ͺ����йص����ӣ�����˼���ǣ�elisp �еĺ��������ְ����в�ͬ����Ϊ��
+上面我只提到了和函数有关的例子，有意思的是，elisp 中的宏在这两种绑定下有不同的行为：
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding nil)
@@ -533,19 +533,19 @@ Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����
 => (macro closure (y yq yp ys yg ty stream-null stream-null yyy cc cc yao yyy t) (x) (list '+ 1 x))
 #+END_SRC
 
-���Կ������ڶ�̬���¶���ĺ���Ǽ򵥵ĺ꣬���ھ�̬���µõ��ĺ껹���˱հ����� elisp �ĵ��о�������һ�����ӣ�
+可以看到，在动态绑定下定义的宏就是简单的宏，而在静态绑定下得到的宏还多了闭包。在 elisp 文档中举了这样一个例子：
 
 #+BEGIN_SRC emacs-lisp
 (defmacro foo (a)
   (list 'setq (eval a) t))
 (setq x 'b)
-(foo x) �� (setq b t)
+(foo x) → (setq b t)
 ;; but
 (setq a 'c)
-(foo a) �� (setq a t)
+(foo a) → (setq a t)
 #+END_SRC
 
-����ĺ���������ڣ������������ʵ�ʲ�������ͬʱ�����ú�ʱ�õ������ְ� =a -> a= ��Ժ������ =eval= ����Ӱ�죬���Եڶ������ӳ��������⡣�ĵ�����Ҳ���鲻Ҫ�ں�������ֵ����ô������Ĵ����ڴʷ����л����ʲô����أ�
+上面的宏的问题在于，当宏参数名与实际参数名相同时，调用宏时得到的名字绑定 =a -> a= 会对宏里面的 =eval= 产生影响，所以第二个例子出现了问题。文档里面也建议不要在宏里面求值。那么，上面的代码在词法绑定中会出现什么结果呢？
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding t)
@@ -556,27 +556,27 @@ Emacs Ҳ���Դ����ʷ��󶨣��ʷ��󶨾��дʷ�����������ζ�ŶԱ������κ����ö�����
 c => t
 #+END_SRC
 
-�ڶ����ʱ����Ĳ����������κ���������ֻ����������ѣ�������� =a= ��ָ������� =a= �������ڵ��ú�ʱʹ��ͬ�������û��Ӱ�졣
+在定义宏时，宏的参数不具有任何作用域，它只是在那里而已，宏里面的 =a= 会指向外面的 =a= ，所以在调用宏时使用同名宏参数没有影响。
 
-��ֻ��˵�Ǹ��ȽϺ�������ӣ���ʵ�ʱ�д����ʱӦ�þ���ʹ��һ�ְ󶨷�ʽ��
+这只能说是个比较好玩的例子，在实际编写代码时应该尽量使用一种绑定方式。
 
-* Scheme �� syntax-case
+* Scheme 的 syntax-case
 
-���ˣ������Ǳ��ĵ����һ�ڣ���� Scheme �� syntax-case �����һ���򵥵Ľ��ܣ�Ҳ��Ϊ��ѧϰ Scheme ��һ��С�ᡣ�����ֻ�� syntax-case ����Ȥ�Ļ�����Ҳֻ��Ҫ�Ķ����ĵ���һ���֡�
+好了，本节是本文的最后一节，会对 Scheme 的 syntax-case 宏进行一个简单的介绍，也作为我学习 Scheme 的一个小结。如果您只对 syntax-case 感兴趣的话，您也只需要阅读本文的这一部分。
 
-syntax-case �ķ������� chez-scheme ������ Kent��������˵��syntax-case �Ĺ��ܱ� syntax-rules Ҫǿ�ܶࡣǿ����ȻҲҪ����Ӧ�Ĵ��ۣ��Ǿ��Ǻ���д���ο����ϡ�10����������˵�ģ�
+syntax-case 的发明者是 chez-scheme 的作者 Kent，据他所说，syntax-case 的功能比 syntax-rules 要强很多。强大自然也要有相应的代价，那就是很难写。参考资料【10】中是这样说的：
 
 #+BEGIN_QUOTE
-syntax-case �ǳ�ǿ�󣬼ȿ���֧�ָ߼��꣬Ҳ����֧�ֹ��̺꣬���ҿ��Դ��������Ͳ������� ����ǿ��Ĵ����������ϵͳ�ǳ����ӣ����⣬ʹ�ú�ʵ�����涼�ǡ�
+syntax-case 非常强大，既可以支持高级宏，也可以支持过程宏，并且可以处理卫生和不卫生。 但是强大的代价是这个宏系统非常复杂，理解，使用和实现上面都是。
 #+END_QUOTE
 
-��һ����Ҫ���۵������Ǻ�������ԡ�ʲô�� syntax-case �Լ� syntax-case �ļ��÷���syntax-case �� R6RS �б����� Scheme�������� R7RS ���ֲ����ˣ����ɿ�����̫��ʵ���ˡ�Ϊ��ʹ�� syntax-case�����������õ��� Kent �� chez-scheme �Լ� Racket��Racket ����� syntax-case �� Chez �������Щ���𣬵��Ǵ����ϻ��Ƿǳ����Ƶġ�syntax-case �Ĳο���������Ҫʹ�� /the scheme programming language/ ��TSPL���Լ� Racket �Ĺٷ��ĵ���
+这一节主要讨论的问题是宏的卫生性、什么是 syntax-case 以及 syntax-case 的简单用法。syntax-case 在 R6RS 中被引入 Scheme，但是在 R7RS 中又不见了，理由可能是太难实现了。为了使用 syntax-case，这里我是用的是 Kent 的 chez-scheme 以及 Racket，Racket 里面的 syntax-case 与 Chez 里面的有些区别，但是大体上还是非常相似的。syntax-case 的参考资料我主要使用 /the scheme programming language/ （TSPL）以及 Racket 的官方文档。
 
-** ʲô�������꣨Hygienic macro��
+** 什么是卫生宏（Hygienic macro）
 
-*�����걣֤չ��ʱ���������������ֲ���* ��
+*卫生宏保证展开时不会出现意外的名字捕获* 。
 
-��ôʲô����������ֲ����أ������һ�� C ���롾11������˵��������⣺
+那么什么是意外的名字捕获呢？下面的一段 C 代码【11】可以说明这个问题：
 
 #+BEGIN_SRC c
 #define INCI(i) do { int a=0; ++i; } while (0)
@@ -590,7 +590,7 @@ int main(void)
 }
 #+END_SRC
 
-����Ԥ������������ˣ�
+经过预处理后，它变成了：
 
 #+BEGIN_SRC c
 int main(void)
@@ -603,9 +603,9 @@ int main(void)
 }
 #+END_SRC
 
-���������ڱι���do while (0) ��ʹ�����涨��� a���������𲻵�������� =a= ���ӵ�Ч�������õ��Ľ������ =a is now 4, b is now 9= ��
+根据名字遮蔽规则，do while (0) 会使用里面定义的 a，这样就起不到对外面的 =a= 增加的效果，最后得到的结果就是 =a is now 4, b is now 9= 。
 
-���˺��ڲ������ֶ��ⲿ��Ӱ�죬��������ְ�Ҳ���ܶԺ��ڲ�����Ӱ�죬���磺
+除了宏内部的名字对外部的影响，外面的名字绑定也可能对宏内部产生影响，比如：
 
 #+BEGIN_SRC emacs-lisp
 (defmacro yy-unless (condit &rest exp)
@@ -618,7 +618,7 @@ int main(void)
 => 3
 #+END_SRC
 
-�����ԣ��ڶ�̬�������к������ not ָ����һ����Ⱥ�����û�����߼�ȡ�������á����� =lexical-binding= ��������ʹ��õ���ȷ�Ľ��������Ҫ�� =not= �ŵ�������λ�ã�
+很明显，在动态作用域中宏里面的 not 指向了一个恒等函数，没有起到逻辑取反的作用。启动 =lexical-binding= 还不足以使其得到正确的结果，还需要把 =not= 放到参数的位置：
 
 #+BEGIN_SRC emacs-lisp
 (setq lexical-binding t)
@@ -632,18 +632,18 @@ int main(void)
 => nil
 #+END_SRC
 
-��ͨ�����ʵ���ҷ��� elisp �ıհ���������������˱�����û�б�������������˵�ǵ��ñ���ʽ����Ԫ�أ����Ͼ����ĺ����ͱ����Ƿֿ��ģ�
+（通过这个实验我发现 elisp 的闭包作用域仅仅保护了变量而没有保护函数（或者说是调用表达式的首元素），毕竟它的函数和变量是分开的）
 
-����������������ǿ��Կ����������⣺
+从上面的例子中我们可以看到两个问题：
 
-- ������Ķ��������ڲ�����֮����ⲿ���Ӱ�죬����������ڲ����� =a= Ӱ�����ⲿ����� =a= ��
+- 宏里面的东西可能在不经意之间对外部造成影响，例如上面的内部定义 =a= 影响了外部定义的 =a= 。
 
-- �����һЩ���ֿ��ܶԺ���ڲ����Ӱ�죬��������� =not= ���ذ�Ӱ���� =yy-unless= ���չ����
+- 外面的一些名字可能对宏的内部造成影响，例如上面对 =not= 的重绑定影响了 =yy-unless= 宏的展开。
 
 
-���������Ϊ�˽����������������ֵģ���һ���������ͨ���Ժ��ڲ�ʹ�õ����ֽ������������������ͬ��������ͨ���ֶ�����������Ӧ�������κε��ⲿ����û�г�ͻ�����֡���һ���������ͨ������̬�����򡰽�����ڶ�����ʱ���ȷ���������ֵ�ָ������������У���ͨ������ =lexical-binding= �����������⡣
+卫生宏就是为了解决这两个问题而出现的，第一个问题可以通过对宏内部使用的名字进行重命名解决，它不同于我们普通的手动重命名，它应该是与任何的外部名字没有冲突的名字。后一个问题可以通过”静态作用域“解决，在定义宏的时候就确定宏内名字的指向。上面的例子中，我通过启用 =lexical-binding= 解决了这个问题。
 
-������������ԣ��������������ǲ����ڵģ�ֻҪ�㰴�������ķ���д����Ļ��Ͳ��������ֲ�������⣬���Ե�˵�������治Ӱ�����棬���治Ӱ�����棺
+对于卫生宏而言，上面两个问题是不存在的，只要你按照卫生的方法写代码的话就不会有名字捕获的问题，粗略的说就是里面不影响外面，外面不影响里面：
 
 #+BEGIN_SRC scheme
 (define-syntax my-unless
@@ -653,28 +653,28 @@ int main(void)
          (begin body ...)))))
 #+END_SRC
 
-�ͽ����������ֲ������������ԣ�������ֻ��һ�ֽ���������ѡ�����Ľ���������Բο���11����
+就解决意外的名字捕获这个问题而言，卫生宏只是一种解决方案而已。更多的解决方法可以参考【11】。
 
-** ʲô�� syntax-case
+** 什么是 syntax-case
 
-��������Ĭ�����Ѿ�ѧ���� syntax-rules���� Scheme �ĺ�����һ�����˽⣬һЩ�Ƚϻ����Ķ����ҾͲ�����������ˣ�����Ҫ������ syntax-case ��صĶ�����������Ҳ����ϸ˵�� syntax-case ���﷨�ˣ�ͨ��һЩ������������ˣ�������﷨���Բο����ϵĶ��塣
+在这里我默认你已经学过了 syntax-rules，对 Scheme 的宏有了一定的了解，一些比较基础的东西我就不做过多解释了，我主要介绍与 syntax-case 相关的东西。这里我也不详细说明 syntax-case 的语法了，通过一些例子你就明白了，具体的语法可以参考书上的定义。
 
-ͨ������� =yy-unless= ��һС�ι��̺꣬��Ӧ�öԺ�Ļ�����������һ�����˽⣬�Ǿ��Ǵ�һ������ʽ�任�õ���һ������ʽ��������Ҫע����ǣ����� =yy-unless= �任�����ǵõ���ֻ��һ�� list ���ѣ������������κε���������Ϣ������������Ļ��д�����ֵ��ȷ������ syntax-case �Ͳ�һ���ˣ������յĶ������Ѿ��� *���ʷ��������Ķ���* �����ں�任�Ĺ����п��Զ���Щ��������Ϣ�����޸ģ����õ� *�����µ������ĵĶ���* ���ٱ���ȥ��ֵ��
+通过上面的 =yy-unless= 那一小段过程宏，你应该对宏的基本作用有了一定的了解，那就是从一个表达式变换得到另一个表达式。但是需要注意的是，经过 =yy-unless= 变换后我们得到的只是一个 list 而已，它并不包含任何的上下文信息，具体的上下文还有待在求值中确定。而 syntax-case 就不一样了，它接收的东西就已经是 *被词法解析过的对象* ，你在宏变换的过程中可以对这些上下文信息进行修改，并得到 *具有新的上下文的对象* ，再被拿去求值。
 
-syntax-case ���յ��﷨���������֣��ֱ��ǣ�
+syntax-case 接收的语法对象有四种，分别是：
 
-- ����ԣ����������Ƿ��ŵ�ֵ
+- 非序对，非向量，非符号的值
 
-- ���﷨��������
+- 含语法对象的序对
 
-- ���﷨���������
+- 含语法对象的向量
 
-- �������Ķ���wrapped object�������¼�� WO
+- 被包裹的对象（wrapped object），以下简称 WO
 
 
-������������﷨�����У�ԭ�����͵�ֻ�б���ֵ��ԭ��ֵ�������⣬�������֡��ַ����ַ���֮��Ķ�������ô WO �Ǹ�ʲô�����أ������Ǵ��дʷ���������Ϣ�ı���ʽ�����еı���ʽ����һ��Ҫ��ԭ��ֵ����� WO ���溬����Ի��������Ļ������ǿ��Բ�ֵġ�
+在上面的四种语法对象中，原子类型的只有标量值，原子值容易理解，比如数字、字符和字符串之类的东西，那么 WO 是个什么东西呢？它就是带有词法上下文信息的表达式，其中的表达式并不一定要是原子值。如果 WO 里面含有序对或者向量的话，它是可以拆分的。
 
-��ô������Ҫ�������һ������ʽ�Լ��������ֶ�Ӧ���������أ������Ҫ�õ� =define-syntax= ���������ʽ������ =define= �������ͨ������һ������ʹ������ķ����������������Ի�ñ���ʽ���������ģ�����������
+那么，我们要怎样获得一个表达式以及所有名字对应的上下文呢？这里就要用到 =define-syntax= 这个特殊形式啦，和 =define= 定义的普通函数不一样，它使用特殊的方法来处理参数，以获得表达式及其上下文，就像这样：
 
 #+BEGIN_SRC scheme
 (define-syntax showyy
@@ -687,9 +687,9 @@ syntax-case ���յ��﷨���������֣��ֱ��ǣ�
 => #<syntax (showyy (lambda (x) (+ x 1)))>1
 #+END_SRC
 
-����õ���ת�������һ���� #<syntax> �����Ķ����Լ����� 1�������������������������Ϊת������������������������ =Exception: invalid syntax #<void>= ������һ�������Ǿͻ����һ�����������ĵı���ʽ����Ȼ�����ڻ�û������ʲô��
+上面得到的转换结果是一个被 #<syntax> 包裹的对象，以及数字 1，在最后留个数字是以数字作为转换的输出而不引发空输出错误： =Exception: invalid syntax #<void>= 。这样一来，我们就获得了一个包含上下文的表达式，虽然我现在还没对它做什么。
 
-�õ��� WO �����ǾͿ��Կ�ʼ������ˣ�syntax-case �������ǵĲ�ֹ��ߣ���ʹ��ģʽƥ��ķ�ʽ��һ���� WO ������ɸ�С�� WO �������ǽ�һ�����б任��
+得到了 WO 后我们就可以开始拆分它了，syntax-case 就是我们的拆分工具，它使用模式匹配的方式将一整个 WO 拆成若干个小的 WO 便于我们进一步进行变换：
 
 #+BEGIN_SRC scheme
 (define-syntax apart-1
@@ -698,11 +698,11 @@ syntax-case ���յ��﷨���������֣��ֱ��ǣ�
       [(_ b) #'b])))
 #+END_SRC
 
-����ĺ�� syntax-case ��ģʽ��pattern���� =(_ b)= ������ʾƥ��һ�����������������Ԫ�أ����Һ��Ե��˵�һ��Ԫ�ء���Ϊ��һ��Ԫ�ؾ��Ǻ�����֣������ǲ���Ҫ�ģ����Ժ��Ե��ˡ� =b= һ�㱻��Ϊģʽ������pattern variable����
+上面的宏的 syntax-case 的模式（pattern）是 =(_ b)= ，它表示匹配一个表，这个表有两个元素，而且忽略掉了第一个元素。因为第一个元素就是宏的名字，我们是不需要的，所以忽略掉了。 =b= 一般被称为模式变量（pattern variable），
 
-����ķ������������ģʽ =(_ b)= �⻹��һ������������ֵĶ��� =#'b= ������ syntax-case ���������ʽ�����е� =b= ��һ���򵥵�ģ�壨template�����������������ᵽ��������syntax-case �����Ҳ�Ǵ������ĵı���ʽ��Ҳ����һ�� WO�� =#'b= ������д����ʵ�� =(syntax b)= �� =syntax= ��һ��������ʽ��������һ��ģ�岢��������ģ���е�ģʽ��������ģ���У��������ʽ��ģ���е���������Ϣ������������ı���ʽ�У��Դ�ά�֡���̬�����򡱡�
+上面的方括号里面除了模式 =(_ b)= 外还有一个看起来很奇怪的东西 =#'b= ，它是 syntax-case 的输出表达式，其中的 =b= 是一个简单的模板（template）。就像我们上面提到的那样，syntax-case 的输出也是带上下文的表达式，也就是一个 WO。 =#'b= 的正规写法其实是 =(syntax b)= ， =syntax= 是一个特殊形式，它接受一个模板并将出现在模板中的模式变量插入模板中，输入表达式和模板中的上下文信息被保留至输出的表达式中，以此维持“静态作用域”。
 
-������仰�Ƶĺܣ����� elisp �����ƵĴ������ٸ����ӣ��������Ĺ����ǽ����е� 3 �ź� 4 ��Ԫ�ػ���λ�ò�����ԭ��
+上面这句话绕的很，我用 elisp 中相似的代码来举个例子：下面代码的功能是将表中的 3 号和 4 号元素换个位置并返回原表
 
 #+BEGIN_SRC scheme
 (defmacro tr-1 (a b c d)
@@ -714,18 +714,18 @@ syntax-case ���յ��﷨���������֣��ֱ��ǣ�
       [(_ a b c d) #'(list a b d c)])))
 #+END_SRC
 
-�� =#'= �Ĺ��ܻ���ͦ����ģ����ܲ����Ǳ��Ļ���ֱ�Ӱѱ����������ģʽ���������滻Ȼ�󷵻��µı��������� Racket ���㻹��Ҫ��һ�� syntax-e����Ȼֻ�ܵõ�һ���� WO���������ɶ�� WO ��ɵ� list����
+（ =#'= 的功能还是挺方便的，接受参数是表的话就直接把表里面的所有模式变量都给替换然后返回新的表。但是在 Racket 中你还需要加一层 syntax-e，不然只能得到一整个 WO，而不是由多个 WO 组成的 list。）
 
-�������δ������滻����˼�ǲ��ģ����ǰ�ģ���е�ģʽ�����滻�ɶ�Ӧ���﷨�����ˣ������� Scheme �л���������Ӧ����������Ϣ��������˵����������Ϣʱ���ر�ǿ������Ϣ����Դ��������ı���ʽ��ģ�����ʽ������֮�ͣ�֮�������߶��ᵽ����Ϊ�� syntax-case ���ģ�����ǿ��Զ�ԭ�����Ľ����޸ĵġ����޸��˵Ļ����ܺ�Ͳ���ô�����ˣ�
+上面两段代码在替换上意思是差不多的，都是把模板中的模式变量替换成对应的语法对象了，不过在 Scheme 中还保留了相应的上下文信息。在上面说到上下文信息时还特别强调了信息的来源，即输入的表达式和模板表达式的作用之和，之所以两者都提到是因为在 syntax-case 宏的模板中是可以对原上下文进行修改的。（修改了的话可能宏就不怎么卫生了）
 
-������� =quote= ������ =quasiquote= �� =unquote= �� =unquote-splicing= �� =' and ` and , and ,@= ��һ�����ں��г��� =syntax= ������ =quasisyntax= �� =unsyntax= �� =unsyntax-splicing= �� =#' and #` and #, and #,@= ������һ����ֵʱ�� =`= �� =,= �Լ� =,@= �����������ʵ�ֱ��ھֲ���ֵ������������
+就像存在 =quote= ，就有 =quasiquote= 、 =unquote= 和 =unquote-splicing= （ =' and ` and , and ,@= ）一样，在宏中除了 =syntax= ，还有 =quasisyntax= 、 =unsyntax= 和 =unsyntax-splicing= （ =#' and #` and #, and #,@= ）。在一般求值时， =`= 和 =,= 以及 =,@= 配合起来可以实现表内局部求值，就像这样：
 
 #+BEGIN_SRC scheme
 `(1 2 ,(+ 2 3) ,@(list 1 2 3))
 => (1 2 5 1 2 3)
 #+END_SRC
 
-�� =` , ,@= ���ƣ�ʹ�� =#` #, #,@= ����ʵ�ֺ���������ʽ�ľֲ����㣬ͨ��������ƿ��Է����ʵ�ֺ�ĵݹ����ţ����´���Ĺ����ǰ�һ�����ĺ������������ã��������ܺͺ���һ���ģ�
+和 =` , ,@= 相似，使用 =#` #, #,@= 可以实现宏的输出表达式的局部计算，通过这个机制可以方便地实现宏的递归扩张，以下代码的功能是把一连串的函数套起来调用，函数功能和宏是一样的：
 
 #+BEGIN_SRC scheme
 (define func-series
@@ -760,15 +760,15 @@ syntax-case ���յ��﷨���������֣��ֱ��ǣ�
 => 4
 #+END_SRC
 
-������ =let f= �󶨵ĵط��� =#'(e1 e2 ...)= ��ʵ�� =(list #'e1 #'e2 ...)= �ǵȼ۵ġ������������������һ�¡�����Ҫע��ľ��� =#,= ����ı���ʽ���յķ���ֵҪ��һ�� WO��
+上面宏的 =let f= 绑定的地方的 =#'(e1 e2 ...)= 其实和 =(list #'e1 #'e2 ...)= 是等价的。这个点我在上面提了一下。还需要注意的就是 =#,= 里面的表达式最终的返回值要是一个 WO。
 
-ͨ�� =#' #^ #,= ��ʵ�����������ܣ� =#,@= �Ĺ��ܺ� =#,= ���ƣ��������������һ�� list������ =,@= һ������������ĺ���룬�ǲ��Ǹо��е���ģ����ľͶ��ˣ���һС�δ���д���� 15 ���ӡ��ҳ���ʹ�� syntax-rules ��ʵ����ͬ�Ĺ��ܣ�Ȼ�������ҵ�����ò����������������������һ�������ҡ�
+通过 =#' #^ #,= 我实现了上述功能， =#,@= 的功能和 =#,= 类似，但是它还会剥掉一层 list，就像 =,@= 一样。看了上面的宏代码，是不是感觉有点恶心？恶心就对了，这一小段代码写了我 15 分钟。我尝试使用 syntax-rules 来实现相同的功能，然后发现以我的能力貌似做不到，如果你想出来请一定告诉我。
 
-������Ҫ���ܵ����������Ƿǳ������ģ�ͨ�����ǿ����ں�չ�������н���һЩ����͸ı�Ĭ�ϵľ�̬������������ﵽһЩ�����Ч����
+接下来要介绍的两个函数是非常厉害的，通过它们可以在宏展开过程中进行一些计算和改变默认的静态作用域规则，来达到一些奇妙的效果。
 
-=syntax->datum= ����һ���﷨������Ϊ���������ᡰ�ѵ����������е���������Ϣ����ȡ�ö�Ӧ�ġ����ݡ������ڱ�ʶ�������� =syntax->datum= ��õ���ʶ����Ӧ�ķ��š�
+=syntax->datum= 接受一个语法对象作为参数，它会“脱掉”参数所有的上下文信息，并取得对应的“数据”。对于标识符参数， =syntax->datum= 会得到标识符对应的符号。
 
-���µĺ����һ����������һ��������ȷ�������ĵ��ô�����
+以下的宏接受一个函数名和一个数字来确定函数的调用次数：
 
 #+BEGIN_SRC scheme
 (define-syntax funn
@@ -785,19 +785,19 @@ syntax-case ���յ��﷨���������֣��ֱ��ǣ�
 => 11
 #+END_SRC
 
-�����ֻ�ܽ���������ָ������������������ܷǼ�ֵ����ʽ�Ļ��� =syntax->datum= �Ὣ���Ϊ�����ʶ�������������֣��Ӷ��ò������������Ľ�����������ǿ����ڱ任��ʹ�� =eval= ����ȡֵ���������������һ�����⣬�Ǿ���ת��֮��ԭ�е���������Ϣȫ���������ˣ�ֻ���ڿջ�������ֵ���������ܻ�������벻���ĺ����
+这个宏只能接受数字来指定迭代次数，如果接受非简单值表达式的话， =syntax->datum= 会将其变为表或标识符，而不是数字，从而得不到你所期望的结果。这里我们可以在变换后使用 =eval= 来获取值，但是这样会存在一个问题，那就是转换之后原有的上下文信息全部都丢掉了，只能在空环境中求值，这样可能会带来意想不到的后果。
 
-=datum->syntax= �� =syntax->datum= �Ƿ������ģ�����һ�������ݡ�ת��Ϊ�﷨����
+=datum->syntax= 和 =syntax->datum= 是反过来的，它将一个“数据”转变为语法对象。
 
-=syntax->datum= �ǰ���������Ϣ�������� =datum->syntax= ����������Ϣ����������ô����ʲô����Ϊ��������Ϣ���ṩ���أ�����Ȼ�Ǵ�����������Ϣ��ģ���ʶ���ˡ������ģ���ʶ��������ģʽ������Ҳ������ģ�������ɵĻ�任���ı�ʶ���������任�����ݾͺ�����������ģ���ʶ���Ļ�����һ����ģ���ʶ��һ���������һ���ؼ��֣�����ת���Ķ���һ����һ����ʶ����
+=syntax->datum= 是把上下文信息给剥掉， =datum->syntax= 把上下文信息加上来。那么，拿什么来作为上下文信息的提供者呢？那自然是带有上下文信息的模板标识符了。这里的模板标识符可以是模式变量，也可以是模板中生成的或变换过的标识符。经过变换后，数据就好像是塞到了模板标识符的环境中一样。模板标识符一般是输入的一个关键字，而待转换的对象一般是一个标识符。
 
-�����ݱ�����ģ���ʶ���Ļ����С���仰��������Ҫע�⣬һ������������ݾ����˺�ģ���ʶ��һ���������ģ����⻹��Ҫע�����������ݵ������� =datum->syntax= ֻ�Ǹ�������������ģ���û�ж�������������ʲô�������������ʲôҲ�����Ļ��������������ģ���ʶ����һ���ģ���������ĳЩ����ṹ�еĻ������;�����֮ƥ����������ˡ�
+“数据被塞到模板标识符的环境中”这句话有两点需要注意，一个就是这个数据具有了和模板标识符一样的上下文，另外还需要注意的是这个数据的作用域。 =datum->syntax= 只是给它填充了上下文，而没有对它的作用域做什么工作。如果你它什么也不做的话，它的作用域和模板标识符是一样的，把它包到某些构造结构中的话，它就具有与之匹配的作用域了。
 
-=datum->syntax= ����ת������Ҳ���� syntax-case��ͨ�����������ǳ�����������ʽ�е� =������ʶ��= ��implicit identifiers���������䡱�ʷ���������Ҳ����������������﷨��ʽ������û����ʽ������������ʽ�еİ󶨻����á�
+=datum->syntax= 允许转换器（也就是 syntax-case）通过创建就像是出现在输入形式中的 =隐含标识符= （implicit identifiers）来“掰弯”词法作用域。这也就允许宏在输出的语法形式中引入没有显式出现在输入形式中的绑定或引用。
 
-��Ҫע����ǣ�ģ���ʶ���Ļ�����ָģ���ʶ�� *������ʱ* �Ļ�������һ�����Ҫ��
+需要注意的是，模板标识符的环境是指模板标识符 *被引入时* 的环境，这一点很重要。
 
-C ���Եĺ��ǡ���̬�����򡱵ģ��㿴��
+C 语言的宏是“动态作用域”的，你看：
 
 #+BEGIN_SRC c
 #define Add_a(x) (x + a)
@@ -814,9 +814,9 @@ int g (int x)
 }
 #+END_SRC
 
-�ڲ�ͬ�ĵط��в�ͬ�� a ֵ����չ����������ʱ��ʹ�ò�ͬ�� a ֵ������ʮ�ֶ�̬��
+在不同的地方有不同的 a 值，宏展开后在运行时会使用不同的 a 值，真是十分动态。
 
-�� Scheme �ܲ���������һ���أ����ֻ�� syntax-rules ���������ģ���Ϊ��ֻ���Ǿ�̬������ģ����ڶ����ʱ���֪�� a ָ����һ�������ˡ�����ʹ�� syntax-case ����������һ�㣬ͨ�� =datum->syntax= �� ������� a ����������� a ��ͬ�������Ļ����о� Ok ����
+在 Scheme 能不能做到这一点呢？如果只有 syntax-rules 是做不到的，因为它只能是静态作用域的，宏在定义的时候就知道 a 指向哪一个变量了。但是使用 syntax-case 可以做到这一点，通过 =datum->syntax= 把 宏里面的 a 塞到和外面的 a 相同的上下文环境中就 Ok 啦：
 
 #+BEGIN_SRC scheme
 (define-syntax Add_a
@@ -834,7 +834,7 @@ int g (int x)
 => 3
 #+END_SRC
 
-����ȷʵʵ����һ���ġ���̬�����򡱣�����ȥ������õ��� k �������ģ���������˵��Ӧ���ǿ��������ڲ�� a ����������ǿ���ˣ��������������ʵ��ģ���ʶ��������ʱ�Ļ������ں�չ����ʱ��ģ���ʶ�� =k= �Ѿ�����������Ļ����ˣ����Բ�����ʲô������Ϊ��ê�㡱������ 3 ��Ϊ�������Ϊ��ê�㡱���ֺ����沢û��ʲô��ϵ������ĺ���ʵ������һЩ�򻯣���ʵ�����Ͳ���Ҫ place ����Ϊ��ê�㡱��ʹ�ú����������Ϊ�������ṩ�߼��ɣ�
+上面确实实现了一定的“动态作用域”，看上去这里借用的是 k 的上下文，按道理来说它应该是看不到它内层的 a 啊。上面我强调了：加入的上下文其实是模板标识符被引入时的环境，在宏展开的时候，模板标识符 =k= 已经处于最里面的环境了，所以不论以什么名字作为“锚点”都会以 3 作为结果，因为“锚点”名字和外面并没有什么关系。上面的宏其实可以做一些简化，其实根本就不需要 place 来作为“锚点”，使用宏的名字来作为上下文提供者即可：
 
 #+BEGIN_SRC scheme
 (define-syntax Add_a2
@@ -844,13 +844,13 @@ int g (int x)
        #`(+ x #,(datum->syntax  #'k 'a))])))
 #+END_SRC
 
-���� =datum->syntax= �任�󣬱��任�Ķ���������ľ͸ı��ˣ����Ͳ������ٱ� Scheme �������ˣ������������Ѻ��ò�������Ҳ���Ǻ���������ֿ���Ӱ�쵽���档
+经过 =datum->syntax= 变换后，被变换的对象的上下文就改变了，它就不可能再被 Scheme 改名字了，它可以用来把宏变得不卫生，也就是宏里面的名字可以影响到外面。
 
-��������Ҿ��Ѿ��������� syntax-case �Ļ��������������ʹ�÷�ʽ���Լ����ʹ�������޸��������ʵ��չ��ʱ���㡣����������ܲ����Ǻ�ȫ��ĳЩ��Ҫ�ĺ�����û�н��ܡ��������һ�ڵĹ����ˡ�
+到了这里，我就已经介绍完了 syntax-case 的基本功能与基本的使用方式，以及如何使用它来修改作用域和实现展开时计算。但是这个介绍并不是很全，某些必要的函数还没有介绍。这就是下一节的工作了。
 
-** �� syntax-case ��صĺ������
+** 与 syntax-case 相关的函数与宏
 
-���ȣ��� syntax-case ����صľ��� syntax-rules �����Ͼ� syntax-case �Ǵ�����������ġ�syntax-rules �ǿ����� syntax-case ��������ģ�TSPL ����������д�ģ�
+首先，与 syntax-case 最相关的就是 syntax-rules 啦，毕竟 syntax-case 是从它上面出来的。syntax-rules 是可以用 syntax-case 定义出来的，TSPL 上面是这样写的：
 
 #+BEGIN_SRC scheme
 (define-syntax syntax-rules
@@ -862,19 +862,19 @@ int g (int x)
                 [(_ . pattern) #'template] ...))])))
 #+END_SRC
 
-����ǹ��ڱ�ʶ���ж���һЩ�������� =identifier?= �� =free-identifier=��= �� =bound-identifier=��= ��
+其次是关于标识符判定的一些函数，即 =identifier?= 、 =free-identifier=？= 和 =bound-identifier=？= 。
 
-=identifier?= �����ж������ǲ��Ǳ�ʶ��������ǵĻ����� =#t= �����򷵻� =#f= ��
+=identifier?= 用来判定对象是不是标识符，如果是的话返回 =#t= ，否则返回 =#f= 。
 
-=free-identifier=��= �� =bound-identifier=��= �����ж�������ʶ���Ƿ�����ͬ�ı�ʶ�������ǵ��ж����ݲ�ͬ�� =free= �����ж��������������Ƿ���ͬ���� =bound= �����ڸ������������е�������ʶ���Ƿ���ͬ����������ӿ��Բο� TSPL��
+=free-identifier=？= 和 =bound-identifier=？= 用来判断两个标识符是否是相同的标识符，它们的判断依据不同， =free= 用来判断两个自由引用是否相同，而 =bound= 用来在给定的上下文中的两个标识符是否相同。具体的例子可以参考 TSPL。
 
-=with-syntax= �� =let= ���﷨���񣬲��������õĶ������﷨���������ֵ�����ܹ��� syntax-case һ����ģʽƥ��ķ�ʽ��ģʽ�������﷨������а󶨡�TSPL �����������������ģ�
+=with-syntax= 和 =let= 的语法很像，不过它作用的对象是语法对象而不是值。它能够像 syntax-case 一样以模式匹配的方式将模式变量与语法对象进行绑定。TSPL 上面是这样描述它的：
 
 #+BEGIN_QUOTE
 It is sometimes useful to construct a transformer's output in separate pieces, then put the pieces together. with-syntax facilitates this by allowing the creation of local pattern bindings.
 #+END_QUOTE
 
-��Ҳ����ʹ�� syntax-case ���������
+它也可以使用 syntax-case 定义出来：
 
 #+BEGIN_SRC scheme
 (define-syntax with-syntax
@@ -885,21 +885,21 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
            [(p ...) (let () b1 b2 ...)])])))
 #+END_SRC
 
-=make-variable-transformer= �������岻�������ĺ꣬�Ҷ��������Ȥ���Ǻܴ󣬵������ڽ��������滻ʱ��ʮ�������Ĺ��ߡ�
+=make-variable-transformer= 用来定义不带参数的宏，我对这个的兴趣不是很大，但是它在进行名字替换时是十分有力的工具。
 
-=generate-temporaries= �������ɲ�������ͻ�����֣��� elisp �е� make-symbol �� gensym �е��񣬲��������ʵ��ԭ���Ƿ������ҾͲ�֪���ˡ�
+=generate-temporaries= 用来生成不产生冲突的名字，和 elisp 中的 make-symbol 和 gensym 有点像，不过具体的实现原理是否相似我就不知道了。
 
-���ϵĺ���ȫ������ TSPL��Racket ������ܻᶨ��һЩ���Ӻ��õĺ����ͺ꣬��Ҫ�˽�Ļ�����ǰ�������ĵ�ѧϰ��
+以上的函数全部来自 TSPL，Racket 上面可能会定义一些更加好用的函数和宏，想要了解的话可以前往官网文档学习。
 
-** Scheme ���һЩʹ������
+** Scheme 宏的一些使用用例
 
-�������ҶԺ��һЩ����������һ�������� TSPL��һ��������Racket �ĵ���һ�����������ϵĴ��룬һ���������ҵ�һ���Զ�������ѶȺ͸��ӳ̶ȴ�ųʵ������ɣ�ϣ����Щ���������������ѧϰ���󲿷ֺ궼ʹ�� syntax-case��Ϊ�˼���ٲ���Ҳʹ�� syntax-rules���Ͼ����������� syntax-case ��������ˡ�
+这里是我对宏的一些整理，它的一部分来自 TSPL，一部分来自Racket 文档，一部分来自网上的代码，一部分来自我的一点脑洞，宏的难度和复杂程度大概呈递增规律，希望这些例子能有助于你的学习。大部分宏都使用 syntax-case，为了简便少部分也使用 syntax-rules，毕竟它都可以用 syntax-case 定义出来了。
 
-*** �ݹ�ת����
+*** 递归转换器
 
-���ܣ�ͨ����ͨ�����������õ�һ���ݹ麯����
+功能：通过普通的匿名函数得到一个递归函数。
 
-ʵ�֣�û�к�Ļ�Ҳ��������ν�� y ����ӣ�����ʹ�� letrec ���ӡ�
+实现：没有宏的话也可以用所谓的 y 组合子，但是使用 letrec 足矣。
 
 #+BEGIN_SRC scheme
 (define-syntax rec
@@ -907,7 +907,7 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
    [(_ x e) (letrec ([x e]) x)]))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (define length-yy (rec f (lambda (x)
@@ -917,11 +917,11 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
 => 2
 #+END_SRC
 
-*** ������ʽ and �� or
+*** 特殊形式 and 和 or
 
-���ܣ�ʵ�ֶ�·�߼�
+功能：实现短路逻辑
 
-ʵ�֣�����Ƕ�׵� if ��ʵ�ֹ���
+实现：借助嵌套的 if 来实现功能
 
 #+BEGIN_SRC scheme
 (define-syntax and
@@ -940,18 +940,18 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
        (if t t (or e2 e3 ...)))]))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (and 1 (or #t #f) (or #f #f))
 => #f
 #+END_SRC
 
-*** ������ʽ when �� unless
+*** 特殊形式 when 和 unless
 
-���ܣ�������Ϊ��/��ʱ��˳��ִ�и����ı���ʽ������Ҫ�� begin
+功能：当条件为真/假时，顺序执行给定的表达式，不需要加 begin
 
-ʵ�֣����� if �� begin
+实现：借助 if 和 begin
 
 #+BEGIN_SRC scheme
 (define-syntax when
@@ -965,20 +965,20 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
       ((_ e0 e1 e2 ...) (syntax (when (not e0) e1 e2 ...))))))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (when #t (display 1) (display 2) (display 3))
 => 123
 #+END_SRC
 
-*** loop ѭ��
+*** loop 循环
 
-���ܣ�ʵ�ִ��� break ���ܵ�ѭ��
+功能：实现带有 break 功能的循环
 
-ʵ�֣����� call/cc ������ת����Ҫ�ѹؼ��� =break= ���뵽����ʽ�����Ļ�����
+实现：借助 call/cc 进行跳转，需要把关键字 =break= 插入到表达式所处的环境中
 
-����� =datum->syntax= ���Ǹ��� Scheme ��Ҫ�� =break= ������������ loop ����ʽ����� break ������
+这里的 =datum->syntax= 就是告诉 Scheme 不要给 =break= 重命名，好让 loop 表达式里面的 break 看到它
 
 #+BEGIN_SRC scheme
 (define-syntax loop
@@ -991,7 +991,7 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
                  (let f () e ... (f)))))])))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
   (let ([n 3] [ls '()])
@@ -1004,9 +1004,9 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
 
 *** letcc
 
-���ܣ�����д call/cc �н��ܵĺ�������Щ����
+功能：不用写 call/cc 中接受的函数，少些点字
 
-ʵ�֣����� call/cc
+实现：借用 call/cc
 
 #+BEGIN_SRC scheme
 (define-syntax letcc
@@ -1016,7 +1016,7 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
        #'(call/cc (lambda (name) e ...))])))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (letcc wocao
@@ -1026,13 +1026,13 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
 => 2
 #+END_SRC
 
-letcc �� /the seasoned schemer/ �����һ���ꡣ
+letcc 是 /the seasoned schemer/ 里面的一个宏。
 
-*** �򵥵ĺ���������
+*** 简单的函数生成器
 
-���ܣ�ʹ�������������һ������ʱ���������� getter/setter ����
+功能：使用这个宏来定义一个变量时，生成它的 getter/setter 函数
 
-ʵ�֣����� =datum->syntax= �� =syntax->datum= ��Ҫ�õ�����ΪҪ���ݱ��������������ɺ�����
+实现：这里 =datum->syntax= 和 =syntax->datum= 都要用到，因为要根据变量的名字来生成函数名
 
 #+BEGIN_SRC scheme
 (define-syntax define-gs
@@ -1056,7 +1056,7 @@ letcc �� /the seasoned schemer/ �����һ���ꡣ
             (define setter (lambda (x) (set! var x)))))])))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (define-gs a 1)
@@ -1067,7 +1067,7 @@ letcc �� /the seasoned schemer/ �����һ���ꡣ
 => 2
 #+END_SRC
 
-����Ķ����кܶ��ظ��ĵط���TSPL ����һ�������õĺ��������� gen-id�������ù���һ�ã�
+上面的定义有很多重复的地方，TSPL 中有一个很有用的函数，它叫 gen-id，可以拿过来一用：
 
 #+BEGIN_SRC scheme
 (define-syntax define-gs2
@@ -1094,13 +1094,13 @@ letcc �� /the seasoned schemer/ �����һ���ꡣ
              (define setter (lambda (x) (set! var x)))))])))
 #+END_SRC
 
-�����������ֻ��һ���Ƚϼ򵥵����ӣ��Ƚϸ��ӵ����������ӿ��Կ� TSPL �� 250 ҳ���ҵ� =define-structure= �� /essentials of programming language/ ����Ҳ�����Ƶĺ꣬���� =define-datatype= ���ܾ�֮ǰ�Ҵֲڵ� [[https://github.com/include-yy/awesome-scheme/blob/master/eopl-define-datatype-macro/datatype.scm][ʵ����һ��]] �����ڸо��е㿴�����ˡ�
+上面的生成器只是一个比较简单的例子，比较复杂的生成器例子可以看 TSPL 的 250 页左右的 =define-structure= 。 /essentials of programming language/ 上面也有类似的宏，叫做 =define-datatype= ，很久之前我粗糙的 [[https://github.com/include-yy/awesome-scheme/blob/master/eopl-define-datatype-macro/datatype.scm][实现了一下]] ，现在感觉有点看不懂了。
 
 *** generator
 
-���ܣ�����һ�� generator������ js �� python �е�������
+功能：创建一个 generator，就像 js 和 python 中的那样。
 
-ʵ�֣��� =yield= �ؼ��ַŽ�ȥ�����ˡ�
+实现：把 =yield= 关键字放进去就行了。
 
 #+BEGIN_SRC scheme
 (define-syntax gen-gen
@@ -1125,9 +1125,9 @@ letcc �� /the seasoned schemer/ �����һ���ꡣ
 (define gen-next (lambda (x . val) (apply x val)))
 #+END_SRC
 
-store-return ��Ϊ����ê�㣬store-k �洢��һ������ʱ�� continuaiton �Ա��´λָ���
+store-return 作为返回锚点，store-k 存储上一次跳出时的 continuaiton 以便下次恢复。
 
-����� yield ����Ϊ����ʵ�ֵģ�������ֱ���ں�չ��������ȫ���滻������ʵ�������е� trick����Ϊ�����������ʽ�ж���� =yed= ������ʡ�Ժ�Ҫ�������⴦����
+这里的 yield 是作为函数实现的，还可以直接在宏展开过程中全部替换，不过实现起来有点 trick：因为是在输出表达式中定义宏 =yed= ，所以省略号要做点特殊处理：
 
 #+BEGIN_SRC scheme
 (define-syntax gen-gen2
@@ -1153,7 +1153,7 @@ store-return ��Ϊ����ê�㣬store-k �洢��һ������ʱ�� continuaiton �Ա��´λָ��
              (apply store-k resume-vals))))))])))
 #+END_SRC
 
-ʹ������
+使用例：
 
 #+BEGIN_SRC scheme
 (define wo-gen (gen-gen
@@ -1188,11 +1188,11 @@ store-return ��Ϊ����ê�㣬store-k �洢��һ������ʱ�� continuaiton �Ա��´λָ��
 .....
 #+END_SRC
 
-���涨��� generator ֻ�Ǹ���ߣ���û�� yield ֮����� generator ��û�з���ֵ�ģ�����Ҳû����Ӧ�����ѡ�
+上面定义的 generator 只是个玩具，在没有 yield 之后调用 generator 是没有返回值的，而且也没有相应的提醒。
 
 *** setf
 
-setf �� elisp��common lisp ��Ӧ��Ҳ�аɣ���һ���꣬���Ĺ��ܺ�ǿ��Ҳ����֣����ѵ�һ��������������ֵ����Ȼ������еĶ�����и�ֵ������������˵�Ļ���
+setf 是 elisp（common lisp 中应该也有吧）的一个宏，它的功能很强大也很奇怪，它把第一个参数看做“左值”，然后对其中的对象进行赋值操作。举例来说的话：
 
 #+BEGIN_SRC emacs-lisp
 (setf a 1)
@@ -1207,7 +1207,7 @@ a => 1
 (setf (aref c 0) 2) => c = [2 2 3]
 #+END_SRC
 
-�����֮��setf ���Ը��ݱ���ʽ�ƶϳ�Ҫ���и�ֵ������Ԫ�أ���������и�ֵ������Ҳ����ʹ�� syntax-case ������һ����������������Ҫ��һЩ����������� =setf!= ֧�ֱ��������������ĸ�ֵ��
+简而言之，setf 可以根据表达式推断出要进行赋值操作的元素，并对其进行赋值。我们也可以使用 syntax-case 来仿制一个，不过功能上需要做一些缩减。下面的 =setf!= 支持变量，表和向量的赋值：
 
 #+BEGIN_SRC scheme
 (define-syntax setf!
@@ -1221,11 +1221,11 @@ a => 1
          [(vector-ref x n) (identifier? #'x) #'(vector-set! x n value)])])))
 #+END_SRC
 
-�÷������� elisp ��һ���ģ�ֻ���� aref ����� vector-ref��
+用法和上面 elisp 是一样的，只不过 aref 变成了 vector-ref。
 
-*** ��ʱlet
+*** 延时let
 
-�� elisp �� Scheme �ж�����ʱ��ֵ�ĺ꣬Scheme ���� delay/force�� elisp ������ thunk-delay �� thunk-force������ elisp �л���һ���꣬������ let һ������ʱ��ֵ��
+在 elisp 和 Scheme 中都有延时求值的宏，Scheme 中是 delay/force， elisp 中则是 thunk-delay 和 thunk-force，但是 elisp 中还有一个宏，可以像 let 一样用延时求值：
 
 #+BEGIN_SRC emacs-lisp
 (let ((a (thunk-delay (progn
@@ -1246,9 +1246,9 @@ a => 1
   (+ a b c))
 #+END_SRC
 
-�����δ���Ĺ�������ͬ�ģ�ʹ�� thunk-let ����ʡ�Ե��ظ��� delay �� force��
+这两段代码的功能是相同的，使用 thunk-let 可以省略掉重复的 delay 和 force。
 
-���������� syntax-case ��ʵ����ͬ�Ĺ��ܣ�
+下面我们用 syntax-case 来实现相同的功能：
 
 #+BEGIN_SRC scheme
 (define-syntax delay-let
@@ -1279,9 +1279,9 @@ a => 1
               e1 e2 ...))])))
 #+END_SRC
 
-д�껹���ǹ����۵��أ�����Ĵ���д���� 1 Сʱ������Ҳ��������� @@html:<a href="../2021-03-27-2-��ѧϰthunk֮������delay-evaluation/index.html">���</a>@@ ��
+写宏还真是够蛋疼的呢，上面的代码写了我 1 小时，不过也算是完成了 @@html:<a href="../2021-03-27-2-借学习thunk之机看看delay-evaluation/index.html">填坑</a>@@ 。
 
-���Ƶ����ǻ����Զ��� delay-let*������ let* ����
+相似地我们还可以定义 delay-let*，它和 let* 很像：
 
 #+BEGIN_SRC scheme
 (define-syntax delay-let*
@@ -1296,7 +1296,7 @@ a => 1
              #,(f (cdr ls))))))])))
 #+END_SRC
 
-delay-let* �������ʱ������ʹ�����ı��������´�����Կ���������ԣ�
+delay-let* 定义变量时里层可以使用外层的变量，以下代码可以看出这个特性：
 
 #+BEGIN_SRC scheme
 (delay-let* ((x (begin (display "a") 1))
@@ -1306,57 +1306,57 @@ delay-let* �������ʱ������ʹ�����ı��������´�����Կ���������ԣ�
 => cba7
 #+END_SRC
 
-*** ����
+*** 其他
 
-Kent��Fridman д��һ���ǳ�������ģʽƥ��꣬������[[https://github.com/guenchi/match][����]]�������ҿ�������
+Kent，Fridman 写了一个非常厉害的模式匹配宏，链接在[[https://github.com/guenchi/match][这里]]，不过我看不懂。
 
-����ʾ������ȥ�� TSPL �� Racket��
+更多示例可以去看 TSPL 和 Racket。
 
-���ϡ�
+以上。
 
-* ���
+* 后记
 
-�����ʼȡ����Ŀ�ǡ�elisp �� lexical-binding��������д��д��ͻȻ�����Ҷ��������������������ƺ����˵����⣬�ƺ����б�Ҫ����������صĸ���ȫ����һ�顣�������������������������������Ͷ�̬/��̬����������������һ����������ʱ�����������˺ܾ�֮ǰѧ���� syntax-case���Ҷ������ =datum->syntax= �����޷�����͸��������ѧ����������������������������Ǹ�ʲô���ˡ��Ǿ͸ɴ�� syntax-case Ҳ����һ��ɣ���
+本文最开始取的题目是“elisp 的 lexical-binding”，但是写着写着突然发现我对作用域这个概念的理解似乎出了点问题，似乎是有必要把作用域相关的概念全都过一遍。看完了作用域后我终于明白了作用域和动态/静态作用域好像根本不是一个东西。这时候我又想起了很久之前学过的 syntax-case，我对里面的 =datum->syntax= 总是无法理解透彻。但是学完作用域后我终于明白了它到底是干什么的了。那就干脆把 syntax-case 也整理一遍吧，蛤。
 
-Ҫ˵�Ļ������Сƪ����Ҳ�ǿ��Եģ����Ƿ�һ��Ҳû�����⣬˼·���ƿ���ȥ�������һ�㡣
+要说的话拆成三小篇文章也是可以的，但是放一起也没有问题，思路估计看上去会更连贯一点。
 
-- ���ĵĵ�һ�������������ĺͻ����Ĺ�ϵ��˳�����������ְ������������
+- 本文的第一节厘清了上下文和环境的关系，顺带介绍了名字绑定这个基础概念
 
-- ���ĵĵڶ��ڽ��������ְ󶨵�������������ڣ������ˡ���̬�����򡱺͡���̬�����򡱺�������������ڵĹ�ϵ
+- 本文的第二节介绍了名字绑定的作用域和生存期，分析了“动态作用域”和“静态作用域”和作用域和生存期的关系
 
-- ���ĵĵ����ڽ����� elisp �е� lexical-binding���Բ�ͬ binding ����ֵ����������˼�����
+- 本文的第三节介绍了 elisp 中的 lexical-binding，对不同 binding 下求值的情况进行了简单讨论
 
-- ���ĵĵ��Ľڼ�Ҫ������ Scheme �� syntax-case����������һЩʾ��
+- 本文的第四节简要介绍了 Scheme 的 syntax-case，并给出了一些示例
 
 
-�������������� syntax-case �̳���Щ���ʵĻ���ӭ�������ۣ������������Ҽ����Ż�����һ���ֵı�д������Ҫ�ǰ����ҵ�˼ά�仯����д�����ģ��в����ĵط��������ҡ�
+如果您对我上面的 syntax-case 教程有些疑问的话欢迎与我讨论，这样有助于我继续优化。这一部分的编写过程主要是按照我的思维变化过程写出来的，有不懂的地方尽管找我。
 
-syntax-case �����Ǵ�����������Ϣ���б��任������ʲô������� :p
+syntax-case 不就是带了上下文信息的列表变换吗，这有什么难理解的 :p
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> [[https://www.emacswiki.org/emacs/DynamicBindingVsLexicalBinding][EmacsWiki: Dynamic Binding Vs Lexical Binding]]
+<<<【1】>>> [[https://www.emacswiki.org/emacs/DynamicBindingVsLexicalBinding][EmacsWiki: Dynamic Binding Vs Lexical Binding]]
 
-<<<��2��>>> [[https://en.wikipedia.org/wiki/Name_binding][Name binding - Wikipedia]]
+<<<【2】>>> [[https://en.wikipedia.org/wiki/Name_binding][Name binding - Wikipedia]]
 
-<<<��3��>>> [[https://en.wikipedia.org/wiki/Context_(computing)][Context (computing) - Wikipedia]]
+<<<【3】>>> [[https://en.wikipedia.org/wiki/Context_(computing)][Context (computing) - Wikipedia]]
 
-<<<��4��>>> [[https://en.wikipedia.org/wiki/Scope_(computer_science)][Scope (computer science) - Wikipedia]]
+<<<【4】>>> [[https://en.wikipedia.org/wiki/Scope_(computer_science)][Scope (computer science) - Wikipedia]]
 
-<<<��5��>>> ����ȡ�����[[http://blog.huati365.com/5db5259c3933e332][Lisp��������������ڣ�scope and extent in lisp)- ÿ�ղ��� (huati365.com)]]
+<<<【5】>>> 翻译取自这里，[[http://blog.huati365.com/5db5259c3933e332][Lisp的作用域和生存期（scope and extent in lisp)- 每日博客 (huati365.com)]]
 
-<<<��6��>>> [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node43.html#SECTION00700000000000000000][3. Scope and Extent (cmu.edu)]]
+<<<【6】>>> [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node43.html#SECTION00700000000000000000][3. Scope and Extent (cmu.edu)]]
 
-<<<��7��>>> [[https://en.wikipedia.org/wiki/Name_resolution_(programming_languages)][Name resolution (programming languages) - Wikipedia]]
+<<<【7】>>> [[https://en.wikipedia.org/wiki/Name_resolution_(programming_languages)][Name resolution (programming languages) - Wikipedia]]
 
-<<<��8��>>> [[https://en.wikipedia.org/wiki/Variable_(computer_science)][Variable (computer science) - Wikipedia]]
+<<<【8】>>> [[https://en.wikipedia.org/wiki/Variable_(computer_science)][Variable (computer science) - Wikipedia]]
 
-<<<��9��>>> [[https://www.zhihu.com/question/20032419/answer/44059188][��̬������ʹʷ����������ʲô�� - ֪�� (zhihu.com)]]
+<<<【9】>>> [[https://www.zhihu.com/question/20032419/answer/44059188][动态作用域和词法域的区别是什么？ - 知乎 (zhihu.com)]]
 
-<<<��10��>>> [[https://www.zenlife.tk/scheme-hygiene-macro.md][scheme ������ʵ�ֽ��� (zenlife.tk)]]
+<<<【10】>>> [[https://www.zenlife.tk/scheme-hygiene-macro.md][scheme 卫生宏实现介绍 (zenlife.tk)]]
 
-<<<��11��>>> [[https://en.wikipedia.org/wiki/Hygienic_macro][Hygienic macro - Wikipedia]]
+<<<【11】>>> [[https://en.wikipedia.org/wiki/Hygienic_macro][Hygienic macro - Wikipedia]]
 
-<<<��12��>>> /the scheme programming lanugage/
+<<<【12】>>> /the scheme programming lanugage/
 
-<<<��13��>>> [[https://www.cs.fsu.edu/~engelen/courses/COP402001/notes5_4.pdf][notes5_4.pdf (fsu.edu)]]
+<<<【13】>>> [[https://www.cs.fsu.edu/~engelen/courses/COP402001/notes5_4.pdf][notes5_4.pdf (fsu.edu)]]

@@ -1,241 +1,241 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Win32±à³Ì»ù´¡Ö®°´Å¥¿Ø¼ş
+#+TITLE: Win32ç¼–ç¨‹åŸºç¡€ä¹‹æŒ‰é’®æ§ä»¶
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS9wb3N0L3Nob3cvMjI4MjY2MjY=.jpg" alt="load failed"></div>@@
 #+DATE: [2021-02-28 Sun]
 #+TAGS: windows
 
-°´Å¥ÊÇÒ»ÖÖ¿Ø¼ş£¬ÓÃ»§¿ÉÒÔÍ¨¹ıµã»÷ËüÀ´ÎªÓ¦ÓÃÌá¹©ÊäÈë£¬ËüµÄÀàÃûÊÇ =button= ¡£
+æŒ‰é’®æ˜¯ä¸€ç§æ§ä»¶ï¼Œç”¨æˆ·å¯ä»¥é€šè¿‡ç‚¹å‡»å®ƒæ¥ä¸ºåº”ç”¨æä¾›è¾“å…¥ï¼Œå®ƒçš„ç±»åæ˜¯ =button= ã€‚
 
-°´Å¥ÓĞ¼¸ÖÖ²»Í¬µÄÀàĞÍ£¬¶øÇÒÓĞÒ»ÖÖ»ò¶àÖÖ¿ÉÓÃÀ´Çø·ÖÏàÍ¬ÀàĞÍ°´Å¥µÄÑùÊ½¡£ÓÃ»§Í¨¹ıÊó±ê»ò¼üÅÌµã»÷°´Å¥£¬¶Ô°´Å¥µÄµã»÷Ò»°ã»á¸Ä±äËüµÄÍâ¹ÛºÍ×´Ì¬¡£°´Å¥¿ÉÒÔÏòËüµÄ¸¸´°¿Ú·¢ËÍÏûÏ¢£¬¸¸´°¿ÚÒ²¿ÉÒÔÏòËü·¢ËÍÏûÏ¢¡£ÓĞĞ©°´Å¥ÊÇÓÉÏµÍ³»æÖÆµÄ£¬ÓĞĞ©ÔòÊÇÓÉÓ¦ÓÃ»æÖÆµÄ¡£
+æŒ‰é’®æœ‰å‡ ç§ä¸åŒçš„ç±»å‹ï¼Œè€Œä¸”æœ‰ä¸€ç§æˆ–å¤šç§å¯ç”¨æ¥åŒºåˆ†ç›¸åŒç±»å‹æŒ‰é’®çš„æ ·å¼ã€‚ç”¨æˆ·é€šè¿‡é¼ æ ‡æˆ–é”®ç›˜ç‚¹å‡»æŒ‰é’®ï¼Œå¯¹æŒ‰é’®çš„ç‚¹å‡»ä¸€èˆ¬ä¼šæ”¹å˜å®ƒçš„å¤–è§‚å’ŒçŠ¶æ€ã€‚æŒ‰é’®å¯ä»¥å‘å®ƒçš„çˆ¶çª—å£å‘é€æ¶ˆæ¯ï¼Œçˆ¶çª—å£ä¹Ÿå¯ä»¥å‘å®ƒå‘é€æ¶ˆæ¯ã€‚æœ‰äº›æŒ‰é’®æ˜¯ç”±ç³»ç»Ÿç»˜åˆ¶çš„ï¼Œæœ‰äº›åˆ™æ˜¯ç”±åº”ç”¨ç»˜åˆ¶çš„ã€‚
 
-* °´Å¥ÏûÏ¢
+* æŒ‰é’®æ¶ˆæ¯
 
-** Ïò°´Å¥·¢ËÍÏûÏ¢
+** å‘æŒ‰é’®å‘é€æ¶ˆæ¯
 
-¸¸´°¿Ú¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]] »ò [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]]¡¢[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkdlgbutton][CheckDlgButton]]¡¢[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkradiobutton][CheckRadioButton]]¡¢[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] º¯ÊıÀ´Ïò°´Å¥·¢ËÍÏûÏ¢¡£
+çˆ¶çª—å£å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]] æˆ– [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-sendmessage][SendMessage]]ã€[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkdlgbutton][CheckDlgButton]]ã€[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-checkradiobutton][CheckRadioButton]]ã€[[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] å‡½æ•°æ¥å‘æŒ‰é’®å‘é€æ¶ˆæ¯ã€‚
 
-Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] ÏûÏ¢À´¼ìË÷¸´Ñ¡¿ò»òµ¥Ñ¡°´Å¥°´Å¥µÄÑ¡Ôñ×´Ì¬£¬Ò²¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] ÏûÏ¢À´¼ìË÷°´Å¥µÄµ±Ç°×´Ì¬¡£
+åº”ç”¨å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] æ¶ˆæ¯æ¥æ£€ç´¢å¤é€‰æ¡†æˆ–å•é€‰æŒ‰é’®æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€ï¼Œä¹Ÿå¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] æ¶ˆæ¯æ¥æ£€ç´¢æŒ‰é’®çš„å½“å‰çŠ¶æ€ã€‚
 
-²Î¿¼Î¢Èí¹Ù·½ÎÄµµ£¬¿ÉÓÃµÄÏûÏ¢ÓĞ£º
+å‚è€ƒå¾®è½¯å®˜æ–¹æ–‡æ¡£ï¼Œå¯ç”¨çš„æ¶ˆæ¯æœ‰ï¼š
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-click][BM_CLICK]]£¬Ïò°´Å¥·¢ËÍ [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]] ºÍ [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttonup][WM_LBUTTONUP]] ÏûÏ¢£¬²¢Ïò°´Å¥µÄ¸¸´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] Í¨ÖªÂë
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-click][BM_CLICK]]ï¼Œå‘æŒ‰é’®å‘é€ [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttondown][WM_LBUTTONDOWN]] å’Œ [[https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-lbuttonup][WM_LBUTTONUP]] æ¶ˆæ¯ï¼Œå¹¶å‘æŒ‰é’®çš„çˆ¶çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] é€šçŸ¥ç 
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]]£¬·µ»Ø°´Å¥µÄÑ¡Ôñ×´Ì¬
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]]ï¼Œè¿”å›æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]]£¬ÉèÖÃ°´Å¥µÄÑ¡Ôñ×´Ì¬£¬ÓÃÓÚËùÓĞÑùÊ½µÄµ¥Ñ¡°´Å¥ºÍ¸´Ñ¡¿ò¡£¶ÔÓÚµ¥Ñ¡°´Å¥£¬Èç¹û *wParam* µÄÖµ´óÓÚ 0£¬Ôò°´Å¥»á±»¸³Óè [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_TABSTOP]] ÑùÊ½
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]]ï¼Œè®¾ç½®æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€ï¼Œç”¨äºæ‰€æœ‰æ ·å¼çš„å•é€‰æŒ‰é’®å’Œå¤é€‰æ¡†ã€‚å¯¹äºå•é€‰æŒ‰é’®ï¼Œå¦‚æœ *wParam* çš„å€¼å¤§äº 0ï¼Œåˆ™æŒ‰é’®ä¼šè¢«èµ‹äºˆ [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_TABSTOP]] æ ·å¼
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getimage][BM_GETIMAGE]]£¬·µ»ØºÍ°´Å¥¹ØÁªµÄÎ»Í¼»òÍ¼±êµÄ¾ä±ú£¬Èç¹û°´Å¥Ã»ÓĞÎ»Í¼»òÍ¼±êÔò·µ»Ø NULL
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getimage][BM_GETIMAGE]]ï¼Œè¿”å›å’ŒæŒ‰é’®å…³è”çš„ä½å›¾æˆ–å›¾æ ‡çš„å¥æŸ„ï¼Œå¦‚æœæŒ‰é’®æ²¡æœ‰ä½å›¾æˆ–å›¾æ ‡åˆ™è¿”å› NULL
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setimage][BM_SETIMAGE]]£¬½«°´Å¥ÓëÖ¸¶¨µÄÎ»Í¼»òÍ¼±ê¹ØÁªÆğÀ´£¬²¢·µ»ØÏÈÇ°Ê¹ÓÃµÄÎ»Í¼»òÍ¼±êµÄ¾ä±ú
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setimage][BM_SETIMAGE]]ï¼Œå°†æŒ‰é’®ä¸æŒ‡å®šçš„ä½å›¾æˆ–å›¾æ ‡å…³è”èµ·æ¥ï¼Œå¹¶è¿”å›å…ˆå‰ä½¿ç”¨çš„ä½å›¾æˆ–å›¾æ ‡çš„å¥æŸ„
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]]£¬»ñÈ¡°´Å¥µÄµ±Ç°µÄÑ¡Ôñ×´Ì¬¡¢°´Ñ¹×´Ì¬£¨push state£©ºÍ½¹µã×´Ì¬£¨focus state£©
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]]ï¼Œè·å–æŒ‰é’®çš„å½“å‰çš„é€‰æ‹©çŠ¶æ€ã€æŒ‰å‹çŠ¶æ€ï¼ˆpush stateï¼‰å’Œç„¦ç‚¹çŠ¶æ€ï¼ˆfocus stateï¼‰
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]]£¬ÉèÖÃ°´Å¥µÄ°´ÏÂ×´Ì¬¡£¶ÔÓÚ×Ô»æ°´Å¥£¬Èç¹û°´Å¥µÄ×´Ì¬·¢Éú¸Ä±ä£¬Ôò»áÏò¸¸´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] ÏûÏ¢
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]]ï¼Œè®¾ç½®æŒ‰é’®çš„æŒ‰ä¸‹çŠ¶æ€ã€‚å¯¹äºè‡ªç»˜æŒ‰é’®ï¼Œå¦‚æœæŒ‰é’®çš„çŠ¶æ€å‘ç”Ÿæ”¹å˜ï¼Œåˆ™ä¼šå‘çˆ¶çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] æ¶ˆæ¯
 
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstyle][BM_SETSTYLE]]£¬ÉèÖÃ°´Å¥µÄÑùÊ½£¬Èç¹û LOWORD(lParam) Îª TRUE£¬°´Å¥»á±»ÖØ»æ
-
-
-** ´Ó°´Å¥½ÓÊÕÏûÏ¢
-
-´Ó°´Å¥·¢ËÍµÄÏûÏ¢ÊÇ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-notify][WM_NOTIFY]] ÏûÏ¢¡£µ±ÓÃ»§µã»÷°´Å¥Ê±£¬ËüµÄ×´Ì¬»á·¢Éú¸Ä±ä£¬°´Å¥»áÒÔ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] ÏûÏ¢µÄĞÎÊ½Ïò¸¸´°¿Ú·¢ËÍÍ¨ÖªÂë¡£ÀıÈç£¬ÔÚÓÃ»§µã»÷°´Å¥Ê±£¬°´¼ü°´Å¥»áÏò¸¸´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] Í¨ÖªÂë¡£
-
-WM_COMMAND ÏûÏ¢µÄ *wParam* ²ÎÊıµÄµÍÎ»×ÖÊÇ¿Ø¼şµÄ±êÊ¶·û£¬¸ßÎ»×ÖÊÇÍ¨ÖªÂë£¬ *lParam* ²ÎÊıÊÇ¿Ø¼şµÄ´°¿Ú¾ä±ú¡£
-
-°´Å¥ÏûÏ¢ºÍ¸¸´°¿ÚµÄÏìÓ¦È¡¾öÓÚ°´Å¥µÄÀàĞÍ£¬ÑùÊ½ºÍ°´Å¥µÄµ±Ç°×´Ì¬¡£ÏÂÃæÊÇÒ»Ğ©°´Å¥Í¨ÖªÂë£º
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]]£¬ÓÃ»§µã»÷ÁË°´Å¥
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-doubleclicked][BN_DOUBLECLICKED]]£¬ÓÃ»§Ë«»÷ÁË°´Å¥
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]£¬°´Å¥±»½ûÓÃÁË
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]£¬°´Å¥ĞèÒª±»»æÖÆ
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]]£¬°´Å¥¶ªÊ§ºÍ»ñÈ¡¼üÅÌÊäÈë½¹µã
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-hilite][BN_HILITE]]£¬ÓÃ»§°´ÏÂ°´Å¥
-
-- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unhilite][BN_UNHILITE]]£¬°´Å¥²»ÔÙ±»°´ÏÂ
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstyle][BM_SETSTYLE]]ï¼Œè®¾ç½®æŒ‰é’®çš„æ ·å¼ï¼Œå¦‚æœ LOWORD(lParam) ä¸º TRUEï¼ŒæŒ‰é’®ä¼šè¢«é‡ç»˜
 
 
-½öµ±°´Å¥ÓĞ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_NOTIFY]] ÑùÊ½Ê±£¬°´Å¥²Å»á·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] ºÍ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] Í¨ÖªÂë¡£[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_USERBUTTON]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_OWNERDRAW]] µÄ°´Å¥ÄÜ×Ô¶¯·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] Í¨ÖªÂë£¬¶øÆäËûÀàĞÍ°´Å¥ĞèÒªÖ¸¶¨ BS_NOTIFY ÑùÊ½¡£ËùÓĞµÄ°´Å¥¶¼ÄÜ¹»·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] ÏûÏ¢£¬²»ÂÛËüÊÇÊ²Ã´ÀàĞÍ
+** ä»æŒ‰é’®æ¥æ”¶æ¶ˆæ¯
 
-¶ÔÓÚ×Ô¶¯°´Å¥£¬ÏµÍ³»á¸Ä±ä°´Å¥µÄ°´ÏÂ×´Ì¬²¢»æÖÆ°´Å¥¡£ÕâÖÖÇé¿öÏÂ£¬Ó¦ÓÃÒ»°ãÖ»ĞèÒª´¦Àí [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] Í¨Öª¡£¶ÔÓÚ·Ç×Ô¶¯°´Å¥£¬Ó¦ÓÃÒ»°ãÍ¨¹ıÏò°´Å¥·¢ËÍÏûÏ¢À´ÏìÓ¦°´Å¥µÄÍ¨ÖªÂë¡£
+ä»æŒ‰é’®å‘é€çš„æ¶ˆæ¯æ˜¯ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-notify][WM_NOTIFY]] æ¶ˆæ¯ã€‚å½“ç”¨æˆ·ç‚¹å‡»æŒ‰é’®æ—¶ï¼Œå®ƒçš„çŠ¶æ€ä¼šå‘ç”Ÿæ”¹å˜ï¼ŒæŒ‰é’®ä¼šä»¥ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] æ¶ˆæ¯çš„å½¢å¼å‘çˆ¶çª—å£å‘é€é€šçŸ¥ç ã€‚ä¾‹å¦‚ï¼Œåœ¨ç”¨æˆ·ç‚¹å‡»æŒ‰é’®æ—¶ï¼ŒæŒ‰é”®æŒ‰é’®ä¼šå‘çˆ¶çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] é€šçŸ¥ç ã€‚
 
-µ±ÓÃ»§Ñ¡Ôñ×Ô»æ°´Å¥Ê±£¬°´Å¥»áÏò¸¸´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] ÏûÏ¢£¬ÆäÖĞ°üº¬¿Ø¼ş±êÊ¶·ûÒÔ¼°°´Å¥µÄ³ß´çºÍ×´Ì¬ĞÅÏ¢¡£
+WM_COMMAND æ¶ˆæ¯çš„ *wParam* å‚æ•°çš„ä½ä½å­—æ˜¯æ§ä»¶çš„æ ‡è¯†ç¬¦ï¼Œé«˜ä½å­—æ˜¯é€šçŸ¥ç ï¼Œ *lParam* å‚æ•°æ˜¯æ§ä»¶çš„çª—å£å¥æŸ„ã€‚
 
-Êµ¼ÊÉÏ£¬ÉÏÃæµÄÒ»Ğ©Í¨ÖªÂëÒÑ¾­¹ıÊ±ÁË£¬Windows ³ÌĞòÉè¼ÆµÚÎå°æÖĞÕâÑùĞ´µ½£º
+æŒ‰é’®æ¶ˆæ¯å’Œçˆ¶çª—å£çš„å“åº”å–å†³äºæŒ‰é’®çš„ç±»å‹ï¼Œæ ·å¼å’ŒæŒ‰é’®çš„å½“å‰çŠ¶æ€ã€‚ä¸‹é¢æ˜¯ä¸€äº›æŒ‰é’®é€šçŸ¥ç ï¼š
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]]ï¼Œç”¨æˆ·ç‚¹å‡»äº†æŒ‰é’®
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-doubleclicked][BN_DOUBLECLICKED]]ï¼Œç”¨æˆ·åŒå‡»äº†æŒ‰é’®
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]ï¼ŒæŒ‰é’®è¢«ç¦ç”¨äº†
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]ï¼ŒæŒ‰é’®éœ€è¦è¢«ç»˜åˆ¶
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]]ï¼ŒæŒ‰é’®ä¸¢å¤±å’Œè·å–é”®ç›˜è¾“å…¥ç„¦ç‚¹
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-hilite][BN_HILITE]]ï¼Œç”¨æˆ·æŒ‰ä¸‹æŒ‰é’®
+
+- [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unhilite][BN_UNHILITE]]ï¼ŒæŒ‰é’®ä¸å†è¢«æŒ‰ä¸‹
+
+
+ä»…å½“æŒ‰é’®æœ‰ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_NOTIFY]] æ ·å¼æ—¶ï¼ŒæŒ‰é’®æ‰ä¼šå‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-disable][BN_DISABLE]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-pushed][BN_PUSHED]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-paint][BN_PAINT]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] å’Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/bn-unpushed][BN_UNPUSHED]] é€šçŸ¥ç ã€‚[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_USERBUTTON]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_OWNERDRAW]] çš„æŒ‰é’®èƒ½è‡ªåŠ¨å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] é€šçŸ¥ç ï¼Œè€Œå…¶ä»–ç±»å‹æŒ‰é’®éœ€è¦æŒ‡å®š BS_NOTIFY æ ·å¼ã€‚æ‰€æœ‰çš„æŒ‰é’®éƒ½èƒ½å¤Ÿå‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] æ¶ˆæ¯ï¼Œä¸è®ºå®ƒæ˜¯ä»€ä¹ˆç±»å‹
+
+å¯¹äºè‡ªåŠ¨æŒ‰é’®ï¼Œç³»ç»Ÿä¼šæ”¹å˜æŒ‰é’®çš„æŒ‰ä¸‹çŠ¶æ€å¹¶ç»˜åˆ¶æŒ‰é’®ã€‚è¿™ç§æƒ…å†µä¸‹ï¼Œåº”ç”¨ä¸€èˆ¬åªéœ€è¦å¤„ç† [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-dblclk][BN_DBLCLK]] é€šçŸ¥ã€‚å¯¹äºéè‡ªåŠ¨æŒ‰é’®ï¼Œåº”ç”¨ä¸€èˆ¬é€šè¿‡å‘æŒ‰é’®å‘é€æ¶ˆæ¯æ¥å“åº”æŒ‰é’®çš„é€šçŸ¥ç ã€‚
+
+å½“ç”¨æˆ·é€‰æ‹©è‡ªç»˜æŒ‰é’®æ—¶ï¼ŒæŒ‰é’®ä¼šå‘çˆ¶çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] æ¶ˆæ¯ï¼Œå…¶ä¸­åŒ…å«æ§ä»¶æ ‡è¯†ç¬¦ä»¥åŠæŒ‰é’®çš„å°ºå¯¸å’ŒçŠ¶æ€ä¿¡æ¯ã€‚
+
+å®é™…ä¸Šï¼Œä¸Šé¢çš„ä¸€äº›é€šçŸ¥ç å·²ç»è¿‡æ—¶äº†ï¼ŒWindows ç¨‹åºè®¾è®¡ç¬¬äº”ç‰ˆä¸­è¿™æ ·å†™åˆ°ï¼š
 
 #+BEGIN_QUOTE
-Êµ¼ÊÉÏ£¬´ó¶àÊı°´Å¥ÖµÄã¶¼²»»á¼ûµ½£¬PUSH ºÍ UNPUSH ÏûÏ¢ÓÃÓÚ¹ıÊ±µÄ BS_USERBUTTON °´Å¥ÑùÊ½£¨ËüÒÑ¾­±» BS_OWNERDRAW ºÍÁíÍâÒ»Ì×»úÖÆËùÈ¡´ú£©¡£
+å®é™…ä¸Šï¼Œå¤§å¤šæ•°æŒ‰é’®å€¼ä½ éƒ½ä¸ä¼šè§åˆ°ï¼ŒPUSH å’Œ UNPUSH æ¶ˆæ¯ç”¨äºè¿‡æ—¶çš„ BS_USERBUTTON æŒ‰é’®æ ·å¼ï¼ˆå®ƒå·²ç»è¢« BS_OWNERDRAW å’Œå¦å¤–ä¸€å¥—æœºåˆ¶æ‰€å–ä»£ï¼‰ã€‚
 #+END_QUOTE
 
-** ÑÕÉ«ÏûÏ¢
+** é¢œè‰²æ¶ˆæ¯
 
-ÏµÍ³Îª°´Å¥Ìá¹©ÁËÄ¬ÈÏµÄÑÕÉ«Öµ¡£Ó¦ÓÃ¿ÉÒÔÍ¨¹ıµ÷ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsyscolor][GetSysColor]] À´»ñÈ¡Ä¬ÈÏÖµ£¬»òÍ¨¹ı [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setsyscolors][SetSysColors]] À´ÉèÖÃÕâĞ©Öµ¡£
+ç³»ç»Ÿä¸ºæŒ‰é’®æä¾›äº†é»˜è®¤çš„é¢œè‰²å€¼ã€‚åº”ç”¨å¯ä»¥é€šè¿‡è°ƒç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getsyscolor][GetSysColor]] æ¥è·å–é»˜è®¤å€¼ï¼Œæˆ–é€šè¿‡ [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setsyscolors][SetSysColors]] æ¥è®¾ç½®è¿™äº›å€¼ã€‚
 
-ºÍ°´Å¥Ïà¹ØµÄÏµÍ³ÑÕÉ«ÓĞ£º
+å’ŒæŒ‰é’®ç›¸å…³çš„ç³»ç»Ÿé¢œè‰²æœ‰ï¼š
 
-- COLOR_BTNFACE£¬°´Å¥±³¾°É«
+- COLOR_BTNFACEï¼ŒæŒ‰é’®èƒŒæ™¯è‰²
 
-- COLOR_BTNHIGHLIGHT£¬°´Å¥¸ßÁÁÇøÓòÑÕÉ«
+- COLOR_BTNHIGHLIGHTï¼ŒæŒ‰é’®é«˜äº®åŒºåŸŸé¢œè‰²
 
-- COLOR_BTNSHADOW£¬°´Å¥ÒõÓ°ÑÕÉ«
+- COLOR_BTNSHADOWï¼ŒæŒ‰é’®é˜´å½±é¢œè‰²
 
-- COLOR_BTNTEXT£¬°´Å¥µÄÎÄ×ÖÑÕÉ«
+- COLOR_BTNTEXTï¼ŒæŒ‰é’®çš„æ–‡å­—é¢œè‰²
 
-- COLOR_GRAYTEXT£¬°´Å¥µÄ»Ò×Ö£¨±»½ûÓÃÊ±£©ÑÕÉ«
+- COLOR_GRAYTEXTï¼ŒæŒ‰é’®çš„ç°å­—ï¼ˆè¢«ç¦ç”¨æ—¶ï¼‰é¢œè‰²
 
-- COLOR_WINDOW£¬´°¿Ú±³¾°É«
+- COLOR_WINDOWï¼Œçª—å£èƒŒæ™¯è‰²
 
-- COLOR_WINDOWFRAME£¬´°¿Ú¿ò¼ÜÑÕÉ«
+- COLOR_WINDOWFRAMEï¼Œçª—å£æ¡†æ¶é¢œè‰²
 
-- COLOR_WINDOWTEXT£¬´°¿ÚÎÄ×ÖÑÕÉ«
+- COLOR_WINDOWTEXTï¼Œçª—å£æ–‡å­—é¢œè‰²
 
 
-¿ÉÒÔÍ¨¹ı SetBkColor ºÍ SetTextColor À´¸Ä±ä±³¾°ºÍÎÄ±¾µÄÑÕÉ«¡£²»¹ıÕâĞèÒª¶Ô WM_CTLCOLORBTN ÏûÏ¢½øĞĞ´¦Àí¡£
+å¯ä»¥é€šè¿‡ SetBkColor å’Œ SetTextColor æ¥æ”¹å˜èƒŒæ™¯å’Œæ–‡æœ¬çš„é¢œè‰²ã€‚ä¸è¿‡è¿™éœ€è¦å¯¹ WM_CTLCOLORBTN æ¶ˆæ¯è¿›è¡Œå¤„ç†ã€‚
 
-* °´Å¥×´Ì¬
+* æŒ‰é’®çŠ¶æ€
 
-ÓÃ»§¿ÉÒÔÍ¨¹ıÈıÖÖ·½·¨À´Ñ¡ÔñÒ»¸ö°´Å¥£ºÊ¹ÓÃÊó±êµã»÷¡¢Ê¹ÓÃ TAB ¼üÒÆ¶¯µ½Ëü²¢°´ÏÂ Enter ¼ü£¬»ò£¨Èç¹û°´Å¥Ê¹ÓÃ WS_GROUP ¹éÈëÒ»¸ö×éµÄ»°£©Ê¹ÓÃ TAB ÒÆ¶¯µ½Ò»¸ö×é²¢Ê¹ÓÃ·½Ïò¼üÔÚ×éÖĞÒÆ¶¯¡£
+ç”¨æˆ·å¯ä»¥é€šè¿‡ä¸‰ç§æ–¹æ³•æ¥é€‰æ‹©ä¸€ä¸ªæŒ‰é’®ï¼šä½¿ç”¨é¼ æ ‡ç‚¹å‡»ã€ä½¿ç”¨ TAB é”®ç§»åŠ¨åˆ°å®ƒå¹¶æŒ‰ä¸‹ Enter é”®ï¼Œæˆ–ï¼ˆå¦‚æœæŒ‰é’®ä½¿ç”¨ WS_GROUP å½’å…¥ä¸€ä¸ªç»„çš„è¯ï¼‰ä½¿ç”¨ TAB ç§»åŠ¨åˆ°ä¸€ä¸ªç»„å¹¶ä½¿ç”¨æ–¹å‘é”®åœ¨ç»„ä¸­ç§»åŠ¨ã€‚
 
-¶Ô°´Å¥µÄÑ¡ÔñÒ»°ã»áµ¼ÖÂÒÔÏÂÊÂ¼şµÄ·¢Éú£º
+å¯¹æŒ‰é’®çš„é€‰æ‹©ä¸€èˆ¬ä¼šå¯¼è‡´ä»¥ä¸‹äº‹ä»¶çš„å‘ç”Ÿï¼š
 
-- ÏµÍ³½«¼üÅÌ½¹µã¸ø¸Ã°´Å¥
+- ç³»ç»Ÿå°†é”®ç›˜ç„¦ç‚¹ç»™è¯¥æŒ‰é’®
 
-- °´Å¥ÏòËüµÄ¸¸´°¿Ú·¢ËÍÏûÏ¢Í¨ÖªËü±»Ñ¡ÖĞÁË
+- æŒ‰é’®å‘å®ƒçš„çˆ¶çª—å£å‘é€æ¶ˆæ¯é€šçŸ¥å®ƒè¢«é€‰ä¸­äº†
 
-- ¸¸´°¿ÚÏòËü·¢ËÍÏûÏ¢À´¸Ä±ä°´Å¥×´Ì¬
+- çˆ¶çª—å£å‘å®ƒå‘é€æ¶ˆæ¯æ¥æ”¹å˜æŒ‰é’®çŠ¶æ€
 
-- ¸¸´°¿Ú¶Ô°´Å¥½øĞĞÖØ»æÀ´·´Ó³ËüµÄĞÂ×´Ì¬
+- çˆ¶çª—å£å¯¹æŒ‰é’®è¿›è¡Œé‡ç»˜æ¥åæ˜ å®ƒçš„æ–°çŠ¶æ€
 
 
-** ½¹µã×´Ì¬
+** ç„¦ç‚¹çŠ¶æ€
 
-½¹µã×´Ì¬ÊÊÓÃÓÚ¸´Ñ¡¿ò£¬µ¥Ñ¡°´Å¥£¬°´¼ü°´Å¥£¬»ò×Ô»æ°´Å¥¡£°´Å¥ÔÚÓÃ»§Ñ¡ÔñËüÊ±»ñµÃ¼üÅÌ½¹µã£¬²¢ÔÚÓÃ»§Ñ¡ÔñÆäËû¿Ø¼şÊ±¶ªÊ§½¹µã¡£ÔÚÄ³Ò»Ê±¼äÖ»ÓĞÒ»¸ö¿Ø¼şÄÜÓµÓĞ½¹µã¡£
+ç„¦ç‚¹çŠ¶æ€é€‚ç”¨äºå¤é€‰æ¡†ï¼Œå•é€‰æŒ‰é’®ï¼ŒæŒ‰é”®æŒ‰é’®ï¼Œæˆ–è‡ªç»˜æŒ‰é’®ã€‚æŒ‰é’®åœ¨ç”¨æˆ·é€‰æ‹©å®ƒæ—¶è·å¾—é”®ç›˜ç„¦ç‚¹ï¼Œå¹¶åœ¨ç”¨æˆ·é€‰æ‹©å…¶ä»–æ§ä»¶æ—¶ä¸¢å¤±ç„¦ç‚¹ã€‚åœ¨æŸä¸€æ—¶é—´åªæœ‰ä¸€ä¸ªæ§ä»¶èƒ½æ‹¥æœ‰ç„¦ç‚¹ã€‚
 
-µ±°´Å¥ÓµÓĞ¼üÅÌ½¹µãÊ±£¬ÏµÍ³Ò»°ã»á¸ßÁÁ°´Å¥ÎÄ±¾£¬Í¼±ê»òÎ»Í¼¡£ÁíÍâ£¬°´¼ü°´Å¥ÔÚ»ñµÃ½¹µãÊ±ÓĞÒ»È¦ÉîÉ«´ÖÏß¡£ÏµÍ³»á×Ô¶¯¸Ä±ä×Ô¶¯°´Å¥µÄ¸ßÁÁ£¬µ«ÊÇÓ¦ÓÃĞèÒªÍ¨¹ı·¢ËÍÏûÏ¢À´¸Ä±ä·Ç×Ô¶¯°´Å¥µÄ¸ßÁÁ¡£
+å½“æŒ‰é’®æ‹¥æœ‰é”®ç›˜ç„¦ç‚¹æ—¶ï¼Œç³»ç»Ÿä¸€èˆ¬ä¼šé«˜äº®æŒ‰é’®æ–‡æœ¬ï¼Œå›¾æ ‡æˆ–ä½å›¾ã€‚å¦å¤–ï¼ŒæŒ‰é”®æŒ‰é’®åœ¨è·å¾—ç„¦ç‚¹æ—¶æœ‰ä¸€åœˆæ·±è‰²ç²—çº¿ã€‚ç³»ç»Ÿä¼šè‡ªåŠ¨æ”¹å˜è‡ªåŠ¨æŒ‰é’®çš„é«˜äº®ï¼Œä½†æ˜¯åº”ç”¨éœ€è¦é€šè¿‡å‘é€æ¶ˆæ¯æ¥æ”¹å˜éè‡ªåŠ¨æŒ‰é’®çš„é«˜äº®ã€‚
 
-** °´Ñ¹×´Ì¬
+** æŒ‰å‹çŠ¶æ€
 
-°´Ñ¹×´Ì¬ÊÊÓÃÓÚ°´¼ü°´Å¥£¬¸´Ñ¡¿ò£¬µ¥Ñ¡°´Å¥»òÈıÑ¡¿ò£¬µ«²»ÊÊÓÃÓÚÆäËû°´Å¥¡£°´Å¥µÄ°´Ñ¹×´Ì¬¿ÉÒÔÊÇ°´ÏÂ»òÃ»ÓĞ°´ÏÂ¡£µ±°´¼ü°´Å¥£¨Ê¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHLIKE]] ÑùÊ½µÄÈÎÒ»°´Å¥£©±»°´ÏÂÊ±£¬°´Å¥»á±»»æÖÆÎª°´ÏÂµÄÑù×Ó£¬µ±²»±»°´Ñ¹Ê±£¬Ëü»á±»»æÖÆÎªÔ­×´¡£µ±¸´Ñ¡¿ò¡¢µ¥Ñ¡°´Å¥»òÈıÑ¡°´Å¥±»µã»÷Ê±£¬ËüÃÇµÄ±³¾°»á±ä»Ò£¬µ±²»±»µã»÷Ê±£¬°´Å¥±³¾°»á¸´Ô­¡£
+æŒ‰å‹çŠ¶æ€é€‚ç”¨äºæŒ‰é”®æŒ‰é’®ï¼Œå¤é€‰æ¡†ï¼Œå•é€‰æŒ‰é’®æˆ–ä¸‰é€‰æ¡†ï¼Œä½†ä¸é€‚ç”¨äºå…¶ä»–æŒ‰é’®ã€‚æŒ‰é’®çš„æŒ‰å‹çŠ¶æ€å¯ä»¥æ˜¯æŒ‰ä¸‹æˆ–æ²¡æœ‰æŒ‰ä¸‹ã€‚å½“æŒ‰é”®æŒ‰é’®ï¼ˆä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHLIKE]] æ ·å¼çš„ä»»ä¸€æŒ‰é’®ï¼‰è¢«æŒ‰ä¸‹æ—¶ï¼ŒæŒ‰é’®ä¼šè¢«ç»˜åˆ¶ä¸ºæŒ‰ä¸‹çš„æ ·å­ï¼Œå½“ä¸è¢«æŒ‰å‹æ—¶ï¼Œå®ƒä¼šè¢«ç»˜åˆ¶ä¸ºåŸçŠ¶ã€‚å½“å¤é€‰æ¡†ã€å•é€‰æŒ‰é’®æˆ–ä¸‰é€‰æŒ‰é’®è¢«ç‚¹å‡»æ—¶ï¼Œå®ƒä»¬çš„èƒŒæ™¯ä¼šå˜ç°ï¼Œå½“ä¸è¢«ç‚¹å‡»æ—¶ï¼ŒæŒ‰é’®èƒŒæ™¯ä¼šå¤åŸã€‚
 
-** Ñ¡Ôñ×´Ì¬
+** é€‰æ‹©çŠ¶æ€
 
-Ñ¡Ôñ×´Ì¬ÊÊÓÃÓÚ¸´Ñ¡¿ò¡¢µ¥Ñ¡°´Å¥»òÈıÑ¡°´Å¥£¬²»ÊÊÓÃÓÚÆäËû°´Å¥¡£Õâ¸ö×´Ì¬¿ÉÒÔÊÇÑ¡ÖĞ¡¢Çå³ı£¨cleared£©»ò£¨¶ÔÓÚÈıÑ¡¿ò£©²»È·¶¨¡£¸´Ñ¡¿òÔÚËüÓµÓĞÑ¡Ôñ±ê¼ÇÊ±ÊÇ±»Ñ¡Ôñ×´Ì¬£¬Ã»ÓĞÔòÊÇÇå³ı×´Ì¬¡£µ¥Ñ¡°´Å¥ÔÚËüÓµÓĞºÚµãÊ±ÊÇÑ¡Ôñ×´Ì¬£¬Ã»ÓĞÔòÊÇÇå³ı×´Ì¬¡£ÈıÑ¡¿òÔÚÓĞÑ¡Ôñ±ê¼ÇÊ±ÊÇÑ¡Ôñ×´Ì¬£¬Ã»ÓĞÔòÊÇÇå³ı×´Ì¬£¬µ±Ëü°üº¬»ÒÉ«¿òÊ±ÔòÊÇ²»È·¶¨×´Ì¬¡£ÏµÍ³»á×Ô¶¯¸Ä±ä×Ô¶¯°´Å¥µÄÑ¡Ôñ×´Ì¬£¬Ó¦ÓÃĞèÒª¸Ä±ä·Ç×Ô¶¯°´Å¥µÄÑ¡Ôñ×´Ì¬¡£
+é€‰æ‹©çŠ¶æ€é€‚ç”¨äºå¤é€‰æ¡†ã€å•é€‰æŒ‰é’®æˆ–ä¸‰é€‰æŒ‰é’®ï¼Œä¸é€‚ç”¨äºå…¶ä»–æŒ‰é’®ã€‚è¿™ä¸ªçŠ¶æ€å¯ä»¥æ˜¯é€‰ä¸­ã€æ¸…é™¤ï¼ˆclearedï¼‰æˆ–ï¼ˆå¯¹äºä¸‰é€‰æ¡†ï¼‰ä¸ç¡®å®šã€‚å¤é€‰æ¡†åœ¨å®ƒæ‹¥æœ‰é€‰æ‹©æ ‡è®°æ—¶æ˜¯è¢«é€‰æ‹©çŠ¶æ€ï¼Œæ²¡æœ‰åˆ™æ˜¯æ¸…é™¤çŠ¶æ€ã€‚å•é€‰æŒ‰é’®åœ¨å®ƒæ‹¥æœ‰é»‘ç‚¹æ—¶æ˜¯é€‰æ‹©çŠ¶æ€ï¼Œæ²¡æœ‰åˆ™æ˜¯æ¸…é™¤çŠ¶æ€ã€‚ä¸‰é€‰æ¡†åœ¨æœ‰é€‰æ‹©æ ‡è®°æ—¶æ˜¯é€‰æ‹©çŠ¶æ€ï¼Œæ²¡æœ‰åˆ™æ˜¯æ¸…é™¤çŠ¶æ€ï¼Œå½“å®ƒåŒ…å«ç°è‰²æ¡†æ—¶åˆ™æ˜¯ä¸ç¡®å®šçŠ¶æ€ã€‚ç³»ç»Ÿä¼šè‡ªåŠ¨æ”¹å˜è‡ªåŠ¨æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€ï¼Œåº”ç”¨éœ€è¦æ”¹å˜éè‡ªåŠ¨æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€ã€‚
 
-** ¸Ä±ä°´Å¥×´Ì¬
+** æ”¹å˜æŒ‰é’®çŠ¶æ€
 
-µ±ÓÃ»§Ñ¡ÖĞ°´Å¥Ê±£¬Ò»°ã¶øÑÔÊÇĞèÒª¸Ä±ä°´Å¥µÄÄ³¸ö×´Ì¬µÄ¡£ÏµÍ³»á×Ô¶¯¸Ä±äËùÓĞ°´Å¥µÄ½¹µã×´Ì¬£¬°´¼ü°´Å¥µÄ°´Ñ¹×´Ì¬£¬ÒÔ¼°ËùÓĞ×Ô¶¯°´Å¥µÄÑ¡Ôñ×´Ì¬¡£Ó¦ÓÃ±ØĞë×ö³öÆäËûµÄ×´Ì¬¸Ä±ä£¬¿¼ÂÇ°´Å¥µÄÀàĞÍ£¬ÑùÊ½ºÍµ±Ç°×´Ì¬¡£ÏÂÃæÁĞ³öÁË¶Ô¸÷¸ö°´Å¥ÀàĞÍ±ØĞëÒª×ö³öµÄ¸Ä±ä£º
+å½“ç”¨æˆ·é€‰ä¸­æŒ‰é’®æ—¶ï¼Œä¸€èˆ¬è€Œè¨€æ˜¯éœ€è¦æ”¹å˜æŒ‰é’®çš„æŸä¸ªçŠ¶æ€çš„ã€‚ç³»ç»Ÿä¼šè‡ªåŠ¨æ”¹å˜æ‰€æœ‰æŒ‰é’®çš„ç„¦ç‚¹çŠ¶æ€ï¼ŒæŒ‰é”®æŒ‰é’®çš„æŒ‰å‹çŠ¶æ€ï¼Œä»¥åŠæ‰€æœ‰è‡ªåŠ¨æŒ‰é’®çš„é€‰æ‹©çŠ¶æ€ã€‚åº”ç”¨å¿…é¡»åšå‡ºå…¶ä»–çš„çŠ¶æ€æ”¹å˜ï¼Œè€ƒè™‘æŒ‰é’®çš„ç±»å‹ï¼Œæ ·å¼å’Œå½“å‰çŠ¶æ€ã€‚ä¸‹é¢åˆ—å‡ºäº†å¯¹å„ä¸ªæŒ‰é’®ç±»å‹å¿…é¡»è¦åšå‡ºçš„æ”¹å˜ï¼š
 
-- ¸´Ñ¡¿ò±ØĞë¸Ä±äÑ¡Ôñ×´Ì¬
+- å¤é€‰æ¡†å¿…é¡»æ”¹å˜é€‰æ‹©çŠ¶æ€
 
-- µ¥Ñ¡°´Å¥±ØĞë¸Ä±äÑ¡Ôñ×´Ì¬¡£¸Ä±äÔÚÍ¬Ò»×éÖĞµÄÆäËûµ¥Ñ¡°´Å¥×´Ì¬Ò²ĞíÊÇ±ØĞëµÄ£¬ÒòÎªÒªÈ·±£µ¥Ñ¡°´Å¥µÄÌìÈ»»¥³âĞÔ
+- å•é€‰æŒ‰é’®å¿…é¡»æ”¹å˜é€‰æ‹©çŠ¶æ€ã€‚æ”¹å˜åœ¨åŒä¸€ç»„ä¸­çš„å…¶ä»–å•é€‰æŒ‰é’®çŠ¶æ€ä¹Ÿè®¸æ˜¯å¿…é¡»çš„ï¼Œå› ä¸ºè¦ç¡®ä¿å•é€‰æŒ‰é’®çš„å¤©ç„¶äº’æ–¥æ€§
 
-- ÒòÎª×Ô»æ°´Å¥µÄ×´Ì¬ÊÇÒÀÀµÓÚÓ¦ÓÃµÄ£¬×Ô»æ°´Å¥ĞèÒª¸Ä±äµÄ¶«Î÷¿ÉÒÔÊÇ¶àÑùµÄ¡£×éºÏ¿òµÄÀàĞÍÎŞĞè¸Ä±ä£¬ÒòÎªÓÃ»§²»ÄÜÑ¡ÖĞ×éºÏ¿ò
+- å› ä¸ºè‡ªç»˜æŒ‰é’®çš„çŠ¶æ€æ˜¯ä¾èµ–äºåº”ç”¨çš„ï¼Œè‡ªç»˜æŒ‰é’®éœ€è¦æ”¹å˜çš„ä¸œè¥¿å¯ä»¥æ˜¯å¤šæ ·çš„ã€‚ç»„åˆæ¡†çš„ç±»å‹æ— éœ€æ”¹å˜ï¼Œå› ä¸ºç”¨æˆ·ä¸èƒ½é€‰ä¸­ç»„åˆæ¡†
 
 
-Ó¦ÓÃ¿ÉÒÔÏò°´Å¥·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] À´»ñÈ¡×´Ì¬£¬²¢Í¨¹ı [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]] »ò [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]] ÏûÏ¢À´ÉèÖÃ°´Å¥×´Ì¬¡£
+åº”ç”¨å¯ä»¥å‘æŒ‰é’®å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getcheck][BM_GETCHECK]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-getstate][BM_GETSTATE]] æ¥è·å–çŠ¶æ€ï¼Œå¹¶é€šè¿‡ [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setcheck][BM_SETCHECK]] æˆ– [[https://docs.microsoft.com/en-us/windows/win32/controls/bm-setstate][BM_SETSTATE]] æ¶ˆæ¯æ¥è®¾ç½®æŒ‰é’®çŠ¶æ€ã€‚
 
-* °´Å¥µÄÖÖÀàºÍÑùÊ½
+* æŒ‰é’®çš„ç§ç±»å’Œæ ·å¼
 
-** ¸´Ñ¡¿ò£¨Check Box£©
+** å¤é€‰æ¡†ï¼ˆCheck Boxï¼‰
 
-¸´Ñ¡¿òÓÉ·½¿òºÍ±íÃ÷Ñ¡ÏîµÄÄÚÈİ×é³É£¬Ëü¿ÉÒÔÊÇ±êÇ©¡¢Í¼±ê»òÎ»Í¼¡£Ó¦ÓÃÒ»°ãÊ¹ÓÃ¸´Ñ¡¿òÀ´ÔÊĞíÓÃ»§Ñ¡ÔñÒ»¸ö»ò¶à¸ö²¢²»»¥³âµÄÑ¡Ïî¡£
+å¤é€‰æ¡†ç”±æ–¹æ¡†å’Œè¡¨æ˜é€‰é¡¹çš„å†…å®¹ç»„æˆï¼Œå®ƒå¯ä»¥æ˜¯æ ‡ç­¾ã€å›¾æ ‡æˆ–ä½å›¾ã€‚åº”ç”¨ä¸€èˆ¬ä½¿ç”¨å¤é€‰æ¡†æ¥å…è®¸ç”¨æˆ·é€‰æ‹©ä¸€ä¸ªæˆ–å¤šä¸ªå¹¶ä¸äº’æ–¥çš„é€‰é¡¹ã€‚
 
-¸´Ñ¡¿ò¿ÉÒÔÓĞËÄÖÖÑùÊ½£¬±ê×¼¡¢×Ô¶¯¡¢ÈıÑ¡ºÍ×Ô¶¯ÈıÑ¡£¬Í¨¹ı [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_CHECKBOX]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTOCHECKBOX]]£¬[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_3STATE]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTO3STATE]] À´Ñ¡Ôñ¡£ÖØ¸´µã»÷±ê×¼»ò×Ô¶¯¸´Ñ¡¿ò¿ÉÒÔ½«Ëü´ÓÑ¡Ôñ×´Ì¬±äÎªÇå³ı×´Ì¬£¬½Ó×ÅÓÖ±ä»ØÈ¥¡£ÖØ¸´µã»÷ÈıÑ¡¿ò¿ÉÒÔ½«Ëü´ÓÑ¡Ôñ×´Ì¬±äÎªÇå³ı×´Ì¬£¬²¢½Ó×Å±äÎª²»È·¶¨×´Ì¬£¬Èç´ËÍù¸´¡£
+å¤é€‰æ¡†å¯ä»¥æœ‰å››ç§æ ·å¼ï¼Œæ ‡å‡†ã€è‡ªåŠ¨ã€ä¸‰é€‰å’Œè‡ªåŠ¨ä¸‰é€‰ï¼Œé€šè¿‡ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_CHECKBOX]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTOCHECKBOX]]ï¼Œ[[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_3STATE]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTO3STATE]] æ¥é€‰æ‹©ã€‚é‡å¤ç‚¹å‡»æ ‡å‡†æˆ–è‡ªåŠ¨å¤é€‰æ¡†å¯ä»¥å°†å®ƒä»é€‰æ‹©çŠ¶æ€å˜ä¸ºæ¸…é™¤çŠ¶æ€ï¼Œæ¥ç€åˆå˜å›å»ã€‚é‡å¤ç‚¹å‡»ä¸‰é€‰æ¡†å¯ä»¥å°†å®ƒä»é€‰æ‹©çŠ¶æ€å˜ä¸ºæ¸…é™¤çŠ¶æ€ï¼Œå¹¶æ¥ç€å˜ä¸ºä¸ç¡®å®šçŠ¶æ€ï¼Œå¦‚æ­¤å¾€å¤ã€‚
 
-µ±ÓÃ»§µã»÷¸´Ñ¡¿òÊ±£¬¸´Ñ¡¿ò»áµÃµ½¼üÅÌ½¹µã¡£ÏµÍ³»áÏò¸´Ñ¡¿òµÄ¸¸´°¿Ú·¢ËÍ°üº¬ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] Í¨ÖªÂëµÄ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] ÏûÏ¢¡£Èç¹ûÕâ¸öÏûÏ¢À´×Ô×Ô¶¯¸´Ñ¡¿ò»ò×Ô¶¯ÈıÑ¡¿ò£¬¸¸´°¿Ú²»±Ø´¦ÀíÕâ¸öÏûÏ¢£¬ÒòÎªÏµÍ³×Ô¶¯ÉèÖÃÁËÑ¡Ôñ×´Ì¬¡£µ«ÊÇÈç¹ûÏûÏ¢À´×Ô·Ç×Ô¶¯°´Å¥µÄ»°£¬¸¸´°¿ÚĞèÒª´¦ÀíÕâÌõÏûÏ¢£¬ÒòÎª¸¸´°¿Ú¸ºÔğÉèÖÃ¸´Ñ¡¿òµÄÑ¡Ôñ×´Ì¬¡£²»ÂÛ¸´Ñ¡¿òÊÇÊ²Ã´ÑùÊ½£¬ÏµÍ³¶¼»áÔÚ°´Å¥¸Ä±ä×´Ì¬Ê±½øĞĞÖØ»æ¡£
+å½“ç”¨æˆ·ç‚¹å‡»å¤é€‰æ¡†æ—¶ï¼Œå¤é€‰æ¡†ä¼šå¾—åˆ°é”®ç›˜ç„¦ç‚¹ã€‚ç³»ç»Ÿä¼šå‘å¤é€‰æ¡†çš„çˆ¶çª—å£å‘é€åŒ…å« [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] é€šçŸ¥ç çš„ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] æ¶ˆæ¯ã€‚å¦‚æœè¿™ä¸ªæ¶ˆæ¯æ¥è‡ªè‡ªåŠ¨å¤é€‰æ¡†æˆ–è‡ªåŠ¨ä¸‰é€‰æ¡†ï¼Œçˆ¶çª—å£ä¸å¿…å¤„ç†è¿™ä¸ªæ¶ˆæ¯ï¼Œå› ä¸ºç³»ç»Ÿè‡ªåŠ¨è®¾ç½®äº†é€‰æ‹©çŠ¶æ€ã€‚ä½†æ˜¯å¦‚æœæ¶ˆæ¯æ¥è‡ªéè‡ªåŠ¨æŒ‰é’®çš„è¯ï¼Œçˆ¶çª—å£éœ€è¦å¤„ç†è¿™æ¡æ¶ˆæ¯ï¼Œå› ä¸ºçˆ¶çª—å£è´Ÿè´£è®¾ç½®å¤é€‰æ¡†çš„é€‰æ‹©çŠ¶æ€ã€‚ä¸è®ºå¤é€‰æ¡†æ˜¯ä»€ä¹ˆæ ·å¼ï¼Œç³»ç»Ÿéƒ½ä¼šåœ¨æŒ‰é’®æ”¹å˜çŠ¶æ€æ—¶è¿›è¡Œé‡ç»˜ã€‚
 
-Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] º¯ÊıÀ´ÅĞ¶Ï¸´Ñ¡¿òµÄ×´Ì¬¡£
+åº”ç”¨å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] å‡½æ•°æ¥åˆ¤æ–­å¤é€‰æ¡†çš„çŠ¶æ€ã€‚
 
-** ×éºÏ¿ò£¨Group Box£©
+** ç»„åˆæ¡†ï¼ˆGroup Boxï¼‰
 
-×éºÏ¿òÊÇÒ»¸ö°üº¬Ò»ÏµÁĞ¿Ø¼şµÄ¾ØĞÎ£¬ËüµÄ×óÉÏ½ÇÓĞÒ»¸öÓ¦ÓÃ¶¨ÒåµÄÎÄ×Ö±êÇ©¡£Ê¹ÓÃËüµÄÎ¨Ò»Ä¿µÄÊÇ½«Ä¿µÄÏà¹ØµÄÒ»×é¿Ø¼ş¿òÆğÀ´¡£×éºÏ¿òÖ»ÓĞÒ»¸öÑùÊ½£¬ÄÇ¾ÍÊÇ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_GROUPBOX]]¡£ÒòÎªËü²»ÄÜ±»Ñ¡ÖĞ£¬ËüÃ»ÓĞÑ¡Ôñ×´Ì¬¡¢½¹µã×´Ì¬ºÍ°´Ñ¹×´Ì¬¡£
+ç»„åˆæ¡†æ˜¯ä¸€ä¸ªåŒ…å«ä¸€ç³»åˆ—æ§ä»¶çš„çŸ©å½¢ï¼Œå®ƒçš„å·¦ä¸Šè§’æœ‰ä¸€ä¸ªåº”ç”¨å®šä¹‰çš„æ–‡å­—æ ‡ç­¾ã€‚ä½¿ç”¨å®ƒçš„å”¯ä¸€ç›®çš„æ˜¯å°†ç›®çš„ç›¸å…³çš„ä¸€ç»„æ§ä»¶æ¡†èµ·æ¥ã€‚ç»„åˆæ¡†åªæœ‰ä¸€ä¸ªæ ·å¼ï¼Œé‚£å°±æ˜¯ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_GROUPBOX]]ã€‚å› ä¸ºå®ƒä¸èƒ½è¢«é€‰ä¸­ï¼Œå®ƒæ²¡æœ‰é€‰æ‹©çŠ¶æ€ã€ç„¦ç‚¹çŠ¶æ€å’ŒæŒ‰å‹çŠ¶æ€ã€‚
 
-** °´¼ü°´Å¥£¨Push Button£©
+** æŒ‰é”®æŒ‰é’®ï¼ˆPush Buttonï¼‰
 
-°´¼ü°´Å¥ÊÇÒ»¸öº¬ÓĞÓ¦ÓÃ¶¨ÒåÄÚÈİµÄ¾ØĞÎ£¬ÄÚÈİ¿ÉÊÇÊÇÎÄ±¾£¬Í¼±ê»òÎ»Í¼¡£
+æŒ‰é”®æŒ‰é’®æ˜¯ä¸€ä¸ªå«æœ‰åº”ç”¨å®šä¹‰å†…å®¹çš„çŸ©å½¢ï¼Œå†…å®¹å¯æ˜¯æ˜¯æ–‡æœ¬ï¼Œå›¾æ ‡æˆ–ä½å›¾ã€‚
 
-°´¼ü°´Å¥¿ÉÒÔÊÇÁ½ÖÖÑùÊ½£¬±ê×¼»òÄ¬ÈÏÑùÊ½£¬ËüÃÇÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHBUTTON]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_DEFPUSHBUTTON]] À´¶¨Òå¡£±ê×¼°´¼ü°´Å¥Ò»°ãÓÃÀ´¿ªÊ¼Ò»¸ö²Ù×÷¡£ËüÔÚÓÃ»§µã»÷ËüÊ±½ÓÊÕ¼üÅÌ½¹µã¡£Ä¬ÈÏ°´¼ü°´Å¥Ò»°ãÓÃÀ´ÌáÊ¾Í¨ÓÃµÄ»òÄ¬ÈÏµÄÑ¡Ôñ£¬±ÈÈç¹Ø±Õ¶Ô»°¿ò¡£Èç¹ûÔÚ¶Ô»°¿òÖĞÃ»ÓĞÆäËû°´¼ü°´Å¥¾ßÓĞ¼üÅÌ½¹µãµÄ»°£¬ÓÃ»§°´ÏÂ Enter ¼ü¾Í¿ÉÒÔÑ¡ÖĞËü¡£
+æŒ‰é”®æŒ‰é’®å¯ä»¥æ˜¯ä¸¤ç§æ ·å¼ï¼Œæ ‡å‡†æˆ–é»˜è®¤æ ·å¼ï¼Œå®ƒä»¬ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_PUSHBUTTON]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_DEFPUSHBUTTON]] æ¥å®šä¹‰ã€‚æ ‡å‡†æŒ‰é”®æŒ‰é’®ä¸€èˆ¬ç”¨æ¥å¼€å§‹ä¸€ä¸ªæ“ä½œã€‚å®ƒåœ¨ç”¨æˆ·ç‚¹å‡»å®ƒæ—¶æ¥æ”¶é”®ç›˜ç„¦ç‚¹ã€‚é»˜è®¤æŒ‰é”®æŒ‰é’®ä¸€èˆ¬ç”¨æ¥æç¤ºé€šç”¨çš„æˆ–é»˜è®¤çš„é€‰æ‹©ï¼Œæ¯”å¦‚å…³é—­å¯¹è¯æ¡†ã€‚å¦‚æœåœ¨å¯¹è¯æ¡†ä¸­æ²¡æœ‰å…¶ä»–æŒ‰é”®æŒ‰é’®å…·æœ‰é”®ç›˜ç„¦ç‚¹çš„è¯ï¼Œç”¨æˆ·æŒ‰ä¸‹ Enter é”®å°±å¯ä»¥é€‰ä¸­å®ƒã€‚
 
-µ±ÓÃ»§µã»÷°´¼ü°´Å¥Ê±£¬ÏµÍ³»áÏò°´¼ü°´Å¥µÄ¸¸´°¿Ú·¢ËÍ´øÓĞ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] Í¨ÖªÂëµÄ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] ÏûÏ¢¡£
+å½“ç”¨æˆ·ç‚¹å‡»æŒ‰é”®æŒ‰é’®æ—¶ï¼Œç³»ç»Ÿä¼šå‘æŒ‰é”®æŒ‰é’®çš„çˆ¶çª—å£å‘é€å¸¦æœ‰ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] é€šçŸ¥ç çš„ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] æ¶ˆæ¯ã€‚
 
-Windows ³ÌĞòÉè¼ÆÖĞ»¹Ìáµ½£º°´¼ü°´Å¥µÄ×î¼ÑÊÓ¾õ¸ß¶ÈÊÇ×Ö·û¸ß¶ÈµÄ 7/4¡£
+Windows ç¨‹åºè®¾è®¡ä¸­è¿˜æåˆ°ï¼šæŒ‰é”®æŒ‰é’®çš„æœ€ä½³è§†è§‰é«˜åº¦æ˜¯å­—ç¬¦é«˜åº¦çš„ 7/4ã€‚
 
-ÔÚÎ¢ÈíµÄÎÄµµÖĞ£¬»¹½éÉÜÁË split button ºÍ command link Á½ÖÖÌØÊâµÄ°´¼ü°´Å¥£¬ÏêÇé¿É¼ûÓÚ²Î¿¼×ÊÁÏ¡¾5¡¿¡£
+åœ¨å¾®è½¯çš„æ–‡æ¡£ä¸­ï¼Œè¿˜ä»‹ç»äº† split button å’Œ command link ä¸¤ç§ç‰¹æ®Šçš„æŒ‰é”®æŒ‰é’®ï¼Œè¯¦æƒ…å¯è§äºå‚è€ƒèµ„æ–™ã€5ã€‘ã€‚
 
-** µ¥Ñ¡°´Å¥£¨Radio Button£©
+** å•é€‰æŒ‰é’®ï¼ˆRadio Buttonï¼‰
 
-µ¥Ñ¡°´Å¥ÓÉÒ»¸öÔ²ĞÎ°´Å¥ºÍ±íÃ÷°´Å¥×÷ÓÃµÄÓ¦ÓÃ¶¨ÒåÄÚÈİ×é³É¡£Ó¦ÓÃÒ»°ãÔÚÒ»¸ö×éºÏ¿òÖĞÊ¹ÓÃµ¥Ñ¡°´Å¥À´ÈÃÓÃ»§Ñ¡ÔñÒ»ÏµÁĞÏà¹Øµ«»¥³âµÄÑ¡Ïî¡£
+å•é€‰æŒ‰é’®ç”±ä¸€ä¸ªåœ†å½¢æŒ‰é’®å’Œè¡¨æ˜æŒ‰é’®ä½œç”¨çš„åº”ç”¨å®šä¹‰å†…å®¹ç»„æˆã€‚åº”ç”¨ä¸€èˆ¬åœ¨ä¸€ä¸ªç»„åˆæ¡†ä¸­ä½¿ç”¨å•é€‰æŒ‰é’®æ¥è®©ç”¨æˆ·é€‰æ‹©ä¸€ç³»åˆ—ç›¸å…³ä½†äº’æ–¥çš„é€‰é¡¹ã€‚
 
-µ¥Ñ¡°´Å¥ÓĞÁ½ÖÖÑùÊ½£¬±ê×¼»ò×Ô¶¯£¬Ê¹ÓÃ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTORADIOBUTTON]] ¶¨Òå¡£Ã¿ÖÖÑùÊ½¶¼ÓĞÁ½ÖÖÑ¡Ôñ×´Ì¬£ºÑ¡Ôñ£¨°´Å¥ÖĞÓĞ¸öµã£©»òÇå³ı£¨Ã»ÓĞµã£©¡£
+å•é€‰æŒ‰é’®æœ‰ä¸¤ç§æ ·å¼ï¼Œæ ‡å‡†æˆ–è‡ªåŠ¨ï¼Œä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_RADIOBUTTON]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][BS_AUTORADIOBUTTON]] å®šä¹‰ã€‚æ¯ç§æ ·å¼éƒ½æœ‰ä¸¤ç§é€‰æ‹©çŠ¶æ€ï¼šé€‰æ‹©ï¼ˆæŒ‰é’®ä¸­æœ‰ä¸ªç‚¹ï¼‰æˆ–æ¸…é™¤ï¼ˆæ²¡æœ‰ç‚¹ï¼‰ã€‚
 
-µ±ÓÃ»§Ñ¡Ôñ×´Ì¬Ê±£¬µ¥Ñ¡°´Å¥»áÊÕµ½¼üÅÌ½¹µã¡£ÏµÍ³»áÏò°´Å¥µÄ¸¸´°¿Ú·¢ËÍ´øÓĞ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] Í¨ÖªÂëµÄ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] ÏûÏ¢¡£Èç¹ûÊ¹ÓÃÁË×Ô¶¯ÑùÊ½£¬¸¸´°¿Ú²»ĞèÒª´¦ÀíÕâ¸öÏûÏ¢£¬·ñÔòĞèÒª´¦Àí¡£ÏµÍ³»áÔÚ×´Ì¬¸Ä±äÊ±×Ô¶¯ÖØ»æ°´Å¥¡£
+å½“ç”¨æˆ·é€‰æ‹©çŠ¶æ€æ—¶ï¼Œå•é€‰æŒ‰é’®ä¼šæ”¶åˆ°é”®ç›˜ç„¦ç‚¹ã€‚ç³»ç»Ÿä¼šå‘æŒ‰é’®çš„çˆ¶çª—å£å‘é€å¸¦æœ‰ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-clicked][BN_CLICKED]] é€šçŸ¥ç çš„ [[https://docs.microsoft.com/en-us/windows/desktop/menurc/wm-command][WM_COMMAND]] æ¶ˆæ¯ã€‚å¦‚æœä½¿ç”¨äº†è‡ªåŠ¨æ ·å¼ï¼Œçˆ¶çª—å£ä¸éœ€è¦å¤„ç†è¿™ä¸ªæ¶ˆæ¯ï¼Œå¦åˆ™éœ€è¦å¤„ç†ã€‚ç³»ç»Ÿä¼šåœ¨çŠ¶æ€æ”¹å˜æ—¶è‡ªåŠ¨é‡ç»˜æŒ‰é’®ã€‚
 
-µ¥Ñ¡°´Å¥Ò»°ãÅÅÁĞÔÚ×éºÏ¿òÖĞ£¬Í¬Ò»Ê±¼äÖ»ÄÜÑ¡ÔñÒ»¸ö°´Å¥¡£Èç¹ûÎªÄ³Ò»µ¥Ñ¡°´Å¥Ê¹ÓÃÁË [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_GROUP]] ÑùÊ½£¬ÄÇÃ´¸Ã°´Å¥¾ÍÊÇ×éÖĞµÄµÚÒ»¸ö°´Å¥£¬ËæºóËùÓĞµÄ°´Å¥£¨²»º¬ WS_GROUP ±êÖ¾µÄ£©¶¼ÊÇ°´ÕÕ TAB ÅÅÁĞµÄÒ»×é°´Å¥£¬Ö±µ½Óöµ½ÏÂÒ»¸ö´øÓĞ GROUP ±êÖ¾µÄµ¥Ñ¡°´Å¥ÎªÖ¹¡£Èç¹ûÃ»ÓĞµ¥Ñ¡°´Å¥ÓµÓĞ WS_GROUP ±êÖ¾£¬ÄÇÃ´ÔÚ¶Ô»°¿òÖĞµÄËùÓĞµ¥Ñ¡°´Å¥¶¼±»¿´×öÒ»×é°´Å¥¡£
+å•é€‰æŒ‰é’®ä¸€èˆ¬æ’åˆ—åœ¨ç»„åˆæ¡†ä¸­ï¼ŒåŒä¸€æ—¶é—´åªèƒ½é€‰æ‹©ä¸€ä¸ªæŒ‰é’®ã€‚å¦‚æœä¸ºæŸä¸€å•é€‰æŒ‰é’®ä½¿ç”¨äº† [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][WS_GROUP]] æ ·å¼ï¼Œé‚£ä¹ˆè¯¥æŒ‰é’®å°±æ˜¯ç»„ä¸­çš„ç¬¬ä¸€ä¸ªæŒ‰é’®ï¼Œéšåæ‰€æœ‰çš„æŒ‰é’®ï¼ˆä¸å« WS_GROUP æ ‡å¿—çš„ï¼‰éƒ½æ˜¯æŒ‰ç…§ TAB æ’åˆ—çš„ä¸€ç»„æŒ‰é’®ï¼Œç›´åˆ°é‡åˆ°ä¸‹ä¸€ä¸ªå¸¦æœ‰ GROUP æ ‡å¿—çš„å•é€‰æŒ‰é’®ä¸ºæ­¢ã€‚å¦‚æœæ²¡æœ‰å•é€‰æŒ‰é’®æ‹¥æœ‰ WS_GROUP æ ‡å¿—ï¼Œé‚£ä¹ˆåœ¨å¯¹è¯æ¡†ä¸­çš„æ‰€æœ‰å•é€‰æŒ‰é’®éƒ½è¢«çœ‹åšä¸€ç»„æŒ‰é’®ã€‚
 
-Ó¦ÓÃ¿ÉÒÔÊ¹ÓÃ [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] º¯ÊıÀ´ÅĞ¶Ïµ¥Ñ¡°´Å¥µÄ×´Ì¬¡£
+åº”ç”¨å¯ä»¥ä½¿ç”¨ [[https://docs.microsoft.com/en-us/windows/desktop/api/Winuser/nf-winuser-isdlgbuttonchecked][IsDlgButtonChecked]] å‡½æ•°æ¥åˆ¤æ–­å•é€‰æŒ‰é’®çš„çŠ¶æ€ã€‚
 
-** ÆäËûÑùÊ½
+** å…¶ä»–æ ·å¼
 
-ÏÔÊ¾Í¼±ê»òÎ»Í¼£º
+æ˜¾ç¤ºå›¾æ ‡æˆ–ä½å›¾ï¼š
 
-- BS_BITMAP£¬Ö¸¶¨°´Å¥ÏÔÊ¾Î»Í¼
+- BS_BITMAPï¼ŒæŒ‡å®šæŒ‰é’®æ˜¾ç¤ºä½å›¾
 
-- BS_ICON£¬Ö¸¶¨°´Å¥ÏÔÊ¾Í¼±ê
+- BS_ICONï¼ŒæŒ‡å®šæŒ‰é’®æ˜¾ç¤ºå›¾æ ‡
 
 
-ÏÔÊ¾ÎÄ±¾Ïà¹Ø£º
+æ˜¾ç¤ºæ–‡æœ¬ç›¸å…³ï¼š
 
-- BS_TEXT£¬Ö¸¶¨°´Å¥ÏÔÊ¾ÎÄ±¾
+- BS_TEXTï¼ŒæŒ‡å®šæŒ‰é’®æ˜¾ç¤ºæ–‡æœ¬
 
-- BS_BOTTOM£¬½«ÎÄ±¾·ÅÔÚ°´Å¥¾ØĞÎµÄµ×¶Ë
+- BS_BOTTOMï¼Œå°†æ–‡æœ¬æ”¾åœ¨æŒ‰é’®çŸ©å½¢çš„åº•ç«¯
 
-- BS_VCENTER£¬ÎÄ±¾·ÅÖÃÓÚ°´Å¥¾ØĞÎµÄ´¹Ö±ÖĞĞÄ
+- BS_VCENTERï¼Œæ–‡æœ¬æ”¾ç½®äºæŒ‰é’®çŸ©å½¢çš„å‚ç›´ä¸­å¿ƒ
 
-- BS_TOP£¬ÎÄ±¾·ÅÖÃÓÚ°´Å¥¾ØĞÎ¶¥¶Ë
+- BS_TOPï¼Œæ–‡æœ¬æ”¾ç½®äºæŒ‰é’®çŸ©å½¢é¡¶ç«¯
 
-- BS_lEFT£¬Ê¹ÎÄ±¾ÔÚ°´Å¥¾ØĞÎÖĞ×ó¶ÔÆë£¬Èç¹û°´Å¥ÊÇ×éºÏ¿ò»òµ¥Ñ¡°´Å¥ÇÒÃ»ÓĞ BS_RIGHTBUTTON ±êÖ¾£¬ÎÄ±¾»áÔÚ¸´Ñ¡¿ò»òµ¥Ñ¡°´Å¥µÄÓÒ±ß½øĞĞ×ó¶ÔÆë£¨¶ø²»ÊÇ°´Å¥¾ØĞÎµÄ×ó±ß¿ò´¦£©
+- BS_lEFTï¼Œä½¿æ–‡æœ¬åœ¨æŒ‰é’®çŸ©å½¢ä¸­å·¦å¯¹é½ï¼Œå¦‚æœæŒ‰é’®æ˜¯ç»„åˆæ¡†æˆ–å•é€‰æŒ‰é’®ä¸”æ²¡æœ‰ BS_RIGHTBUTTON æ ‡å¿—ï¼Œæ–‡æœ¬ä¼šåœ¨å¤é€‰æ¡†æˆ–å•é€‰æŒ‰é’®çš„å³è¾¹è¿›è¡Œå·¦å¯¹é½ï¼ˆè€Œä¸æ˜¯æŒ‰é’®çŸ©å½¢çš„å·¦è¾¹æ¡†å¤„ï¼‰
 
-- BS_CENTER£¬ÎÄ±¾·ÅÖÃÓÚ°´Å¥¾ØĞÎË®Æ½ÖĞĞÄ´¦
+- BS_CENTERï¼Œæ–‡æœ¬æ”¾ç½®äºæŒ‰é’®çŸ©å½¢æ°´å¹³ä¸­å¿ƒå¤„
 
-- BS_RIGHT£¬Ê¹ÎÄ±¾ÔÚ°´Å¥¾ØĞÎÖĞÓÒ¶ÔÆë£¬Ò²ÊÜµ½ BS_RIGHTBUTTON µÄÓ°Ïì£¬Ğ§¹ûÏàËÆ
+- BS_RIGHTï¼Œä½¿æ–‡æœ¬åœ¨æŒ‰é’®çŸ©å½¢ä¸­å³å¯¹é½ï¼Œä¹Ÿå—åˆ° BS_RIGHTBUTTON çš„å½±å“ï¼Œæ•ˆæœç›¸ä¼¼
 
-- BS_MULTILINE£¬Èç¹ûÎÄ±¾×Ö·û´®ÎŞ·¨Ò»ĞĞ·ÅÏÂ£¬½«ÎÄ±¾·Ö³É¼¸ĞĞ
+- BS_MULTILINEï¼Œå¦‚æœæ–‡æœ¬å­—ç¬¦ä¸²æ— æ³•ä¸€è¡Œæ”¾ä¸‹ï¼Œå°†æ–‡æœ¬åˆ†æˆå‡ è¡Œ
 
-- BS_LEFTTEXT ºÍ BS_RIGHTBUTTON£¬½«µ¥Ñ¡°´Å¥µÄÔ²»ò¸´Ñ¡¿òµÄ·½¿ò·Åµ½°´Å¥¾ØĞÎµÄÓÒ±ß
+- BS_LEFTTEXT å’Œ BS_RIGHTBUTTONï¼Œå°†å•é€‰æŒ‰é’®çš„åœ†æˆ–å¤é€‰æ¡†çš„æ–¹æ¡†æ”¾åˆ°æŒ‰é’®çŸ©å½¢çš„å³è¾¹
 
 
-Í¨ÖªÏûÏ¢£º
+é€šçŸ¥æ¶ˆæ¯ï¼š
 
-- BS_NOTIFY£¬ÔÊĞíÏò¸¸´°¿Ú·¢ËÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] ºÍ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] Í¨Öª¡£
+- BS_NOTIFYï¼Œå…è®¸å‘çˆ¶çª—å£å‘é€ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-killfocus][BN_KILLFOCUS]] å’Œ [[https://docs.microsoft.com/en-us/windows/win32/controls/bn-setfocus][BN_SETFOCUS]] é€šçŸ¥ã€‚
 
-ÆäËû£º
+å…¶ä»–ï¼š
 
-- BS_PUSHLIKE£¬ÈÃ°´Å¥¿´ÆğÀ´ÏñÊÇ°´¼ü°´Å¥¡£°´ÏÂÊ±°´Å¥»á³ÊÏÖ³öÏÂ³ÁĞ§¹û£¬ËÉ¿ªºó»Ø¸´Ô­×´
+- BS_PUSHLIKEï¼Œè®©æŒ‰é’®çœ‹èµ·æ¥åƒæ˜¯æŒ‰é”®æŒ‰é’®ã€‚æŒ‰ä¸‹æ—¶æŒ‰é’®ä¼šå‘ˆç°å‡ºä¸‹æ²‰æ•ˆæœï¼Œæ¾å¼€åå›å¤åŸçŠ¶
 
-- BS_OWNERDRAW£¬´´½¨×Ô»æ°´Å¥¡£µ±°´Å¥µÄÍâ¹ÛĞèÒª·¢Éú¸Ä±äÊ±£¬¸¸´°¿Ú»áÊÕµ½ [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] ÏûÏ¢¡£Õâ¸ö±êÖ¾Ö»ÄÜµ¥¶ÀÊ¹ÓÃ¡£
+- BS_OWNERDRAWï¼Œåˆ›å»ºè‡ªç»˜æŒ‰é’®ã€‚å½“æŒ‰é’®çš„å¤–è§‚éœ€è¦å‘ç”Ÿæ”¹å˜æ—¶ï¼Œçˆ¶çª—å£ä¼šæ”¶åˆ° [[https://docs.microsoft.com/en-us/windows/win32/controls/wm-drawitem][WM_DRAWITEM]] æ¶ˆæ¯ã€‚è¿™ä¸ªæ ‡å¿—åªèƒ½å•ç‹¬ä½¿ç”¨ã€‚
 
 
-* ´úÂëÊ¾Àı
+* ä»£ç ç¤ºä¾‹
 
-¼øÓÚ°´Å¥±È½Ï¼òµ¥£¬ÕâÀï¸Ğ¾õÃ»±ØÒª¸ø³öºÜ¶àµÄ´úÂë£¬¹ÊÖ±½ÓÊ¹ÓÃ¹Ù·½µÄ½Ì³ÌÁ´½Ó£º
+é‰´äºæŒ‰é’®æ¯”è¾ƒç®€å•ï¼Œè¿™é‡Œæ„Ÿè§‰æ²¡å¿…è¦ç»™å‡ºå¾ˆå¤šçš„ä»£ç ï¼Œæ•…ç›´æ¥ä½¿ç”¨å®˜æ–¹çš„æ•™ç¨‹é“¾æ¥ï¼š
 
 [[https://docs.microsoft.com/en-us/windows/win32/controls/create-a-button][How to Create a Button - Win32 apps | Microsoft Docs]]
 
-* ²Î¿¼×ÊÁÏ
+* å‚è€ƒèµ„æ–™
 
-<<<¡¾1¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-messages#handling-messages-from-a-button][Button Messages - Win32 apps | Microsoft Docs]]
+<<<ã€1ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-messages#handling-messages-from-a-button][Button Messages - Win32 apps | Microsoft Docs]]
 
-<<<¡¾2¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/control-messages][Control Messages - Win32 apps | Microsoft Docs]]
+<<<ã€2ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/control-messages][Control Messages - Win32 apps | Microsoft Docs]]
 
-<<<¡¾3¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/bumper-button-control-reference-messages][Button Control Messages - Win32 apps | Microsoft Docs]]
+<<<ã€3ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/bumper-button-control-reference-messages][Button Control Messages - Win32 apps | Microsoft Docs]]
 
-<<<¡¾4¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-states][Button States - Win32 apps | Microsoft Docs]]
+<<<ã€4ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-states][Button States - Win32 apps | Microsoft Docs]]
 
-<<<¡¾5¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-types-and-styles][Button Types - Win32 apps | Microsoft Docs]]
+<<<ã€5ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-types-and-styles][Button Types - Win32 apps | Microsoft Docs]]
 
-<<<¡¾6¡¿>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][Button Styles (Winuser.h) - Win32 apps | Microsoft Docs]]
+<<<ã€6ã€‘>>> [[https://docs.microsoft.com/en-us/windows/win32/controls/button-styles][Button Styles (Winuser.h) - Win32 apps | Microsoft Docs]]
 
-<<<¡¾7¡¿>>> /Programming Windows/ ¡ª¡ª Charles Petzold
+<<<ã€7ã€‘>>> /Programming Windows/ â€”â€” Charles Petzold

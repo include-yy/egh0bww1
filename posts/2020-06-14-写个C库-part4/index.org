@@ -1,77 +1,77 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Ğ´¸öC¿â-part4
+#+TITLE: å†™ä¸ªCåº“-part4
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2020-06-14 Sun]
 #+TAGS: c
 
-±¾ÎÄ·­Òë×Ô *Writing a C library part 4*
+æœ¬æ–‡ç¿»è¯‘è‡ª *Writing a C library part 4*
 
-×÷Õß£ºdavidz
+ä½œè€…ï¼šdavidz
 
-×÷ÕßÖ÷Ò³£ºhttps://www.blogger.com/profile/18166813552495508964
+ä½œè€…ä¸»é¡µï¼šhttps://www.blogger.com/profile/18166813552495508964
 
-ÎÄÕÂÔ´µØÖ·£ºhttp://davidz25.blogspot.com/2011/07/writing-c-library-part-4.html
+æ–‡ç« æºåœ°å€ï¼šhttp://davidz25.blogspot.com/2011/07/writing-c-library-part-4.html
 
-Ç°Æª£º[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html][part three]]
+å‰ç¯‡ï¼š[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html][part three]]
 
-* ¸¨ÖúÉèÊ©£¨Helper£©ºÍÊØ»¤½ø³Ì
+* è¾…åŠ©è®¾æ–½ï¼ˆHelperï¼‰å’Œå®ˆæŠ¤è¿›ç¨‹
 
-ÓĞÊ±£¬³ÌĞò»ò¿âµ÷ÓÃÍâ²¿½ø³ÌÍê³É¹¤×÷ÊÇ·Ç³£ÓĞÓÃµÄ¡£ÕâÑù×öµÄÔ­ÒòÓĞºÜ¶à ¡ª¡ª ÀıÈç£¬ÄãÏëÒªÊ¹ÓÃµÄ´úÂë£º
+æœ‰æ—¶ï¼Œç¨‹åºæˆ–åº“è°ƒç”¨å¤–éƒ¨è¿›ç¨‹å®Œæˆå·¥ä½œæ˜¯éå¸¸æœ‰ç”¨çš„ã€‚è¿™æ ·åšçš„åŸå› æœ‰å¾ˆå¤š â€”â€” ä¾‹å¦‚ï¼Œä½ æƒ³è¦ä½¿ç”¨çš„ä»£ç ï¼š
 
-- ¿ÉÄÜÔÚ C ÓïÑÔÖĞÓÃÆğÀ´²»ÊÇºÜÈİÒ× ¡ª¡ª Ëü¿ÉÒÔÓÃ [[http://en.wikipedia.org/wiki/Python_(programming_language][python]])£¬»ò gosh£¬»ò [[http://en.wikipedia.org/wiki/Bash_(Unix_shell][bash]]) Ğ´
+- å¯èƒ½åœ¨ C è¯­è¨€ä¸­ç”¨èµ·æ¥ä¸æ˜¯å¾ˆå®¹æ˜“ â€”â€” å®ƒå¯ä»¥ç”¨ [[http://en.wikipedia.org/wiki/Python_(programming_language][python]])ï¼Œæˆ– goshï¼Œæˆ– [[http://en.wikipedia.org/wiki/Bash_(Unix_shell][bash]]) å†™
 
-- ¿ÉÄÜºÍĞÅºÅ´¦Àí³ÌĞò»òÆäËûÈ«¾Ö½ø³Ì×´Ì¬¸ã»ì
+- å¯èƒ½å’Œä¿¡å·å¤„ç†ç¨‹åºæˆ–å…¶ä»–å…¨å±€è¿›ç¨‹çŠ¶æ€ææ··
 
-- ²»ÊÇÏß³Ì°²È«µÄ£¬»òÕß»áĞ¹Â¶»ò½ö½öÊÇÅòÕÍ£¨bloated£©
+- ä¸æ˜¯çº¿ç¨‹å®‰å…¨çš„ï¼Œæˆ–è€…ä¼šæ³„éœ²æˆ–ä»…ä»…æ˜¯è†¨èƒ€ï¼ˆbloatedï¼‰
 
-- ËüµÄ´íÎó´¦ÀíÓëÄãµÄ¿âËùÊ¹ÓÃµÄ·½Ê½²»¼æÈİ
+- å®ƒçš„é”™è¯¯å¤„ç†ä¸ä½ çš„åº“æ‰€ä½¿ç”¨çš„æ–¹å¼ä¸å…¼å®¹
 
-- ĞèÒªÌáÈ¨
+- éœ€è¦ææƒ
 
-- Äã¸Ğ¾õºÜÔã¸â£¬µ«ÊÇÓÖ²»ÖµµÃ×Ô¼ºÖØĞÂÊµÏÖÒ»±é
+- ä½ æ„Ÿè§‰å¾ˆç³Ÿç³•ï¼Œä½†æ˜¯åˆä¸å€¼å¾—è‡ªå·±é‡æ–°å®ç°ä¸€é
 
-ÕâÀïÓĞÈıÖÖ·½·¨À´×öÕâ¼şÊÂ¡£
+è¿™é‡Œæœ‰ä¸‰ç§æ–¹æ³•æ¥åšè¿™ä»¶äº‹ã€‚
 
-µÚÒ»ÖÖ·½Ê½ÊÇÖ±½Óµ÷ÓÃ [[http://www.kernel.org/doc/man-pages/online/pages/man2/fork.2.html][fork(2)]] ²¢ÔÚ×Ó½ø³ÌÖĞÊ¹ÓÃÕâ¸ö¿â ¡ª¡ª ÕâÍ¨³£ÊÇĞĞ²»Í¨µÄ£¬ÒòÎª´æÔÚ×ÅÒ»ÖÖ¿ÉÄÜ£¬ÄÇ¾ÍÊÇÄãÊ¹ÓÃµÄ¿âÔÚ fork() Ö®ºóÎŞ·¨¿É¿¿Ê¹ÓÃ£¨¾ÍÏñ[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][Ö®Ç°]]ÌÖÂÛµÄÄÇÑù£©¡££¨ÁíÍâ£¬Èç¹û¸¸½ø³ÌÓĞÌ«¶àµÄ¿ÉĞ´Ò³ÃæÓ³ÉäµÄ»°£¬¿ÉÄÜ»á·¢ÉúĞí¶à²»±ØÒªµÄĞ´ÈëÊ±¸´ÖÆ ([[http://en.wikipedia.org/wiki/Copy-on-write][COW]])£©Èç¹û»¹Òª¿¼ÂÇµ½¶Ô Windows µÄÒÆÖ²ĞÔ£¬ÕâÒ²²»ÊÇÒ»¸ö¿ÉĞĞµÄ·½·¨£¨non-starter£©£¬ÒòÎª Windows ÉÏÃ»ÓĞ fork() »òÆäËûÈÎºÎÓĞÒâÒåµÄµÈ¼ÛÎï¡£
+ç¬¬ä¸€ç§æ–¹å¼æ˜¯ç›´æ¥è°ƒç”¨ [[http://www.kernel.org/doc/man-pages/online/pages/man2/fork.2.html][fork(2)]] å¹¶åœ¨å­è¿›ç¨‹ä¸­ä½¿ç”¨è¿™ä¸ªåº“ â€”â€” è¿™é€šå¸¸æ˜¯è¡Œä¸é€šçš„ï¼Œå› ä¸ºå­˜åœ¨ç€ä¸€ç§å¯èƒ½ï¼Œé‚£å°±æ˜¯ä½ ä½¿ç”¨çš„åº“åœ¨ fork() ä¹‹åæ— æ³•å¯é ä½¿ç”¨ï¼ˆå°±åƒ[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][ä¹‹å‰]]è®¨è®ºçš„é‚£æ ·ï¼‰ã€‚ï¼ˆå¦å¤–ï¼Œå¦‚æœçˆ¶è¿›ç¨‹æœ‰å¤ªå¤šçš„å¯å†™é¡µé¢æ˜ å°„çš„è¯ï¼Œå¯èƒ½ä¼šå‘ç”Ÿè®¸å¤šä¸å¿…è¦çš„å†™å…¥æ—¶å¤åˆ¶ ([[http://en.wikipedia.org/wiki/Copy-on-write][COW]])ï¼‰å¦‚æœè¿˜è¦è€ƒè™‘åˆ°å¯¹ Windows çš„ç§»æ¤æ€§ï¼Œè¿™ä¹Ÿä¸æ˜¯ä¸€ä¸ªå¯è¡Œçš„æ–¹æ³•ï¼ˆnon-starterï¼‰ï¼Œå› ä¸º Windows ä¸Šæ²¡æœ‰ fork() æˆ–å…¶ä»–ä»»ä½•æœ‰æ„ä¹‰çš„ç­‰ä»·ç‰©ã€‚
 
-µÚ¶şÖÖ·½·¨ÊÇ±àĞ´Ò»¸öĞ¡µÄ¸¨Öú³ÌĞò²¢ËæÄãµÄ¿âÒ»Æğ·¢²¼¡£ÕâÖÖ·½·¨Ò²Ê¹ÓÃÁË fork() £¬µ«ÊÇ²»Í¬Ö®´¦ÔÚÓÚ£º×Ó½ø³Ì´´½¨ºó»áÁ¢¼´µ÷ÓÃ [[http://www.kernel.org/doc/man-pages/online/pages/man3/exec.3.html][exec(3)]]£¬ÕâÑùÔÚÌæ»»½ø³ÌÓ³ÏñÊ±ËùÓĞÖ®Ç°µÄ½ø³Ì×´Ì¬»á±»Çå³ı£¨³ıÁËÎÄ¼şÃèÊö·û£¬ÒòÎªËüÃÇ¿ÉÒÔÍ¨¹ı exec() ¼Ì³Ğ£¬ËùÒÔÒª×¢Òâ²»±ØÒªµÄĞ¹Â¶£©¡£Èç¹ûÊ¹ÓÃÁË GLib£¬ÄÇ¾ÍÓĞÒ»ÏµÁĞµÄÊµÓÃº¯Êı£¨[[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html][utility functions]]£©À´×öÕâ¼şÊÂ¡££¨°üÀ¨¶Ô×Ô¶¯¹Ø±ÕÎÄ¼şÃèÊö·ûµÄÖ§³Ö([[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html#GSpawnFlags][automatically closing file descriptors]])£©
+ç¬¬äºŒç§æ–¹æ³•æ˜¯ç¼–å†™ä¸€ä¸ªå°çš„è¾…åŠ©ç¨‹åºå¹¶éšä½ çš„åº“ä¸€èµ·å‘å¸ƒã€‚è¿™ç§æ–¹æ³•ä¹Ÿä½¿ç”¨äº† fork() ï¼Œä½†æ˜¯ä¸åŒä¹‹å¤„åœ¨äºï¼šå­è¿›ç¨‹åˆ›å»ºåä¼šç«‹å³è°ƒç”¨ [[http://www.kernel.org/doc/man-pages/online/pages/man3/exec.3.html][exec(3)]]ï¼Œè¿™æ ·åœ¨æ›¿æ¢è¿›ç¨‹æ˜ åƒæ—¶æ‰€æœ‰ä¹‹å‰çš„è¿›ç¨‹çŠ¶æ€ä¼šè¢«æ¸…é™¤ï¼ˆé™¤äº†æ–‡ä»¶æè¿°ç¬¦ï¼Œå› ä¸ºå®ƒä»¬å¯ä»¥é€šè¿‡ exec() ç»§æ‰¿ï¼Œæ‰€ä»¥è¦æ³¨æ„ä¸å¿…è¦çš„æ³„éœ²ï¼‰ã€‚å¦‚æœä½¿ç”¨äº† GLibï¼Œé‚£å°±æœ‰ä¸€ç³»åˆ—çš„å®ç”¨å‡½æ•°ï¼ˆ[[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html][utility functions]]ï¼‰æ¥åšè¿™ä»¶äº‹ã€‚ï¼ˆåŒ…æ‹¬å¯¹è‡ªåŠ¨å…³é—­æ–‡ä»¶æè¿°ç¬¦çš„æ”¯æŒ([[http://developer.gnome.org/glib/unstable/glib-Spawning-Processes.html#GSpawnFlags][automatically closing file descriptors]])ï¼‰
 
-µÚÈıÖÖ·½Ê½ÊÇÈÃÄãµÄ½ø³ÌºÍ³¤ÆÚ´æÔÚ£¨long-lived£©µÄ¸¨Öú½ø³Ì½øĞĞ[[https://en.wikipedia.org/wiki/Inter-process_communication][½»Á÷]] £¨ËùÎ½µÄÊØ»¤½ø³Ì£¨[[http://en.wikipedia.org/wiki/Daemon_(computing][daemon]])£©»òºóÌ¨½ø³Ì£©¡£¸¨ÖúµÄÊØ»¤½ø³Ì¼È¿ÉÒÔÍ¨¹ı [[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] Æô¶¯£¨Èç¹ûÄãÊ¹ÓÃ [[http://en.wikipedia.org/wiki/D-Bus][D-Bus]] ×÷Îª IPC »úÖÆµÄ»°£©£¬»òÍ¨¹ı [[http://www.freedesktop.org/wiki/Software/systemd][systemd]] £¨Èç¹ûÄãÊ¹ÓÃ³õÊ¼»¯½Å±¾ [[http://www.kernel.org/doc/man-pages/online/pages/man7/unix.7.html][Unix domain sockets]]£©£¨[[http://linux.die.net/man/8/uuidd][uuidd(8)]] ±»ÓÃÀ´×öÕâ¼şÊÂ ¡ª¡ª Èç¹ûÄãµÄ¿â²»×¼±¸ÓÃµÄ»°ÄÇ¾ÍÊÇÀË·ÑÁË£©£¬»òÍ¨¹ıÄã×Ô¼ºµÄ¿â¡£
+ç¬¬ä¸‰ç§æ–¹å¼æ˜¯è®©ä½ çš„è¿›ç¨‹å’Œé•¿æœŸå­˜åœ¨ï¼ˆlong-livedï¼‰çš„è¾…åŠ©è¿›ç¨‹è¿›è¡Œ[[https://en.wikipedia.org/wiki/Inter-process_communication][äº¤æµ]] ï¼ˆæ‰€è°“çš„å®ˆæŠ¤è¿›ç¨‹ï¼ˆ[[http://en.wikipedia.org/wiki/Daemon_(computing][daemon]])ï¼‰æˆ–åå°è¿›ç¨‹ï¼‰ã€‚è¾…åŠ©çš„å®ˆæŠ¤è¿›ç¨‹æ—¢å¯ä»¥é€šè¿‡ [[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] å¯åŠ¨ï¼ˆå¦‚æœä½ ä½¿ç”¨ [[http://en.wikipedia.org/wiki/D-Bus][D-Bus]] ä½œä¸º IPC æœºåˆ¶çš„è¯ï¼‰ï¼Œæˆ–é€šè¿‡ [[http://www.freedesktop.org/wiki/Software/systemd][systemd]] ï¼ˆå¦‚æœä½ ä½¿ç”¨åˆå§‹åŒ–è„šæœ¬ [[http://www.kernel.org/doc/man-pages/online/pages/man7/unix.7.html][Unix domain sockets]]ï¼‰ï¼ˆ[[http://linux.die.net/man/8/uuidd][uuidd(8)]] è¢«ç”¨æ¥åšè¿™ä»¶äº‹ â€”â€” å¦‚æœä½ çš„åº“ä¸å‡†å¤‡ç”¨çš„è¯é‚£å°±æ˜¯æµªè´¹äº†ï¼‰ï¼Œæˆ–é€šè¿‡ä½ è‡ªå·±çš„åº“ã€‚
 
-¸¨ÖúÊØ»¤½ø³ÌÍ¨³£Îª¿âÓÃ»§µÄ¶à¸öÊµÀıÌá¹©·şÎñ£¬È»¶øÓĞÊ±ºò×îºÃÃ¿¸ö¿âÓÃ»§ÊµÀı¶¼ÓĞÒ»¸ö¸¨ÖúÊØ»¤½ø³ÌÊµÀı¡£Çë×¢Òâ£¬ÈÃÒ»¸ö¿âÉú³ÉÒ»¸ö³¤ÆÚ´æÔÚµÄ½ø³ÌÍ¨³£ÊÇ¸ö»µÖ÷Òâ£¬ÒòÎª»·¾³ºÍÆäËûµÄ¼Ì³Ğ½ø³Ì×´Ì¬¿ÉÄÜÊÇ´íÎóµÄ£¨ÉõÖÁÊÇ²»°²È«µÄ£©¡ª¡ª ÒªÁË½âÎªÊ²Ã´ĞèÒªÒ»¸öºÃµÄ¡¢¿ÉÖªµÄ¡¢×îĞ¡µÄºÍ°²È«µÄ¹¤×÷»·¾³£¬¿ÉÒÔ²Î¼û [[http://0pointer.de/blog/projects/systemd.html][Rethinking PID 1]] ¡£ÁíÒ»¼şºÜÄÑ×ö¶Ô£¨»òÕßËµÊÇºÜÈİÒ××ö´í£©µÄÊÂÇéÊÇ µ¥ÀıÄ£Ê½£¨[[http://en.wikipedia.org/wiki/Singleton_pattern][uniqueness]]£©¡ª¡ª ÀıÈç£¬Äã×î¶àÖ»ÏëÒªÒ»¸ö¸¨ÖúÊØ»¤½ø³ÌµÄÊµÀı ¡ª¡ª ¿ÉÒÔ¿´¿´ [[http://blog.verbum.org/2008/04/26/how-to-share-state-with-applications-for-free-unix-based-desktops/][Colin's notes for details and how D-Bus can be used]] ²¢×¢ÒâÏñÊÇ [[http://developer.gnome.org/gio/unstable/GApplication.html#GApplication.description][GApplication]] µÄ¶«Î÷ÒÑ¾­¶Ôµ¥ÀıÄÚ½¨ÁËÖ§³Ö¡£Í¬ÑùµÄ£¬ÔÚÏµÍ³¼¶µÄÊØ»¤½ø³ÌÖĞ£¬Äã¿ÉÄÜĞèÒª¶ÔÏñÊÇ [[http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blob;f=include/linux/sched.h;h=781abd13767302cce2ba08db01a211e3178de0d9;hb=61c4f2c81c61f73549928dfd9f3e8f26aa36a8cf#l1374][loginuid]]£¨[[http://cgit.freedesktop.org/accountsservice/commit/?id=224b7e93a27a1ab5cf2eec2f56bc3adafd02e7af][example of how to do this]]£©Ö®ÀàµÄ¶«Î÷½øĞĞÉèÖÃ£¬À´Ê¹µÃ [[http://people.redhat.com/sgrubb/audit/][auditing]] Ö®ÀàµÄ¶«Î÷ÔÚÎª¿Í»§¶ËÌá¹©·şÎñÊ±¹¤×÷¡££¨ÕâÓë Windows ÖĞµÄ [[http://technet.microsoft.com/en-us/library/cc961980.aspx][impersonation]] ÓĞÏàËÆÖ®´¦£©
+è¾…åŠ©å®ˆæŠ¤è¿›ç¨‹é€šå¸¸ä¸ºåº“ç”¨æˆ·çš„å¤šä¸ªå®ä¾‹æä¾›æœåŠ¡ï¼Œç„¶è€Œæœ‰æ—¶å€™æœ€å¥½æ¯ä¸ªåº“ç”¨æˆ·å®ä¾‹éƒ½æœ‰ä¸€ä¸ªè¾…åŠ©å®ˆæŠ¤è¿›ç¨‹å®ä¾‹ã€‚è¯·æ³¨æ„ï¼Œè®©ä¸€ä¸ªåº“ç”Ÿæˆä¸€ä¸ªé•¿æœŸå­˜åœ¨çš„è¿›ç¨‹é€šå¸¸æ˜¯ä¸ªåä¸»æ„ï¼Œå› ä¸ºç¯å¢ƒå’Œå…¶ä»–çš„ç»§æ‰¿è¿›ç¨‹çŠ¶æ€å¯èƒ½æ˜¯é”™è¯¯çš„ï¼ˆç”šè‡³æ˜¯ä¸å®‰å…¨çš„ï¼‰â€”â€” è¦äº†è§£ä¸ºä»€ä¹ˆéœ€è¦ä¸€ä¸ªå¥½çš„ã€å¯çŸ¥çš„ã€æœ€å°çš„å’Œå®‰å…¨çš„å·¥ä½œç¯å¢ƒï¼Œå¯ä»¥å‚è§ [[http://0pointer.de/blog/projects/systemd.html][Rethinking PID 1]] ã€‚å¦ä¸€ä»¶å¾ˆéš¾åšå¯¹ï¼ˆæˆ–è€…è¯´æ˜¯å¾ˆå®¹æ˜“åšé”™ï¼‰çš„äº‹æƒ…æ˜¯ å•ä¾‹æ¨¡å¼ï¼ˆ[[http://en.wikipedia.org/wiki/Singleton_pattern][uniqueness]]ï¼‰â€”â€” ä¾‹å¦‚ï¼Œä½ æœ€å¤šåªæƒ³è¦ä¸€ä¸ªè¾…åŠ©å®ˆæŠ¤è¿›ç¨‹çš„å®ä¾‹ â€”â€” å¯ä»¥çœ‹çœ‹ [[http://blog.verbum.org/2008/04/26/how-to-share-state-with-applications-for-free-unix-based-desktops/][Colin's notes for details and how D-Bus can be used]] å¹¶æ³¨æ„åƒæ˜¯ [[http://developer.gnome.org/gio/unstable/GApplication.html#GApplication.description][GApplication]] çš„ä¸œè¥¿å·²ç»å¯¹å•ä¾‹å†…å»ºäº†æ”¯æŒã€‚åŒæ ·çš„ï¼Œåœ¨ç³»ç»Ÿçº§çš„å®ˆæŠ¤è¿›ç¨‹ä¸­ï¼Œä½ å¯èƒ½éœ€è¦å¯¹åƒæ˜¯ [[http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blob;f=include/linux/sched.h;h=781abd13767302cce2ba08db01a211e3178de0d9;hb=61c4f2c81c61f73549928dfd9f3e8f26aa36a8cf#l1374][loginuid]]ï¼ˆ[[http://cgit.freedesktop.org/accountsservice/commit/?id=224b7e93a27a1ab5cf2eec2f56bc3adafd02e7af][example of how to do this]]ï¼‰ä¹‹ç±»çš„ä¸œè¥¿è¿›è¡Œè®¾ç½®ï¼Œæ¥ä½¿å¾— [[http://people.redhat.com/sgrubb/audit/][auditing]] ä¹‹ç±»çš„ä¸œè¥¿åœ¨ä¸ºå®¢æˆ·ç«¯æä¾›æœåŠ¡æ—¶å·¥ä½œã€‚ï¼ˆè¿™ä¸ Windows ä¸­çš„ [[http://technet.microsoft.com/en-us/library/cc961980.aspx][impersonation]] æœ‰ç›¸ä¼¼ä¹‹å¤„ï¼‰
 
-×÷ÎªÒ»¸öÀı×Ó£¬GLib µÄ»ùÓÚ [[http://code.google.com/p/libproxy/][libproxy]] ÊµÏÖµÄ [[http://developer.gnome.org/gio/unstable/GProxy.html][GProxy]] Ê¹ÓÃÁËÒ»¸ö¸¨ÖúÊØ»¤½ø³Ì£¬ÒòÎªÓë [[http://en.wikipedia.org/wiki/Proxy_server][proxy servers]] ´ò½»µÀÉæ¼°µ½½âÊÍ [[http://en.wikipedia.org/wiki/JavaScript][JavaScript]] £¬ÎªÃ¿Ò»¸öÏëÒª½øĞĞÁ¬½ÓµÄ½ø³Ì³õÊ¼»¯Ò»¸ö JS ½âÊÍÆ÷µÄ¿ªÏúÌ«´ó£¬¸ü²»ÓÃËµÕâÑù×öËùÔì³ÉµÄÎÛÈ¾ÁË¡££¨[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/glibpacrunner.c?id=2.28.7#n128][source]]£¬[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/org.gtk.GLib.PACRunner.service.in?id=2.28.7][D-Bus activation file]] - also note [[http://git.gnome.org/browse/glib-networking/tree/proxy/gnome/gproxyresolvergnome.c?id=2.28.7#n310][how the helper daemon is activated]] by simply creating a [[http://developer.gnome.org/gio/unstable/GDBusProxy.html#GDBusProxy.description][D-Bus proxy]] £©
+ä½œä¸ºä¸€ä¸ªä¾‹å­ï¼ŒGLib çš„åŸºäº [[http://code.google.com/p/libproxy/][libproxy]] å®ç°çš„ [[http://developer.gnome.org/gio/unstable/GProxy.html][GProxy]] ä½¿ç”¨äº†ä¸€ä¸ªè¾…åŠ©å®ˆæŠ¤è¿›ç¨‹ï¼Œå› ä¸ºä¸ [[http://en.wikipedia.org/wiki/Proxy_server][proxy servers]] æ‰“äº¤é“æ¶‰åŠåˆ°è§£é‡Š [[http://en.wikipedia.org/wiki/JavaScript][JavaScript]] ï¼Œä¸ºæ¯ä¸€ä¸ªæƒ³è¦è¿›è¡Œè¿æ¥çš„è¿›ç¨‹åˆå§‹åŒ–ä¸€ä¸ª JS è§£é‡Šå™¨çš„å¼€é”€å¤ªå¤§ï¼Œæ›´ä¸ç”¨è¯´è¿™æ ·åšæ‰€é€ æˆçš„æ±¡æŸ“äº†ã€‚ï¼ˆ[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/glibpacrunner.c?id=2.28.7#n128][source]]ï¼Œ[[http://git.gnome.org/browse/glib-networking/tree/proxy/libproxy/org.gtk.GLib.PACRunner.service.in?id=2.28.7][D-Bus activation file]] - also note [[http://git.gnome.org/browse/glib-networking/tree/proxy/gnome/gproxyresolvergnome.c?id=2.28.7#n310][how the helper daemon is activated]] by simply creating a [[http://developer.gnome.org/gio/unstable/GDBusProxy.html#GDBusProxy.description][D-Bus proxy]] ï¼‰
 
-Èç¹û¸¨Öú³ÌĞòĞèÒªÌáÈ¨²ÅÄÜÔËĞĞ£¬Ê¹ÓÃÏñÊÇ [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]] µÄ¿ò¼ÜÊÇºÜ·½±ãµÄ£¨¶ÔÓÚ¼ì²éÊ¹ÓÃÄãµÄ¿âµÄ½ø³ÌÊÇ·ñ±»ÊÚÈ¨£©£¬ÒòÎªËüºÍ [[http://davidz25.blogspot.com/2011/02/gnome-3-authorization.html][desktop shell]] £¨ÒÔ¼° [[http://davidz25.blogspot.com/2011/02/policykit-textual-authentication.html][console/ssh logins]] £©ÕûºÏµÄºÜºÃ¡£Èç¹ûÄãµÄ¿âÖ»ÊÇÊ¹ÓÃÁË¶ÌÊ±´æÔÚ£¨short-lived£©¸¨Öú³ÌĞò£¬ÄÇ¾Í¸ü¼òµ¥ÁË£ºÖ±½ÓÊ¹ÓÃ [[http://hal.freedesktop.org/docs/polkit/pkexec.1.html][pkexec(1)]] ÃüÁîÀ´Æô¶¯ÄãµÄ¸¨Öú³ÌĞò£¨[[http://git.gnome.org/browse/gnome-power-manager/tree/src/gpm-backlight-helper.c?id=GNOME_POWER_MANAGER_3_0_2#n138][example]]£¬[[http://git.gnome.org/browse/gnome-power-manager/tree/policy/org.gnome.power.policy.in2?id=GNOME_POWER_MANAGER_3_0_2][policy file]]£©
+å¦‚æœè¾…åŠ©ç¨‹åºéœ€è¦ææƒæ‰èƒ½è¿è¡Œï¼Œä½¿ç”¨åƒæ˜¯ [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]] çš„æ¡†æ¶æ˜¯å¾ˆæ–¹ä¾¿çš„ï¼ˆå¯¹äºæ£€æŸ¥ä½¿ç”¨ä½ çš„åº“çš„è¿›ç¨‹æ˜¯å¦è¢«æˆæƒï¼‰ï¼Œå› ä¸ºå®ƒå’Œ [[http://davidz25.blogspot.com/2011/02/gnome-3-authorization.html][desktop shell]] ï¼ˆä»¥åŠ [[http://davidz25.blogspot.com/2011/02/policykit-textual-authentication.html][console/ssh logins]] ï¼‰æ•´åˆçš„å¾ˆå¥½ã€‚å¦‚æœä½ çš„åº“åªæ˜¯ä½¿ç”¨äº†çŸ­æ—¶å­˜åœ¨ï¼ˆshort-livedï¼‰è¾…åŠ©ç¨‹åºï¼Œé‚£å°±æ›´ç®€å•äº†ï¼šç›´æ¥ä½¿ç”¨ [[http://hal.freedesktop.org/docs/polkit/pkexec.1.html][pkexec(1)]] å‘½ä»¤æ¥å¯åŠ¨ä½ çš„è¾…åŠ©ç¨‹åºï¼ˆ[[http://git.gnome.org/browse/gnome-power-manager/tree/src/gpm-backlight-helper.c?id=GNOME_POWER_MANAGER_3_0_2#n138][example]]ï¼Œ[[http://git.gnome.org/browse/gnome-power-manager/tree/policy/org.gnome.power.policy.in2?id=GNOME_POWER_MANAGER_3_0_2][policy file]]ï¼‰
 
-Ë³±ãËµÒ»¾ä£¨ÒòÎª±¾ÎÄÊÇ¹ØÓÚ C ¿âµÄ£¬¶ø²»ÊÇÈí¼şÌåÏµ½á¹¹µÄ£©£¬ÏÖÔÚµÄ Linux ×ÀÃæÖĞµÄĞí¶à×ÓÏµÍ³ÊÇÒÔÏµÍ³¼¶ÊØ»¤½ø³ÌÊµÏÖµÄ£¨Í¨³£ÒÔÌáÈ¨×´Ì¬ÔËĞĞ£©£¬ËüÃÇÖ÷ÒªÊ¹ÓÃµÄ API ÊÇ D-Bus API£¨[[http://people.freedesktop.org/~david/udisks2-20110628/ref-dbus.html][example]]£©ºÍ C ¿â£¬À´·ÃÎÊ¸ù±¾²»´æÔÚµÄ£¨Ó¦ÓÃ³ÌĞòËæºóÊ¹ÓÃÒ»°ãµÄ D-Bus ¿â»òÏñÊÇ [[http://developer.gnome.org/gio/unstable/gdbus.html][gdbus(1)]] »ò [[http://dbus.freedesktop.org/doc/dbus-send.1.html][dbus-send(1)]] Ö®ÀàµÄ¹¤¾ß£©£¬»ò´ÓÀàËÆ [[http://en.wikipedia.org/wiki/Interface_description_language][IDL]] µÄ [[http://cgit.freedesktop.org/udisks/tree/data/org.freedesktop.UDisks2.xml?h=gdbus-port&id=9363381604e807a3b4d2c57b7940cb785c259dcb][D-Bus XML]] ¶¨ÒåÎÄ¼ş£¨[[http://people.freedesktop.org/~david/udisks2-20110628/ref-library.html][example]]£©Éú³É£¨[[http://developer.gnome.org/gio/unstable/gdbus-codegen.html][generated]]£©µÄ¹¦ÄÜ¡£½«ÕâÖÖ·½·¨ÓëÊ¹ÓÃ¸¨Öú³ÌĞòµÄ¿â½øĞĞ±È½ÏÊÇºÜÓĞÓÃµÄ£¬ÒòÎªÒ»ÖÖ·½·¨ÓëÁíÒ»ÖÖÏà±È×ÜÊÇ»ò¶à»òÉÙµÄµßµ¹µÄ¡£
+é¡ºä¾¿è¯´ä¸€å¥ï¼ˆå› ä¸ºæœ¬æ–‡æ˜¯å…³äº C åº“çš„ï¼Œè€Œä¸æ˜¯è½¯ä»¶ä½“ç³»ç»“æ„çš„ï¼‰ï¼Œç°åœ¨çš„ Linux æ¡Œé¢ä¸­çš„è®¸å¤šå­ç³»ç»Ÿæ˜¯ä»¥ç³»ç»Ÿçº§å®ˆæŠ¤è¿›ç¨‹å®ç°çš„ï¼ˆé€šå¸¸ä»¥ææƒçŠ¶æ€è¿è¡Œï¼‰ï¼Œå®ƒä»¬ä¸»è¦ä½¿ç”¨çš„ API æ˜¯ D-Bus APIï¼ˆ[[http://people.freedesktop.org/~david/udisks2-20110628/ref-dbus.html][example]]ï¼‰å’Œ C åº“ï¼Œæ¥è®¿é—®æ ¹æœ¬ä¸å­˜åœ¨çš„ï¼ˆåº”ç”¨ç¨‹åºéšåä½¿ç”¨ä¸€èˆ¬çš„ D-Bus åº“æˆ–åƒæ˜¯ [[http://developer.gnome.org/gio/unstable/gdbus.html][gdbus(1)]] æˆ– [[http://dbus.freedesktop.org/doc/dbus-send.1.html][dbus-send(1)]] ä¹‹ç±»çš„å·¥å…·ï¼‰ï¼Œæˆ–ä»ç±»ä¼¼ [[http://en.wikipedia.org/wiki/Interface_description_language][IDL]] çš„ [[http://cgit.freedesktop.org/udisks/tree/data/org.freedesktop.UDisks2.xml?h=gdbus-port&id=9363381604e807a3b4d2c57b7940cb785c259dcb][D-Bus XML]] å®šä¹‰æ–‡ä»¶ï¼ˆ[[http://people.freedesktop.org/~david/udisks2-20110628/ref-library.html][example]]ï¼‰ç”Ÿæˆï¼ˆ[[http://developer.gnome.org/gio/unstable/gdbus-codegen.html][generated]]ï¼‰çš„åŠŸèƒ½ã€‚å°†è¿™ç§æ–¹æ³•ä¸ä½¿ç”¨è¾…åŠ©ç¨‹åºçš„åº“è¿›è¡Œæ¯”è¾ƒæ˜¯å¾ˆæœ‰ç”¨çš„ï¼Œå› ä¸ºä¸€ç§æ–¹æ³•ä¸å¦ä¸€ç§ç›¸æ¯”æ€»æ˜¯æˆ–å¤šæˆ–å°‘çš„é¢ å€’çš„ã€‚
 
-** Çåµ¥
+** æ¸…å•
 
-- È·ÈÏÊÇ·ñĞèÒªÒ»¸ö¸¨Öú³ÌĞò
+- ç¡®è®¤æ˜¯å¦éœ€è¦ä¸€ä¸ªè¾…åŠ©ç¨‹åº
 
-- ¿ÉÄÜµÄ»°£¬Îª¸¨ÖúÊØ»¤½ø³ÌµÄµ¥ÀıÄ£Ê½Ê¹ÓÃ [[http://www.freedesktop.org/wiki/Software/dbus][D-Bus]] £¨»òÏàËÆµÄ¶«Î÷£©
+- å¯èƒ½çš„è¯ï¼Œä¸ºè¾…åŠ©å®ˆæŠ¤è¿›ç¨‹çš„å•ä¾‹æ¨¡å¼ä½¿ç”¨ [[http://www.freedesktop.org/wiki/Software/dbus][D-Bus]] ï¼ˆæˆ–ç›¸ä¼¼çš„ä¸œè¥¿ï¼‰
 
-- Í¨¹ı D-Bus Ğ­ÒéÓë¸¨Öú³ÌĞòÍ¨ĞÅ£¨¶ø²»ÊÇ×Ô¶¨ÒåµÄ¶ş½øÖÆĞ­Òé£©»áÌí¼ÓÒ»¸ö°²È«²ã£¬ÒòÎªĞÅÏ¢µÄÄÚÈİ»á±»¼ì²é
+- é€šè¿‡ D-Bus åè®®ä¸è¾…åŠ©ç¨‹åºé€šä¿¡ï¼ˆè€Œä¸æ˜¯è‡ªå®šä¹‰çš„äºŒè¿›åˆ¶åè®®ï¼‰ä¼šæ·»åŠ ä¸€ä¸ªå®‰å…¨å±‚ï¼Œå› ä¸ºä¿¡æ¯çš„å†…å®¹ä¼šè¢«æ£€æŸ¥
 
-- Í¨¹ı [[http://dbus.freedesktop.org/doc/dbus-specification.html#message-bus][message bus]] Â·ÓÉ£¨router£©Ê¹ÓÃ D-Bus£¨¶ø²»ÊÇ¶ÔµÈ(peer-to-peer)Á¬½Ó£©ÓÖ»áÌí¼ÓÒ»¸ö°²È«²ã£¬ÒòÎªÁ½¸ö½ø³ÌÍ¨¹ıÖĞ¼äÂ·ÓÉ½ø³ÌÁ¬½Ó£¨Ò»¸ö[[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] ÊµÀı£©£¬¸Ã½ø³ÌÒ²»áÑéÖ¤ÏûÏ¢£¬²¢ÇÒ»á¶Ï¿ª·¢ËÍÀ¬»øÏûÏ¢µÄ½ø³Ì
+- é€šè¿‡ [[http://dbus.freedesktop.org/doc/dbus-specification.html#message-bus][message bus]] è·¯ç”±ï¼ˆrouterï¼‰ä½¿ç”¨ D-Busï¼ˆè€Œä¸æ˜¯å¯¹ç­‰(peer-to-peer)è¿æ¥ï¼‰åˆä¼šæ·»åŠ ä¸€ä¸ªå®‰å…¨å±‚ï¼Œå› ä¸ºä¸¤ä¸ªè¿›ç¨‹é€šè¿‡ä¸­é—´è·¯ç”±è¿›ç¨‹è¿æ¥ï¼ˆä¸€ä¸ª[[http://dbus.freedesktop.org/doc/dbus-daemon.1.html][dbus-daemon(1)]] å®ä¾‹ï¼‰ï¼Œè¯¥è¿›ç¨‹ä¹Ÿä¼šéªŒè¯æ¶ˆæ¯ï¼Œå¹¶ä¸”ä¼šæ–­å¼€å‘é€åƒåœ¾æ¶ˆæ¯çš„è¿›ç¨‹
 
-- Òò´Ë£¬Èç¹û¸¨Öú³ÌĞòÊÇÌáÈ¨µÄ£¨Õâ¾ÍÒâÎ¶×ÅËü±ØĞë a) ½«Ê¹ÓÃËüµÄÓ¦ÓÃ³ÌĞò/¿âÊÓ×÷²»ÊÜĞÅÈÎµÄ²¢ÇÒÊÇ¿ÉÄÜÊÜËğµÄ£»ºÍ b) ÑéÖ¤ËùÓĞÊı¾İ (see [[http://www.dwheeler.com/secure-programs/][Wheeler's Secure Programming notes]] for details)£©£¬ÔÚ D-Bus ÏµÍ³ÖĞ¼¤»îÒ»¸ö¸¨ÖúÊØ»¤½ø³ÌÍ¨³£±ÈÄã×Ô¼ºÊ¹ÓÃ [[http://en.wikipedia.org/wiki/Setuid][setuid root]] Éú³ÉµÄ¸¨Öú½ø³ÌÒªºÃ
+- å› æ­¤ï¼Œå¦‚æœè¾…åŠ©ç¨‹åºæ˜¯ææƒçš„ï¼ˆè¿™å°±æ„å‘³ç€å®ƒå¿…é¡» a) å°†ä½¿ç”¨å®ƒçš„åº”ç”¨ç¨‹åº/åº“è§†ä½œä¸å—ä¿¡ä»»çš„å¹¶ä¸”æ˜¯å¯èƒ½å—æŸçš„ï¼›å’Œ b) éªŒè¯æ‰€æœ‰æ•°æ® (see [[http://www.dwheeler.com/secure-programs/][Wheeler's Secure Programming notes]] for details)ï¼‰ï¼Œåœ¨ D-Bus ç³»ç»Ÿä¸­æ¿€æ´»ä¸€ä¸ªè¾…åŠ©å®ˆæŠ¤è¿›ç¨‹é€šå¸¸æ¯”ä½ è‡ªå·±ä½¿ç”¨ [[http://en.wikipedia.org/wiki/Setuid][setuid root]] ç”Ÿæˆçš„è¾…åŠ©è¿›ç¨‹è¦å¥½
 
-- ¿ÉÄÜµÄ»°£¬ÓÈÆäÊÇÈç¹ûÄãÔÚ±àĞ´ÔÚ Linux ×ÀÃæÊ¹ÓÃµÄ´úÂë£¬Ê¹ÓÃ [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]]£¨»òÀàËÆµÄ¶«Î÷£©À´¼ì²éÎ´ÌáÈ¨µÄ´úÂëÊÇ·ñ±»ÊÚÈ¨À´Ö´ĞĞÇëÇóµÄ²Ù×÷
+- å¯èƒ½çš„è¯ï¼Œå°¤å…¶æ˜¯å¦‚æœä½ åœ¨ç¼–å†™åœ¨ Linux æ¡Œé¢ä½¿ç”¨çš„ä»£ç ï¼Œä½¿ç”¨ [[http://hal.freedesktop.org/docs/polkit/polkit.8.html][PolicyKit]]ï¼ˆæˆ–ç±»ä¼¼çš„ä¸œè¥¿ï¼‰æ¥æ£€æŸ¥æœªææƒçš„ä»£ç æ˜¯å¦è¢«æˆæƒæ¥æ‰§è¡Œè¯·æ±‚çš„æ“ä½œ
 
-* ²âÊÔ
+* æµ‹è¯•
 
-µ±¿âºÍÓ¦ÓÃ´ø×Å²âÊÔÌ×¼ş£¨[[http://en.wikipedia.org/wiki/Test_suite][test suite]]£©·¢²¼Ê±£¬ÕâÍ¨³£ÊÇÒ»¸ö³ÉÊìµÄ±êÖ¾¡£Ò»¸öºÃµÄ²âÊÔÌ×¼ş¶ÔÓÚÈ·±£·¢ĞĞÄÚÈİ´ó²¿·ÖÎŞ bug ÊÇºÜÓĞÓÃµÄ£¬¸üÖØÒªµÄ£¬È·±£Î¬»¤ÈËÔ±¿ÉÒÔ·ÅĞÄµØ·¢²¼·¢ĞĞ°æ£¬¶ø²»»áÉ¥Ê§Ë¯Ãß»òÀíÖÇ¡£¶Ô²âÊÔÏ¸½ÚµÄÌÖÂÛ³¬³öÁËÕâ¸ö C ¿âÏµÁĞµÄÌÖÂÛ·¶Î§£¬²»¹ıÖ¸³ö [[http://developer.gnome.org/glib/unstable/glib-Testing.html#glib-Testing.description][GLib test framework]] µÄÓÃ·¨ ([[http://git.gnome.org/browse/glib/tree/glib/tests/gvariant.c?id=2.29.8#n4040][example]],[[http://git.gnome.org/browse/glib/tree/gio/tests/gdbus-connection.c?id=2.29.8#n120][example]] and [[http://git.gnome.org/browse/glib/tree/glib/tests/bitlock.c?id=2.29.8][example]]) ºÍËüÊÇÈçºÎ±» [[http://build.gnome.org/][GNOME buildbots]] Ê¹ÓÃµÄÊÇºÜÓĞ¼ÛÖµµÄ¡£
+å½“åº“å’Œåº”ç”¨å¸¦ç€æµ‹è¯•å¥—ä»¶ï¼ˆ[[http://en.wikipedia.org/wiki/Test_suite][test suite]]ï¼‰å‘å¸ƒæ—¶ï¼Œè¿™é€šå¸¸æ˜¯ä¸€ä¸ªæˆç†Ÿçš„æ ‡å¿—ã€‚ä¸€ä¸ªå¥½çš„æµ‹è¯•å¥—ä»¶å¯¹äºç¡®ä¿å‘è¡Œå†…å®¹å¤§éƒ¨åˆ†æ—  bug æ˜¯å¾ˆæœ‰ç”¨çš„ï¼Œæ›´é‡è¦çš„ï¼Œç¡®ä¿ç»´æŠ¤äººå‘˜å¯ä»¥æ”¾å¿ƒåœ°å‘å¸ƒå‘è¡Œç‰ˆï¼Œè€Œä¸ä¼šä¸§å¤±ç¡çœ æˆ–ç†æ™ºã€‚å¯¹æµ‹è¯•ç»†èŠ‚çš„è®¨è®ºè¶…å‡ºäº†è¿™ä¸ª C åº“ç³»åˆ—çš„è®¨è®ºèŒƒå›´ï¼Œä¸è¿‡æŒ‡å‡º [[http://developer.gnome.org/glib/unstable/glib-Testing.html#glib-Testing.description][GLib test framework]] çš„ç”¨æ³• ([[http://git.gnome.org/browse/glib/tree/glib/tests/gvariant.c?id=2.29.8#n4040][example]],[[http://git.gnome.org/browse/glib/tree/gio/tests/gdbus-connection.c?id=2.29.8#n120][example]] and [[http://git.gnome.org/browse/glib/tree/glib/tests/bitlock.c?id=2.29.8][example]]) å’Œå®ƒæ˜¯å¦‚ä½•è¢« [[http://build.gnome.org/][GNOME buildbots]] ä½¿ç”¨çš„æ˜¯å¾ˆæœ‰ä»·å€¼çš„ã€‚
 
-ÆÀ¼Û²âÊÔÌ×¼şºÃ»µ£¨»òÖÁÉÙÓĞ¶à¹ã·º£©µÄÒ»¸öÖ¸±êÊÇ£¬Ëü¸²¸ÇÁË¶àÉÙ´úÂë ¡ª¡ª ¶ÔÓÚÕâÒ»µã£¬¿ÉÒÔÊ¹ÓÃ [[http://gcc.gnu.org/onlinedocs/gcc/Gcov.html][gcov]] ¹¤¾ß£¨[[http://people.redhat.com/berrange/dbus-coverage/][notes on how this is used in D-Bus]]£©¡£ÌØ±ğµØ£¬Èç¹û²âÊÔÌ×¼şÃ»ÓĞ¸²¸ÇÒ»Ğ©±ßÑØÇé¿ö£¬ÓÃÓÚ´¦Àí±ßÑØÇé¿öµÄ´úÂëÂ·¾¶½«ÏÔÊ¾Îª´ÓÎ´Ö´ĞĞ¡£»òÊÇÈç¹û´úÂë´¦ÀíÁË OOM£¬µ«ÊÇ²âÊÔÌ×¼şÃ»ÓĞ±»ÉèÖÃÎª´¦ÀíËü£¨ÀıÈç£¬Ê¹Ã¿Ò»¸ö·ÖÅäÊ§°Ü£¨[[http://cgit.freedesktop.org/dbus/dbus/tree/dbus/dbus-internals.c?id=dbus-1.5.2#n952][by failing each allocation]])£©´¦Àí OOM µÄ´úÂëÂ·¾¶Ó¦¸Ã±íÏÖÎªÎ´²âÊÔ¡£
+è¯„ä»·æµ‹è¯•å¥—ä»¶å¥½åï¼ˆæˆ–è‡³å°‘æœ‰å¤šå¹¿æ³›ï¼‰çš„ä¸€ä¸ªæŒ‡æ ‡æ˜¯ï¼Œå®ƒè¦†ç›–äº†å¤šå°‘ä»£ç  â€”â€” å¯¹äºè¿™ä¸€ç‚¹ï¼Œå¯ä»¥ä½¿ç”¨ [[http://gcc.gnu.org/onlinedocs/gcc/Gcov.html][gcov]] å·¥å…·ï¼ˆ[[http://people.redhat.com/berrange/dbus-coverage/][notes on how this is used in D-Bus]]ï¼‰ã€‚ç‰¹åˆ«åœ°ï¼Œå¦‚æœæµ‹è¯•å¥—ä»¶æ²¡æœ‰è¦†ç›–ä¸€äº›è¾¹æ²¿æƒ…å†µï¼Œç”¨äºå¤„ç†è¾¹æ²¿æƒ…å†µçš„ä»£ç è·¯å¾„å°†æ˜¾ç¤ºä¸ºä»æœªæ‰§è¡Œã€‚æˆ–æ˜¯å¦‚æœä»£ç å¤„ç†äº† OOMï¼Œä½†æ˜¯æµ‹è¯•å¥—ä»¶æ²¡æœ‰è¢«è®¾ç½®ä¸ºå¤„ç†å®ƒï¼ˆä¾‹å¦‚ï¼Œä½¿æ¯ä¸€ä¸ªåˆ†é…å¤±è´¥ï¼ˆ[[http://cgit.freedesktop.org/dbus/dbus/tree/dbus/dbus-internals.c?id=dbus-1.5.2#n952][by failing each allocation]])ï¼‰å¤„ç† OOM çš„ä»£ç è·¯å¾„åº”è¯¥è¡¨ç°ä¸ºæœªæµ‹è¯•ã€‚
 
-´´ĞÂµÄ²âÊÔ·½·¨Í¨³£»áÓĞËù°ïÖú£¬ÀıÈç£¬[[http://www.mozilla.org/][Mozilla]] Ê¹ÓÃÁË½Ğ×ö [[http://weblogs.mozillazine.org/roc/archives/2008/12/reftests.html][reftests]] µÄ¼¼Êõ£¨[[http://mail.gnome.org/archives/gtk-devel-list/2011-May/msg00003.html][notes on GTK+ reftests]]£©£¬[[http://fedoraproject.org/wiki/Dracut][Dracut]] [[http://git.kernel.org/?p=boot/dracut/dracut.git;a=tree;f=test;h=11e80f7337f55aebd0e0c85ebb853c2e85f090e8;hb=829c2585547d86c84cbb3113c73b5dd7fcb7b30d][test suite]] Îª [[http://en.wikipedia.org/wiki/SCSI_initiator_and_target][client and server]] Ê¹ÓÃÁË [[http://en.wikipedia.org/wiki/Virtual_machine][VMs]] À´²âÊÔ´Ó [[http://en.wikipedia.org/wiki/ISCSI][iSCSI]] Æô¶¯ÊÇ·ñÓĞĞ§¡£
+åˆ›æ–°çš„æµ‹è¯•æ–¹æ³•é€šå¸¸ä¼šæœ‰æ‰€å¸®åŠ©ï¼Œä¾‹å¦‚ï¼Œ[[http://www.mozilla.org/][Mozilla]] ä½¿ç”¨äº†å«åš [[http://weblogs.mozillazine.org/roc/archives/2008/12/reftests.html][reftests]] çš„æŠ€æœ¯ï¼ˆ[[http://mail.gnome.org/archives/gtk-devel-list/2011-May/msg00003.html][notes on GTK+ reftests]]ï¼‰ï¼Œ[[http://fedoraproject.org/wiki/Dracut][Dracut]] [[http://git.kernel.org/?p=boot/dracut/dracut.git;a=tree;f=test;h=11e80f7337f55aebd0e0c85ebb853c2e85f090e8;hb=829c2585547d86c84cbb3113c73b5dd7fcb7b30d][test suite]] ä¸º [[http://en.wikipedia.org/wiki/SCSI_initiator_and_target][client and server]] ä½¿ç”¨äº† [[http://en.wikipedia.org/wiki/Virtual_machine][VMs]] æ¥æµ‹è¯•ä» [[http://en.wikipedia.org/wiki/ISCSI][iSCSI]] å¯åŠ¨æ˜¯å¦æœ‰æ•ˆã€‚
 
-** Çåµ¥
+** æ¸…å•
 
-- ¾¡Ôç¿ªÊ¼±àĞ´²âÊÔÌ×¼ş
+- å°½æ—©å¼€å§‹ç¼–å†™æµ‹è¯•å¥—ä»¶
 
-- Ê¹ÓÃÏñÊÇ gcov µÄ¹¤¾ßÀ´¹À¼Æ²âÊÔÌ×¼şµÄºÃ»µ
+- ä½¿ç”¨åƒæ˜¯ gcov çš„å·¥å…·æ¥ä¼°è®¡æµ‹è¯•å¥—ä»¶çš„å¥½å
 
-- ¾­³£ÔËĞĞ²âÊÔÌ×¼ş ¡ª¡ª ÀíÏëÌõ¼şÏÂ°ÑËü¼¯³Éµ½¹¹½¨ÏµÍ³¡¢·¢²¼²úÆ·ºÍ°æ±¾¿ØÖÆÖĞ£¬µÈµÈ
+- ç»å¸¸è¿è¡Œæµ‹è¯•å¥—ä»¶ â€”â€” ç†æƒ³æ¡ä»¶ä¸‹æŠŠå®ƒé›†æˆåˆ°æ„å»ºç³»ç»Ÿã€å‘å¸ƒäº§å“å’Œç‰ˆæœ¬æ§åˆ¶ä¸­ï¼Œç­‰ç­‰

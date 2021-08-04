@@ -1,20 +1,20 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Win32��ɻ���֮�ؼ�
+#+TITLE: Win32变成基础之控件
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMzM5NTE4.jpg" alt="load failed"></div>@@
 #+DATE: [2020-07-14 Tue]
 #+TAGS: windows
 
-�ؼ����Ӵ��ڣ�Ӧ�ý����������Ĵ��ڽ��ʹ�������û����н������ؼ�����ʱ�����ڶԻ����У�������Ҳ�����������������С��Ի����ڵĿؼ�Ϊ�û��ṩ���ı����롢ѡ��ѡ��ͳ�ʼ���ȹ��ܡ����������еĿ���̨�����ṩһϵ�еķ��񣬱������û�ѡ������۲�״̬�Լ��༭���Ķ��ı���
+控件是子窗口，应用将它与其他的窗口结合使用来与用户进行交互。控件多数时候都用在对话框中，但它们也可以用在其他窗口中。对话框内的控件为用户提供了文本输入、选项选择和初始化等功能。其他窗口中的控制台可以提供一系列的服务，比如让用户选择命令、观察状态以及编辑和阅读文本。
 
-* һЩ���ں���
+* 一些窗口函数
 
-��Ȼ�ؼ����Ӵ��ڣ���ô�б�Ҫ����һЩ�Դ��ڽ��в����ĺ��������� *CreateWindow* �����������������⣬������һЩ���ں��������ƶ����ڡ����ػ���ʾ���ڡ����û����ô��ڡ����´��ڣ��ȵȡ�
+既然控件是子窗口，那么有必要介绍一些对窗口进行操作的函数。除了 *CreateWindow* 函数用来创建窗口外，其他的一些窗口函数可以移动窗口、隐藏或显示窗口、禁用或启用窗口、更新窗口，等等。
 
 ** CreateWinodwEx
 
-[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa][CreateWindowEx]] ��������һ��������չ���ڷ��Ĵ��ڡ�������չ�����һ�㣬���Ĺ����� *CreateWindow* ��һ���ġ�
+[[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa][CreateWindowEx]] 函数创建一个带有拓展窗口风格的窗口。除了拓展风格这一点，它的功能与 *CreateWindow* 是一样的。
 
-������ԭ�����£�
+函数的原型如下：
 
 #+BEGIN_SRC c
 HWND CreateWindowExA(
@@ -33,43 +33,43 @@ HWND CreateWindowExA(
 );
 #+END_SRC
 
-*dwExStyle* �����Ǵ������ڵ���չ���ڷ�񣬿��Բ��� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/extended-window-styles][Extended Window Styles]] ��ȡ������Ϣ��
+*dwExStyle* 参数是创建窗口的拓展窗口风格，可以参阅 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/extended-window-styles][Extended Window Styles]] 获取更多信息。
 
-*lpClassName* ��ע�ᴰ���������������һ���� *RegisterClass* �� *RegisterClass* ���ص�ԭ��ֵ�����ʹ��ԭ��ֵ����ô�������� *lpClassName* �ĵ�λ�֣� *lpClassName* �ĸ�λ�ֱ����� 0����� *lpClassName* ��һ���ַ�������Ӧ��ָ��һ��������������������������Ԥ����� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/about-window-classes][system class]]��
+*lpClassName* 是注册窗口类的类名，或是一个由 *RegisterClass* 或 *RegisterClass* 返回的原子值。如果使用原子值，那么它必须在 *lpClassName* 的低位字， *lpClassName* 的高位字必须是 0。如果 *lpClassName* 是一个字符串，它应该指定一个窗口类名。窗口类名可以是预定义的 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/about-window-classes][system class]]。
 
-*lpWindowName* �Ǵ��ڵ����֡�������ڷ����ָ����һ������������ô���ڱ������ʾ�ڱ������ϡ�ʹ�� *CreateWindowEx* �������ǰ�ť�����;�̬��Ŀؼ�ʱ�� *lpWindowName* �ǿؼ����ı���ʹ�� *SS_ICON* ������̬�ؼ�ʱ������ʹ�� *lpWindowName* ��ָ��ͼ������ֻ��ʶ����Ҫָ����ʶ��������ʹ�� "#num" ���﷨��
+*lpWindowName* 是窗口的名字。如果窗口风格中指定了一个标题栏，那么窗口标题会显示在标题栏上。使用 *CreateWindowEx* 创建像是按钮、组框和静态类的控件时， *lpWindowName* 是控件的文本。使用 *SS_ICON* 创建静态控件时，可以使用 *lpWindowName* 来指定图标的名字或标识符。要指定标识符，可以使用 "#num" 的语法。
 
-*dwStyle* �����������ڵķ���������������һϵ�� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][window style values]] ֵ����ϣ������Լ��Ͽؼ��ķ��
+*dwStyle* 是所创建窗口的风格。这个参数可以是一系列 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-styles][window style values]] 值的组合，还可以加上控件的风格。
 
-*X* �Ǵ��ڵĳ�ʼˮƽλ�á������ص����ڻ򵯳����ڣ�overlapped and pup-up����x �����Ǵ��ڵ����Ͻǵ� x ���꣬����Ļ����ϵ�С������Ӵ��ڣ� x ������ڸ����ڿͻ������Ͻǵ����꣬���Ӵ������Ͻǵ����ꡣ��� x ����Ϊ *CW_USEDEFAULT* ��ϵͳ��ѡ��Ĭ��λ������Ϊ�������Ͻǵ����꣬������ *Y* ������ *CW_USEDEFAULT* ֻ���ص�������Ч������Ե�������ʹ�����ֵ�� x �� y �����ᱻ��Ϊ 0��
+*X* 是窗口的初始水平位置。对于重叠窗口或弹出窗口（overlapped and pup-up），x 参数是窗口的左上角的 x 坐标，在屏幕坐标系中。对于子窗口， x 是相对于父窗口客户区左上角的坐标，是子窗口左上角的坐标。如果 x 被设为 *CW_USEDEFAULT* ，系统会选择默认位置来作为窗口左上角的坐标，并忽略 *Y* 参数。 *CW_USEDEFAULT* 只对重叠窗口有效；如果对弹出窗口使用这个值， x 和 y 参数会被设为 0。
 
-*Y* �����Ǵ��ڳ�ʼ��ֱλ�á������ص��򵯳����ڣ����Ǵ������Ͻǵ����꣬����Ļ����ϵ�С����Ӵ��ڣ������Ӵ��ڵ����Ͻǵ����꣬�ڸ����ڵĿͻ�������ϵ�С�����ص�����ʹ���� *WS_VISIBLE* ��񲢶� x ����ʹ���� *CW_USEDEFAULT* ��y �����;����˴��ڵ���ʾ����� y ��������Ϊ *CW_USEDEFAULT* ��֮�󴰿ڹ�������ʹ�� *SW_SHOW* ��־�ڴ��ڴ�������� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-showwindow][ShowWindow]] ��������� y ������������ֵ�����ڹ�������ʹ�� *nCmdShow* ������ *ShowWindow *��
+*Y* 参数是窗口初始垂直位置。对于重叠或弹出窗口，这是窗口左上角的坐标，在屏幕坐标系中。对子窗口，这是子窗口的左上角的坐标，在父窗口的客户区坐标系中。如果重叠窗口使用了 *WS_VISIBLE* 风格并对 x 参数使用了 *CW_USEDEFAULT* ，y 参数就决定了窗口的显示。如果 y 参数被设为 *CW_USEDEFAULT* ，之后窗口管理器会使用 *SW_SHOW* 标志在窗口创建后调用 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-showwindow][ShowWindow]] 函数。如果 y 参数是其他的值，窗口管理器会使用 *nCmdShow* 来调用 *ShowWindow *。
 
-*nWidth* �����Ǵ��ڵĿ��ȣ����豸��ԪΪ��λ�����ص����ڣ�*nWidth* �Ǵ��ڵĿ��ȣ�����ĻΪ����ϵ����� *nWidth* �� *CW_USEDEFAULT* ��ϵͳ��Ϊ����ѡ��Ĭ�Ͽ��Ⱥ͸߶ȡ�Ĭ�Ͽ��ȴӳ�ʼ x �������굽��Ļ���ұ��أ�Ĭ�ϸ߶ȴӳ�ʼ y �������굽ͼ������Ķ�����*CW_USEDEFAULT* ֻ���ص�������Ч������Ե������ڻ��Ӵ���ָ���˸ñ�־�� *nWidth* �� *nHeight* �ᱻ��Ϊ 0��
+*nWidth* 参数是窗口的宽度，以设备单元为单位。对重叠窗口，*nWidth* 是窗口的宽度，以屏幕为坐标系。如果 *nWidth* 是 *CW_USEDEFAULT* ，系统会为窗口选择默认宽度和高度。默认宽度从初始 x 坐标延申到屏幕的右边沿；默认高度从初始 y 坐标延申到图标区域的顶部。*CW_USEDEFAULT* 只对重叠窗口有效；如果对弹出窗口或子窗口指定了该标志， *nWidth* 和 *nHeight* 会被设为 0。
 
-*nHeight* �Ǵ��ڵĸ߶ȣ����豸��ԪΪ��λ����� *nWidth* ����Ϊ *CW_USEDEFAULT* ��ϵͳ����� *nHeight* ��
+*nHeight* 是窗口的高度，以设备单元为单位。如果 *nWidth* 被设为 *CW_USEDEFAULT* ，系统会忽略 *nHeight* 。
 
-*hWndParent* �Ǳ��������ڵĸ�����ӵ�����Ĵ��ڵľ����Ҫ����һ���Ӵ��ڻ��Լ�ӵ�еĴ��ڣ�Ҫ�ṩһ���Ϸ��ľ������������Ե��������ǿ�ѡ�ġ�Ҫ���� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-features][message-only window]] �ĵĻ���ʹ�� *HWND_MESSAGE* ��һ���Ѵ��ڵĽ���Ϣ���ھ������Ϊ������
+*hWndParent* 是被创建窗口的父窗口拥有它的窗口的句柄。要创建一个子窗口或自己拥有的窗口，要提供一个合法的句柄。这个参数对弹出窗口是可选的。要创建 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/window-features][message-only window]] 的的话，使用 *HWND_MESSAGE* 或一个已存在的仅消息窗口句柄来作为参数。
 
-*hMenu* ��һ���˵��������һ���Ӵ��ڵı�ʶ���������ص��򵯳����ڣ�*hMenu* ��ʶ���洰��ʹ�õĲ˵������ʹ����˵��Ļ�����ֵ������ NULL�����Ӵ��ڣ� *hMenu* ָ�����Ӵ��ڵı�ʶ����һ�����Ի���������֪�������¼�������ֵ�����ֵ��Ӧ��������������ӵ����ͬ�����ڵ��Ӵ����б�����һ��Ψһ��ֵ��
+*hMenu* 是一个菜单句柄，或一个子窗口的标识符。对于重叠或弹出窗口，*hMenu* 标识了随窗口使用的菜单。如果使用类菜单的话它的值可以是 NULL。对子窗口， *hMenu* 指定了子窗口的标识符，一个被对话框用来告知父窗口事件的整数值。这个值由应用来决定；它在拥有相同父窗口的子窗口中必须是一个唯一的值。
 
-*hInstance* ���봰�ڹ�����ʵ����ģ��ľ����
+*hInstance* 是与窗口关联的实例或模块的句柄。
 
-*lParam* ָ��һ��ֵ����ͨ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/ns-winuser-createstructa][CREATESTRUCT]] �ṹ���ݸ����ڣ�����ṹ�� *WM_CREATE* ��Ϣ�� *lParam* ��Ϊָ��ָ�������Ϣ���ں�������ǰͨ������������ݸ��������Ĵ��ڡ�
+*lParam* 指向一个值，它通过 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/ns-winuser-createstructa][CREATESTRUCT]] 结构传递给窗口，这个结构被 *WM_CREATE* 消息的 *lParam* 作为指针指向。这个消息会在函数返回前通过这个函数传递给被创建的窗口。
 
-��������ɹ��ˣ�����ֵ���´��ڵľ����
+如果函数成功了，返回值是新窗口的句柄。
 
-���ʧ���ˣ�����ֵ�� NULL��ʹ�� *GetLastError* �õ�������Ϣ��
+如果失败了，返回值是 NULL。使用 *GetLastError* 得到更多信息。
 
 ** DestroyWindow
 
-�ú���������ָ���Ĵ��ڡ����򴰿ڷ��� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/wm-destroy][WM_DESTROY]] �� [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/wm-ncdestroy][WM_NCDESTROY]] ��Ϣ��ͣ�ò��Ƴ����ļ��̽��㡣�ú���Ҳ�����ٲ˵���ˢ���̵߳���Ϣ���У����ټ�ʱ�����Ƴ����а�����Ȩ�����жϼ��а�鿴��������������ڲ鿴������ǰ��Ļ���
+该函数会销毁指定的窗口。它向窗口发送 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/wm-destroy][WM_DESTROY]] 和 [[https://docs.microsoft.com/en-us/windows/desktop/winmsg/wm-ncdestroy][WM_NCDESTROY]] 消息来停用并移出它的键盘焦点。该函数也会销毁菜单，刷新线程的消息队列，销毁计时器，移除剪切板所有权，并中断剪切版查看链。（如果窗口在查看链的最前面的话）
 
-���ָ�������Ǹ����ڻ�ӵ�д��ڵĻ��� *DestroyWindow* ���Զ�������ص��Ӵ��ڻ�ӵ�еĴ��ڡ��ú������������Ӵ��ڻ�ӵ�еĴ��ڣ�������ٸ����ڻ������ڡ�
+如果指定窗口是父窗口或拥有窗口的话， *DestroyWindow* 会自动销毁相关的子窗口或拥有的窗口。该函数首先销毁子窗口或拥有的窗口，随后销毁父窗口或主窗口。
 
-*DestroyWindow* Ҳ�������� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createdialoga][CreateDialog]] ���������ķ�ģ̬�Ի���
+*DestroyWindow* 也会销毁由 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createdialoga][CreateDialog]] 函数创建的非模态对话框。
 
-����ԭ�����£�
+函数原型如下：
 
 #+BEGIN_SRC c
 BOOL DestroyWindow(
@@ -77,17 +77,17 @@ BOOL DestroyWindow(
 );
 #+END_SRC
 
-*hWnd* ������Ҫ���ٵĴ��ڡ�
+*hWnd* 参数是要销毁的窗口。
 
-��������ɹ��ˣ��������ط� 0 ֵ�����򷵻� 0��
+如果函数成功了，函数返回非 0 值，否则返回 0。
 
-��Ҫע����ǣ��̲߳���ʹ�øú����������������̴߳����Ĵ��ڡ�
+需要注意的是，线程不能使用该函数来销毁由其他线程创建的窗口。
 
 ** MoveWindow
 
-�ú������Ըı䴰�ڵ�λ�úͳߴ硣���ڶ������ڣ����ڵ�λ�úͳߴ��ǹ�����Ļ���Ͻǵġ������Ӵ��ڣ��������븸���ڵĿͻ������Ͻ���صġ�
+该函数可以改变窗口的位置和尺寸。对于顶级窗口，窗口的位置和尺寸是关于屏幕左上角的。对于子窗口，它们是与父窗口的客户区左上角相关的。
 
-�ú�����ԭ�����£�
+该函数的原型如下：
 
 #+BEGIN_SRC c
 BOOL MoveWindow(
@@ -100,19 +100,19 @@ BOOL MoveWindow(
 );
 #+END_SRC
 
-*hWnd* �����Ǵ��ھ��
+*hWnd* 参数是窗口句柄
 
-*x* �� *y* �Ǵ������Ͻǵ���λ��
+*x* 和 *y* 是窗口左上角的新位置
 
-*nWidth* �� *nHeight* �Ǵ����µĿ��Ⱥ͸߶�
+*nWidth* 和 *nHeight* 是窗口新的宽度和高度
 
-*bRepaint* ָʾ�����Ƿ�����ػ档����� *TRUE* ��ϵͳ�����ƶ����ں������򴰿ڷ��� *WM_PAINT* ��Ϣ��Ҳ����˵ *MoveWindow* ���������� [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-updatewindow][UpdateWindow]] ������������� *FALSE* ���򲻻ᷢ���κ����͵��ػ棬Ӧ�ñ����Լ������ػ档
+*bRepaint* 指示窗口是否进行重绘。如果是 *TRUE* ，系统会在移动窗口后立即向窗口发送 *WM_PAINT* 消息（也就是说 *MoveWindow* 函数调用了 [[https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-updatewindow][UpdateWindow]] 函数）。如果是 *FALSE* ，则不会发生任何类型的重绘，应用必须自己负责重绘。
 
 ** UpdateWindow
 
-���ָ�����ڵĸ�������ǿյĻ����ú������򴰿ڷ��� [[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]] ��Ϣ������ָ�������û������ú����ƹ���Ϣ����ֱ���򴰿ڹ������� *WM_PAINT* ��Ϣ��������������ǿյ��򲻻ᷢ����Ϣ��
+如果指定窗口的更新区域非空的话，该函数会向窗口发送 [[https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-paint][WM_PAINT]] 消息来更新指定窗口用户区。该函数绕过消息队列直接向窗口国创发送 *WM_PAINT* 消息。如果更新区域是空的则不会发送消息。
 
-�ú�����ԭ�����£�
+该函数的原型如下：
 
 #+BEGIN_SRC c
 BOOL UpdateWindow(
@@ -120,15 +120,15 @@ BOOL UpdateWindow(
 );
 #+END_SRC
 
-*hWnd* ��������Ҫ���´��ڵľ����
+*hWnd* 参数是需要更新窗口的句柄。
 
-����������˻᷵�ط� 0 ֵ�����򷵻� 0��
+如果函数成了会返回非 0 值，否则返回 0。
 
 ** ShowWindow
 
-�ú������ô��ڵ���ʾ��ʽ
+该函数设置窗口的显示方式
 
-����ԭ�����£�
+函数原型如下：
 
 #+BEGIN_SRC c
 BOOL ShowWindow(
@@ -137,42 +137,42 @@ BOOL ShowWindow(
 );
 #+END_SRC
 
-*hWnd* �Ǵ��ھ����
+*hWnd* 是窗口句柄。
 
-*nCmdSHow* �����Ŵ��ڵ���ʾ��ʽ���������Ӧ�õĳ����ṩ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/ns-processthreadsapi-startupinfoa][STARTUPINFO]] �ṹ��Ӧ�õ�һ�ε��øú���ʱ�ò����ᱻ���ԡ������һ�ε�����ʱӦ��ʹ�ô� WinMain ����õ� *nCmdShow* ���������ĵ����У��������������µ�ֵ��
+*nCmdSHow* 控制着窗口的显示方式。如果启动应用的程序提供了 [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/ns-processthreadsapi-startupinfoa][STARTUPINFO]] 结构，应用第一次调用该函数时该参数会被忽略。否则第一次调用它时应该使用从 WinMain 处获得的 *nCmdShow* 参数。随后的调用中，参数可以是以下的值：
 
-- *SW_FORCEMINIMIZE* ����С�����ڣ���ʹӵ�д��ڵ��߳�����Ӧ�������־ֻӦ����С�������̴߳���ʱʹ��
+- *SW_FORCEMINIMIZE* ，最小化窗口，即使拥有窗口的线程无响应。这个标志只应在最小化其他线程窗口时使用
 
-- *SW_HIDE* �����ش��ڲ�������������
+- *SW_HIDE* ，隐藏窗口并激活其他窗口
 
-- *SW_MAXIMIZE* �����ָ������
+- *SW_MAXIMIZE* ，最大化指定窗口
 
-- *SW_MINIMIZE* ����С��ָ�����ڣ���ʹ�� Z ˳�����������Ĵ���
+- *SW_MINIMIZE* ，最小化指定窗口，并使用 Z 顺序来激活后面的窗口
 
-- *SW_RESTORE* �������ʾ���ڡ�������ڱ���С��������ˣ�ϵͳ��ָ���ԭ���Ĵ�С��λ�á�Ӧ���ø��ڴ���С���ָ�ʱʹ�������־
+- *SW_RESTORE* ，激活并显示窗口。如果窗口被最小化或最大化了，系统会恢复它原来的大小和位置。应用用改在从最小化恢复时使用这个标志
 
-- *SW_SHOW* ������Դ��ڵĵ�ǰλ�úͳߴ���ʾ����
+- *SW_SHOW* ，激活并以窗口的当前位置和尺寸显示窗口
 
-- *SW_SHOWDEFAULT* ��������ʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-createprocessa][CreateProcess]] ����ʱ���ݵ� [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/ns-processthreadsapi-startupinfoa][STARTUPINFO]] �ṹ�е�ֵ���趨����ʾ����
+- *SW_SHOWDEFAULT* ，基于在使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-createprocessa][CreateProcess]] 函数时传递的 [[https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/ns-processthreadsapi-startupinfoa][STARTUPINFO]] 结构中的值来设定并显示窗口
 
-- *SW_SHOWMAXIMIZED* ������ڲ�����󻯵���ʽ��ʾ
+- *SW_SHOWMAXIMIZED* ，激活窗口并以最大化的形式显示
 
-- *SW_SHOWMINIMIZED* ������ڲ�����С������ʽ��ʾ
+- *SW_SHOWMINIMIZED* ，激活窗口并以最小化的形式显示
 
-- *SW_SHOWMINNOACTIVE* ������С������ʽ��ʾ���ڣ���������
+- *SW_SHOWMINNOACTIVE* ，以最小化的形式显示窗口，但不激活
 
-- *SW_SHOWNA* ���Դ��ڵĵ�ǰλ�úͳߴ���ʾ���ڣ���������
+- *SW_SHOWNA* ，以窗口的当前位置和尺寸显示窗口，但不激活
 
-- *SW_SHOWNOACTIVATE* ���Դ��������λ�úͳߴ���ʾ���ڣ���������
+- *SW_SHOWNOACTIVATE* ，以窗口最近的位置和尺寸显示窗口，但不激活
 
-- *SW_SHOWNORMAL* �������ʾ���ڡ�������ڱ���С������ˣ�ϵͳ��ָ�����ԭʼ�ߴ��λ�á�Ӧ��Ӧ���ڵ�һ����ʾ����ʱָ�������־
+- *SW_SHOWNORMAL* ，激活并显示窗口。如果窗口被最小或最大化了，系统会恢复它的原始尺寸和位置。应用应该在第一次显示窗口时指定这个标志
 
 
-�������ֵΪ����˵��֮ǰ�����ǿɼ��ģ�������� 0 ��˵������֮ǰ�����صġ�
+如果返回值为非零说明之前窗口是可见的，如果返回 0 则说明窗口之前是隐藏的。
 
 ** EnableWindow
 
-�ú����������û����ָ�����ڵ����ͼ������롣�����뱻��ֹʱ�����ڲ��ܽ��յ��������������������롣�����뱻����ʱ�����ڿ��Խ����������롣
+该函数可以启用或禁用指定窗口的鼠标和键盘输入。当输入被禁止时，窗口不能接收到像是鼠标点击或击键的输入。当输入被启用时，窗口可以接受所有输入。
 
 #+BEGIN_SRC c
 BOOL EnableWindow(
@@ -181,15 +181,15 @@ BOOL EnableWindow(
 );
 #+END_SRC
 
-*hWnd* ����Ҫ���û���õĴ��ڵľ����
+*hWnd* 是想要启用或禁用的窗口的句柄。
 
-*bEnable* ָ������Ҫ���û��ǽ��ô��ڡ������ *TRUE* ���򴰿ڱ����ã����򱻽��á�
+*bEnable* 指明了是要启用还是禁用窗口。如果是 *TRUE* ，则窗口被启用，否则被禁用。
 
-����������ط��㣬�򴰿�֮ǰ�����ã�������� 0���򴰿�֮ǰû�б����á�
+如果函数返回非零，则窗口之前被禁用，如果返回 0，则窗口之前没有被禁用。
 
 ** GetDlgItem
 
-����һ��ָ���ؼ��Ĵ��ھ��
+检索一个指定控件的窗口句柄
 
 #+BEGIN_SRC c
 HWND GetDlgItem(
@@ -198,15 +198,15 @@ HWND GetDlgItem(
 );
 #+END_SRC
 
-*hwnd* �Ǹ�����
+*hwnd* 是父窗口
 
-*nIDDlgItem* ��Ҫ�����Ŀؼ��ı�ʶ��
+*nIDDlgItem* 是要检索的控件的标识符
 
-����������óɹ��ˣ�����ֵ����ָ���ؼ��Ĵ��ھ�������ʧ���ˣ�����ֵ�� NULL��
+如果函数调用成功了，返回值就是指定控件的窗口句柄，如果失败了，返回值是 NULL。
 
 ** GetDlgCtrLID
 
-����ָ���ؼ��ı�ʶ��
+返回指定控件的标识符
 
 #+BEGIN_SRC c
 int GetDlgCtrlID(
@@ -214,49 +214,49 @@ int GetDlgCtrlID(
 );
 #+END_SRC
 
-*hWnd* �ǿؼ��Ĵ��ھ��
+*hWnd* 是控件的窗口句柄
 
-����������óɹ��ˣ�����ֵ���ǿؼ���ʶ�������ʧ���ˣ�����ֵΪ 0��
+如果函数调用成功了，返回值就是控件标识符。如果失败了，返回值为 0。
 
-* WM_COMMAND ��Ϣ
+* WM_COMMAND 消息
 
-���ڿؼ�������һ��������Ҫ����Ϣ��ͨ�� WM_COMMAND���ؼ��ܹ����¼����ݸ������ڽ��д�����
+对于控件，这是一个至关重要的消息，通过 WM_COMMAND，控件能够将事件传递给父窗口进行处理。
 
-���û�ѡ��һ���˵���ʱ�����ؼ��򸸴��ڷ���֪ͨ��Ϣʱ�������ٻ���������ʱ�����򴰿ڷ��͸���Ϣ��
+当用户选择一个菜单项时，当控件向父窗口发送通知消息时，当加速击键被翻译时，会向窗口发送该消息。
 
-�����Ƕ��ڿؼ������ټ����ǲ˵��� *wParam* �����ĵ�λ�ֶ������ǵı�ʶ�������ڲ˵��� *wParam* �ĸ�λ�� 0�����ټ��� *wParam* ��λ�� 1�����ؼ��� *wParam* ��λ�ǿؼ������֪ͨ�롣
+不论是对于控件，加速键还是菜单， *wParam* 参数的低位字都是它们的标识符。对于菜单， *wParam* 的高位是 0，加速键的 *wParam* 高位是 1，而控件的 *wParam* 高位是控件定义的通知码。
 
-���ڲ˵��ͼ��ټ��� *lParam* �������� 0�����ɿؼ������� WM_COMMAND ��Ϣ�� *lParam* �����ǿؼ����ڵľ����
+对于菜单和加速键， *lParam* 参数都是 0，而由控件产生的 WM_COMMAND 消息的 *lParam* 参数是控件窗口的句柄。
 
-Ӧ��ͨ�� WM_COMMAND �������Կؼ�����Ϣ��Ӧ�ÿ���ͨ�� *SendMessage* ��������ؼ�������Ϣ���Ի�ȡ��Ϣ����ƿؼ�����Ϊ��
+应用通过 WM_COMMAND 接收来自控件的消息。应用可以通过 *SendMessage* 函数来向控件发送消息，以获取信息或控制控件的行为。
 
-* �ؼ���
+* 控件库
 
-Windows Ԥ����������Ŀؼ�������Ҫע�ἴ��ʹ�á�
+Windows 预定义了许多的控件，不需要注册即可使用。
 
-�±��г��˼��ֳ����Ŀؼ���Ҫ�����ȫ���Ŀؼ����Բο� [[https://docs.microsoft.com/en-us/windows/win32/controls/individual-control-info][Control Library]]��
+下表列出了几种常见的控件，要想浏览全部的控件可以参考 [[https://docs.microsoft.com/en-us/windows/win32/controls/individual-control-info][Control Library]]。
 
-- ��ť�ࣨ[[https://docs.microsoft.com/en-us/windows/win32/controls/buttons][Button]]�����û�ͨ�������ť���ṩ���롣
+- 按钮类（[[https://docs.microsoft.com/en-us/windows/win32/controls/buttons][Button]]），用户通过点击按钮来提供输入。
 
-- ��Ͽ�[[https://docs.microsoft.com/en-us/windows/win32/controls/combo-boxes][ComboBox]]������Ͽ���һ�ű���һ��ѡ������ɡ���չʾ���û�����ѡ���ѡ�ѡ������ʾ�˵�ǰ��ѡ��
+- 组合框（[[https://docs.microsoft.com/en-us/windows/win32/controls/combo-boxes][ComboBox]]），组合框由一张表和一个选择域组成。表展示了用户可以选择的选项，选择域显示了当前的选择。
 
-- �༭�ࣨ[[https://docs.microsoft.com/en-us/windows/win32/controls/edit-controls][Edit]]�����༭�ؼ���һ�����οؼ����ڣ�һ�����ڶԻ������������û�ͨ�������������༭�ı���
+- 编辑类（[[https://docs.microsoft.com/en-us/windows/win32/controls/edit-controls][Edit]]），编辑控件是一个矩形控件窗口，一般用在对话框中来允许用户通过键盘来输入或编辑文本。
 
-- �б���[[https://docs.microsoft.com/en-us/windows/win32/controls/list-boxes][List Box]]�����б��򴰿ڰ�����һ�Ű�����Ŀ�ı����û����Դ��н���ѡ��
+- 列表框（[[https://docs.microsoft.com/en-us/windows/win32/controls/list-boxes][List Box]]），列表框窗口包含了一张包含项目的表，用户可以从中进行选择。
 
-- ��̬�ࣨ[[https://docs.microsoft.com/en-us/windows/win32/controls/static-controls][Static Control]]������̬�ؼ�Ϊ�û��ṩ�˲���Ҫ��Ӧ���ı���ͼƬ��Ϣ��
+- 静态类（[[https://docs.microsoft.com/en-us/windows/win32/controls/static-controls][Static Control]]），静态控件为用户提供了不需要响应的文本和图片信息。
 
 
-* ͨ�ÿؼ�
+* 通用控件
 
-ͨ�ÿؼ�����ͨ�ÿؼ��� Comctl32.dll ��ʵ�ֵĿؼ���
+通用控件是在通用控件库 Comctl32.dll 中实现的控件。
 
-�����ͨ�ÿؼ��������� DLL �ж����һ�������ࡣ������Ͷ�Ӧ�Ĵ��ڹ��̶����˿ؼ�����ۺ���Ϊ��
+大多数通用控件都属于在 DLL 中定义的一个窗口类。窗口类和对应的窗口过程定义了控件的外观和行为。
 
-����ͨ�ÿؼ������ϣ����Բο� [[https://docs.microsoft.com/en-us/windows/win32/api/commdlg/][Commdlg.h header]]��
+关于通用控件的资料，可以参考 [[https://docs.microsoft.com/en-us/windows/win32/api/commdlg/][Commdlg.h header]]。
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> Windows Controls�� https://docs.microsoft.com/en-us/windows/win32/controls/window-controls
+<<<【1】>>> Windows Controls： https://docs.microsoft.com/en-us/windows/win32/controls/window-controls
 
-<<<��2��>>> /Programming Windows/, Charles Petzold
+<<<【2】>>> /Programming Windows/, Charles Petzold

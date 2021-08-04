@@ -1,36 +1,36 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: Windows��������Ϣ����ʱ��
+#+TITLE: Windows窗口与消息：计时器
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNjE5MzIw.jpg" alt="load failed"></div>@@
 #+DATE: [2020-06-26 Fri]
 #+TAGS: windows
 
-* ��ʱ������
+* 计时器简述
 
-Ӧ��ʹ�ü�ʱ������ָ��ʱ���ȥ�����¼��ķ�����ÿ������ʱ��ָ����һ��ʱ�������ȥ��ϵͳ����ͼ�ʱ�������Ĵ��ڷ���֪ͨ����Ϊ��ʱ���ľ�ȷ��������ϵͳʱ�Ӿ��Ⱥ�Ӧ�ô���Ϣ���м�����Ϣ��Ƶ�ʣ���ʱ����ʱ������ֻ�ܿ���һ������ֵ��
+应用使用计时器来在指定时间过去后安排事件的发生。每当给计时器指定的一个时间区间过去后，系统会给和计时器关联的窗口发送通知。因为计时器的精确度依赖于系统时钟精度和应用从消息队列检索消息的频率，计时器的时间区间只能看作一个粗略值。
 
-* ��ʱ���Ĳ���
+* 计时器的操纵
 
-Ӧ�ÿ���ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-settimer][SetTimer]] ����������ʱ������ʱ��һ�����Ϳ�ʼ��ʱ��Ӧ�ÿ���ʹ�� SetTimer ���޸ļ�ʱ����ʱ����ֵ������ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-killtimer][KillTimer]] ����һ����ʱ����
+应用可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-settimer][SetTimer]] 函数创建计时器。计时器一创建就开始计时。应用可以使用 SetTimer 来修改计时器的时间间隔值，可以使用 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-killtimer][KillTimer]] 销毁一个计时器。
 
-ÿ����ʱ������һ��Ψһ�ı�ʶ������������ʱ��ʱ��Ӧ�ÿ���ָ��һ����ʶ����Ҳ������ϵͳ����һ��Ψһֵ��[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]] ��Ϣ�����˼�ʱ���ı�ʶ����
+每个计时器都有一个唯一的标识符。当创建计时器时，应用可以指定一个标识符，也可以让系统创造一个唯一值。[[https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer][WM_TIMER]] 消息包含了计时器的标识符。
 
-����ڵ��� SetTimer ʱָ���˴��ھ����Ӧ�ûὫ��ʱ���봰�ڹ�������������ȥһ����ʱ��ʱ�������ϵͳ�������ʱ�������Ĵ���Ͷ��һ�� WM_TIMER ��Ϣ�����û��ָ�����ھ����������ʱ����Ӧ�ñ�������Ϣ�����м��� WM_TIMER ��Ϣ���ɷ������ʵĴ��ڡ������ָ���� [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-timerproc][TimerProc]] �ص�������Ĭ�ϴ��ڹ��̻��ڽ��յ� WM_TIMER ��Ϣʱ���ûص�����������������ˣ�����Ҫ�������߳����ɷ���Ϣ����������ʹ�� TimerProc �������ڴ��ڹ����д�������
+如果在调用 SetTimer 时指定了窗口句柄，应用会将计时器与窗口关联起来。当过去一个计时器时间区间后，系统会向与计时器关联的窗口投递一个 WM_TIMER 消息。如果没有指定窗口句柄，创建计时器的应用必须在消息队列中监视 WM_TIMER 消息并派发到合适的窗口。如果你指定了 [[https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-timerproc][TimerProc]] 回调函数，默认窗口过程会在接收到 WM_TIMER 消息时调用回调函数来处理它。因此，你需要在主调线程中派发消息，即便在你使用 TimerProc 而不是在窗口过程中处理它。
 
-** WM_TIMER ��Ϣ
+** WM_TIMER 消息
 
-����ʱ����������ʱ��󣬻ᷢ�͵��̵߳���Ϣ���С�
+当计时器经过给定时间后，会发送到线程的消息队列。
 
-*wParam* �Ǽ�ʱ����ʶ���� *lParam* ���ڼ�ʱ����װʱ�����ݸ� SetTimer ��Ӧ�ö���Ļص������ĺ���ָ�롣
+*wParam* 是计时器标识符， *lParam* 是在计时器安装时，传递给 SetTimer 的应用定义的回调函数的函数指针。
 
-���Ӧ�ô����˸���Ϣ�����ڹ���Ӧ�÷��� 0��
+如果应用处理了该消息，窗口过程应该返回 0。
 
-WM_TIMER ��Ϣ���ȼ��ܵ͡�GetMessage �� PeekMessage ���ڶ�����û�����������ȼ���Ϣʱ�Ż�Ͷ�ݸ���Ϣ��
+WM_TIMER 消息优先级很低。GetMessage 和 PeekMessage 仅在队列中没有其他高优先级消息时才会投递该消息。
 
-WM_TIMER ������������Ϣ���������Ӷ����Windows ��Ѷ�� WM_TIMER ��Ϣ�ϳ�Ϊһ����
+WM_TIMER 不会连续在消息队列中添加多个，Windows 会把多个 WM_TIMER 消息合成为一个。
 
-** ��ʱ�����̣�TimerProc��
+** 计时器过程（TimerProc）
 
-������ԭ�����£�
+函数的原型如下：
 
 #+BEGIN_SRC c
 TIMERPROC Timerproc;
@@ -45,38 +45,38 @@ void Timerproc(
 {...}
 #+END_SRC
 
-*Arg1* �����ʱ�������Ĵ��ھ��
+*Arg1* 是与计时器关联的窗口句柄
 
-*Arg2* �� WM_TIMER ��Ϣ��ʶ��ֵ
+*Arg2* 是 WM_TIMER 消息标识符值
 
-*Arg3* �Ǽ�ʱ����ʶ��
+*Arg3* 是计时器标识符
 
-*Arg4* ��ϵͳ�������ȥ��ʱ�䣬�Ժ���Ϊ��λ�����ֵ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-gettickcount][GetTickCount]] �������ء�
+*Arg4* 是系统启动后过去的时间，以毫秒为单位。这个值由 [[https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-gettickcount][GetTickCount]] 函数返回。
 
-�ú�������Ҫ����ֵ��
+该函数不需要返回值。
 
-** ����ʾ�����������
+** 代码示例：随机矩形
 
-*Programming Windows* ����һ����Ȥ�����ӣ����û����ϻ��Ƹ�����ɫ��������Ρ�����������ʹ�õ����������� PeekMessage ��ɵĲ������˴�Ҳ����ʹ�ü�ʱ����
+*Programming Windows* 中有一个有趣的例子：在用户区上绘制各种颜色的随机矩形。在书中作者使用的是无阻塞的 PeekMessage 完成的操作，此处也可以使用计时器。
 
-Ϊ���ܹ����ƾ��ε����ɣ�����ʹ�������Ϣ�����������ʼ����������Σ������Ҽ�ʹ��ֹͣ��
+为了能够控制矩形的生成，可以使用鼠标消息，单击左键开始生成随机矩形，单击右键使其停止。
 
-���´����� VS2019 ��ͨ�����벢˳�����ԡ�
+以下代码在 VS2019 下通过编译并顺利测试。
 
-���ȣ��� VS �д���һ����׼����Ӧ����Ŀ��Ȼ����Դ�ļ������Ϸ����ϼ�ʱ�����̵��������Լ���ʱ����ʶ���ĺ꣺
+首先，在 VS 中创建一个标准桌面应用项目。然后在源文件的最上方加上计时器过程的声明，以及计时器标识符的宏：
 
 #+BEGIN_SRC c
 #define ID_TIMER 1
 VOID CALLBACK TimerProc(HWND, UINT, UINT_PTR, DWORD);
 #+END_SRC
 
-�� WndProc ����ͷ����һ����̬��������¼��ʱ���Ƿ��Ѵ�����
+在 WndProc 函数头加上一个静态变量，记录计时器是否已创建：
 
 #+BEGIN_SRC c
 static int bCreated;
 #+END_SRC
 
-�� WndProc �� switch �����м��������Ϣ�Ĵ������룺�������ü�ʱ��ÿ���ʱ��Լ 30 �Σ�
+在 WndProc 的 switch 语句块中加入鼠标消息的处理代码：（这里让计时器每秒计时大约 30 次）
 
 #+BEGIN_SRC c
 case WM_LBUTTONDOWN:
@@ -100,7 +100,7 @@ case WM_DESTROY:
     return 0;
 #+END_SRC
 
-���������Ա�д��ʱ�����������ˣ�������εĳߴ��� rand �����õ���
+接下来可以编写计时器处理过程了，随机矩形的尺寸由 rand 函数得到：
 
 #+BEGIN_SRC c
 VOID CALLBACK TimerProc(HWND hwnd, UINT iMsg, UINT_PTR iTimerID, DWORD dwTime)
@@ -124,17 +124,17 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT iMsg, UINT_PTR iTimerID, DWORD dwTime)
 }
 #+END_SRC
 
-���в����������������ɿ���������ɫ��С���Ρ������Ҽ���ʹ����ֹͣ��ʾ��
+运行并按下鼠标左键，即可看到各种颜色的小矩形。按下右键可使矩形停止显示。
 
-* �߾��ȼ�ʱ��
+* 高精度计时器
 
-��������counter����һ��������ձ�ʹ�õ������ָһ�������ı�����һЩϵͳ������һ���߾������ܼ����������ṩ�߾��ȵļ�ʱ��
+计数器（counter）是一个编程中普遍使用的术语，它指一个增长的变量。一些系统包括了一个高精度性能计数器，它提供高精度的计时。
 
-����߾������ܼ�����������ϵͳ�У������ʹ�� [[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancefrequency][QueryPerformanceFrequency]] ����������Ƶ�ʣ��Ժ���Ϊ��λ����ʱ����ֵ�������ڴ������ġ����磬��ĳЩ�������ϣ����������Ǵ�����ʱ�ӵ�ѭ�����ʡ�
+如果高精度性能计数器存在于系统中，你可以使用 [[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancefrequency][QueryPerformanceFrequency]] 函数来表达频率，以赫兹为单位。计时器的值是依赖于处理器的。例如，在某些处理器上，计数可能是处理器时钟的循环速率。
 
-[[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancecounter][QueryPerformanceCounter]] �����������ǰ�߾������ܼ�������ֵ��ͨ����һ�δ���Ŀ�ͷ�ͽ�β�������������Ӧ�ÿ��԰Ѽ����������߾��ȼ�ʱ��ʹ�á����磬���� [[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancefrequency][QueryPerformanceFrequency]] ������������Ƶ��Ϊ 50000 Hz���������Ҫ��ʱ�Ĵ����ͷ��β�������� QueryPerformanceCounter����������ֵ������ 1500 �������� 3500 ����������Щֵ�ͱ�ʾ��ȥ�� 0.4 �루2000 ����������
+[[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancecounter][QueryPerformanceCounter]] 函数会检索当前高精度性能计数器的值。通过在一段代码的开头和结尾调用这个函数，应用可以把计数器当作高精度计时器使用。例如，假设 [[https://docs.microsoft.com/en-us/windows/desktop/api/profileapi/nf-profileapi-queryperformancefrequency][QueryPerformanceFrequency]] 表明计数器的频率为 50000 Hz。如果在需要计时的代码块头和尾立即调用 QueryPerformanceCounter，计数器的值可能是 1500 个计数和 3500 个计数。这些值就表示过去了 0.4 秒（2000 个计数）。
 
-C ��׼���е� <time.h> ������һϵ�е�ʱ�亯����time �������ػ��� UNIX ʱ��ĵ�ǰʱ�䣬clock �������س������ĵĴ�����ʱ�䡣ͨ�� clock �������Դ��ԵĲ���ĳ�δ������е�ʱ�䡣
+C 标准库中的 <time.h> 包含了一系列的时间函数。time 函数返回基于 UNIX 时间的当前时间，clock 函数返回程序消耗的处理器时间。通过 clock 函数可以粗略的测试某段代码运行的时间。
 
 #+BEGIN_SRC c
 #include <stdio.h>
@@ -153,11 +153,11 @@ int main(void)
 }
 #+END_SRC
 
-�� WSL1��ʹ�� =gcc -o 1.out 1.c= ���벢���У��õ���ʱ���� =6265625= ��Linux �� clock_t ��ʱ�䵥λ������΢�롣������ -O1 �Ż��õ� =1218750= ��
+在 WSL1上使用 =gcc -o 1.out 1.c= 编译并运行，得到的时间是 =6265625= ，Linux 上 clock_t 的时间单位好像是微秒。（加上 -O1 优化得到 =1218750= ）
 
-�� VS2019 �ϱ��벢���У��õ���ʱ���� =7002= �����Ż�һ��ֱ�ӱ�� 0 �ˣ��ѿ�ѭ���Ż�û��XD����
+在 VS2019 上编译并运行，得到的时间是 =7002= （再优化一下直接变成 0 了，把空循环优化没了XD）。
 
-��Ȼ������������������ᵽ������ API��
+自然，这里可以是用上面提到的两个 API。
 
 #+BEGIN_SRC c
 #include <stdio.h>
@@ -180,22 +180,22 @@ int main(void)
 }
 #+END_SRC
 
-���벢���У����ҵĵ����ϵĽ��Ϊ =7.014975= ��
+编译并运行，在我的电脑上的结果为 =7.014975= 。
 
-* �ɵȣ�Waitable����ʱ������
+* 可等（Waitable）计时器对象
 
-�ɵȼ�ʱ��������һ��ͬ�����󣬵�ָ��ʱ�䵽��ʱ������״̬������Ϊ�����źš����Դ����Ŀɵȼ�ʱ�����������֣��ֶ���λ��ͬ������һ���͵ļ�ʱ��Ҳ����Ϊ���ڼ�ʱ����periodic timer����
+可等计时器对象是一个同步对象，当指定时间到来时，它的状态被设置为发送信号。可以创建的可等计时器类型有两种：手动复位和同步。任一类型的计时器也可作为定期计时器（periodic timer）。
 
-�߳�ʹ�� [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerw][CreateWaitableTimer]] �� [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerexw][CreateWaitableTimerEx]] ������һ����ʱ�����󡣴�����ʱ�����̶߳Լ�ʱ�������ͽ���ָ�����߳̿���Ϊ��ʱ������ָ��һ�����֡����������е��߳̿���ͨ���� [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openwaitabletimerw][OpenWaitableTimer]] ����������ָ�����֣�����һ���Ѵ��ڼ�ʱ���ľ�����κδ��м�ʱ������ľ�����߳̿���ʹ��һ���ȴ��������ȴ���ʱ����״̬������Ϊ�źŷ��͡�
+线程使用 [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerw][CreateWaitableTimer]] 或 [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerexw][CreateWaitableTimerEx]] 来创建一个计时器对象。创建计时器的线程对计时器的类型进行指定。线程可以为计时器对象指定一个名字。其他进程中的线程可以通过在 [[https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openwaitabletimerw][OpenWaitableTimer]] 函数调用中指定名字，来打开一个已存在计时器的句柄。任何带有计时器对象的句柄的线程可以使用一个等待函数来等待计时器的状态被设置为信号发送。
 
-�������ʹ�õȴ���ʱ�������߳�ͬ������Ϣ���ɼ��� [[https://docs.microsoft.com/en-us/windows/desktop/Sync/waitable-timer-objects][Waitable Timer Objects]]��
+更多关于使用等待计时器用于线程同步的信息，可见于 [[https://docs.microsoft.com/en-us/windows/desktop/Sync/waitable-timer-objects][Waitable Timer Objects]]。
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> About Timers��https://docs.microsoft.com/en-us/windows/win32/winmsg/about-timers
+<<<【1】>>> About Timers：https://docs.microsoft.com/en-us/windows/win32/winmsg/about-timers
 
-<<<��2��>>> /Programming Windows/ , Charles Petzold
+<<<【2】>>> /Programming Windows/ , Charles Petzold
 
-<<<��3��>>> cppreferance:ctime��http://www.cplusplus.com/reference/ctime/
+<<<【3】>>> cppreferance:ctime：http://www.cplusplus.com/reference/ctime/
 
-<<<��4��>>> LARGE_INTEGER union��https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-large_integer~r1
+<<<【4】>>> LARGE_INTEGER union：https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-large_integer~r1

@@ -1,68 +1,68 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: C���ַ�������Щ����
+#+TITLE: C的字符串有哪些问题
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS9wb3N0L3Nob3cvMjI5ODYyNTc=.jpg" alt="load failed"></div>@@
 #+DATE: [2021-01-25 Mon]
 #+TAGS: c
 
-����ƽʱ��ʹ���ַ���ʱ��������಻�㣬���б�Ҫ��һЩ�������ձ��������һ���ܽᣬ�����Լ���Ҫ��д���ַ�����ʱ������ܺͽ����Щ���⡣��Ȼ�ˣ���Щ����Ҳ����˵�� C �����ַ����ġ����ԡ�������ϲ����
+由于平时在使用字符串时遇到了诸多不便，我有必要对一些常见和普遍的问题做一个总结，并在自己将要编写的字符串库时尽量规避和解决这些问题。当然了，这些问题也可以说成 C 语言字符串的“特性”，随你喜欢。
 
-���ķ�Ϊ�������֣���һ���ֶ� C �����ַ����Ļ���֪ʶ��һ���򵥵Ľ��ܣ��ڶ����ֶ� C �����ַ����������ȱ�ݽ���һ���ķ����������� C ���Ժ���Ϥ�ˣ�����ֱ��ȥ���ڶ����֣��ֻ����������� C ������ˣ�ĳ����뻯��Ҳ���ֱ�ӹرմ�ҳ�棬���������˷ѱ��������
+本文分为两个部分，第一部分对 C 语言字符串的基本知识做一个简单的介绍，第二部分对 C 语言字符串的问题和缺陷进行一定的分析。如果你对 C 语言很熟悉了，可以直接去看第二部分，又或者你觉得你的 C 语言用耍的出神入化，也大可直接关闭此页面，而不至于浪费宝贵光阴。
 
-* C �����ַ�������֪ʶ
+* C 语言字符串基础知识
 
-** ���� C �ַ������巽ʽ�ĶԱ�
+** 汇编和 C 字符串定义方式的对比
 
-������ C �����е��ַ���֮ǰ�������ȿ�����ࣨ8086���е��ַ�����������ַ����������ʽ��
+在讨论 C 语言中的字符串之前，我们先看看汇编（8086）中的字符变量定义和字符串定义的形式：
 
 #+BEGIN_SRC c
 wocao BYTE 'a'
 #+END_SRC
 
-����Ĵ��붨����һ����Ϊ wocao ���ַ����ֽڣ�����������ֵΪ 'a'��
+上面的代码定义了一个名为 wocao 的字符（字节）变量，它的值为 'a'。
 
-��ô�ڻ������ζ���һ���ַ����أ�
+那么在汇编中如何定义一个字符串呢？
 
 #+BEGIN_SRC c
 wocao BYTE 'a', 'b', 'c', 'd', 'e'
 wocao BYTE "abcde"
 #+END_SRC
 
-���������д��Ч������һ���ģ�������һ������Ϊ "abcde" ���ֽ����顣���������д���Ƕ�����д���ļ򻯡�
+上面的两种写法效果都是一样的，定义了一个内容为 "abcde" 的字节数组。其中下面的写法是对上面写法的简化。
 
-��ô���� C �����У���������ʹ���ַ������أ�
+那么，在 C 语言中，又是怎样使用字符串的呢？
 
 #+BEGIN_SRC c
-//���嵥���ַ�
+//定义单个字符
 char wocao = 'a';
-//�����ַ���
+//定义字符串
 char wocao[] = ['a', 'b', 'c', 'd', 'e', '\0'];
 //another way
 char wocao[] = "abcde";
 #+END_SRC
 
-������Ļ�����Ա�һ�£���ᷢ�֣�����˵C�ַ������Ҫ��һ�� '\0' ,�� C �ͻ���ж����ַ����ķ�ʽ��������ġ������п������ź������ʷԭ�������ҾͲ���ˡ�
+和上面的汇编代码对比一下，你会发现，除了说C字符串最后要多一个 '\0' ,在 C 和汇编中定义字符串的方式还是蛮像的。这其中可能有着很深的历史原因，这里我就不深究了。
 
-** C �ַ����ı�ʾ��ʽ
+** C 字符串的表示方式
 
-������Ӧ��֪������ C ��������û���������ַ������͵ġ�C ����ʹ��Լ������ʾ�ַ��������ַ������Կ��ַ���β���ַ����顣�� n ���ַ����ַ�������ʹ�ó�Ϊ n + 1 �������ʾ����������һ��Ԫ�ط��� =NUL= �ַ���
+我想你应该知道，在 C 语言中是没有真正的字符串类型的。C 语言使用约定来表示字符串，即字符串是以空字符结尾的字符数组。有 n 个字符的字符串可以使用长为 n + 1 的数组表示，数组的最后一个元素放置 =NUL= 字符。
 
-�� C �����д����ַ�����������������ʹ��˫�������������ַ��������� ="Hello"= ����������������ĳ���ת��Ϊ =NUL= ��β���ַ�����ά���ٿơ�1�������������� /The only support for strings in the programming language proper is that the compiler translates quoted string constants into null-terminated strings./ �������ּ�ª�ġ�
+在 C 语言中存在字符串字面量，它们是使用双引号括起来的字符串，比如 ="Hello"= 。编译器会把这样的常量转变为 =NUL= 结尾的字符串。维基百科【1】这样描述到： /The only support for strings in the programming language proper is that the compiler translates quoted string constants into null-terminated strings./ 听起来怪简陋的。
 
-���ڲ���ֱ�ӱ�ʾ�������ַ�������ʹ��ת�����С����绻���ַ����Ա�ʾΪ =\n= �� =\r= ��ʾ�س����� =\t= ��ʾ tab�� =\\= ��ʾ��б�ܣ� =\'= ��ʾ�����ţ� =\"= ��ʾ˫���ŵȡ�
+对于不能直接表示出来的字符，可以使用转义序列。比如换行字符可以表示为 =\n= ， =\r= 表示回车符， =\t= 表示 tab， =\\= 表示反斜杠， =\'= 表示单引号， =\"= 表示双引号等。
 
-�ַ�Ҳ����ȫ�������ǵ�ֵ��������ͨ��ת��ķ�ʽ��
+字符也可以全部由它们的值来给出，通过转义的方式。
 
-=\nnn= ʹ��8���Ʒ�ʽ����ʾ�ַ������� =\061= ��ʾ�ַ� =1= ��
+=\nnn= 使用8进制方式来表示字符，例如 =\061= 表示字符 =1= 。
 
-=\xhh...= ʹ�� 16 ��������ʾ�ַ������� =\x30= ��ʾ�ַ� =0= ��
+=\xhh...= 使用 16 进制来表示字符，例如 =\x30= 表示字符 =0= 。
 
-=%= ����һЩ����������Ҫ�ڸ�ʽ���ַ������õ�������ʹ�� =%%= ����ʽ������ת�塣
+=%= 特殊一些，由于它需要在格式化字符串中用到，所有使用 =%%= 的形式来进行转义。
 
-�˴������ݲο����ǡ�3����
+此处的内容参考的是【3】。
 
-** �ٿ� C �ַ����ķ���
+** 操控 C 字符串的方法
 
-��Ȼ C �е��ַ��������Ͼ����ַ����飬����Ȼ�Ϳ���ʹ�òٿ�����ķ�ʽ�����ַ������д���������������ȡ�ַ����ĳ��ȣ�
+既然 C 中的字符串本质上就是字符数组，那自然就可以使用操控数组的方式来对字符串进行处理。比如这样获取字符串的长度：
 
 #+BEGIN_SRC c
 int strLength(char * s)
@@ -71,89 +71,89 @@ int strLength(char * s)
 }
 #+END_SRC
 
-����Ĵ���Ĺ����ǣ����ַ�������Ϊ 0����ֱ�ӷ��� 0�����򷵻� 1 �����ַ�����ȥͷ���ַ���ĳ��ȡ�
+上面的代码的功能是：当字符串长度为 0，则直接返回 0，否则返回 1 加上字符串减去头部字符后的长度。
 
-��Ȼ�����ǻ�����ͨ�����ñ�׼���еĺ������ٿ��ַ�����C ��׼���е� string.h ������һϵ�е��ַ�������ʵ��һϵ�й��ܣ��������ַ������ȣ�ƴ���ַ����������ַ���������ַ������ȵȡ�ʵ���ϣ�string.h ���еĺ���Զ��ֹ�ٿ��ַ����������ṩ��һЩ���ڴ�Ĳ������������ݲο����ϡ�2�������ǿ��Խ����е�һЩ������һ�¼򵥵ķ��࣬��������;
+自然，我们还可以通过调用标准库中的函数来操控字符串。C 标准库中的 string.h 声明了一系列的字符串，来实现一系列功能，比如获得字符串长度，拼接字符串，复制字符串，拆分字符串，等等。实际上，string.h 库中的函数远不止操控字符串，它还提供了一些对内存的操作函数。根据参考资料【2】，我们可以将其中的一些函数做一下简单的分类，具体如下;
 
-- �ڴ������ĺ���
+- 内存操作类的函数
 
-  - memcpy�������ڴ��
+  - memcpy，复制内存块
 
-  - memmove���ƶ��ڴ��
+  - memmove，移动内存块
 
-  - memset��ʹ��ֵ����ڴ��
+  - memset，使用值填充内存块
 
-  - memcmp���Ƚ������ڴ�������
+  - memcmp，比较两个内存块的内容
 
-- �ַ����ٿغ���
+- 字符串操控函数
 
-  - strcpy��strncpy�������ַ���
+  - strcpy，strncpy，复制字符串
 
-  - strcat��strncat�������ַ���
+  - strcat，strncat，连接字符串
 
-  - strcmp��strncmp���Ƚ��ַ���
+  - strcmp，strncmp，比较字符串
 
-  - strlen����ȡ�ַ�������
+  - strlen，获取字符串长度
 
-  - strchr��strrchar����ȡĳ���ַ���һ��/���һ�γ������ַ����е�λ��
+  - strchr，strrchar，获取某个字符第一次/最后一次出现在字符串中的位置
 
-  - strspn����ȡĳ���ַ�������һ�ַ�����һ�ַ����г��ִ�����
+  - strspn，获取某个字符串中任一字符在另一字符串中出现次数。
 
-  - strcspn����ȡĳ���ַ����е���һ�ַ���һ�γ������ַ����е�λ�ã�����λ�õ�ֵ
+  - strcspn，获取某个字符串中的任一字符第一次出现在字符串中的位置，返回位置的值
 
-  - strpbrk����ȡĳ���ַ����е���һ�ַ���һ�γ�������һ�ַ����е�λ�ã����ص���ָ��
+  - strpbrk，获取某个字符串中的任一字符第一次出现在零一字符串中的位置，返回的是指针
 
-  - strstr����ȡĳһ�ַ�������һ�ַ����г��ֵ�λ�ã����ص���ָ��
+  - strstr，获取某一字符串在另一字符串中出现的位置，返回的是指针
 
-  - strtok��ʹ��ĳ�ֹ����ַ����ָ�ΪС token
-
-
-�����г������������� 19�������÷��ɲο���2����
-
-���� string.h ֮�⣬��ʵ stdlib ֮��Ҳ��һЩ���ַ����йصĺ���������Ҳ���о�һЩ��
-
-- һϵ�е��ַ�������ת������������ atof��atoi��atol��strtod��strtol��strtoul �ȵ�
-
-- ���ֽ��ַ�������mblen��mbtowc �� wctomb���������ü��ο��ĵ�
+  - strtok，使用某种规则将字符串分割为小 token
 
 
-** �ַ����� I/O
+上面列出函数的数量是 19，具体用法可参考【2】。
 
-�ⷽ���˵�Ķ���ȥ�ˣ����ڸ���ˮƽ���ޣ�ֻ�Ժ� stdio.h ��ص�һЩ������һЩ�򵥵Ľ��ܡ�
+除了 string.h 之外，其实 stdlib 之中也有一些和字符串有关的函数。这里也简单列举一些。
 
-fprintf��fscanf��scanf��printf...... ��Щ��ʽ����������Ҫ��ʽ���ַ�����
+- 一系列的字符串数字转换函数，比如 atof，atoi，atol，strtod，strtol，strtoul 等等
 
-puts��gets��fputs��fgets �Ⱥ��������ַ��� I/O��
+- 多字节字符函数，mblen，mbtowc 和 wctomb，具体作用见参考文档
 
-** ���ַ��Ϳ��ַ���
 
-�������е����ݶ������ C ���Ե� =char= ���ַ����ģ�Ҳ���ǵ��ֽ��ַ���1995�꣬wchar.h �������ˣ������������ַ���
+** 字符串与 I/O
 
-���� C ���Ա�����������ʱ��ռͳ�ε�λ���ַ������� 7 λ�� ASCII �룬�������е��ַ������Է���һ���ֽڵĴ洢�ռ��ڡ�Ȼ�������������Ϸ�չ����Ҫ��ʾ������ַ������������Ѿ��������ˡ�wchar.h �ṩ�˿��ַ����� =wchar_t= �������ɱ䳤���ַ�����������ͳһ�ĶԲ�ͬ���ȵ��ַ������д��������ַ������Ѵ����ַ����ĳ�������Ҳ���� ASCII �ַ�����ʹ�� wchar �ĺô�������ͳһ���ַ������������ַ�����
+这方面可说的多了去了，由于个人水平所限，只对和 stdio.h 相关的一些函数做一些简单的介绍。
 
-wchar.h ���������ݷǳ��࣬�������Ǻ��ַ��������йصĺ����������Ŀ��ַ��汾������ wcslen ����� strlen��wcscpy ����� strcpy��wprintf ����� printf �ȵȡ�wchar.h �������ĺ��������� stdio.h��string.h �е�һЩ =char= �ͺ����Ŀ��ַ��汾��
+fprintf，fscanf，scanf，printf...... 这些格式化函数都需要格式化字符串。
 
-�������ᵽ��һЩת���ַ���д������ʵ�������֣����Ƿֱ��� =\uhhhh= �� =\Uhhhhhhhh= ��������ʾ unicode �ַ���
+puts，gets，fputs，fgets 等函数用于字符串 I/O。
 
-��Ȼʹ�� wchar.h ����Ա�ʾ ASCII ��ʾ���˵��ַ������� C ��׼�в�δ�涨����ı��롣���ڵ��ֽڵ� =char= ������������ȻӦ���� ASCII�����Ƕ��ڶ��ֽڵ� =wchar_t= ��������⻹�治��˵��wchar_t ��������ʵ�ֵģ���������ժ�ԡ�5��;
+** 宽字符和宽字符串
+
+上面所有的内容都是针对 C 语言的 =char= 型字符串的，也就是单字节字符。1995年，wchar.h 被引入了，用来处理宽字符。
+
+由于 C 语言被发明出来的时候，占统治地位的字符集还是 7 位的 ASCII 码，所以所有的字符都可以放入一个字节的存储空间内。然而随着软件不断发展，需要表示更多的字符，单个比特已经不够用了。wchar.h 提供了宽字符类型 =wchar_t= 来处理可变长度字符，这样可以统一的对不同长度的字符来进行处理。宽字符集是已存在字符集的超集，这也包括 ASCII 字符集。使用 wchar 的好处在于以统一的字符长度来处理字符串。
+
+wchar.h 包括的内容非常多，几乎凡是和字符串处理有关的函数都有它的宽字符版本，例如 wcslen 相对于 strlen，wcscpy 相对于 strcpy，wprintf 相对于 printf 等等。wchar.h 中声明的函数包括了 stdio.h，string.h 中的一些 =char= 型函数的宽字符版本。
+
+上面我提到了一些转义字符的写法，其实还有两种，它们分别是 =\uhhhh= 和 =\Uhhhhhhhh= ，用来表示 unicode 字符。
+
+虽然使用 wchar.h 后可以表示 ASCII 表示不了的字符，但是 C 标准中并未规定具体的编码。对于单字节的 =char= ，编码理所当然应该是 ASCII，但是对于多字节的 =wchar_t= ，这个问题还真不好说。wchar_t 是依赖于实现的，以下内容摘自【5】;
 
 #+BEGIN_QUOTE
 Type wchar_t is a distinct type whose values can represent distinct codes for all members of the largest extended character set specified among the supported locales.
 #+END_QUOTE
 
-���ڿ��ַ��������ڱ����о͵���Ϊֹ�ˣ��һ�������дһƪ��������һ������
+关于宽字符的问题在本文中就到此为止了，我会另外再写一篇文章来讲一讲它。
 
-���ˣ����� C �ַ����ļ��ʹ˴�ס�����ǽ�����̸һ̸����һЩ�ӡ�
+好了，关于 C 字符串的简介就此打住，我们接下来谈一谈它的一些坑。
 
-* C �ַ��������������
+* C 字符串的问题和陷阱
 
-������������̸̸ C �ַ���������������������׺��������⡣���е�һЩ����Ҳ�ɿ�����ĳ�� �����ԡ���������Ĺ۵����ҵĲ�һ�£���ӭ�������ۡ�
+这里让我们来谈谈 C 字符串本身的问题和它的配套函数的问题。其中的一些问题也可看做是某种 “特性”，如果您的观点与我的不一致，欢迎与我讨论。
 
-** C �ַ�������������
+** C 字符串本身的问题
 
-*** 1.û����ʽ��������
+*** 1.没有显式给出长度
 
-C �ַ���û�б����Լ��ĳ��ȣ�����ѡ������һ�������ֵ =NUL= ������ַ�����β���������������ıȽ�ֱ�۵�������ǣ���Ҫ����ַ�������ʱ��������ַ���ֱ���ҵ����ַ���Ҳ����˵��strlen ������ʱ�临�Ӷ��� O(n)��n ���ַ����ĳ��ȡ�ÿ����һ�� strlen ����Ҫ��ͷ��β����һ���ַ���������Ĵ����ʱ�临�Ӷȿ��� O(n^2)��
+C 字符串没有保存自己的长度，而是选择在以一个特殊的值 =NUL= 标记在字符串的尾部。这样做带来的比较直观的问题便是：需要获得字符串长度时必须遍历字符串直到找到空字符。也就是说，strlen 函数的时间复杂度是 O(n)，n 是字符串的长度。每调用一次 strlen 都需要从头到尾遍历一次字符串。下面的代码的时间复杂度可是 O(n^2)：
 
 #+BEGIN_SRC c
 for (int i = 0; i < strlen(stryy); i++)
@@ -162,58 +162,58 @@ for (int i = 0; i < strlen(stryy); i++)
 }
 #+END_SRC
 
-���ھ�����Ҫ֪���ַ���β����λ�ã��� strlen �ĵ�����ʮ��Ƶ���ģ�����һ�ֺ��˷ѵ���Ϊ��
+由于经常需要知道字符串尾部的位置，对 strlen 的调用是十分频繁的，这是一种很浪费的行为。
 
-��һ���������ڣ�������û�а취���ж�һ�� C �ַ����ǲ��ǺϷ��ġ���7��������д����
+另一个问题在于，我们是没有办法来判断一个 C 字符串是不是合法的。【7】中这样写到：
 
 #+BEGIN_QUOTE
-���ڸ������κ� C �ַ���������������֤���Ƿ���Ч��
+对于给定的任何 C 字符串，都不可能验证它是否有效：
 
-- �� NUL ��β�� C �ַ�������Ч��
+- 以 NUL 结尾的 C 字符串是有效的
 
-- �κδ�����Ч C �ַ�����ѭ���������޵ģ�������ɻ����������
+- 任何处理无效 C 字符串的循环都是无限的（或者造成缓冲区溢出）
 
-- C �ַ���û��ȷ���ĳ��ȣ�����Ƿ���Ч��Ψһ��ʽ����ͨ���������۲��Ƿ���ֹ
+- C 字符串没有确定的长度，检查是否有效的唯一方式就是通过遍历来观察是否终止
 
-���ԣ���ͨ�����޵�ѭ���Ͳ�������֤ C �ַ�������Ч�ԡ�
+所以，不通过有限的循环就不可能验证 C 字符串的有效性。
 #+END_QUOTE
 
-Ҳ����˵�����ǲ����Ա���Ϊ�ֶα�дһ���ܹ��ж��ַ����Ƿ���Ч�ĺ�������Ϊ���޳�����Ч�ַ�������Ч���ַ������ڱ��������Ľ����һ���ģ������������ѭ����
+也就是说，我们不能以遍历为手段编写一个能够判断字符串是否有效的函数，因为无限长的有效字符串和无效的字符串对于遍历操作的结果是一样的，即不会结束的循环。
 
-*** 2.û���Զ����ڴ����
+*** 2.没有自动的内存管理
 
-�����֪�ַ���������һ����Χ�ڣ�����ʹ�ù̶����ȵ��ֽ����������ڴ洢�ַ�����������Ҫ��̬�ı��ַ�������ʱ���ͱ��봦���ڴ��ķ��䣬�ı��С���ͷţ����ַ������ֶ��ڴ�����������С�����Ǹ����������׳��ֻ���������������ڴ�������⡣
+如果已知字符串长度在一定范围内，可以使用固定长度的字节数组来用于存储字符串。但是需要动态改变字符串长度时，就必须处理内存块的分配，改变大小和释放，对字符串的手动内存管理会带来不小的心智负担，很容易出现缓冲区溢出等其他内存管理问题。
 
-** ���ַ�����صĺ���������
+** 与字符串相关的函数的问题
 
-����������ʵ���Ƕ������ʤ���������г������Ƚϵ��͵ġ�
+这样的问题实在是多的数不胜数，这里列出几个比较典型的。
 
-*** 1.gets ����
+*** 1.gets 函数
 
 #+BEGIN_SRC c
 char * gets(char *);
 #+END_SRC
 
-��Ҫ��ȫ��ʹ����������Ļ�������Ҫ�����֪���㽫���������ַ�������ֻ���ڶ�ȡ��Ϻ����֪��������˶����ַ���Ҳ����˵�ú��������޵Ļ������ռ�����Բ������������룬���Ƿǳ�Σ�յġ����������ַ����������˻��������ȣ����ᵼ�»����������
+想要安全的使用这个函数的话，你需要清楚地知道你将会读入多少字符，但是只有在读取完毕后，你才知道你读入了多少字符。也就是说该函数以有限的缓冲区空间来面对不定数量的输入，这是非常危险的。如果读入的字符数量超过了缓冲区长度，将会导致缓冲区溢出。
 
-�� C11 �У�����������ϳ��ˣ�ʹ�ø��Ӱ�ȫ�� gets_s ���档
+在 C11 中，这个函数被废除了，使用更加安全的 gets_s 代替。
 
-scanf �庯��Ҳ����������⣬���ǿ����ڸ�ʽ���ַ�����ʹ�������������ַ��Ķ����������������
+scanf 族函数也存在这个问题，但是可以在格式化字符串中使用数字来限制字符的读入个数，就像这样
 
 #+BEGIN_SRC c
 char a[32] = {0};
 scanf("%32s", a);
 #+END_SRC
 
-*** 2.fgets ����
+*** 2.fgets 函数
 
 #+BEGIN_SRC c
 char * fgets(char *str, int n, FILE *stream);
 #+END_SRC
 
-����� gets ������˵��fgets ��ȫ�˺ܶ࣬����ͨ���ṩ��󻺳��������� fgets �����ƶ����ַ�����󳤶ȡ������ᵽ fgets ��Ҫ��һЩ���׺��Ե�С�ӡ�
+相比于 gets 函数来说，fgets 安全了很多，可以通过提供最大缓冲区参数给 fgets 来限制读入字符的最大长度。这里提到 fgets 主要是一些容易忽略的小坑。
 
-����ԭ���е� n �ǻ������ĳ��ȣ��������ַ�������󳤶ȡ�fgets ��ѻ��з�Ҳ���� str �У����������ַ������ȴ��ڵ��� n - 1�����з��ᱻ����������������
+函数原型中的 n 是缓冲区的长度，而不是字符串的最大长度。fgets 会把换行符也放入 str 中，如果输入的字符串长度大于等于 n - 1，则换行符会被舍弃，就像这样：
 
 #+BEGIN_SRC c
 char a[5];
@@ -221,18 +221,18 @@ fgets(a, 5, stdin);
 for (int i = 0; i < 5; i++) printf("%d ", a[i]);
 
 
-//���� abcdef����õ� 97 98 99 100 0���ɼ����в����ڻ��з� 10
+//输入 abcdef，会得到 97 98 99 100 0，可见其中不存在换行符 10
 #+END_SRC
 
-��һ���������Ǵӡ�8�����˽⵽�ģ�ԭ�����£�
+另一个问题我是从【8】中了解到的，原文如下：
 
 #+BEGIN_QUOTE
 fgets has the unusual semantic of ignoring '\0's that occur before '\n's are consumed.
 #+END_QUOTE
 
-�����������˼���ǣ�fgets ���в�ͬѰ�������ʣ�������Գ����� '\n' ֮ǰ�����п��ַ���
+翻译过来的意思就是：fgets 具有不同寻常的性质，它会忽略出现在 '\n' 之前的所有空字符。
 
-����仰���������أ�������Ĵ�������ʵ��ɣ�
+对这句话作何理解呢？用下面的代码做个实验吧：
 
 #+BEGIN_SRC c
 #include <stdio.h>
@@ -264,15 +264,15 @@ int main(void)
 }
 #+END_SRC
 
-����������������ǣ� =121 121 0 0 0 0 0 0 0 0 10 0 1 1 1 1 1 1 1 1= ��Ҳ����˵ fgets ��ȡ���ڻ��з�֮ǰ�����п��ַ�����û�жԿ��ַ���һ��������������ʹ���ߴ����������ǣ��������Ͳ�֪�������˶��ٸ����ַ�����ֻ֪���ַ���������ֹ�ˡ�
+上述代码的输出结果是： =121 121 0 0 0 0 0 0 0 0 10 0 1 1 1 1 1 1 1 1= 。也就是说 fgets 读取了在换行符之前的所有空字符，并没有对空字符进一步处理。这样对使用者带来的问题是，他根本就不知道读入了多少个空字符，他只知道字符串正常截止了。
 
-*** 3.strcat ����
+*** 3.strcat 函数
 
 #+BEGIN_SRC c
 char * strcat ( char * destination, const char * source );
 #+END_SRC
 
-��������Ĺ����ǽ� source �ַ������ӵ� destination �ַ����������ǿ�������Ĵ��룺
+这个函数的功能是将 source 字符串连接到 destination 字符串。让我们看看下面的代码：
 
 #+BEGIN_SRC c
 char a[20] = "Hello";
@@ -280,21 +280,21 @@ strcat(a, a);
 puts(a);
 #+END_SRC
 
-����Ϊ��δ���������ʲô���� =HelloHello= ��Ȼ�������ֱ�ӱ�����VS �����������Ľ���ǣ�0xC0000005: Access violation writing location 0x00F40000.
+你认为这段代码的输出是什么，是 =HelloHello= 吗？然而结果是直接崩溃。VS 调试器给出的结果是：0xC0000005: Access violation writing location 0x00F40000.
 
-�ڡ�2���� strcat ��ҳ�����������ĺ���������
+在【2】的 strcat 子页面中有这样的函数描述：
 
 #+BEGIN_QUOTE
-source��C string to be appended. This should not overlap *destination*.
+source：C string to be appended. This should not overlap *destination*.
 #+END_QUOTE
 
-������˼�ǣ�Դ�ַ�����Ӧ����Ŀ���ַ������ص���
+它的意思是：源字符串不应该与目标字符串相重叠。
 
-�����ʾ�������У��ҵ� source �� destination �ַ����ص��ˣ������ᵼ��ʲô�����أ����ȣ�����ִ��ʱ����Ҫ��֤Դ�ַ�������ģ���Ϊ��Ҫʹ�õ�����ֵ�����ǣ�����Ŀ���ַ�����ֵ����Ҫ�ı�ģ�������Դ�ַ�����Ŀ���ַ�����ͬһ�ַ���������������Ҫ�ı䣬�ֲ��ܱ��ı䣬������һ��ì�ܡ��ڴ��ص���һ��δ������Ϊ�����������Ԥ֪�ĺ�����˴��Ľ��Ͳ��ֲο��ˡ�9��
+上面的示例代码中，我的 source 和 destination 字符串重叠了，这样会导致什么问题呢？首先，函数执行时是需要保证源字符串不变的，因为需要使用到它的值。但是，由于目标字符串的值是需要改变的，又由于源字符串和目标字符串是同一字符串，所以它既需要改变，又不能被改变，这会带来一个矛盾。内存重叠是一种未定义行为，会带来不可预知的后果。此处的解释部分参考了【9】
 
-����˵��������ʹ�ó���С�� 4 ���ַ�������������Ĵ���Ļ����ǿ��Եõ���ȷ�Ľ���ģ��ҵ����л����� VS2019���������������Ҳ�޴����֣�������������ɡ�
+话又说回来，我使用长度小于 4 的字符串来运行上面的代码的话，是可以得到正确的结果的，我的运行环境是 VS2019，关于这个问题我也无从下手，就先留在这里吧。
 
-���� strcat ��Ե�������һ���ձ�����⣬�Ǿ����ڴ��ص���
+上面 strcat 面对的问题是一个普遍的问题，那就是内存重叠。
 
 *** 4.strncpy
 
@@ -302,9 +302,9 @@ source��C string to be appended. This should not overlap *destination*.
 char * strncpy ( char * destination, const char * source, size_t num );
 #+END_SRC
 
-����� num ��Դ�ַ���Ҫ���Ƶ�Ŀ���ַ������ַ�������
+这里的 num 是源字符串要复制到目的字符串的字符数量。
 
-�������������������һ��С�㣬�Ǿ��ǣ�
+关于这个函数，这里提一个小点，那就是：
 
 #+BEGIN_QUOTE
 Copies the first *num* characters of *source* to *destination*. If the end of the *source* C string (which is signaled by a null-character) is found before *num* characters have been copied, *destination* is padded with zeros until a total of *num* characters have been written to it.
@@ -312,9 +312,9 @@ Copies the first *num* characters of *source* to *destination*. If the end of th
 No null-character is implicitly appended at the end of *destination* if *source* is longer than *num*. Thus, in this case, *destination* shall not be considered a null terminated C string (reading it as such would overflow).
 #+END_QUOTE
 
-�����������˼���ǣ������ὫԴ�ַ�����ǰ num ���ַ�������Ŀ���ַ���������� num ���ַ�������֮ǰ�͵���Դ�ַ����Ľ�β����ô����Ŀ���ַ����������ƿ��ַ���ֱ�� num ���ַ������ơ����Դ�ַ����ĳ��ȴ��ڵ��� num����ôĿ��Ľ�β�Ͳ����п��ַ���
+翻译过来的意思就是：函数会将源字符串的前 num 个字符拷贝给目标字符串。如果在 num 个字符被拷贝之前就到了源字符串的结尾，那么会向目标字符串继续复制空字符，直到 num 个字符被复制。如果源字符串的长度大于等于 num，那么目标的结尾就不会有空字符。
 
-���������Ļ�������ʹ�����µĴ������ԱȲ�ͬ num ʱ��������Ϊ��
+具体来看的话，可以使用以下的代码来对比不同 num 时函数的行为：
 
 #+BEGIN_SRC c
 #include <stdio.h>
@@ -346,7 +346,7 @@ int main(void)
 }
 #+END_SRC
 
-���н��Ϊ��
+运行结果为：
 
 #+BEGIN_EXAMPLE
 72 101 108 108 1 1 1 1 1 1
@@ -354,31 +354,31 @@ int main(void)
 72 101 108 108 111 0 1 1 1 1
 #+END_EXAMPLE
 
-���Կ�����ֻ�� num Ϊ 6 ʱ��Ŀ��Ľ�β�Ż��п��ַ���
+可以看到，只有 num 为 6 时，目标的结尾才会有空字符。
 
-*** 5.strtok ����
+*** 5.strtok 函数
 
 #+BEGIN_SRC c
 char * strtok ( char * str, const char * delimiters );
 #+END_SRC
 
-��������Ϊ�б�Ҫ��ϸ�ؽ���һ����������Ĺ������̡������������ԡ�2���� strtok ��ҳ�档
+这里我认为有必要详细地介绍一下这个函数的工作过程。以下内容来自【2】的 strtok 子页面。
 
 #+BEGIN_QUOTE
-�Ըú�����һϵ�е��ÿ��Խ� str �ֳ�һ���� token��token ֮��ԭ���� delimiters �е��ַ��ֿ���
+对该函数的一系列调用可以将 str 分成一个个 token，token 之间原本由 delimiters 中的字符分开。
 
-�ڵ�һ�ε���ʱ�������������һ���ַ��� str��str �ĵ�һ���ַ��ᱻ��Ϊɨ�迪ʼ�ص㡣�����ĵ����У������� str ����Ӧ��Ϊ NULL���ú���ʹ����һ�� token �Ľ�β����Ϊ�µ� token �Ŀ�ͷ��������ɨ�衣
+在第一次调用时，这个函数接受一个字符串 str，str 的第一个字符会被作为扫描开始地点。在随后的调用中，函数的 str 参数应该为 NULL，该函数使用上一个 token 的结尾来作为新的 token 的开头，并进行扫描。
 
-Ϊ�ж� token �Ŀ�ͷ�ͽ�β���ú�����ӿ�ʼλ��ɨ�裬�ҵ���һ�����Ƿָ��ַ����ַ�����Ϊ token �Ŀ�ͷ�����ʼѰ�ҷָ������ҵ��ĵط��ͳ��� token �Ľ�β�����ҵ����ַ�ʱ��ɨ��Ҳ�������
+为判断 token 的开头和结尾，该函数会从开始位置扫描，找到第一个不是分隔字符的字符来作为 token 的开头。随后开始寻找分隔符，找到的地方就成了 token 的结尾。当找到空字符时，扫描也会结束。
 
-token �Ľ�β�ᱻ�Զ��滻Ϊһ�����ַ����������� token ��ͷ�ĵ�ַ��
+token 的结尾会被自动替换为一个空字符，函数返回 token 开头的地址。
 
-һ�� strtok �����˿��ַ����������ĵ��ö��᷵�ؿ�ָ�롣
+一旦 strtok 遇到了空字符，随后对它的调用都会返回空指针。
 
-��һ�� token ���ҵ���λ�ûᱻ strtok �������ڲ����棬��������һ�ε��á�
+上一个 token 被找到的位置会被 strtok 函数在内部保存，并用于下一次调用。
 #+END_QUOTE
 
-�������ľ���ʹ�ã������Ҿ�һ���򵥵����ӣ�
+关于它的具体使用，这里我举一个简单的例子：
 
 #+BEGIN_SRC c
 #include <stdio.h>
@@ -402,7 +402,7 @@ int main(void)
 }
 #+END_SRC
 
-���н��Ϊ��
+运行结果为：
 
 #+BEGIN_QUOTE
 hello
@@ -416,54 +416,54 @@ hhhhh
 (h)(104)(e)(101)(l)(108)(l)(108)(o)(111)( )(0)(,)(44)( )(32)(a)(97)(b)(98)(c)(99)(d)(100)(e)(101)( )(0)(,)(44)( )(32)(w)(119)(o)(111)(c)(99)(o)(111)(a)(97)( )(0)( )(32)(-)(45)( )(32)(h)(104)(h)(104)(h)(104)(h)(104)(h)(104)( )(0)
 #+END_QUOTE
 
-���Կ���������token ��β���ķָ������滻Ϊ�˿��ַ���
+可以看到，其中token 结尾处的分隔符被替换为了空字符。
 
-ʵ���ϣ��Ҽ���û���õ�����������������������⣬����ͨ����������õ��ģ������һ��ĳ���ش�11������һЩ���룺
-
-#+BEGIN_QUOTE
-ͨ��������������Ļ����������ǹ����������������⣬Ȼ�󽫶�������Ľⷨ��������������������⡣
-
-strtok �Ĺ�����ʽ����Υ����������������һ�����ɿ�����������Ϊ������������ܲ
-
-tokenization �ĸ��������ǣ�����һ���ַ�����Ҫ��õ���ĳ��λ�ÿ�ʼ�� token �Ľ�β��given a position in a string, give the position of the end of the token beginning at that position������� strtok �����������Ļ��������Ǻܲ����ġ��⽫����һ�������ĳ����������������������ȫ��״̬����Ҳ������ı��Լ��������ַ�����
-
-Ҫ�뿴�� strtok�ľ����ԣ�����һ������Ҫ tokenize һ�����ԣ�����ϣ���Կո���Ϊ�ָ������������ǲ�ϣ���� =""= ֮�ڵ����ݱ� tokenized����������£����Ǿ�ϣ���Ա����ŵ�����ʹ�ò�ͬ�Ĺ��򣬲����ͺ����ʹ�ÿո���Ϊ�ָ��������� strtok ��������һ�㣬��ֻ�ܴ����򵥵� tokenization ������
-
-�ʷ���������Lexer��д�������ѡ�д�Ͷ��ˣ�
-
-�����д���ǲ��ɱ䣨immutable���� Lexer���Ǿ͸���һЩ�����ɱ�Ĵʷ���������һ��С�����������Ա��������ַ������������ʷ���������ǰλ�úʹʷ�����������Ҫ��״̬��Ҫ��ȡһ�� token������Ե��� "next token" ��������õ� token ��һ���µĴʷ����������µĴʷ��������ֿ��Լ���������һ�� token �ϡ�����԰������ϲ��ע����֮ǰ�Ĵʷ���������
-#+END_QUOTE
-
-���ڱ��˵�Ӣ��ˮƽ���ޣ�����ķ���������в�ͨ˳�ĵط��������ֱ���Ķ�ԭ������ø��õ����顣
-
-���������д��ʾ������������һ�η��룬���ǿ��԰� strtok ��������������ܽ�һ�£�
-
-- ��ı䱻�������ַ�����ֵ
-
-- ��Ҫ�洢�ַ�����λ�ã�����һ�ε���ʹ��
-
-- ��Ҫ��ε�������ɶ�һ���ַ����� tokenize
-
-- tokenize �������� trivial
-
-
-������Կ����������޷�ͬʱ���������ַ����ģ����һ���ַ���������һ�룬��ʹ����һ���ַ�����Ϊ str �����Ļ����ڲ��洢λ�õ�ָ��ᱻ���³�ʼ����������ԭ���ַ����Ĵ������ȶ�ʧ��������ʹ�ú��� strtok_r �����������⣬������һ��ָ��������������浱ǰ���ַ�������λ�á�
-
-����ÿ����һ�ζ���ı��ڲ�������״̬����Ҳ���ǿ�����ġ��Ӷ�Ҳ�����̰߳�ȫ�ġ�������MS �� strtok ���̰߳�ȫ�ģ�����Ϊÿһ���߳�׼��һ���������洢��ǰ��λ�á��������£�
+实际上，我几乎没有用到过这个函数，关于它的问题，我是通过搜索引擎得到的，下面我会对某个回答【11】进行一些翻译：
 
 #+BEGIN_QUOTE
-Each function uses a thread-local static variable for parsing the string into tokens. Therefore, multiple threads can simultaneously call these functions without undesirable effects.��13��
+通过编程来解决问题的基础技术就是构造抽象来解决子问题，然后将对子问题的解法进行组合来解决更大的问题。
+
+strtok 的工作方式严重违背了上述规则：它是一个不可靠的糟糕抽象，因为它的组合能力很差。
+
+tokenization 的根本问题是：给定一个字符串，要求得到从某个位置开始的 token 的结尾（given a position in a string, give the position of the end of the token beginning at that position）。如果 strtok 仅仅这样做的话，它还是很不错的。这将会是一个清晰的抽象，它将不会依赖于隐层的全局状态，它也将不会改变自己的输入字符串。
+
+要想看到 strtok的局限性，想象一下我们要 tokenize 一种语言，我们希望以空格作为分隔符，但是我们不希望在 =""= 之内的内容被 tokenized。这种情况下，我们就希望对被引号的内容使用不同的规则，并在滞后继续使用空格作为分隔符。但是 strtok 做不到这一点，它只能处理简单的 tokenization 工作。
+
+词法分析器（Lexer）写起来不难。写就对了！
+
+如果你写的是不可变（immutable）的 Lexer，那就更好一些。不可变的词法分析器是一个小对象，它包含对被分析的字符串的索引，词法分析器当前位置和词法分析器所需要的状态。要提取一个 token，你可以调用 "next token" 方法，你得到 token 和一个新的词法分析器。新的词法分析器又可以继续用在下一个 token 上。你可以按照你的喜好注销掉之前的词法分析器。
 #+END_QUOTE
 
-** �����Ӱ˵�����
+由于本人的英文水平有限，上面的翻译难免会有不通顺的地方，你可以直接阅读原文来获得更好的体验。
 
-�ⲿ���������Ͽ��ܺ���һС����Щ�غϣ���������������������ǵ����������ӽ��������ַ������������� string.h �е�ĳЩ��������6���гƺ�����Ϊ /idiotic API design/ ������������һһ������
+结合上面我写的示例代码和上面的一段翻译，我们可以把 strtok 这个函数的特性总结一下：
 
-- strcpy��strncpy��strcat��strncat �ķ���ֵ����Ŀ���ַ�����������ЩĿ���ַ����ǵ����ߴ���ȥ�ģ������ߵ�Ȼ��ֱ��Ŀ���ַ�������������ò�����Щ����ֵ��
+- 会改变被解析的字符串的值
 
-- ������ĺ�����û�ж��ַ�������󳤶Ƚ������ƣ�Ҳ����˵����ַ������Ϸ��Ļ��������ֱ�滺������������⡣MS �� strsafe.h ���еİ�ȫ�ַ������������˳��Ȳ������� string.h �еĺ�����ȫ���٣���ȻҲ�����˲��١�
+- 需要存储字符串的位置，供下一次调用使用
 
-- ������ǲ����ڲ�Ӧ�õĵط�ʹ�� NULL ����Ϊ�ַ��������Ļ������������º����������Է���ֵ����ʽ���������ʧ�ܣ����Ǻܿ�����Ϊδ����Ŀ�ָ����ʶ�ֱ�ӱ�����
+- 需要多次调用来完成对一个字符串的 tokenize
+
+- tokenize 的能力很 trivial
+
+
+这里可以看出，它是无法同时处理两个字符串的，如果一个字符串处理了一半，再使用另一个字符串作为 str 参数的话，内部存储位置的指针会被重新初始化，进而把原先字符串的处理进度丢失掉。可以使用函数 strtok_r 来解决这个问题，它接受一个指针参数，用来保存当前的字符串处理位置。
+
+由于每调用一次都会改变内部变量的状态，它也不是可重入的。从而也不是线程安全的。不过，MS 的 strtok 是线程安全的，它会为每一个线程准备一个变量来存储当前的位置。引文如下：
+
+#+BEGIN_QUOTE
+Each function uses a thread-local static variable for parsing the string into tokens. Therefore, multiple threads can simultaneously call these functions without undesirable effects.【13】
+#+END_QUOTE
+
+** 杂七杂八的问题
+
+这部分在内容上可能和上一小节有些重合，但是这里是以整体而不是单个函数的视角来看待字符串函数。对于 string.h 中的某些函数，【6】中称呼它们为 /idiotic API design/ 。我们在下面一一分析。
+
+- strcpy，strncpy，strcat，strncat 的返回值就是目标字符串，但是这些目标字符串是调用者传过去的，调用者当然会直到目标字符串在哪里，根本用不到这些返回值。
+
+- 大多数的函数都没有对字符串的最大长度进行限制，也就是说如果字符串不合法的话，程序会直面缓冲区溢出的问题。MS 的 strsafe.h 库中的安全字符串函数加上了长度参数，比 string.h 中的函数安全不少，当然也难用了不少。
+
+- 如果我们不慎在不应该的地方使用 NULL 来作为字符串参数的话，大多数情况下函数并不会以返回值的形式告诉你调用失败，而是很可能因为未定义的空指针访问而直接崩掉。
 
 
 #+BEGIN_SRC c
@@ -473,55 +473,55 @@ strcat(a, "hhhh");
 .....
 #+END_SRC
 
-- �����ַ��������࣬�����ʱ�临�Ӷȿ�����ָ����ʽ�����ġ�����������
+- 随着字符串的增多，上面的时间复杂度可是以指数形式增长的。。。。。。
 
-* �ܽ�
+* 总结
 
-������ô˵��C ���Ե��ַ������������ڿ����Ѿ�������ˡ�
+不管怎么说，C 语言的字符串机制在现在看来已经很落后了。
 
-�����ٿ��������ܽ᣺C �ַ���û���ڴ�������ƣ��ַ�����������û�д����飬�����ӿ���Ʋ������������������ң��ȵ�...... ��Щȱ�ݺܴ�̶���������ʷԭ�򣬱Ͼ� C ���Գ�����ʱ��û�ж��߳����ֶ���������Щ��������ʹ�õ�ʱ�� C ���Ի�û��һ���Ͻ�ͳһ�ı�׼�� /The C Standard Library/ ������д����
+我至少可以这样总结：C 字符串没有内存管理机制，字符串函数操作没有错误检查，函数接口设计不合理，函数功能杂乱，等等...... 这些缺陷很大程度上来自历史原因，毕竟 C 语言出生的时候还没有多线程这种东西。在这些函数大量使用的时候， C 语言还没有一个严谨统一的标准。 /The C Standard Library/ 中这样写到：
 
 #+BEGIN_QUOTE
-������˿��ܲ����뵽��Щ������һЩ���ȱ�ݡ�<string.h> �������ĺ������ǹ�ͬ���Ŭ���Ľ�����෴���������ɺܶ����Ա�ںܳ���ʱ���������Ĺ��׻��������ġ��� C ��׼����ʼ��ʱ�򣬡������������Ѿ�̫���ˣ�̫��ĳ���Ժ�������Ϊ�Ѿ�������ȷ�Ķ��塣
+大多数人可能不会想到这些函数有一些设计缺陷。<string.h> 中声明的函数不是共同设计努力的结果。相反，它们是由很多程序员在很长的时间力做出的贡献积累起来的。到 C 标准化开始的时候，“修整”他们已经太晚了，太多的程序对函数的行为已经有了明确的定义。
 #+END_QUOTE
 
-��������൱������̬���������Щ�����Ļ����ڱ�̵Ĺ����к�����һ��һ���ӡ�����̫���ʹ�����Ǹ���̫�أ�����ڱ��Ч�ʻ�����ǳ����Ӱ�졣�����ֱ��ʹ����Щ�Ͼɵĺ�����ʹ�ø��¸���ȫ�Ŀ�����������֮�١�
+如果不以相当谨慎的态度来面对这些函数的话，在编程的过程中很容易一脚一个坑。顾虑太多会使得心智负担太重，这对于编程效率会带来非常大的影响。相比于直接使用这些老旧的函数，使用更新更安全的库无疑是明智之举。
 
-�����ҿ�ʼ��д�Լ����ַ������ʱ�������ٻ�ע�����¼��㣺
+将来我开始编写自己的字符串库的时候，我至少会注意以下几点：
 
-- ���ַ������ϳ���
+- 给字符串加上长度
 
-- ���Ӽ򵥵��ڴ��������
+- 添加简单的内存管理功能
 
-- ע�� API �����
+- 注意 API 的设计
 
 - ......
 
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> [[https://en.wikipedia.org/wiki/C_string_handling][C string handling - Wikipedia]]
+<<<【1】>>> [[https://en.wikipedia.org/wiki/C_string_handling][C string handling - Wikipedia]]
 
-<<<��2��>>> [[http://www.cplusplus.com/reference/cstring/][<cstring> (string.h) - C++ Reference (cplusplus.com)]]
+<<<【2】>>> [[http://www.cplusplus.com/reference/cstring/][<cstring> (string.h) - C++ Reference (cplusplus.com)]]
 
-<<<��3��>>> [[https://en.wikipedia.org/wiki/Escape_sequences_in_C][Escape sequences in C - Wikipedia]]
+<<<【3】>>> [[https://en.wikipedia.org/wiki/Escape_sequences_in_C][Escape sequences in C - Wikipedia]]
 
-<<<��4��>>> [[https://en.wikibooks.org/wiki/C_Programming/wchar.h#:~:text=h%20is%20a%20header%20file,multibyte%20and%20wide%20character%20utilities.][C Programming/wchar.h - Wikibooks, open books for an open world]]
+<<<【4】>>> [[https://en.wikibooks.org/wiki/C_Programming/wchar.h#:~:text=h%20is%20a%20header%20file,multibyte%20and%20wide%20character%20utilities.][C Programming/wchar.h - Wikibooks, open books for an open world]]
 
-<<<��5��>>> [[https://stackoverflow.com/questions/10439680/wchar-t-and-encoding][c++ - wchar_t and encoding - Stack Overflow]]
+<<<【5】>>> [[https://stackoverflow.com/questions/10439680/wchar-t-and-encoding][c++ - wchar_t and encoding - Stack Overflow]]
 
-<<<��6��>>> [[https://symas.com/the-sad-state-of-c-strings/][The Sad State of C Strings | Symas Corporation]]
+<<<【6】>>> [[https://symas.com/the-sad-state-of-c-strings/][The Sad State of C Strings | Symas Corporation]]
 
-<<<��7��>>> [[http://c.learncodethehardway.org/book/][Learn C the Hard Way]]
+<<<【7】>>> [[http://c.learncodethehardway.org/book/][Learn C the Hard Way]]
 
-<<<��8��>>> [[http://bstring.sourceforge.net/][The Better String Library (sourceforge.net)]]
+<<<【8】>>> [[http://bstring.sourceforge.net/][The Better String Library (sourceforge.net)]]
 
-<<<��9��>>> [[https://bbs.bccn.net/thread-499485-1-1.html][�����̳ - strcat(p, p) �����������е����� (bccn.net)]]
+<<<【9】>>> [[https://bbs.bccn.net/thread-499485-1-1.html][编程论坛 - strcat(p, p) 不能正常运行的问题 (bccn.net)]]
 
-<<<��10��>>> [[http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1173.pdf][TR 24731 Rationale (open-std.org)]]
+<<<【10】>>> [[http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1173.pdf][TR 24731 Rationale (open-std.org)]]
 
-<<<��11��>>> [[https://stackoverflow.com/questions/44336831/why-should-strtok-be-deprecated#:~:text=strtok%27s%20behaviour%20works%20directly%20against,token%20beginning%20at%20that%20position.][c - Why should strtok() be deprecated? - Stack Overflow]]
+<<<【11】>>> [[https://stackoverflow.com/questions/44336831/why-should-strtok-be-deprecated#:~:text=strtok%27s%20behaviour%20works%20directly%20against,token%20beginning%20at%20that%20position.][c - Why should strtok() be deprecated? - Stack Overflow]]
 
-<<<��12��>>> [[https://en.wikipedia.org/wiki/Joel_Spolsky#Schlemiel_the_Painter.27s_algorithm][Joel Spolsky - Wikipedia]]
+<<<【12】>>> [[https://en.wikipedia.org/wiki/Joel_Spolsky#Schlemiel_the_Painter.27s_algorithm][Joel Spolsky - Wikipedia]]
 
-<<<��13��>>> [[https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/strtok-strtok-l-wcstok-wcstok-l-mbstok-mbstok-l?view=msvc-160][strtok, _strtok_l, wcstok, _wcstok_l, _mbstok, _mbstok_l | Microsoft Docs]]
+<<<【13】>>> [[https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/strtok-strtok-l-wcstok-wcstok-l-mbstok-mbstok-l?view=msvc-160][strtok, _strtok_l, wcstok, _wcstok_l, _mbstok, _mbstok_l | Microsoft Docs]]

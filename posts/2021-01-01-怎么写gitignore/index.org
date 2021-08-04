@@ -1,53 +1,53 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: ��ôдgitignore
+#+TITLE: 怎么写gitignore
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNDM0NTA1.jpg" alt="load failed"></div>@@
 #+DATE: [2021-01-01 Fri]
 #+TAGS: git
 
-* ʲô�� .gitignore
+* 什么是 .gitignore
 
-.gitignore ��һ���ļ���������ָ�� git ��Ҫ���Ե��ļ��������Ѿ��� git ���ٵ��ļ��ǲ������õġ�
+.gitignore 是一个文件，它用来指定 git 需要忽略的文件。它对已经被 git 跟踪的文件是不起作用的。
 
-�� =gitignore= �ļ��е�ÿһ�ж�ָ����һ�� pattern�����ж��Ƿ�Ҫ����һ��·��ʱ��git һ����� =gitignore= �� pattern��pattern ����Դ���Բ������� =.gitignore= �ļ�����ϸ������Բο���1����
+在 =gitignore= 文件中的每一行都指定了一个 pattern，在判断是否要忽略一个路径时，git 一般会检查 =gitignore= 的 pattern。pattern 的来源可以不仅仅是 =.gitignore= 文件，详细情况可以参考【1】。
 
-* pattern �ĸ�ʽ
+* pattern 的格式
 
-- һ�����в���ƥ���κ��ļ���������������߿ɶ���
+- 一个空行不会匹配任何文件，它可以用来提高可读性
 
-- �� =#= ��ͷ������ע�ͣ�Ҫʹ�� =#= �ַ��Ļ��������� =#= ��ǰ����Ϸ�б�� =\=
+- 以 =#= 开头的行是注释，要使用 =#= 字符的话，可以在 =#= 的前面加上反斜杠 =\=
 
-- ��ĩ�Ŀո�ᱻ���Ե�������ʹ�÷�б�� =\= ������������
+- 行末的空格会被忽略掉，除非使用反斜杠 =\= 将它们括起来
 
-- б�� =/= ����Ŀ¼�ָ����������Գ����� pattern ��ǰ�棬�м�����
+- 斜杠 =/= 用作目录分隔符。它可以出现在 pattern 的前面，中间和最后。
 
-  - ���б�ܳ����� pattern ��ǰ����м䣨�����߶��У�����ô���ģʽ��ʾ���� =.gitignore= �ļ�����Ŀ¼�����Ŀ¼������ pattern Ҳ���������� =.gitignore= ����Ŀ¼�������¼�Ŀ¼����ƥ��
+  - 如果斜杠出现在 pattern 的前面或中间（或两者都有），那么这个模式表示的是 =.gitignore= 文件所在目录的相对目录。否则 pattern 也可能在任意 =.gitignore= 所在目录的任意下级目录进行匹配
 
-  - ����ָ����� pattern ��ĩβ����ô��� pattern ֻ��ƥ��Ŀ¼������������ƥ���ļ���Ŀ¼
+  - 如果分隔符在 pattern 的末尾，那么这个 pattern 只会匹配目录，否则它可以匹配文件和目录
 
-- �Ǻ� =*= ����ƥ���б�� =/= ����κζ������ʺ� =?= ƥ��� =/= �������һ���ַ�����Χ�Ǻ� =[a-zA-Z]= ����ƥ���ڷ�Χ�ڵ�һ���ַ���
+- 星号 =*= 用于匹配除斜杠 =/= 外的任何东西，问号 =?= 匹配除 =/= 外的任意一个字符。范围记号 =[a-zA-Z]= 可以匹配在范围内的一个字符。
 
-- ˫�Ǻ� =**= ��ƥ��·����ʱ����������
+- 双星号 =**= 在匹配路径名时有特殊意义
 
-  - =**/= ��������Ŀ¼�н���ƥ�䡣���� pattern =**/foo= ��ƥ������λ�õ� =foo= ���ͺ� pattern =foo= һ���� =**/foo/bar= ��ƥ������λ�õ� =bar= ��ֻҪ����Ŀ¼ =foo= ֮��
+  - =**/= 会在所有目录中进行匹配。例如 pattern =**/foo= 会匹配任意位置的 =foo= ，就和 pattern =foo= 一样。 =**/foo/bar= 会匹配任意位置的 =bar= ，只要它在目录 =foo= 之下
 
-  - =/**= ��ƥ���κ�������Ķ��������� pattern =abc/**= ��ƥ����� =.gitignore= ����Ŀ¼��Ŀ¼ =abc= �ڵ������ļ����Ҳ����ļ��е����
+  - =/**= 会匹配任何在里面的东西。例如 pattern =abc/**= 会匹配相对 =.gitignore= 所在目录的目录 =abc= 内的所有文件，且不论文件夹的深度
 
-  - =/**/= ��ƥ�� 0 �������ļ�Ŀ¼�����磬 =a/**/b= ��ƥ�� =a/b= �� =a/x/b= �� =a/x/y/b= ��
+  - =/**/= 会匹配 0 个或多个文件目录。例如， =a/**/b= 会匹配 =a/b= ， =a/x/b= ， =a/x/y/b= 等
 
-  - ������˫�ǺŻᱻ����һ����ַ�����ƥ��
+  - 其他的双星号会被当做一般的字符进行匹配
 
-- ��̾�� =!= ǰ׺�Ὣ pattern ��ת������֮ǰ���ų����ļ��ᱻ���°�������������ļ��ĸ�Ŀ¼���ɳ��ˣ���ô����ļ��Ͳ��ܱ����°����ˡ�
+- 感叹号 =!= 前缀会将 pattern 反转。任意之前被排除的文件会被重新包含进来。如果文件的父目录被派出了，那么这个文件就不能被重新包含了。
 
 
-�������ݷ����Բο����ϡ�1�����ο�ʱ����2021.1.1, utc+8���ĵ���ҳ������ʱ�䷢���Ķ�����ʵ�������з��������������ݲ������¼�������ǰ���ٷ�ҳ��ο���
+以上内容翻译自参考资料【1】，参考时间是2021.1.1, utc+8。文档网页可能随时间发生改动，如实践过程中发现了与上述内容不符的事件，可以前往官方页面参考。
 
-* һ�����ӣ�emacs �����ļ��� .gitignore
+* 一个例子，emacs 配置文件的 .gitignore
 
-�� github ������һ�ѣ��Ϳ��Կ���һ�ѵ� emacs.d��Ŀǰ��������� star �ľ���[[https://github.com/purcell/emacs.d][purcell/emacs.d]]����������Ļ��� [[https://github.com/redguardtoo/emacs.d][redguardtoo/emacs.d]]��[[https://github.com/seagle0128/.emacs.d][seagle0128/.emacs.d]] �ȵȡ�
+在 github 上随手一搜，就可以看到一堆的 emacs.d，目前看到的最多 star 的就是[[https://github.com/purcell/emacs.d][purcell/emacs.d]]，在他下面的还有 [[https://github.com/redguardtoo/emacs.d][redguardtoo/emacs.d]]，[[https://github.com/seagle0128/.emacs.d][seagle0128/.emacs.d]] 等等。
 
-����Щ repo �� =.gitignore= ȫ���������е�̫ռλ���ˣ��һ��ǰ����Ƕ��е� pattern �ù����򵥵���һ��˵�����ˡ�
+把这些 repo 的 =.gitignore= 全部贴过来有点太占位置了，我还是把它们都有的 pattern 拿过来简单的做一下说明算了。
 
-�����ۺϺ��൱�̶ȵļ򻯣��õ������µ� pattern��
+经过综合和相当程度的简化，得到了如下的 pattern：
 
 #+BEGIN_SRC sh
 /auto-save-list
@@ -61,37 +61,37 @@ elpa/
 /history
 #+END_SRC
 
-�����������ľ��� =*~= �����û�йر� make-backup-files�Ļ����ڱ༭��һ���ļ���emacs �ᱣ��һ����������������ԭ�ļ���������� =~= ��ʹ�� pattern =*~= ���Խ�����ԡ�
+其中最好理解的就是 =*~= 。如果没有关闭 make-backup-files的话，在编辑完一个文件后，emacs 会保留一个副本，名字是在原文件名后面加上 =~= 。使用 pattern =*~= 可以将其忽略。
 
-/elpa �Ǻ��Ե����صĲ����elpa һ���Ƿ��ò�����ļ��С�����Ҳ���Կ��� =elpa/= ��д����
+/elpa 是忽略掉下载的插件，elpa 一般是放置插件的文件夹。上面也可以看到 =elpa/= 的写法。
 
-=/auto-save-list= �� =/recentf= �� =/history= �� emacs ���ɵ��ļ��У����һЩ�ļ������ǲ����������ļ���
+=/auto-save-list= ， =/recentf= 和 =/history= 是 emacs 生成的文件夹，存放一些文件，它们不属于配置文件。
 
-=\#~= �Ǻ��Ե��� # ��ͷ���ļ�������һ���Ǳ༭ʱ��ʱ���ڵ��ļ���
+=\#~= 是忽略掉以 # 开头的文件，它们一般是编辑时临时存在的文件。
 
-* ʹ�� .gitignore ��һЩ��������
+* 使用 .gitignore 的一些常见问题
 
-** �ļ������٣�����Ҫ���뵽 .gitignore��
+** 文件被跟踪，但需要加入到 .gitignore中
 
-�������ڿ�ͷ˵��������gitignore ���ѱ����ٵ��ļ��ǲ������õġ���ô��ʱ��Ӧ����δ����أ�
+就像我在开头说的那样，gitignore 对已被跟踪的文件是不起作用的。那么这时候应该如何处理呢？
 
-�ο���2�������˽����ʽ
+参考【2】给出了解决方式
 
-���ڱ����ٵ��ļ�������ִ������������ȡ�����٣�
+对于被跟踪的文件，可以执行以下命令来取消跟踪：
 
 #+BEGIN_SRC sh
 git rm --cached <file>
 #+END_SRC
 
-����һ�����ļ��У����Լ��� -r ������
+对于一整个文件夹，可以加上 -r 参数：
 
 #+BEGIN_SRC sh
 git rm -r --cached <folder>
 #+END_SRC
 
-���� add �Ͳ�������� =gitignore= �б����� pattern ��ƥ����ļ��ˡ�
+随后的 add 就不会包含在 =gitignore= 中标明的 pattern 所匹配的文件了。
 
-���鷳�Ļ�Ҳ����������
+嫌麻烦的话也可以这样：
 
 #+BEGIN_SRC sh
 git rm -r --cached .
@@ -99,11 +99,11 @@ git add .
 git commit -m "fixed untracked files"
 #+END_SRC
 
-* �����Ķ�
+* 延申阅读
 
-github ���и����� gitignore ����Ŀ��3���������о����������Ե� .gitignore����������������һ���˽��������ӡ�
+github 上有个叫做 gitignore 的项目【3】，里面列举了许多语言的 .gitignore，可以利用它来进一步了解更多的例子。
 
-��������� scheme ��Ӧ�� .gitignore ��������д�ģ�
+比如上面的 scheme 对应的 .gitignore 就是这样写的：
 
 #+BEGIN_SRC sh
 *.ss~
@@ -115,10 +115,10 @@ github ���и����� gitignore ����Ŀ��3���������о����������Ե� .gitignore��������
 .#*.scm
 #+END_SRC
 
-* �ο�����
+* 参考资料
 
-<<<��1��>>> Git - gitignore Documentation (git-scm.com)�� https://git-scm.com/docs/gitignore
+<<<【1】>>> Git - gitignore Documentation (git-scm.com)： https://git-scm.com/docs/gitignore
 
-<<<��2��>>> How to make Git "forget" about a file that was tracked but is now in .gitignore? - Stack Overflow�� https://stackoverflow.com/questions/1274057/how-to-make-git-forget-about-a-file-that-was-tracked-but-is-now-in-gitignore
+<<<【2】>>> How to make Git "forget" about a file that was tracked but is now in .gitignore? - Stack Overflow： https://stackoverflow.com/questions/1274057/how-to-make-git-forget-about-a-file-that-was-tracked-but-is-now-in-gitignore
 
-<<<��3��>>> github/gitignore: A collection of useful .gitignore templates�� https://github.com/github/gitignore
+<<<【3】>>> github/gitignore: A collection of useful .gitignore templates： https://github.com/github/gitignore
