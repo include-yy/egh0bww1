@@ -21,10 +21,18 @@
 	  "\"./"(file-relative-name fn default-directory)"\""
 	  " alt=\"load failed\"></div>@@"))
 
+(defun yy-org-add-img-comment (fn str)
+  (interactive (list (ido-read-file-name ">") (read-string "content: ")))
+  (insert "@@html:<div class=\"yyheadimg\"><img src="
+	  "\"./"(file-relative-name fn default-directory)"\""
+	  " alt=\"load failed\"></div>"
+	  "<div class=\"yyimgcomment\">" str  "</div>@@"))
+
 ;;add title command
 (defun yy-org-add-tit ()
   (interactive)
   (insert (substring (buffer-name) 10)))
+
 (progn
   ;;pre
   (setq org-html-preamble t)

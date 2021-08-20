@@ -1,0 +1,12 @@
+.yyheadimg{
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 60%;
+    border: 1px solid #000;
+}
+.yyimgcomment{
+    font-weight: thin;
+    font-size: 0.5em;
+    text-align: center;
+}
