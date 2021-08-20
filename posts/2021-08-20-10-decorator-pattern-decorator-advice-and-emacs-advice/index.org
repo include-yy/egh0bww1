@@ -1,0 +1,998 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: decorator pattern, decorator&advice, and emacs advice
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMjY2MTM2.jpg" alt="load failed"></div>@@
+#+DATE: [2021-08-11 周三]
+#+TAGS: emacs
+
+在阅读 /elisp manual/ 时，我在 Funciton 一章了解到了 /Advising Functions/ ，它的作用是在不修改函数代码的情况下改变函数的行为。这么看来它和装饰器模式是很像的。正好前段时间读了读  /gof/ ，它在“结构型模式”一章中介绍了 decorator。以它们两个来作为主要内容来介绍装饰器及其使用应该会写出一篇不错的笔记。因此本文主要分为两个部分，即介绍装饰器和 emacs 中的 function advice 。
+
+需要注意的是，装饰器模式（Decorator pattern）和装饰器（decorator）不是同一个东西。装饰器模式是设计模式中的一种，而装饰器是一种拓展函数的机制，它也被叫做 Advice[fn::https://en.wikipedia.org/wiki/Advice_(programming)]。本文中除了会介绍 emacs 的 defadvice 外，还会介绍 Python 中的 decorator 的简单使用。
+
+* 什么是装饰器（What is Decorator）
+
+文章的开头也说到了装饰器模式和装饰器的区别。所以这一节会分为两个小节，分别介绍装饰器模式和装饰器。
+
+** 装饰器模式（Decorator pattern）
+
+首先我们还是从维基百科[fn::[[https://en.wikipedia.org/wiki/Decorator_pattern]]]开始吧，它对 /decorator/ 是这样定义的：
+
+#+BEGIN_QUOTE
+/In object-oriented programming, the decorator pattern is a design pattern that allows behavior to be add to an individual object, dynamically, without affecting the behavior of other objects from the same class. The decorator pattern is often useful for adhering to the Single Responsibility Principle, as it allows functionality to be divided between classes with unique areas of concern. Decorator use can be more efficient than subclassing, because an object's behavior can be argumented without defining an entirely new object./
+
+在 OOP 中， *装饰器模式* 是一种允许在不影响其他同类对象情况下动态改变某个单独对象行为的 *设计模式* 。装饰器模式通常有助于遵守单一职责原则（Single Responsibility Principle），因为它可以实现不同关注点的类的功能的划分。装饰器比子类化更加高效，因为不用定义全新的对象就可以增强对象的行为
+#+END_QUOTE
+
+这里[fn::https://refactoring.guru/design-patterns/decorator]有一段更简洁的定义：
+
+#+BEGIN_QUOTE
+/Decorator is a structural design pattern that lets you attach new behaviors to objects by placing these objects inside special wrapper objects that contain the behaviors./
+
+装饰器是一种结构化的设计模式，它让你可以通过将对象放在包含某些行为的包装器（wrapper）中，来将新的行为附加到对象
+#+END_QUOTE
+
+一言以蔽之，装饰器模式允许你不通过修改对象定义来扩展对象的行为。一张广为流传的图上是这样描述装饰器模式的：
+
+#+CAPTION: decorator pattern, [[https://en.wikipedia.org/wiki/Decorator_pattern#/media/File:Decorator_UML_class_diagram.svg][wikipedia]]
+[[./1.svg]]
+
+从上图中可以看到，Component 是接口类，ConcreteComponent 是具体类，Decorator 是装饰器类，ConcreteDecorator 是具体装饰器。Decorator 的子类可以为特定功能自由地添加一些操作。
+
+在 /gof/ 上作者使用的例子是为文本页面添加滚动条和方框等装饰。在这里我们使用一个更简单的例子，那就是为斐波那契数列计算的类添加一个参数检查功能，毕竟如果使用 32 位无符号整数的话最多存储 Fib(47) 而已[fn::http://www.maths.surrey.ac.uk/hosted-sites/R.Knott/Fibonacci/fibtable.html]。由于 OOP 语言我只会 cpp，下面我们使用它来实现这个简单的装饰器。
+
+首先，定义 fib 抽象类，在其中定义 calc 方法
+#+BEGIN_SRC cpp
+  class fib
+  {
+    virtual unsigned int calc(unsigned int n) = 0;
+  };
+#+END_SRC
+
+接着给上面的接口几种不同的实现：
+#+BEGIN_SRC cpp
+  class fib_rec : public fib
+  {
+      unsigned int fib(unsigned int n)
+	  {
+	      if (n == 0) return 0;
+	      else if (n == 1) return 1;
+	      else return fib(n - 1) + fib(n - 2);
+	  }
+      virtual unsigned int calc(unsigned int n)
+	  {
+	      return fib(n);
+	  }
+  };
+
+  class fib_iter : public fib
+  {
+      unsigned int fib(unsigned int n)
+	  {
+	      unsigned int a = 0, b = 1;
+	      unsigned int t = 0;
+	      for (unsigned int i = 0; i < n; i++)
+	      {
+		  t = a;
+		  a = b;
+		  b += t;
+
+	      }
+	      return a;
+	  }
+      virtual unsigned int calc(unsigned int n)
+	  {
+	      return fib(n);
+	  }
+  };
+
+  class fib_fst : public fib
+  {
+      unsigned int fib(
+	  unsigned int a,
+	  unsigned int b,
+	  unsigned int p,
+	  unsigned int q,
+	  unsigned int cnt)
+	  {
+	      if (!cnt) {
+		  return b;
+	      } else if (!cnt & 1) {
+		  return fib(a, b, p*p + q*q, 2*p*q+q*q, cnt/2);
+	      } else {
+		  return fib(a*(p+q)+b*q, b*p+a*q, p, q, cnt-1);
+	      }
+	  }
+
+      virtual unsigned int calc(unsigned int n)
+	  {
+	      return fib(1, 0, 0, 1, n);
+	  }
+  };
+
+#+END_SRC
+
+现在，我们已经有了可以使用的斐波那契函数，它们分别使用了递归方法，迭代方法和 SICP 上面介绍的一种方法。就像上面我说的，u32 最多只能支持到 fib(47)，也许我们有必要对函数接受的参数进行检查来避免溢出。我们可以直接修改源代码，在函数体开始处加上条件判断来确保参数的合理性，不过根据所谓的开闭原则，直接修改源代码是不太好的行为，我们应当对其进行扩展而不是直接修改。
+
+不能修改的话，那我们可以使用继承来变更上面三个子类的行为，但是我们要为它们添加的功能是一样的，子类化相当于把同样的事情做了三遍，实属愚蠢，这里我们就可以使用装饰器了。
+
+首先定义出斐波那契类的装饰器：
+
+#+BEGIN_SRC cpp
+  class fib_deco : public fib
+   {
+   public:
+       virtual unsigned int calc(unsigned int n)
+	   {
+	       return container->calc(n);
+	   }
+   private:
+       fib* container;
+
+   public:
+       fib_deco(fib* p): container(p) {}
+  };
+
+#+END_SRC
+
+这个装饰器什么也没有做，它只是使用一个私有变量存储了一个 fib 对象，并在调用 calc 方法时使用 container 指向对象的方法。接下来我们在它的基础上定义限制输入的装饰器：
+
+#+BEGIN_SRC cpp
+  class fib_47 : public fib_deco
+  {
+  public:
+      virtual unsigned int calc(unsigned int n)
+	  {
+	      if (n > 47) return 114514;
+	      else {
+		  return fib_deco::calc(n);
+	      }
+	  }
+      fib_47(fib*p): fib_deco(p) {}
+  };
+#+END_SRC
+
+在装饰器 =fib_47= 中，我们对参数范围进行了检查，若输入参数大于 47 则直接返回 114514，我们来看看效果：
+
+#+BEGIN_SRC cpp
+  int main()
+  {
+     fib* a = new fib_rec;
+     fib* b = new fib_iter;
+     fib* c = new fib_fst;
+     std::cout << a->calc(5) << ' ' << b->calc(6) << ' ' << c->calc(7) << '\n';
+     a = new fib_47(a);
+     b = new fib_47(b);
+     c = new fib_47(c);
+     std::cout << a->calc(8) << ' ' << b->calc(9) << ' ' << c->calc(10) << '\n';
+     std::cout << a->calc(48) << ' ' << b->calc(47) << ' ' << c->calc(49) << '\n';
+     return 0;
+  }
+#+END_SRC
+
+输出结果为：
+
+#+BEGIN_SRC
+5 8 13
+21 34 55
+114514 2971215073 114514
+#+END_SRC
+
+这就体现了装饰器的作用，我在没有对原先代码进行任何修改的情况下为它们加入了参数检查功能。
+
+*** 装饰器模式的适用范围和优缺点
+
+这一部分我就直接参考了 /gof/ ，毕竟我也没有太多的实战经验。
+
+在 /gof/ 中这样写道：以下情况适合使用装饰器模式
+
+- 在不影响其他对象的情况下，以动态、透明的方式给单个对象添加职责
+
+- 处理那些可以撤销的职责
+
+- 当不能采用生成子类的方法进行扩充时。
+
+  - 一是有大量的独立扩展，采用子类化的话会使子类的数量爆炸增长
+
+  - 二是类定义被隐藏而不能定义子类
+
+上面列出的第一点是可以通过我上面的代码体现的。在为对象添加装饰时，我使用了原指针变量接受了返回的 =fib_deco= 子类对象，由于是 =fib= 基类指针，所以方法调用对它来说都是一样的，这就体现出了透明性。由于是运行时的改变，所以又体现了动态性。因为没有对类进行修改，所以自然没有影响其他的对象。
+
+至于第二点，上面我只使用了三个 =fib= 指针，可以通过额外的 =fib= 指针保留各 fib 实现，在不需要装饰器的时候使用它们即可。更好一点方法（我猜的）可能是在 decorator 中添加返回被装饰对象的方法，然后在需要使用原对象时调用该方法，随后销毁装饰器。
+
+第三点的第一小点是显而易见的，我可懒得去改每一个 fib 实现的定义。第二小点是在类定义不可见而无法定义子类的情况下只能使用装饰器。
+
+在 /gof/ 上同样也提到了使用装饰器模式的优缺点，它的优点是：
+
+- *比静态继承更灵活* 与静态继承相比，装饰器模式提供了更加灵活的向对象添加职责的方式，它可以在运行时增加和删除职责。相比之下，继承则要求为每个新增的职责创建一个新的子类，这会产生许多新的类从而增加系统复杂度。
+
+- *避免在层次结构高层的类有太多的特征* 装饰器模式提供了一种“即用即付”的方法来添加职责。它并不试图在一个复杂的可定制的类中支持所有可预见的特征，相反，你可以定义一个简单的类，然后使用装饰器来逐渐添加功能。可以从简单的部件组合出复杂的功能。
+
+存在优点的同时，它也有以下缺点：
+
+- 装饰器和 Component 不一样，装饰器是一个透明的包装。如果从对象标识的观点出发，被装饰了的组件和组件本身是有区别的，因此使用装饰器时不应该依赖对象标识。
+
+- 有许多小对象，采用装饰器模式进行系统设计往往会产生许多看上去类似的小对象，这些对象仅仅是在连接方式上有所不同，而不是它们的类或者它们的属性值有所不同。这对于了解系统的人来说是很容易掌握的，但是对于不熟悉的人学习难度较大且很难排错。
+
+*** /gof/ 对实现装饰器的建议
+
+1. *保证接口的一致性* 装饰器对象的接口必须与它装饰的 Component 接口一致，因此所有的 ConcreteDecorator 类必须有一个公共的父类。
+
+2. *省略掉抽象的 Decorator 类* 只需要添加一个职责时没有必要定义抽象 Decorator类。通常你需要处理现存的类层次结构而不是设计一个新系统。
+
+3. *保持 Component 的简单性* 为了接口一致性，Component 和 Decorator 必须有一个公共的父类。因此，保持类的简单性是很重要的，它应该集中于定义接口而不是存储数据。对数据的定义应该延迟到子类中，否则 Component 类会变得过于复杂和庞大，导致其难以使用。Component 类功能太多会使子类具有不需要功能的可能性大大增加。
+
+这里我只提一提第二条，在上面的斐波那契类装饰器实现中，我创建了一个抽象装饰器类，但其实是不必要的，因为我需要添加的只是参数检查而已，只需要一个具体装饰器就够了。
+
+** 装饰器（Decorator&Advice）
+
+#+BEGIN_QUOTE
+In aspect and functional programming, advice describes a class of functions which modify other functions when the latter are run; it is a certain function, method or procedure that is to be applied at a given join point of a program.
+
+[[https://en.wikipedia.org/wiki/Advice_(programming)][from wikipedia]]
+#+END_QUOTE
+
+上面的装饰器是针对类的，这里的装饰器的装饰对象就是函数了。这一小节的标题我用的是 Decorator&Advice，根据维基百科[fn::https://en.wikipedia.org/wiki/Advice_(programming)]上的说法的话直接称为 Advice 就行了，但是 Python 中的 Advice 就叫 Decorator，这两种叫法都应该没有问题。这一小节我会简单介绍 Python 的 Decorator 使用方法。关于为什么 Decorator 要叫这个名字，以及其他各个方面的考虑，可以参考这里[fn::https://www.python.org/dev/peps/pep-0318/]，我就不在这里详细展开了。
+
+在 Python 中，装饰器就是一个可以用来修改函数、方法或类定义的可调用对象。装饰器接受一个原始对象，并返回一个被调整过的对象，它随后被绑定到原定义的名字上。Python 装饰器受到了 Java 注解的影响[fn::https://en.wikipedia.org/wiki/Java_annotation]，与之有着相似的语法。
+
+假设现在有一个函数，它可以将接受的数字乘二并返回：
+
+#+BEGIN_SRC python
+  def double(x):
+      return x * 2
+#+END_SRC
+
+如果我们想要让他的返回值再加一的话，除了修改代码，还可以这样做：
+
+#+BEGIN_SRC python
+  def deco(f):
+      def fun(x):
+	  return f(x) + 1
+      return fun
+#+END_SRC
+
+通过把原函数包在另一个函数里面并返回这个包函数，我们就完成了任务
+
+#+BEGIN_SRC python
+  double = deco(double)
+  double(2)
+  => 5
+#+END_SRC
+
+发现了吗， =double = deco(double)= 和上面的装饰器模式示例代码 =a = new fib_47(a);= 非常的像。Python 为我们提供了一种非常方便的写法，使用 '@' 注解就可以为函数加上包装了：
+
+#+BEGIN_SRC python
+  @deco
+  def double(x):
+      return x * 2
+#+END_SRC
+
+按照 PEP-318 上面的说法，这种写法和上面的那种是等价的，PEP-318 给出的说法是这样的：
+
+#+BEGIN_SRC python
+  @dec2
+  @dec1
+  def func(arg1, arg2, ...):
+      pass
+
+  #This is equivalent to:
+
+  def func(arg1, arg2, ...):
+      pass
+  func = dec2(dec1(func))
+#+END_SRC
+
+上面这个例子说明装饰器是可以叠加的，最上面的函数注解在最外层，向下逐渐到达内层。
+
+除了说接受装饰器之外，'@' 还接受返回装饰器的函数调用写法：
+
+#+BEGIN_SRC python
+  @decomaker(argA, argB, ...)
+  def func(arg1, arg2, ...):
+      pass
+  #This is equivalent to:
+
+  func = decomaker(argA, argB, ...)(func)
+#+END_SRC
+
+举例来说的话就是这样：
+
+#+BEGIN_SRC python
+  def decogen(i):
+      def deco(f):
+	  def fun(x):
+	      return f(x) + i
+	  return fun
+      return deco
+
+  @decogen(20)
+  def inc1(x):
+      return x + 1
+
+  => 22
+#+END_SRC
+
+实际上，Python 对装饰器的要求仅仅是可调用的对象，所以除了函数之外还可以使用类，偏函数等等。由于本文的主要目的不是介绍 Python Decorator，所以就此打住。知乎上有一篇文章[fn::https://zhuanlan.zhihu.com/p/269012332]写的不错，可以前去参考。
+
+* emacs 中的 advice
+
+elisp 文档是这样描述 advice 的： /The advice feature lets you add to the existing definition of a function, by advising the function. This is a cleaner method than redefining the whole function./ 。
+
+emacs 提供了两套 api 来为函数添加 advice，其一是使用 advice.el 中的 defadvice 系列函数，其二是使用 nadvice.el 中的 advice-add, advice-remove 系列函数。defadvice 已经过时了，elisp manual 中给它的标题是：Porting Old Advice -- Adapting code using the old defadvice。虽说如此，老代码中使用的就是 defadvice，对它进行学习有助于阅读代码。
+
+因此，除了在这一节介绍 defadvice 外，我会在下一节对 nadvice 进行介绍，它的接口函数相对 defadvice 来说用起来更加简单方便。
+
+在 emacs 27.2 的 emacs lisp manual 中，对 defadvice 的介绍作为 advice-add 的补充一带而过了，详细的文档在 advice.el 这个文件中。在 advice.el 的 Commentary 的开头部分又提到 /Advice is documented in the Emacs Lisp Manual/ ， 这就说明之前的 elisp manual 中是存在 defadvice 的详细介绍的。经过一番检索，我在这个页面[fn::http://ftp.gnu.org/pub//old-gnu/Manuals/elisp-manual-21-2.8/elisp.html]找到了 elisp manual 21。
+
+在本节的余下部分我对 advice.el 和 elisp manual 21 进行了参考。
+
+** 例子：如何为函数添加 advice
+
+现在我们有一个叫做 =foo= 的函数，它的功能是将数字加一：
+
+#+begin_src emacs-lisp
+  (defun foo (x)
+    "Add 1 to x"
+    (1+ x))
+#+end_src
+
+假设我们想让它的功能变成将数字加二，我们可以这样来为它添加 advice：
+
+#+BEGIN_SRC emacs-lisp
+  (defadvice foo (before foo-add-2 first activate)
+    "Add Another 1 to x"
+    (setq x (1+ x)))
+#+END_SRC
+
+看到了上面代码中 =foo= 后面的 before 了吗，它表示在函数的 body 执行前起作用的那一类 advice。如果我们要在函数调用中来完成上面的功能的话，我们可以这样：
+
+#+BEGIN_SRC emacs-lisp
+  (defadvice foo (around foo-add-2-a first activate)
+    "Add Another 1 to x"
+    (setq x (1+ x))
+    ad-do-it)
+#+END_SRC
+
+上面的 around 在中文中是“周围”的意思，它的意思是在函数调用时可以进行一些动作。原函数的执行发生在 =ad-do-it= 出现的地方，around 就像是在原函数的 body 周围插入一些额外的代码，然后把这些代码作为一个整体来执行。
+
+如果你已经对 =foo= 函数和它的两个 advice 进行了求值，那么你在使用某个数字调用 =foo= 时，你会得到这个数字加上 3。这个 3 由 before，around 和原函数分别加上的 1 得来。
+
+如果我们想在函数完成后把得到的结果乘 2 再返回呢？这个时候可以使用 after 关键字：
+
+#+BEGIN_SRC emacs-lisp
+  (defadvice foo (after foo-mul-2 first activate)
+    "Mul 2 to res"
+    (cl-incf ad-return-value ad-return-value))
+#+END_SRC
+
+这个时候，如果你使用 1 作为参数的话，得到的结果就是 8，即 =(1 + 1 + 1) * 2= 。上面我演示了三类 advice，即 before/around/after 的使用方法。在三个 advice 的共同作用下得到了 =(foo 1) => 8= 这样的结果。这个时候问题就来了，如果我想取消掉 advice 该怎么办呢？我们可以这样：
+
+#+BEGIN_SRC emacs-lisp
+  (ad-deactivate 'foo)
+
+  (foo 1) => 2
+#+END_SRC
+
+如果想要让这些 advice 再次生效的话，使用 =ad-activate= 即可，它会激活参数函数的所有 advice。不过这样就引出了另一个问题，如果仅仅想让某些 advice 生效而不使用其他 advice 又该怎么办呢？这个时候就需要用到 enable/disable 机制了，上面的三个 advice 都处于 enable 状态，我们禁掉 after advice 试试：
+
+#+BEGIN_SRC emacs-lisp
+  (ad-disable-advice 'foo 'after 'foo-mul-2)
+  (ad-activate 'foo) ;; if current status is active, can also use ad-update
+  (foo 1) => 4
+#+END_SRC
+
+以上就是 defadvice 的基本使用介绍，你应该注意到了，除了 before/around/after 外还有 first, activate 等关键字，关于它们的详细介绍请看本节的剩余内容。
+
+** defadvice 的用法
+
+在 advice.el 中是这样描述 =defadvice= 的：
+
+#+BEGIN_SRC emacs-lisp
+   (defadvice <function> (<class> <name> [<position>] [<arglist>] {<flags>}*)
+     [ [<documentation-string>] [<interactive-form>] ]
+      {<body-form>}* )
+#+END_SRC
+
+- =<function>= 是需要添加 advice 的函数，下面我们叫它 advised function
+- =<class>= 是 advice 的类别，它可以是 =before=, =around=, =after=, =activation= 和 =deactivation= 。 =activation= 和 =deactivation= 是特别的，它们用于定义 hook-like advice
+- =<name>= 是 advice 的名字，它是一个非 nil 的符号。它被用来在某一 advice 类别中唯一标识某个 advice，这样便于通过相同的类型和名字来对 advice 进行重定义。advice 的名字是全局符号，所以要使用和函数一样的名字约定
+- =<position>= 是可选的，它用来指定在 =<class>= 的 advice list 中新的 advice 的位置。它的值可以是 =first=, =last= 两个符号，或者是从零开始的数字（0 代表 =first= ，即最前面）。如果没有指定 =<position>= 那么默认使用 =first= ，将新的 advice 放到 list 的最前面。如果调用 defadvice 对某个 advice 进行重定义的话，在 defadvice 中指定的 position 会被忽略掉，并继续使用已有的位置。
+- =<arglist>= 也是可选的，它是一个表，可用作 advised definition 的形参表。它应当与原函数的参数表兼容，否则对 advised function 的调用会失败。如果多个 advice 指定了参数表，那么对于 before/around/after advice 而言，在最前面（positon 最小）的那个会被使用。
+- =<flags>= 由一个或多个符号组成，它指定了和 advice 相关的更多信息。它可以使用的符号包括：
+  - =activate= ，表示 advised function 的 advice 在定义该 advice 后立刻激活，在 /forward advices/ 情况下它会被忽略
+  - =protect= ，在该 advice 之前的 advice 出现非本地退出（non-local exit）或错误的情况下，该 advice 被保证执行
+  - =compile= ，表示 advised definition 应该被编译，如果不同时指定 =activate= 的话它会被忽略
+  - =disable= ，表示定义的 advice 应该被禁用。要使用这个 advice 首先需要激活它
+  - =preactivate= ，指示 advised definition 应该在该 advice 的 defadvice 的宏展开/编译时已经预激活（preactivate）。这样就可以保证一个编译的 advised definition 可在运行时直接使用，而不必重新构建。仅在 =defadvice= 真正需要被编译时使用这个 flag。
+- =<documentation-string>= 和 =<interactive-form>= 就是我们非常熟悉的东西了。interactive-form 可以用来改变或添加新的 interactive 行为，如果有多个 advice 指定了 interactive，那就使位置最前的那个
+- =body-form= 就是通常的过程体，在其中可以访问/改变参数，返回值，绑定环境，和其他所有类型的副作用
+
+关于 =<function>= ， =<name>= ， =<documentation-string>= ， =<body-form>= ， =<interactive-form>= 这几项，我个人认为凡是学过一点 elisp 的人应该都很清楚是什么，因此这里只对 =<class>= ， =<arglist>= ， =<flags>= 进行一定的介绍。由于 =<position>= 与各项都有关系，我就不单独介绍了。
+
+*** <class>
+
+文档中说 class 有五个，前三个是普通的 class，后面两个是特殊的 class，我们就先从普通 before/around/after 开始。
+
+如果一个函数/宏/subr/特殊形式有 N 个 before advice，M 个 around advice 和 K 个 after advice，且它们都处于激活状态，那么添加 advice 后总体情况是这样的：
+
+#+BEGIN_SRC emacs-lisp
+  ([macro] lambda <arglist>
+     [ [<advised-docstring>] [(interactive ...)] ]
+     (let (ad-return-value)
+       {<before-0-body-form>}*
+	     ....
+       {<before-N-1-body-form>}*
+       {<around-0-body-form>}*
+	  {<around-1-body-form>}*
+		....
+	     {<around-M-1-body-form>}*
+		(setq ad-return-value
+		      <apply original definition to <arglist>>)
+	     {<other-around-M-1-body-form>}*
+		....
+	  {<other-around-1-body-form>}*
+       {<other-around-0-body-form>}*
+       {<after-0-body-form>}*
+	     ....
+       {<after-K-1-body-form>}*
+       ad-return-value))
+#+END_SRC
+
+我们将它称为 *advised definition* （在 elisp manual 21 中称之为 combined definition） 。其中， =<arglist>= 是它的形参表，如果没有 advice 指定新的 arglist 的话，它就是原函数的参数表。 同理，如果没有 advice 指定 interactive-form 的话， =(interactive ...)= 就是原函数的 interactive。
+
+在上一小节的举例中，我将 before/around/after 的功能粗略地描述为在函数调用前/调用中/调用后起作用，这样的描述和实际情况差别不大，但是还是不够准确。上面的伪代码来自 advice.el，它准确地反映了各 class 的作用时间：
+
+- before advice 在调用原函数之前完成它的任务，使用它可以修改函数参数和做一些初始化操作。此时 =ad-return-value= 这个变量虽然对它（们）是可见的，但是修改该变量值的操作无意义，因为它会在调用原函数后直接被赋予原函数返回值
+- around advice 作用在原函数调用的前后起作用，如果你想的话，你也可以在 around advice 中故意不写 ad-do-it，即不调用原函数，这样就好像把原函数掏空了塞个新函数进去一样（不过参数表是一样的）
+- after advice 在函数调用完成后起作用，此时修改函数参数已无意义，因为原函数已经被调用过了，不过它（们）可以通过修改 =ad-return-value= 来修改 advised function 的返回值。此时也可以进行一些资源清理工作
+
+可以看到，在上面代码中 around advice 和另两个 advice 的代码形状不太一致，before advice 和 after advice 同类之间是并列关系，而 around advice 同类之间是嵌套关系。这也好理解，嵌套关系保证了原函数只会在最内层的 around advice 中执行一次。你也许会注意到 around advice 好像可以起到 before 和 after advice 的作用，从原理上似乎是不需要这两类 advice。至于为什么要把 advice 分为这三类，我个人的看法是：对 advice 的分类明确了不同阶段的 advice 的职责，使得代码更加清晰，毕竟不是每个人都想在 advice 中至少写一个 =ad-do-it= 的。
+
+除了说各类 advice 的职责外，我们再来看看各 advice 在 advised definition 中的执行顺序，它们的执行顺序与 advice 的 position 有关。对于 before advice 和 after advice， position 越小的则执行的越早，position 为 0 则最先执行，这也与上面伪代码中标注的数字一致。对于 around device，position 越小则越在外层，position 最大的在最内层，position 为 0 的在最外层，这在伪代码中也有标注。以下代码可以体现出 advice 与 position 的关系。
+
+#+BEGIN_SRC emacs-lisp
+  ;; please run these code in order
+  (defun yyid (x) x)
+  (defadvice yyid (before bef-1 activate)
+    (setq x (concat "1" x)))
+  (defadvice yyid (before bef-0 activate)
+    (setq x (concat "0" x)))
+  (defadvice yyid (around aro-1 activate)
+    ad-do-it
+    (setq ad-return-value (concat ad-return-value "3")))
+  (defadvice yyid (around aro-0 activate)
+    ad-do-it
+    (setq ad-return-value (concat ad-return-value "2")))
+  (defadvice yyid (after aft-1 activate)
+    (setq ad-return-value (concat ad-return-value "5")))
+  (defadvice yyid (after aft-0 activate)
+    (setq ad-return-value (concat ad-return-value "4")))
+
+  (yyid "-") => "10-3245"
+#+END_SRC
+
+以上就是关于 before/around/after 的介绍。对于 activation 和 deactivation 这两个 advice 类，advice.el 注释中说明并不多，只是说它们用于 hook 而不是 function，它们也不会被包括到 advised function 中。由于涉及到 =advice-info= 和 =forward advice= ，所以我会在下面而不是这里对它们进行介绍。
+
+*** <arglist>
+
+在上面我们已经简单介绍过了 <arglist> 的注意事项了，即与原函数的参数表兼容，在这里我们用一些简单例子来说明它的使用。
+
+#+BEGIN_SRC emacs-lisp
+  (defun yy-add (a b)
+      (+ a b))
+  (defadvice yy-add (before yy-tri (a b c) activate)
+    "Add three numbers"
+    (setq b (+ b c)))
+  (yy-add 2 3 3) => 8
+#+END_SRC
+
+在添加了 arglist 的 advice 中，arglist 中参数的名字并不需要与原函数相同，保持参数与原参数的顺序一致即可，将 =yy-add= 中的 a b c 全部替换为 x y z 也是可以正常工作的。
+
+现在还有一个问题，根据文档得知，arglist 的选取是根据 position 来决定的，即选取 position 最小的且带有 arglist 的 advice 来作为新的 arglist。对于同类的 advice 是可以比较 position 的，但是对于不同类的 advice，arglist 又是如何选取的呢？这个问题可以通过几组实验来得出结果，也可以直接阅读源代码：
+
+#+BEGIN_SRC emacs-lisp
+  (defun ad-advised-arglist (function)
+    "Find first defined arglist in FUNCTION's redefining advices."
+    (cl-dolist (advice (append (ad-get-enabled-advices function 'before)
+			       (ad-get-enabled-advices function 'around)
+			       (ad-get-enabled-advices function 'after)))
+      (let ((arglist (ad-arglist (ad-advice-definition advice))))
+	(if arglist
+	    ;; We found the first one, use it:
+	    (cl-return arglist)))))
+#+END_SRC
+
+在 advice.el 中叫做 =ad-advised-arglist= 的函数可以说明这一点，它的 =advice= 变量是按照 before, around, after 的顺序 append 起来的，所以它会首先使用 before 中的 arglist，如果没有找到再到 around 里面找，最后到 after 里面找。
+
+不过话又说回来，在不同类的 advice 中指定多个 arglist 是一种很混乱的行为，一般也不会出现。
+
+*** <flags>
+
+和 class 的数量一样，flags 也有 5 个，它们分别是 =active=, =protect=, =compile=, =disable= 和 =preactivate= 。
+
+其中， =activate= 对我们来说已经很熟悉了，使用它可以在对 defadvice 进行求值后立即为函数加上 advice。但有一种情况例外，那就是 =forward advice= 。所谓 =forward advice= ，就是在 advised function 还未定义的时候你就可以为它添加 advice。 =forward advice= 同时也意味着 =automatic activation= ，一旦有函数载入时便立即加上 advice。
+
+需要注意的是， =automatic advice= 并不等于 =forwar advice= ，倒不如说是 =forward advice= 利用了它的特性。 =automatic advice= 是指：当函数名中存储有 advice-info 时，一旦函数载入就会立刻激活 advice。以下是 =forward advice= 的例子：
+
+#+BEGIN_SRC emacs-lisp
+  ;; evaluate in order
+  (defadvice yysub (before yysub-1)
+    (setq x (1- x)))
+
+  (defun yysub (x y)
+    (- x y))
+
+  (yysub 1 2) => -2
+#+END_SRC
+
+可以看到，即便我在定义 advice 时没有使用 activate， =forward advice= 也完成了 advice 的激活。
+
+=protect= 保证在之前的 advice 出问题时仍能执行。此外，若将 =protect= 用于 around advice，position 比它大的 advice 都会带有 =protect= 效果（就像洋葱一样）。以下是代码演示：
+
+#+BEGIN_SRC emacs-lisp
+
+  (defun yy-nothing (x) nil)
+  (defadvice yy-nothing (before yy-no1 activate)
+    (/ 1 0))
+  (defadvice yy-nothing (around yy-no2 protect activate)
+    (print "Hello")
+    ad-do-it)
+  (defadvice yy-nothing (around yy-no3 last activate)
+    (print "world")
+    ad-do-it)
+  (defadvice yy-nothing (after yy-no4 protect activate)
+  (print "!!!"))
+
+  (yy-nothing 1) =>
+
+  "Hello"
+
+  "world"
+
+  "!!!"
+
+#+END_SRC
+
+即便会弹出 debugger 告诉你出现了除 0 错误， "Hello world !!!" 还是能够打印出来。
+
+=compile= 的作用是告诉 emacs 对 advised definition 进行字节码编译。这个选项需要和 activate 一起用，如果没有的话它会被忽略。它的效果如下：
+
+#+BEGIN_SRC emacs-lisp
+  (defun yy-int (x) (* x x 0.5))
+  (byte-code-function-p 'yy-int) => nil
+  (defadvice yy-int (before yy-int-x compile activate)
+    (setq x (1+ x)))
+
+  (byte-code-function-p (symbol-function 'ad-Advice-yy-int)) => t
+#+END_SRC
+
+可以看到， =symbol-function= 得到的结果是一个 byte-compiled function。如果你把 defadvice 和 defun 的求值顺序倒过来，使用 =forward advice= ，得到的将会是一个未编译的函数。这大概是由于在 =forward advice= 中 activate 被忽略了，顺带 compile 也就没有用了。
+
+你可能会对上面的变量 =ad-Advice-yy-int= 感觉好奇，它是从哪里来的？上面的例子我是参考的 advice.el 中的示例，我猜这个变量存储的就是 advised definition。在 advice.el 的注释中没有对它进行说明。它应该是 advice 模块的内部变量，但是 advice 模块的编写时间太早了，那个时候还没有现在用的命名约定，即使用 =name--= 作为内部名字的前缀。
+
+=disable= 将 advice 的初始状态设置为 =disable= ，注意， =disable= 对应的是 =enable= 而不是 =activate= ，后者对应的是 =deactivate= 。将一个 advice 定义为 =disable= 状态后，如果你需要使用它的话，你需要先将它设置为 =enable= 状态，再对 advised funtion 进行更新或激活。这一点可以通过以下代码说明：
+
+#+BEGIN_SRC emacs-lisp
+  (defun yy-tot (x y) (min x y))
+  (defadvice yy-tot (after yy-tot-1 disable)
+    (cl-incf ad-return-value))
+
+  (yy-tot 1 2) => 1
+  (yy-activate 'yy-tot)
+  (yy-tot 1 2) => 1
+  (ad-enable-advice 'yy-tot 'after "yy-tot-1")
+  (ad-activate 'yy-tot)
+  (yy-tot 1 2) => 2
+#+END_SRC
+
+=preactivate= 的作用是在编译时就根据现有的 advice 完成 advised definition 的构造。至于这样做的原因，文档上是这样说的：
+
+#+BEGIN_QUOTE
+Constructing an advised definition is moderately expensive. In a situation where one package defines a lot of advised functions it might be prohibitively expensive to do all the advised definition construction at runtime.
+#+END_QUOTE
+
+简而言之，preactivation 提供了一种在编译时构建 advised definition 的机制，这样就可以在运行时以较小的代价激活 advised definition。要使用它的话，你需要在 defadvice 中指定这个 flag，调用这个 defadvice 时会创建包括所有 enabled advice 和它本身的 advice 组成的 advised definition。当函数的 advice 激活时，如果 enabled advice 与编译的 advised definition 匹配的话，就会直接使用编译的 advised definition。
+
+关于 preactivate 的更多信息可以参考 advice.el，由于我很少使用到 emacs 的编译功能，所以我也没有太多的经验。
+
+** 访问 advised function 的参数
+
+在上面的所有例子中，我都是在 advice 中直接使用原函数的参数表中的名字，以此来改变原函数的行为，或者是通过指定新的 arglist 从而使用 arglist 里面的名字 。如果我们已知 advised function 的名字的话，这样做是没有问题的，但是不知道名字的话是无法对 advised function 参数进行访问的。因此，除了使用原来的参数名来访问参数，advice.el 还提供了一种方法。
+
+advice.el 是这样描述的：当 advised definition 被构建后，对实参的访问是通过参数在表中的位置来进行的。也就是说，我们可以通过指定位置而不是名字来访问特定的参数。advice.el 提供了 =ad-get-arg= 和 =ad-get-args= 来访问参数，前者访问指定位置的参数，后者访问指定位置和它后面的所有参数组成的表，例如，对于以下函数，使用这两个访问函数的效果如下：
+
+#+BEGIN_SRC emacs-lisp
+  (defun foo (x y &optional z &rest r) ....)
+  (foo 0 1 2 3 4 5 6)
+
+  (ad-get-arg 0) -> 0
+  (ad-get-arg 1) -> 1
+  (ad-get-arg 2) -> 2
+  (ad-get-arg 3) -> 3
+  (ad-get-args 2) -> (2 3 4 5 6)
+  (ad-get-args 4) -> (4 5 6)
+#+END_SRC
+
+与之类似地， =ad-set-arg= 和 =ad-set-args= 对给定位置的参数进行修改，例如 =(ad-set-arg 5 "five")= 将第 6 个参数的值赋为 "five"。作用于上面定义的 =foo= 的话，得到的参数表就成了 =(0 1 2 3 4 "five" 6)= 。使用 =ad-set-args= 则可以修改多个参数。使用 =(ad-set-args 0 '(5 4 3 2 1 0))= 可以得到 =(foo 5 4 3 2 1 0)= ，可以注意到后面的 6 已经没有了。
+
+以上的四个函数实现了对参数的读写，但是如果还需要知道更多信息，比如参数名字，类型和值的话，就需要用到 =ad-arg-bindings= 了。 =ad-arg-bindings= 是一个文本宏，它会被替换为 binding specification 组成的表，表中的每个 binding specification 对应于每个参数变量。可以使用 =ad-arg-binding-field= 从其中提取相关信息，它接受一个 binding specification 和一个符号作为参数，符号可以是 ='name=, ='value= 和 ='type= 。
+
+如果使用 ='type= 作为参数，那么返回值只可能是三个值，即 =required= ， =optional= 和 =rest= ，分别对应三种不同类型的参数。在 advice.el 中给了这样的例子：
+
+#+BEGIN_SRC emacs-lisp
+  (let* ((bindings ad-arg-bindings)
+	 (firstarg (car bindings))
+	 (secondarg (car (cdr bindings))))
+    ;; Print info about first argument
+    (print (format "%s=%s (%s)"
+		   (ad-arg-binding-field firstarg 'name)
+		   (ad-arg-binding-field firstarg 'value)
+		   (ad-arg-binding-field firstarg 'type)))
+    ....)
+#+END_SRC
+
+** advice 的激活与停用（(de)?activate）
+
+在上面我们已经简单地使用过 =ad-activate= 来激活函数，这一小节更进一步，介绍更多的使用情况。
+
+在正式开始之前，不知道你想过这个问题没有：为什么需要在 defadvice 时使用 activate 来表示定义后立刻激活，而不是默认激活呢？在 advice.el 中对这个问题做出了解释：
+
+#+BEGIN_QUOTE
+advise 发生在两个阶段，即：
+1) 对各种 advice 的定义
+2) 激活已定义且可用的所有 advice
+
+将 advice 的定义和激活拆开的好处就是，当你要使用一连串的 advice 时，你可以在将它们合并到 advised definition 之前完成所有的定义，这样可以避免在中间构建不必要的 advised definition。对 advice information 的积累是在函数符号的 =advice-info= 属性中完成的，这与 advised definition 的构建是完全独立的。
+#+END_QUOTE
+
+当 advised function 第一次激活时，它的原定义会被保存起来，所有启用的 advice 会组合在一起构成 advised definition，随后会使用 advised definiton 对函数进行重定义。如果使用 =ad-activate= 命令时还使用了 =C-u= 前缀，那么 advised definition 还会被编译。调用 =add-activate= 函数时在第二参数位置指定 =t= 也可以。 =ad-default-compilation-action= 会根据系统当前状态来决定是否对其进行编译，可以自定义这个 option 来控制编译行为。
+
+=ad-deactivate= 可以用来将 advised function 变回原函数。它也可以作为命令调用。因为 =ad-activate= 会对 advised definition 进行缓存，函数可以以很小的开销来重新激活 advice。
+
+这里插一嘴对 caching 的介绍。在 advised definition 构建之后，它会作为 advised function 的一部分被缓存到函数的属性 =advice-info= 中，这样就可以对它进行重用，比如停用后的重新激活。
+
+因为函数的 =advice-info= 可能随时间发生变化，所以会使用一个 cache-id 来检验在重用时缓存的内容是否还可用。当 advised function 已经激活过且当前的缓存是有效的，那么就会使用缓存而不是重新创建一个。如果你想要确保构建一个新的 definition 的话，可以在激活 advised function 前使用 =ad-clear-cache= 清空缓存。
+
+=ad-activate-regexp= 和 =ad-deactivate-regexp= 可以用来激活/停用满足正则条件的 advice 对应的所有 advised function，它们可以用来控制满足某命名规则的一系列函数。最后， =ad-activate-all= 和 =ad-deactivate-all= 可以用来激活/停用当前所有的 advised funciton。
+
+** advice 的启用和禁用（enable/disable）
+
+=ad-activate= 和 =ad-deactivate= 提供了激活和停用 advice 的功能。enable/disable 则更进一步，为控制是否在 advised definition 中使用某个 advice 提供了控制手段。每个 advice 都有一个使能标志（enablement flag）。当对 advised function 的 advice 构建 advised definition 时，只有使能标志为 enabled 的才能参与组合。
+
+对使能标志的控制主要通过两个函数完成： =ad-enable-advie= 和 =ad-disable-function= 。例如 =(ad-disable-advice 'foo 'before 'my-advice)= 就可以使叫做 my-advice 的 before advice 处于 disable 状态。这条代码只是改变了使能标志，要让它在 advised definition 中停用的话需要重新激活一次 foo，即： =(ad-activate 'foo)= 。
+
+除了使用准确的函数名，我们也可以使用正则表达式字符串作为这两个函数的第三参数。这样就可以启用/禁止一系列满足正则的 advice。它们的第二参数除了可以是 before/around/after 外，还可以是 any，any 可以在所有三个 class 中寻找 advice。
+
+除了以上两个函数外，还可以使用 =ad-enable-regexp= ， =ad-disable-regexp= 来对全局的所有满足正则表达式的 advice 进行使能控制。在完成使能设定后可以使用 =ad-activate-regexp= 进行刷新，也可以使用 =ad-update-regexp= 。更新功能的函数还有 =ad-update-all= 和 =ad-update= ， 它们分别对全局函数和指定的函数的 advised definition 进行更新。
+
+** 一些补充
+
+这一小节主要介绍上文未提及的一些函数。
+
+- =ad-unadvise= 会停止函数的所有 advice 并将它们都移除掉，它们再也无法被激活了， =ad-unadvise-all= 则移除掉当前所有 advised function 的 advice，慎用
+
+- =ad-recover= ，它尝试恢复原函数，并撤销掉所有的 advice，文档中把它说成是低阶的 =ad-unadvise= 。仅在紧急情况下使用它，它也有一个 =-all= 的版本，即 =ad-recover-all=
+
+- =ad-remove-advice= ，移除掉某个 class 中的某个 advice
+
+- =ad-compile-function= ，如果函数/宏是可编译的，则对其进行字节码编译
+
+- =ad-add-advice= ，这是另一种添加 advice 的方式
+
+- =ad-start-advice= 和 =ad-stop-advice= ，这两个函数我是在 elisp manual 21 上找到的，现在已经被废弃掉了
+
+除了上面的函数，这里我们最后对 activation 和 deactivation 两个 class 进行一下介绍。这两种 advice 不会被添加到 advised definition 中，它们会整合到钩子（hook form）中，钩子在 advised function 的 advice-info 被激活或被停止时进行求值。这两类 advice 的应用之一是为文件提供文件载入钩子，文件一般是不会有自己的钩子的。advice.el 中的例子如下：
+
+加入你想要在文件 "file-x" 载入时打印消息，假设文件中最后定义的函数的名字是 “file-x-last-fn"，那么可以定义如下的 advice：
+
+#+BEGIN_SRC emacs-lisp
+  (defadvice file-x-last-fn (activation file-x-load-hook)
+     "Executed whenever file-x is loaded"
+     (if load-in-progress (message "Loaded file-x")))
+#+END_SRC
+
+它会为 "file-x-last-fn" 建立一个 =forward advice= ，当文件载入时 advice 就会被激活。因为这类 advice 不会被加入原函数，所以函数的定义保持不变，但是 activation advice 会在它激活时运行，这个效果就像是为文件加上了载入钩子一样。
+
+话虽如此，我按照文档中描述的做了一遍，发现 activation advice 的 body 并未执行，通过对原函数执行 =ad-activate= 和 =ad-deactivate= 后我发现它们的返回值都是 nil，这就说明无法对只含有 activation 和 deactivation advice 的 advised function 进行激活和停止。如果为原函数加上一个空的普通 advice，上述代码就可以正常执行了。
+
+#+BEGIN_SRC emacs-lisp
+(setq abc 0) => 0
+(defadvice yy-yy (activation yy-yy-a) (cl-incf abc)) => yy-yy
+(defadvice yy-yy (deactivation yy-yy-d) (cl-decf abc 2)) => yy-yy
+(defadvice yy-yy (before yy-yy-nothing)) => yy-yy
+abc => 0
+(defun yy-yy (x) (+ x 1)) => yy-yy
+abc => 1
+(ad-deactivate 'yy-yy) => yy-yy
+abc => -1
+(ad-activate 'yy-yy) => yy-yy
+abc => 0
+#+END_SRC
+
+通过以上代码就可以直观反映这两类 advice 的功能了。
+
+以上就是 advice.el 的大致介绍，这些函数都是应用接口，还有许多的用于操控 advice 内部结构的函数，它们也许可以用于 advice 的调试，比如 =ad-has-advide= ， =ad-is-active= 等。这里我就不一一展开介绍了。
+
+关于如何给 subr 和 macro 加上 advice 我也没有提到，因为本来宏就用的少，为宏加上 advice 的情况估计一时半会儿是碰不上了。
+
+同时需要注意的是，根据我的实操，advice.el 中的注释描述和函数的实际行为可能不一定对的上（比如上面的 activation advice），毕竟它也算是个历史悠久的模块了。建议使用更新的 =advice-*= 系列函数，用 defadvice 做简单工作，当然最好不用。
+
+* emacs 的 nadvice
+
+在 nadvice.el 的开头有这样一行注释：
+#+BEGIN_QUOTE
+;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+#+END_QUOTE
+
+我猜 nadvice 应该是在 2012 年引入的。
+
+与 defadvice 不同的是，nadvice 提供了两套函数来添加 advice，它们分别是 add-function/remove-function 和 advice-add/advice-remove，后者是对前者的简单包装。
+
+由于我们已经有了使用 defadvice 的经验，而且 defadvice 和 advice-add 有着许多的相似之处，这里我们就省略掉用作情景引入的例子，直接开始讲各个函数的用法。
+
+** nadvice 的 function 系列函数
+
+这一小节要介绍的是 add-function 和 remove-function。 =add-function= 的函数原型如下：
+
+#+BEGIN_SRC emacs-lisp
+(add-function where place function &optional props)
+#+END_SRC
+
+- =where= 决定了 =function= 如何与现存函数进行组合，即 advice 是应该在原函数调用前还是调用后起作用，它可以是 :before，:after 等等。下面我会详细介绍各种组合方式
+- =place= 决定了 advice 添加到的地方。如果它只是符号的话，那么 =function= 会被添加到全局，如果 =place= 是以 =(local symbol)= （其中 symbol 是一个返回变量名的表达式）的形式出现的话，那么 =function= 只会在当前 buffer 起作用
+- =funtion= 是 advice，它被添加到原函数
+- =props= 是一个属性值 alist，用来指定一些额外的属性，只有两个有特殊意义：
+  - =name= ，给 advice 一个名字，它可以是符号或者字符串。它被用来索引 advice。 =remove-function= 可以使用它来移除掉用于 advice 的函数。这一般在使用匿名函数作为 advice 时起作用
+  - =depth= ，用于指定 advice 的次序，它和 defadvice 里面的 position 很像。默认情况下 depth 为 0，depth 为 100 表示 advice 在最深处，depth 为 -100 则表明它应该在最外层。当对两个 advice 指定了相同的 depth 时，最近添加的那个处于外层。
+
+如果 =function= 不是 interactive 的话，使用 add-function 得到的组合函数会继承来自原函数的 interactive-form。否则，组合函数会使用来自 =function= 的 interactive。不过这也是存在例外的，建议直接去阅读文档。
+
+remove-function 的函数原型是 =(remove-function place function)= ，它将 =function= 从 =pacle= 移除。它仅对使用 add-function 添加的函数起作用。在内部它使用 =equal= 来比较函数。它也会比较函数的 =name= 属性，这一般比使用 =equal= 进行比较更加可靠。
+
+除了这两个主要函数外，还有几个起辅助作用的小函数：
+
+=advice-function-member-p= 接受 advice 和函数作为参数，如果 advice 已经在函数中了就返回非空值。除了使用函数作为 advice 参数外，还可使用在 add-function 中指定的名字作为 advice 参数。
+
+=advice-function-mapc= 接受一个函数 =f= 和 advised function =function-def= ，它将以 =f= 对 =function-def= 中所有的 advice 进行遍历。 =f= 接受两个参数：advice 函数及其属性
+
+=advice-eval-interactive-spec= 接受一个 =spec= ，然后返回由 =spec= 指定的参数表。比如 =(advice-eval-interactive-spec "r")= 就会返回被高亮选中区域的首尾 point。
+
+由于我还没有讲到 =where= 可以取哪些组合方法以及各种组合方法的使用方式，这里就举一个最简单的例子来说明 add/remove-function 的使用：
+
+#+BEGIN_SRC emacs-lisp
+(defun add3 (x) (+ x 3))
+
+(add-function :filter-args
+	      (symbol-function 'add3)
+	      (lambda (x) (-map '1+ x))
+	      '((name . yyy)))
+
+(add3 1) => 5
+
+(remove-function (symbol-function 'add3) 'yyy)
+
+(add3 1) => 4
+
+#+END_SRC
+
+上面我使用了 =name= 来指定 advice 的名字，如果不对匿名函数指定一个名字的话，在 lexical-binding 为 non-nil 的情况下，使用原匿名函数的 lambda 表达式作为 remove-function 的函数参数并不能成功删除 advice，但是在 lexical-binding 为 nil 时则可以。这大概是因为在词法作用域下给匿名函数加入了额外的信息，使得两个相同的表达式并不 =equal= 等价。读者可以自己试一试。
+
+如果直接使用有名字的函数的话，就不需要在调用 add-function 时指定名字了：
+
+#+BEGIN_SRC emacs-lisp
+(defun my-1+ (x) (-map '1+ x))
+
+(add-function :filter-args (symbol-function 'add3) 'my-1+)
+(add3 1) => 5
+(remove-function (symbol-function 'add3) 'my-1+)
+(add3 1) => 4
+#+END_SRC
+
+** 各种各样的 advice 组合方式
+
+在上面的 add-function 举例中，我使用 :filter-args 来作为例子，它的作用是对参数进行 filter，原函数调用时使用它返回的参数表作为参数。除它之外还有 9 个组合方式。它们分别是 :before, :after, :around, :override, :before-while, :before-until, :after-while, :after-until, :filter-return。相比于 defadvice 中的 3 种 class，nadvice 对 advice 的职责进行了进一步的细分。
+
+下面我们将原函数记为 =OLDFUN= ，将传递给 add-funciton 的 advice 记为 =FUNCTION= 。
+
+*** :before
+
+:before 的作用就是在原函数调用之前做一些工作，它对原函数的调用没有影响，和原函数调用是平行关系，加上 :before advice 后的函数可以这样理解：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (apply FUNCTION r) (apply OLDFUN r))
+#+END_SRC
+
+*** :after
+
+:after 是在函数调用之后做一些工作，它与原函数也是平行关系：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (prog1 (apply OLDFUN r) (apply FUNCTION r)))
+#+END_SRC
+
+*** :around
+
+这个选项和 defadvice 中的 around 很接近，把 =OLDFUN= 的调用责任交给了你：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (apply FUNCTION OLDFUN r))
+#+END_SRC
+
+这个时候， =FUNCTION= 的第一参数就是原函数，你可以决定是否对其调用，以及确定调用的位置。
+
+*** :override
+
+:override 相当于完全抛弃了原函数，只调用你在 =FUNCTION= 的 body 中的代码：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (apply FUNCTION r))
+#+END_SRC
+
+*** :before-while 和 :before-until
+
+:before-while 指定根据 =FUNCTION= 的返回值来决定是否对原函数进行调用，若为非 nil 则调用原函数，即：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest c) (and (apply FUNCTION r) (apply OLDFUN r)))
+#+END_SRC
+
+:before-until 则是在 =FUNCTION= 返回 nil 时才调用原函数，将上面的 and 换成 or 即可。
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest c) (or (apply FUNCTION r) (apply OLDFUN r)))
+#+END_SRC
+
+*** :after-while 和 :after-until
+
+与 :before-while 和 :before-until 一样，它们也是根据条件判断函数是否调用。不同的是，:before-* 系列是根据 =FUNCTION= 的结果判断是否调用原函数，:after-* 系列则是根据原函数的调用结果来判断是否调用 =FUNCTION= ：
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (and (apply OLDFUN r) (apply FUNCTION r)))
+(lambda (&rest r) (or  (apply OLDFUN r) (apply FUNCTION r)))
+#+END_SRC
+
+*** :filter-atgs 和 :filter-return
+
+它们起到的作用就像是在 defadvice 中的 before 和 after 中分别修改参数和返回值一样。需要注意的是，在上面的位置参数中都是使用 apply 调用 =FUNCTION= ， 对于 :filter-* 系列则是使用 funcall 函数调用，这也是为什么在上面的 add-function 例子中我使用 =(lambda (x) (-map  '1+ x))= 来作为 =FUNCTION= 的原因。
+
+#+BEGIN_SRC emacs-lisp
+(lambda (&rest r) (apply OLDFUN (funcall FUNCTION r)))
+(lambda (&rest r) (funcall FUNCTION (apply OLDFUN r)))
+#+END_SRC
+
+我在下面的 advice-* 系列函数中会对上面的几个位置关键字进行演示。
+
+
+
+这里我们来看一看 depth 对 advice 的影响。对于 :before advice，在最外（depth 最小）意味着它会首先运行，在任何其他 advice 之前；在最里层（depth 最大）则意味着它在原函数执行前最后执行。类似地，对于 :after advice，在最里层意味着它在原函数执行后首先执行，在最外层意味着在它在所有 advice 执行后运行。对于 :override 最内层意味着它只会 override 原函数，在最外层意味着它会 override 所有里层的 :override advice。
+
+** nadvice 的 advice 系列函数
+
+在上面的 add-function 例子中，当我指定 =place= 参数时，由于 add-function 接受函数对象作为参数，所以我不能直接使用函数的符号作为参数，而必须使用 =symbol-function= 先进行一次转换。对于有名函数，使用 advice-add 和 advice-remove 更加方便。
+
+以下是和 advice 相关的各个函数或宏：
+
+*** define-advice
+
+define-advice 的函数原型是：
+
+#+BEGIN_SRC emacs-lisp
+(define-advice symbol (where lambda-list &optional name depth) &rest body)
+#+END_SRC
+
+使用它可以定义一个 advice 并将 advice 添加到名字为 =symbol= 的函数中。如果 =name= 是 nil 的话 advice 就是匿名的，否则它的名字是 =symbol@name= 。
+
+*** advice-add 和 advice-remove
+
+#+BEGIN_SRC emacs-lisp
+(advice-add symbol where function &optional props)
+#+END_SRC
+
+它将 advice function 添加到名字是 =symbol= 的函数中。 =props= 和 add-function 中的意思一致。
+
+#+BEGIN_SRC emacs-lisp
+(advice-remove symbol function)
+#+END_SRC
+
+advice-remove 将 function 从 =symbol= 代表的函数中移除， =function= 可以是 advice 的 =name= 。
+
+*** 其他函数
+
+=(advice-member-p function symbol)= 可以判断 advice 是否在函数中。
+
+ =(advice-mapc function symbol)= 可以对函数的所有 advice 进行遍历。
+
+*** 补充说明和使用例子
+
+在 elisp manual 27 的 advice 一章中[fn::https://www.gnu.org/software/emacs/manual/html_node/elisp/Advising-Named-Functions.html] 是这样描述 advice 的：
+
+#+BEGIN_QUOTE
+advice-add can be useful for altering the behavior of existing calls to an existing function without having to redefine the whole function. However, it can be a source of bugs, since existing callers to the function may assume the old behavior, and work incorrectly when the behavior is changed by advice. Advice can also cause confusion in debugging, if the person doing the debugging does not notice or remember that the function has been modified by advice.
+
+For these reasons, advice should be reserved for the cases where you cannot modify a function’s behavior in any other way.
+#+END_QUOTE
+
+也就是说，文档建议你不在非用不可的情况下最好不要用 advice。
+
+下面我们用几个例子来结束这一小节，这里主要使用的是 advide-* 系列函数。
+
+#+BEGIN_SRC emacs-lisp
+  ;;1. use define-advice
+  (defun fact (n)
+    (cl-loop
+     with x = 1
+     for i from 1 to n
+     do (setq x (* x i))
+     finally return x))
+
+  (define-advice fact (:before (x) yy-fact)
+    (print (format "n is %s" x)))
+  => fact@yy-fact
+
+  (fact 10)
+  =>
+  "n is 10"
+  3628800
+
+  ;;2. use advice-add
+  (defun yy-fact-1 (n)
+    (print (1+ n)))
+  (advice-add 'fact :after 'yy-fact-1)
+  => nil
+
+  (fact 10)
+  =>
+  "x is 10"
+
+  11
+  3628800
+
+  ;;3. use :around
+  (defun yy-fact-ar (fun n)
+  (funcall fun (+ n 1)))
+
+  (advice-add 'fact :around 'yy-fact-ar)
+
+  (fact 10)
+  =>
+  "x is 11"
+
+  12
+  39916800
+
+  ;;4. use :filter-return
+  (defun yy-fact-fre (ret-v)
+     (+ 1 ret-v))
+
+  (advice-add 'fact :filter-return 'yy-fact-fre)
+
+  (fact 10)
+  =>
+  "x is 11"
+
+  12
+  39916801
+
+  ;;5. remove all advice
+  (progn
+     (advice-remove 'fact 'yy-fact-1)
+     (advice-remove 'fact 'yy-fact-ar)
+     (advice-remove 'fact 'yy-fact-fre)
+     (advice-remove 'fact 'fact@yy-fact))
+
+  (fact 10) => 3628800
+
+#+END_SRC
+
+上面都是非常简单的例子，我没有演示 depth 的使用，这方面可以参考 defadvice 中的例子。
+
+关于 defadvice 和 advice-add 的互操作性我没精力尝试了，有兴趣的同学可以试试。
+
+* 后记
+
+在开始写这篇文章时，我没想到居然会写这么多，我以为只是几个简单的函数罢了。
+
+感谢 Hans Chalupsky 和 Stefan Monnier 为我们带来了如此方便和强大的 advice 机制。
+
+这大概是我在 2021 年的最后一篇文章了，接下来我可能会非常的忙。看到这里的同学真是辛苦了，我们来年再见。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9zZWlnYS5uaWNvdmlkZW8uanAvc2VpZ2EvaW0yNzc5NTIx.jpg" alt="load failed"></div><div class="yyimgcomment">koakuma</div>@@
