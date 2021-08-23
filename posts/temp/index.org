@@ -1,0 +1,323 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: emacs 的 macro
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzkwMzY3NjEy.jpg" alt="load failed"></div>@@
+#+DATE: [2021-08-21 Sat 09:58]
+#+TAGS: emacs
+
+在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]后，我觉得似乎有必要先仔细学习一下 emacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
+
+本文分为两部分，第一部分简要介绍 emacs 中的 macro，第二部分介绍一些实际中使用宏的例子。
+
+* emacs 的 macro
+
+宏可以用来定义新的控制结构和其他的语言特性。宏定义起来很像函数，但相比于函数是为了求值，宏是为了得到另一个 Lisp 表达式，它在随后才被用来求值。得到新表达式的过程被称为宏的 *展开* 。
+
+光是宏本身的话其实没什么好谈的，不就是宏的定义与展开吗？但是弄清楚了这两点并不能让你迅速熟练宏的使用，毕竟 /the best way to learn write macro is to write macro/ 。在这一节中，除了向你介绍宏的基本使用方法外，我还会介绍一些好用的工具宏，以及一些简单的例子，希望对你有所帮助。
+
+** 宏与函数的区别
+
+在 emacs 中，我们使用 =defmacro= 来定义宏，它的语法是：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro name args [doc] [declare] body)
+#+END_SRC
+
+除了说没有 =interactive= 部分外，其余部分和 =defun= 几乎一模一样。elisp 的宏对象是一张表，它的 car 部分是符号 =macro= ，cdr 部分是一个函数。就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro yymac (a) (list 'list a))
+(symbol-function 'yymac)
+=> (macro lambda (a) (list 'list a))
+
+(yymac 'hello) => (hello)
+#+END_SRC
+
+既然宏的内部也是函数，那么它和函数的区别在哪里呢？这主要体现在两个方面。
+
+- 其一，宏的参数在被传递给宏体求值前不会像函数那样被求值，它会作为表达式而不是值参与宏展开，就比如上面的 =yymac= ，假如使用 value 为 1 的变量 =a= 作为参数调用，得到的 *展开结果* 是 =(list a)= 而不是 =(list 1)= 。
+- 其二，宏体中的函数返回值应该是另一个 Lisp 表达式，Lisp 解释器会对这个表达式求值，来得到宏调用的结果。
+
+简而言之，宏对参数做的不是求值而是替换。函数调用的返回值由对函数体求值而得到，宏调用的返回值则是由对宏展开后的表达式求值得到。
+
+除了上面的那种使用 =list= 来构建表达式的方法，我们也可以使用 =backquote= （即 =`= ）来方便地构建 Lisp 表达式。它的方便体现在不用使用过多的 list 函数，以及使用 =,= 和 =,@= 来进行插值。
+
+=`= 的行为和 ='= 几乎一致，除了说某些部分可以求值外。在以下例子中可以体现出这一点：
+
+#+BEGIN_SRC emacs-lisp
+  `(1 2 3) => (1 2 3)
+  `(1 2 ,(+ 1 2)) => (1 2 3)
+  '(1 2 (+ 1 2)) => (1 2 (+ 1 2))
+
+  `(1 2 ,@(list 1 2 3)) => (1 2 1 2 3)
+#+END_SRC
+
+在 Scheme 中它也被叫做 =quasiquote= ，意思是准引用。
+
+在 =backquote= body 里面， =,= 和 =,@= 的作用就是对表达式求值，然后将得到的值填充到其所在位置。上面的 defmacro 例子可以写成这样：
+
+#+BEGIN_SRC emacs-lisp
+    (defmacro yymac-2 (a) `(list ,a))
+    (yymac-2 1) => (1)
+    (macroexpand '(yymac-2 abc)) => (list abc)
+    (macroexpand '(yymac-2 (1 2 3))) => (list (1 2 3)) ;bad form
+    (macroexpand '(yymac-2 '(1 2 3))) => (list '(1 2 3))
+#+END_SRC
+
+我拿使用 =`= 和不使用 =`= 的宏对比一下，下面使用 =`= 的代码可以少写 4 个 =list= ：
+
+#+BEGIN_SRC emacs-lisp
+  (defmacro mac-print (ls)
+     (let ((a ls))
+     `(progn
+       (print ,(car a))
+       (print ,(cadr a))
+       (print ,(caddr a)))))
+
+  (defmacro mac-print-2 (ls)
+     (let ((a ls))
+       (list 'progn
+	     (list 'print (car a))
+	     (list 'print (cadr a))
+	     (list 'print (caddr a)))))
+  (macroexpand '(mac-print (1 2 3))) => (progn (print 1) (print 2) (print 3))
+  (macroexpand '(mac-print-2 (1 2 3))) => (progn (print 1) (print 2) (print 3))
+#+END_SRC
+
+由于 macro 接收参数时不求值的特性，在上面的 =mac-print= 宏展开中，将 表表达式 =(1 2 3)= 传递给宏后，它被成功绑定到了 =ls= 上，然后绑定到 let 变量 =a= 上（使用 let 仅仅是为了说明宏参数的值仅仅是个普通的表达式罢了），而没有出现类似 =Debugger entered--Lisp error: (invalid-function 1)= 的错误。
+
+对于 Lisp 宏来说，它接受的参数类型只有两种，即 /atom/ 和 /list/ （elisp 中也有 /vector/ ，其他字面量也许可以，比如 /hashtable/ ）。下面的例子中，我对宏参数使用 =predicate= 来判断其类型：
+
+#+BEGIN_SRC emacs-lisp
+  (defmacro mac-val (x)
+    (if (and (atom x) (symbolp x))
+	`(progn (print ,x)
+		(print (+ ,x 1)))
+      nil))
+  (macroexpand '(mac-val yy)) => (progn (print yy) (print (+ yy 1)))
+  (macroexpand '(mac-val 1)) => nil
+  (macroexpand '(mac-val (quote yy))) => nil ;(quote yy) is a list
+#+END_SRC
+
+对于不同类型的宏参数，使用针对其类型的函数对其进行操作是可行的，比如我上面对 list 用到的 =car= ， =cadr= 和 =caddr= 。不过对于宽泛的 atom（不明确其具体类型）来说，可用的函数好像就 =atom= 一个，它用来判断某个对象是不是 atom。
+
+需要注意的一点是，对于宏参数，最好不要使用带副作用的操作，这样可能会引发意想不到的后果。
+
+** 与宏相关的一些函数和宏
+
+这里我只介绍四个函数，这也是在 elisp manual 上列出的四个函数。
+
+- =macrop= 用于判断它的参数是否为 macro，若是则返回 t，否则返回 nil
+- =macroexpand= 接受一个 =form= 和可选的 =environment= ，如果 =form= 是宏调用的话，它会将宏调用展开，如果展开结果还是宏调用则继续展开，直到结果不是宏调用为止。最后的结果就作为函数的返回值。需要注意的是，它不负责 =form= 子表达式中的宏调用
+- =macroexpand-all= 的参数表与 =macroexpand= 相同，但它除了处理 =form= 的宏调用外还会处理子表达式的宏调用。也就是说它会将整个宏调用完全展开，里面不会剩下任何的宏调用
+- =macroexpand-1= 的参数表和上面两个函数一致，它的行为与 =macroexpand= 相似，但是它的展开只进行一次。如果一次展开结果还是宏调用的话，它就直接返回结果而不进行进一步展开
+
+以下例子可以说明 =macroexpand= 系列函数之间的区别：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro inc (var)
+  (list 'setq var (list '1+ var)))
+(defmacro inc2 (v1 v2)
+  (list 'progn (list 'inc v1) (list 'inc v2)))
+
+(macroexpand '(inc2 a b)) => (progn (inc a) (inc b))
+(macroexpand-1 '(inc2 a b)) => (progn (inc a) (inc b))
+(macroexpand-all '(inc2 a b)) => (progn (setq a (1+ a)) (setq b (1+ b)))
+
+(defmacro yy-two (mac-name val)
+  (list mac-name val))
+
+(macroexpand '(yy-two inc a)) => (setq a (1+ a))
+(macroexpand-1 '(yy-two inc a)) => (inc a)
+#+END_SRC
+
+关于 =environment= 参数，文档上是这样说的：
+
+#+BEGIN_QUOTE
+/If environment is provided, it specifies an alist of macro definitions that shadow the currently defined macros. Byte compilation uses this feature./
+#+END_QUOTE
+
+具体的用法可以参考这个例子：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro inctri (var)
+  (list 'setq var (list '+ var 3)))
+
+(macroexpand-all '(inc2 a b) '((inc . (lambda (v) (list 'setq v (list '+ v 3))))))
+=> (progn (setq a (+ a 3)) (setq b (+ b 3)))
+(macroexpand-all '(inc2 a b) `((inc . ,(cdr (symbol-function 'inctri)))))
+=> (progn (setq a (+ a 3)) (setq b (+ b 3)))
+#+END_SRC
+
+** 宏的缩进
+
+在阅读 emacs 的 elisp 源代码时，你可能会看到某些宏里面还有一条类似这样的声明： =(declare (indent 1))= ，这是在声明宏调用的缩进方式。老实说，文档上关于 declare indent 的部分写的有点晦涩，我尽量多用些例子说明它的用法。
+
+注意，这里说的缩进是指当你调用函数或宏的时候参数的缩进方式，不是函数或宏定义的缩进方式。至于为什么要把 =indent= 放到 =macro= 这一章来讲，应该是 =indent= 在宏中使用较多的缘故。
+
+indent 接受的参数有以下几种形式：
+
+- =nil= 表示使用标准的缩进模式， =(indent nil)= 相当于不指定 indent
+
+- =defun= 使用 *定义* 结构的缩进，即将第二行作为 =body= 的开始
+
+- 整数 =number= ，它让前 =number= 个参数变成 distinguished arguments（这里译为分界参数），剩余的参数被当成表达式的 body 部分。表达式中的行会根据它的第一个参数是否为分界参数来决定它的缩进方式。如果参数不是分界参数，那么该行会使用 =lisp-body-indent= 加上当前所在表达式缩进来作为缩进列数；如果参数是分界参数且是第一个或第二个，那么它会进行两次缩进，即当前缩进加上两个 =lisp-body-indent= ；对于非第一第二的分界参数，会使用标准模式缩进，即对齐上一行的首参数
+
+- 一个符号 =symbol= ，它是一个函数名，函数被用来计算行的缩进。函数接受 =pos= 和 =state= 两个参数， =pos= 是行的缩进开始位置， =state= 是 =parse-partial-sexp= 在解析完当前行后的返回值。函数的返回值可以是一个整数或一个包含整数的表。如果返回整数，当前行的下面的同层行会与它对齐；如果返回表，下面的行可以使用不同的缩进
+
+=nil= 是最好理解的，就是不对 indent 进行设置，这种情况下的缩进是这样的：下一行的参数与上一行的首个参数保持缩进对齐：
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_nil (x y z a)
+  (list x y z a))
+
+(ind_nil
+ 1
+ 2
+ 3
+ 4)
+
+(ind_nil 1
+         2
+         3
+         4)
+
+(ind_nil 1 2
+	 3
+         4)
+#+END_SRC
+
+=defun= 就是类似 defun 的缩进，即将第二行当作 body，缩进一个 =lisp-body-indent= ，这与 nil 是不同的：
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_defun (a b c d)
+  (declare (indent defun))
+  (list a b c d))
+
+(ind_defun 1
+  2
+  3
+  4)
+
+(ind_defun 1 2
+  3 4)
+#+END_SRC
+
+指定 =number= 作为 indent 在宏里面好像是一种很常见的行为，它用来说明哪几个参数是需要特殊缩进的，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_num (a b c d e)
+  (declare (indent 3))
+  (list a b c d e))
+
+(ind_num
+    1
+    2
+    3
+  4
+  5)
+
+(ind_num 1
+    2
+    3
+  4
+  5)
+
+(ind_num 1 2
+	 3
+  4
+  5)
+#+END_SRC
+
+对于 =symbol= ，文档居然连个例子也没给。那只能自己摸索了，首先使用常函数作为缩进函数，然后 trace 它来观察它的行为：
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_ind (pos state) 1)
+(defun ind_syn (a b c d)
+  (declare (indent ind_ind))
+  (list a b c d))
+(trace-function-background 'ind_ind)
+
+;; put these lines at the beginning of an empty buffer
+(ind_syn
+ 1
+ 2
+ 3
+ 4)
+#+END_SRC
+
+我们在参数 =1, 2, 3, 4= 所在的行分别按下 tab，观察一下 buffer **trace-output** 中的输出：
+
+#+BEGIN_SRC
+======================================================================
+1 -> (ind_ind 10 (1 1 2 nil nil nil 0 nil nil (1) nil))
+1 <- ind_ind: 1
+======================================================================
+1 -> (ind_ind 13 (1 1 11 nil nil nil 0 nil nil (1) nil))
+1 <- ind_ind: 1
+======================================================================
+1 -> (ind_ind 16 (1 1 14 nil nil nil 0 nil nil (1) nil))
+1 <- ind_ind: 1
+======================================================================
+1 -> (ind_ind 19 (1 1 17 nil nil nil 0 nil nil (1) nil))
+1 <- ind_ind: 1
+#+END_SRC
+
+可以看到，第一个参数 pos 确实是行首的 point ，但是第二参数是一张复杂的表，需要参考文档来了解表中各个元素的含义。使用 =C-h f parse-partial-sexp= 可以进行阅读，以下是返回值的说明：
+
+- 0. 括号的深度
+- 1. 最内层的包含列表的起始字符位置
+- 2. 最后一个完整 sexp 的起始位置
+- 3. 当在字符串内时非空
+- 4. 在注释内时非空
+- 5. 如果跟着 ='= 则为非空
+- 6. 本次扫描遇到的最小括号深度
+- 7. 注释的样式，如果有的话
+- 8. 字符串或注释的起始字符位置，如果为 nil 则说明不存在
+- 9. 当前最外面的开括号的位置
+- 10. When the last position scanned holds the first character of a (potential) two character construct, the syntax of that position, otherwise nil.  That construct can be a two character comment delimiter or an Escaped or Char-quoted character.（翻译不能）
+
+根据 =parse-patrial-sexp= 返回值的含义，我们可以编写出一个使 body 的奇数行缩进四格，偶数行缩进两格的函数：
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_ind2 (pos state)
+  (let ((current-line-delta (- (line-number-at-pos pos)
+			       (line-number-at-pos (nth 1 state)))))
+    (if (zerop (% current-line-delta 2)) '(2) '(4))))
+
+(defun ind_syn2 (a b c d)
+  (declare (indent ind_ind2))
+  (list a b c d))
+
+;; we get this
+(ind_syn2
+    1
+  2
+    3
+  4)
+
+#+END_SRC
+
+我们甚至可以写出每增一行缩进加一的函数
+
+#+BEGIN_SRC emacs-lisp
+(defun ind_ind3 (pos state)
+  (let ((current-line-delta (- (line-number-at-pos pos)
+			       (line-number-at-pos (nth 1 state)))))
+    (list current-line-delta)))
+
+
+(defun ind_syn3 (a b c d)
+  (declare (indent ind_ind3))
+  (list a b c d))
+
+(ind_syn3
+ 1
+  2
+   3
+    4)
+#+END_SRC
+
+上面的缩进函数的返回值我都使用了带括号的形式，如果不带括号的话那么下面的参数必须与上面的参数保持相同缩进。 =parse-partial-sexp= 的返回值我只用了一个，使用其他的值也许可以写出更加有趣的缩进函数，这里我就不进一步尝试了。
+
+** 宏与 lexical-binding
+

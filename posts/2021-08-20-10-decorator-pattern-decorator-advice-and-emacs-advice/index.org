@@ -1,7 +1,7 @@
 #+SETUPFILE: ../../setup.org
 #+TITLE: decorator pattern, decorator&advice, and emacs advice
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMjY2MTM2.jpg" alt="load failed"></div>@@
-#+DATE: [2021-08-11 周三]
+#+DATE: [2021-08-20 Fri]
 #+TAGS: emacs
 
 在阅读 /elisp manual/ 时，我在 Funciton 一章了解到了 /Advising Functions/ ，它的作用是在不修改函数代码的情况下改变函数的行为。这么看来它和装饰器模式是很像的。正好前段时间读了读  /gof/ ，它在“结构型模式”一章中介绍了 decorator。以它们两个来作为主要内容来介绍装饰器及其使用应该会写出一篇不错的笔记。因此本文主要分为两个部分，即介绍装饰器和 emacs 中的 function advice 。
