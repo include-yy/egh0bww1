@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 4-关于作用域的一个小结
+#+TITLE: 关于作用域的一个小结
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2021-04-17 Sat]
 #+TAGS: emacs

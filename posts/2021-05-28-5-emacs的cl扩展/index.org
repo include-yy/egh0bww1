@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 5-emacs的cl扩展
+#+TITLE: emacs的cl扩展
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvNzY3NjU4.jpg" alt="load failed"></div>@@
 #+DATE: [2021-05-28]
 #+TAGS: emacs

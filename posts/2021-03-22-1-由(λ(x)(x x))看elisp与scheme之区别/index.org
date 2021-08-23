@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 1-由(λ(x)(x x))看elisp与scheme之区别
+#+TITLE: 由(λ(x)(x x))看elisp与scheme之区别
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGludGVyZXN0LmNvbS9waW4vNDQyMzM3OTk0NjQ5NDIxMTc0Lw==.jpg" alt="load failed"></div>@@
 #+DATE: [2021-03-22 Mon]
 #+TAGS: emacs

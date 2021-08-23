@@ -245,7 +245,7 @@ indent 接受的参数有以下几种形式：
  4)
 #+END_SRC
 
-我们在参数 =1, 2, 3, 4= 所在的行分别按下 tab，观察一下 buffer **trace-output** 中的输出：
+我们在参数 =1, 2, 3, 4= 所在的行分别按下 tab，观察一下 buffer *trace-output* 中的输出：
 
 #+BEGIN_SRC
 ======================================================================
@@ -321,4 +321,96 @@ indent 接受的参数有以下几种形式：
 
 ** 宏与 lexical-binding
 
+前面我也说到过，宏的结构就是 car 是 符号 =macro= ，cdr 是函数的序对。在 lexical-binding 为 nil 和 非 nil 的情况下对 macro 中的函数是有影响的：
 
+#+BEGIN_SRC emacs-lisp
+(setq lexical-binding nil)
+(defmacro foo-1 (x)
+  (list 'list x))
+(symbol-function 'foo-1) => (macro lambda (x) (list 'list x))
+
+(setq lexical-binding t)
+(defmacro foo-2 (x)
+  (list 'list x))
+(symbol-function 'foo-2) => (macro closure (t) (x) (list 'list x))
+#+END_SRC
+
+可以看到，此时 macro 的 cdr 是一个闭包而不是单纯的 lambda 函数。此后即便 lexical-binding 设置为 nil，调用这个宏也会按照词法作用域规则求值。
+
+** manual 中提到的注意事项
+
+这一小节主要是 manual 上关于宏的需要注意的地方，我把它们综合了一下。
+
+*** 宏与编译
+
+#+BEGIN_QUOTE
+You might ask why we take the trouble to compute an expansion for a macro and then evaluate the expansion. Why not have the macro body produce the desired results directly? The reason has to do with compilation.
+#+END_QUOTE
+
+当宏调用出现在将要被编译的 Lisp 程序中时，Lisp 编译器会像解释器一样调用宏定义，然后得到宏展开的结果。但与解释器不同的是，编译器不会继续求值，而是将展开结果插入到程序中。这样一来，编译后的代码可以完成宏的功能，又可以利用编译码的速度。如果宏展开期间有副作用的话是不能这样做的，因为编译器的副作用对运行时没有作用。
+
+为了让宏调用的编译能够进行，在编译宏调用时被调宏必须事先定义。编译器的一个特性可以帮到你：如果文件中包含 =defmacro= 宏定义的话，这个宏在文件编译期间会被临时定义。
+
+对文件进行字节编译时也会执行任何 top-level 的 =require= 调用，你可以通过 =require= 定义宏的文件来确保必要的宏定义在编译期间是可用的。要避免编译后对文件的 require 引入不必要的宏的话，可以使用 =eval-when-compile= 来处理只在编译器使用的 =require= ，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(eval-when-compile
+  (require 'some-compile-macro))
+#+END_SRC
+
+*** 编译时求值（eval）
+
+在宏展开时，在宏体中对宏的参数表达式求值可能会带来一些问题。如果用户碰巧使用了和宏的形参名字相同的实参的话会出现问题，就像这样：
+
+#+BEGIN_SRC emacs-lisp
+;;with lexical-binding set to nil
+(defmacro foo (a)
+  (list 'setq (eval a) t))
+
+(setq x 'b)
+(foo x) => (setq b t) => t
+
+(setq a 'c)
+(foo a) => (setq a t) => t ; but set a, not c
+#+END_SRC
+
+出现这个问题的原因在于，宏的形参 =a= 绑定了符号 'a，由于动态作用域的关系，a 对符号 c 的绑定在宏展开时暂时被遮蔽了，所以 (eval a) 会得到符号 a 而不是 c。（不过话又说回来，如果打开词法作用域的话就不会有问题了，因为词法作用域的绑定不会改变外面符号绑定的值，而 eval 又是在空环境（全局环境）中求值的，所以没有问题）
+
+除了说上面的遮蔽问题外，展开时求值对宏的编译也是不利的。在编译时编译器会执行宏定义，但这时被 eval 的变量可能还不存在。
+
+manual 上对此的建议是：不要在宏展开时对参数表达式进行求值，而是将求值的部分留到宏的展开结果中，这样就可以在运行时求值了。
+
+*** 宏的多次展开
+
+如果宏在展开过程中含有副作用的话，宏的行为可能会与宏的展开次数有关。你应该尽量避免宏展开中的副作用，除非你十分清楚你要做什么。
+
+但并不是所有的副作用都能被避免的，比如在展开时构建 Lisp 对象。几乎所有的宏展开都包括构建表这一过程，这也是大多数宏的全部工作，它一般是很安全的。但有一种情况是你必须要注意的：当你构建的对象是宏展开中带引用常值的一部分时。
+
+在大多数的 Lisp 代码中是不需要关心这个问题的。只要你在对宏定义中构建的对象进行带副作用操作时这个问题才变得重要。要避免这个问题，你最好在由宏定义构建的对象中避免任何的副作用操作。
+
+下面的代码可以用来说明这个问题：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro empty-object ()
+  (list 'quote (cons nil nil)))
+
+(defun initialize (condition)
+  (let ((object (empty-object)))
+    (if condition
+        (setcar object condition))
+    object))
+#+END_SRC
+
+每当 =initialize= 被调用时，一个新的 =(nil)= 就会被创建。所以不用担心各个调用之间的副作用问题。但是如果上面的代码被编译了，那么 initialize 中的 =(empty-object)= 调用会被展开，并在之后所有对 initialize 调用过程中重复使用。这显然不是我们想要看到的。
+
+避免这种病态情况的一种方法是将空对象视为常量（即 '(nil)），你不会在 '(nil) 之类的常量上使用 setcar，因此自然也不会在 (empty-object) 上使用它。
+
+*** 其他建议
+
+- 请注意不要在宏展开期间完成运行时的工作，记得一定要返回一个表达式
+- 注意宏参数在展开表达式中的求值次数，写的好的宏会注意避免掉对某个表达式的重复求值
+- 注意名字冲突问题，使用 =make-symbol= 或 =gensym= 等工具来解决问题
+
+** 一些工具宏
+
+上面的各小节基本涵盖了 manual 中 macro 一章的所有内容，但光凭这些干巴巴的东西还不足以让你写出好看好用的宏。这一小节的任务是简单介绍一些可以在宏定义中使用的工具宏，以及一些更加实际的例子。

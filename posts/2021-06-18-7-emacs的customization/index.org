@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 7-emacs的customization
+#+TITLE: emacs的customization
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cuZGV2aWFudGFydC5jb20vc21pbG9jZy9hcnQvY2lybm8tMTY4OTIzMjgz.jpg" alt="load failed"></div>@@
 #+DATE: [2021-06-18 Fri]
 #+TAGS: emacs

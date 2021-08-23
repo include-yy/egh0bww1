@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TITLE: 0-我的从0开始的emacs配置
+#+TITLE: 我的从0开始的emacs配置
 #+TITLE: @@html:<div class="yyheadimg"><img src="./head.jpg" alt="load failed"></div>@@
 #+DATE: [2021-03-21 Sun]
 #+TAGS: emacs
