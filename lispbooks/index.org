@@ -1,0 +1,242 @@
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style_gongzhitaao.css" />
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/kagamine_rin.ico">
+#+OPTIONS: html-style:nil
+#+OPTIONS: toc:1 num:nil ^:nil
+
+#+STARTUP: fold
+#+TITLE: Lisp books
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS90dy9wb3N0L3Nob3cvODM2ODY5OA==.png" alt="load failed"></div>@@
+#+DATE: [2021-08-25 Wed]
+
+Here is a collection of Lisp books, this page may update from time to time.
+
+* <Scheme>
+@@html:<hr class="Solid">@@
+* Structure and Interpretation of Computer Programs
+
+website: [[https://mitpress.mit.edu/sites/default/files/sicp/index.html][home page]]
+
+file: [[file:Structure-and-Interpretation-of-Computer-Programs.pdf][sicp]]
+
+** description
+
+Structure and Interpretation of Computer Programs (SICP) is a computer science textbook by Massachusetts Institute of Technology professors Harold Abelson and Gerald Jay Sussman with Julie Sussman. It is known as the Wizard Book in hacker culture. It teaches fundamental principles of computer programming, including recursion, abstraction, modularity, and programming language design and implementation.
+* Software Design for Flexibility
+
+website: [[https://mitpress.mit.edu/books/software-design-flexibility][home page]]
+
+file: [[file:Software-Design-for-Flexibility.pdf][software design for flexibility]]
+
+** description
+
+Strategies for building systems that can be adapted for new situations with only minor programming modifications.
+* How to Design Porgrams
+
+website: [[https://htdp.org/][home page]]
+
+file: [[file:How-to-Design-Programs.pdf][htdp]]
+
+** description
+
+The book introduces the concept of a design recipe, a six-step process for creating programs from a problem statement. While the book was originally used along with the education project TeachScheme! (renamed ProgramByDesign), it has been adopted at many colleges and universities for teaching program design principles.
+
+According to HtDP, the design process starts with a careful analysis of a problem statement with the goal of extracting a rigorous description of the kinds of data that the desired program consumes and produces. The structure of these data descriptions determines the organization of the program.
+* DONE The Little Schemer
+
+webiste: [[https://mitpress.mit.edu/books/little-schemer-fourth-edition][home page]]
+
+file: [[file:The-Little-Schemer.pdf][the little schemer]]
+
+** description
+
+The notion that "thinking about computing is one of the most exciting things the human mind can do" sets both The Little Schemer (formerly known as The Little LISPer) and its new companion volume, The Seasoned Schemer, apart from other books on LISP. The authors' enthusiasm for their subject is compelling as they present abstract concepts in a humorous and easy-to-grasp fashion. Together, these books will open new doors of thought to anyone who wants to find out what computing is really about. The Little Schemer introduces computing as an extension of arithmetic and algebra; things that everyone studies in grade school and high school. It introduces programs as recursive functions and briefly discusses the limits of what computers can do. The authors use the programming language Scheme, and interesting foods to illustrate these abstract ideas. The Seasoned Schemer informs the reader about additional dimensions of computing: functions as values, change of state, and exceptional cases. The Little LISPer has been a popular introduction to LISP for many years. It had appeared in French and Japanese. The Little Schemer and The Seasoned Schemer are worthy successors and will prove equally popular as textbooks for Scheme courses as well as companion texts for any complete introductory course in Computer Science.
+* DONE The Seasoned Schemer
+
+website: [[https://mitpress.mit.edu/books/seasoned-schemer-second-edition][home page]]
+
+file: [[file:The-Seasoned-Schemer.pdf][the seasoned schemer]]
+
+** description
+
+Summary
+The notion that "thinking about computing is one of the most exciting things the human mind can do" sets both The Little Schemer (formerly known as The Little LISPer) and its new companion volume, The Seasoned Schemer, apart from other books on LISP. The authors' enthusiasm for their subject is compelling as they present abstract concepts in a humorous and easy-to-grasp fashion. Together, these books will open new doors of thought to anyone who wants to find out what computing is really about. The Little Schemer introduces computing as an extension of arithmetic and algebra; things that everyone studies in grade school and high school. It introduces programs as recursive functions and briefly discusses the limits of what computers can do. The authors use the programming language Scheme, and interesting foods to illustrate these abstract ideas. The Seasoned Schemer informs the reader about additional dimensions of computing: functions as values, change of state, and exceptional cases. The Little LISPer has been a popular introduction to LISP for many years. It had appeared in French and Japanese. The Little Schemer and The Seasoned Schemer are worthy successors and will prove equally popular as textbooks for Scheme courses as well as companion texts for any complete introductory course in Computer Science.
+* The Reasoned Schemer
+
+webiste: [[https://mitpress.mit.edu/books/reasoned-schemer-second-edition][home page]]
+
+file: [[file:The-Reasoned-Schemer.pdf][the reasoned schemer]]
+
+** description
+
+The goal of this book is to show the beauty and elegance of relational programming, which captures the essence of logic programming.  The book shows how to implement a relational programming language in Scheme, or in any other functional language, and demonstrates the remarkable flexibility of the resulting relational programs. As in the first edition, the pedagogical method is a series of questions and answers, which proceed with the characteristic humor that marked The Little Schemer and The Seasoned Schemer. Familiarity with a functional language or with the first five chapters of The Little Schemer is assumed.
+* DONE The Scheme Programming Language
+
+website: [[https://www.scheme.com/tspl4/][tspl4]]
+
+file: [[file:The-Scheme-Programming-Language-4th-Edition.pdf][the scheme programming language]]
+
+** description
+
+Scheme was introduced in 1975 by Gerald J. Sussman and Guy L. Steele Jr., and was the first dialect of Lisp to fully support lexical scoping, first-class procedures, and continuations. In its earliest form it was a small language intended primarily for research and teaching, supporting only a handful of predefined syntactic forms and procedures. Scheme is now a complete general-purpose programming language, though it still derives its power from a small set of key concepts. Early implementations of the language were interpreter-based and slow, but some current Scheme implementations boast sophisticated compilers that generate code on par with code generated by the best optimizing compilers for lower-level languages such as C and Fortran.
+
+This book is intended to provide an introduction to the Scheme programming language but not an introduction to programming in general. The reader is expected to have had some experience programming and to be familiar with terms commonly associated with computers and programming languages. Readers unfamiliar with Scheme or Lisp should also consider reading The Little Schemer to become familiar with the concepts of list processing and recursion. Readers new to programming should begin with an introductory text on programming.
+* Essentials of Programming Language
+
+website: [[https://mitpress.mit.edu/books/essentials-programming-languages][home page]]
+
+file: [[file:Essentials-of-Programming-Languages.pdf][eopl]]
+
+** description
+
+Essentials of Programming Languages teaches the fundamental concepts of programming languages through numerous short programs, or 'interpreters," that actually implement the features of a language.
+* Algorithms for Functional Programming
+
+webiste: [[https://www.springer.com/gp/book/9783662579688][home page]]
+
+file: [[file:Algorithms-for-Functional-Programming.pdf][Algorithms for Functional Programming]]
+
+** description
+
+This book presents a variety of widely used algorithms, expressing them in a pure functional programming language to make their structure and operation clearer to readers. In the opening chapter the author introduces the specific notations that constitute the variant of Scheme that he uses. The second chapter introduces many of the simpler and more general patterns available in functional programming. The chapters that follow introduce and explain data structures, sorting,
+
+* <Common Lisp>
+@@html:<hr class="Solid">@@
+* Land of Lisp
+
+webiste: [[http://landoflisp.com/][home page]]
+
+file: [[file:Land-of-Lisp.pdf][land of lisp]]
+
+** description
+
+Lisp has been hailed as the world’s most powerful programming language, but its cryptic syntax and academic reputation can be enough to scare off even experienced programmers. Those dark days are finally over—Land of Lisp brings the power of functional programming to the people!
+
+With his brilliantly quirky comics and out-of-this-world games, longtime Lisper Conrad Barski teaches you the mysteries of Common Lisp. You’ll start with the basics, like list manipulation, I/O, and recursion, then move on to more complex topics like macros, higher order programming, and domain-specific languages. Then, when your brain overheats, you can kick back with an action-packed comic book interlude!
+
+* Lisp in Small Pieces
+
+website: [[https://www.cambridge.org/core/books/lisp-in-small-pieces/66FD2BE3EDDDC68CA87D652C82CF849E][home page]]
+
+file: [[file:Lisp-in-Small-Pieces.pdf][lisp in small pieces]]
+
+** description
+
+This is a comprehensive account of the semantics and the implementation of the whole Lisp family of languages, namely Lisp, Scheme and related dialects. It describes 11 interpreters and 2 compilers, including very recent techniques of interpretation and compilation. The book is in two parts. The first starts from a simple evaluation function and enriches it with multiple name spaces, continuations and side-effects with commented variants, while at the same time the language used to define these features is reduced to a simple lambda-calculus. Denotational semantics is then naturally introduced. The second part focuses more on implementation techniques and discusses precompilation for fast interpretation: threaded code or bytecode; compilation towards C. Some extensions are also described such as dynamic evaluation, reflection, macros and objects. This will become the new standard reference for people wanting to know more about the Lisp family of languages: how they work, how they are implemented, what their variants are and why such variants exist. The full code is supplied (and also available over the Net). A large bibliography is given as well as a considerable number of exercises. Thus it may also be used by students to accompany second courses on Lisp or Scheme.
+* ANSI Common Lisp
+
+website: [[http://www.paulgraham.com/acl.html][home page]]
+
+file: [[file:ANSI-Common-Lisp.pdf][ansi common lisp]]
+
+** description
+
+ANSI Common Lisp combines an introduction to Lisp programming, and a convenient, up-to-date reference manual for ANSI Common Lisp. Beginners will find that its careful explanations and interesting examples make Lisp programming easy to learn. Professional programmers will appreciate its thorough, practical approach.
+
+* Practical Common Lisp
+
+website: [[https://gigamonkeys.com/book/][home page]]
+
+file: [[file:Practical-Common-Lisp.pdf][practical common lisp]]
+
+file: [[file:实用Common.Lisp编程.pdf][实用 common lisp 编程]]
+
+** description
+
+Lisp is often thought of as an academic language, but it need not be. This is the first book that introduces Lisp as a language for the real world.
+
+Practical Common Lisp presents a thorough introduction to Common Lisp, providing you with an overall understanding of the language features and how they work. Over a third of the book is devoted to practical examples, such as the core of a spam filter and a web application for browsing MP3s and streaming them via the Shoutcast protocol to any standard MP3 client software (e.g., iTunes, XMMS, or WinAmp). In other "practical" chapters, author Peter Seibel demonstrates how to build a simple but flexible in-memory database, how to parse binary files, and how to build a unit test framework in 26 lines of code.
+* Object Oriented Programming in Common Lisp
+
+website: none
+
+file: [[file:Object-Oriented-Programming-in-Common-Lisp.pdf][Object Oriented Programming in Common Lisp]]
+
+** description
+
+“If you want to become full, let yourself be empty.” ― Lao Tzu
+
+* The Art of the Metaobject Protocol
+
+website: [[https://mitpress.mit.edu/books/art-metaobject-protocol][home page]]
+
+file: [[file:The-Art-of-the-Metaobject-Protocol.pdf][The Art of the Metaobject Protocol]]
+
+** description
+
+The authors introduce this new approach to programming language design, describe its evolution and design principles, and present a formal specification of a metaobject protocol for CLOS.
+
+* On LISP
+
+website: [[http://www.paulgraham.com/onlisp.html][home page]]
+
+file: [[file:On-LISP.pdf][on lisp]]
+
+** description
+
+On Lisp is a comprehensive study of advanced Lisp techniques, with bottom-up programming as the unifying theme. It gives the first complete description of macros and macro applications. The book also covers important subjects related to bottom-up programming, including functional programming, rapid prototyping, interactive development, and embedded languages. The final chapter takes a deeper look at object-oriented programming than previous Lisp books, showing the step-by-step construction of a working model of the Common Lisp Object System (CLOS).
+
+* Let Over Lambda
+
+webiste: [[https://letoverlambda.com/index.cl][home page]]
+
+file: [[file:Let-Over-Lambda.pdf][let over lambda]]
+
+** description
+
+Let Over Lambda (ISBN 978-1-4357-1275-1, 376+iv pp.) is one of the most hardcore computer programming books out there. Starting with the fundamentals, it describes the most advanced features of the most advanced language: COMMON LISP. The point of this book is to expose you to ideas that you might otherwise never be exposed to.
+
+This book is about macros, that is programs that write programs. Macros are what make lisp the greatest programming language in the world. When used properly, macros enable amazing feats of abstraction, programmer productivity, and code efficiency and security that are unheard of elsewhere. Macros let you do things you simply cannot do in other languages.
+
+If you are looking for a dry coding manual that re-hashes common-sense techniques in whatever langue du jour, this book is not for you. This book is about pushing the boundaries of what we know about programming. While this book teaches useful macro skills that can help solve your programming problems today and now, it has also been designed to be entertaining and inspiring. If you have ever wondered what lisp or even programming itself is really about, this is the book you have been looking for.
+
+* Paradigms of Artificial Intelligence Programming
+
+website: [[https://www.sciencedirect.com/book/9780080571157/paradigms-of-artificial-intelligence-programming][home page]]
+
+file: [[file:Paradigms-of-Artificial-Intelligence-Programming.pdf][Paradigms-of-Artificial-Intelligence-Programming]]
+
+** description
+
+Paradigms of AI Programming is the first text to teach advanced Common Lisp techniques in the context of building major AI systems. By reconstructing authentic, complex AI programs using state-of-the-art Common Lisp, the book teaches students and professionals how to build and debug robust practical programs, while demonstrating superior programming style and important AI concepts. The author strongly emphasizes the practical performance issues involved in writing real working programs of significant size. Chapters on troubleshooting and efficiency are included, along with a discussion of the fundamentals of object-oriented programming and a description of the main CLOS functions. This volume is an excellent text for a course on AI programming, a useful supplement for general AI courses and an indispensable reference for the professional programmer.
+
+* Common LISP A Gentle Introduction to Symbolic Computation
+
+website: [[https://www.cs.cmu.edu/~dst/LispBook/][home page]]
+
+file: [[file:Common-LISP-A-Gentle-Introduction-to-Symbolic-Computation.pdf][Common LISP A Gentle Introduction to Symbolic Computation]]
+
+** description
+
+This highly accessible introduction to Lisp is suitable both for novices approaching their first programming language and experienced programmers interested in exploring a key tool for artificial intelligence research. The text offers clear, reader-friendly explanations of such essential concepts as cons cell structures, evaluation rules, programs as data, and recursive and applicative programming styles.
+The treatment incorporates several innovative instructional devices, such as the use of function boxes in the first two chapters to visually distinguish functions from data, use of evaltrace notation in later chapters to illustrate the operation of evaluation rules, and "Dragon stories" to explain recursion. The book contains nearly 400 diagrams and illustrations, and 77 pages of answers to exercises. Advanced topics and "toolkit" sections, and a variety of complete programs, extend readers' programming power.
+
+* <other books>
+@@html:<hr class="Solid">@@
+* The Little Typer
+
+webiste: [[https://mitpress.mit.edu/books/little-typer][home page]]
+
+file: [[file:The-Little-Typer.pdf][the little typer]]
+
+** description
+
+A program's type describes its behavior. Dependent types are a first-class part of a language, and are much more powerful than other kinds of types; using just one language for types and programs allows program descriptions to be as powerful as the programs they describe. The Little Typer explains dependent types, beginning with a very small language that looks very much like Scheme and extending it to cover both programming with dependent types and using dependent types for mathematical reasoning. Readers should be familiar with the basics of a Lisp-like programming language, as presented in the first four chapters of The Little Schemer.
+* A Little Java, A Few Pattern
+
+website: [[https://mitpress.mit.edu/books/little-java-few-patterns][home page]]
+
+file: [[file:A-Little-Java-A-Few-Patterns.pdf][a little java, a few patterns]]
+
+** description
+
+This is a book of 'why' not 'how.' If you are interested in the nature of computation and curious about the very idea behind object orientation, this book is for you. This book will engage your brain (if not your tummy). Through its sparkling interactive style, you will learn about three essential OO concepts: interfaces, visitors, and factories. A refreshing change from the 'yet another Java book' phenomenon. Every serious Java programmer should own a copy.
+
+* Hackers&Painters
+
+website: [[http://www.paulgraham.com/hackpaint.html][home page]]
+
+file: [[file:Hackers-and-Painters.pdf][hackers and painters]]
+
+** description
+
+If you want to understand what hackers are up to, this book will tell you. And if you are a hacker, you'll probably recognize in it a portrait of yourself.

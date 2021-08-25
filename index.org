@@ -5,6 +5,8 @@
 #+TITLE: Blog Home Page
 #+DATE: [2021-08-03 Tue 00:16]
 
+| [[./lispbooks/index.html][lispbooks]] |
+
 * 目录：
 
 #+BEGIN_SRC elisp :exports results :wrap raw
