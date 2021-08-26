@@ -4,17 +4,13 @@
 #+DATE: [2021-08-21 Sat 09:58]
 #+TAGS: emacs
 
-在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]后，我觉得似乎有必要先仔细学习一下 emacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
-
-本文分为两部分，第一部分简要介绍 emacs 中的 macro，第二部分介绍一些实际中使用宏的例子。
-
-* emacs 的 macro
+在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]emacsemacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
 
 宏可以用来定义新的控制结构和其他的语言特性。宏定义起来很像函数，但相比于函数是为了求值，宏是为了得到另一个 Lisp 表达式，它在随后才被用来求值。得到新表达式的过程被称为宏的 *展开* 。
 
-光是宏本身的话其实没什么好谈的，不就是宏的定义与展开吗？但是弄清楚了这两点并不能让你迅速熟练宏的使用，毕竟 /the best way to learn write macro is to write macro/ 。在这一节中，除了向你介绍宏的基本使用方法外，我还会介绍一些好用的工具宏，以及一些简单的例子，希望对你有所帮助。
+光是宏本身的话其实没什么好谈的，不就是宏的定义与展开吗？但是弄清楚了这两点并不能让你迅速熟练宏的使用，毕竟 /the best way to learn write macro is to write macro/ 。在本文中，除了向你介绍宏的基本使用方法外，我还会介绍一些好用的工具宏，以及一些简单的例子，希望对你有所帮助。
 
-** 宏与函数的区别
+* 宏与函数的区别
 
 在 emacs 中，我们使用 =defmacro= 来定义宏，它的语法是：
 
@@ -69,16 +65,16 @@
   (defmacro mac-print (ls)
      (let ((a ls))
      `(progn
-       (print ,(car a))
-       (print ,(cadr a))
-       (print ,(caddr a)))))
+	(print ,(car a))
+	(print ,(cadr a))
+	(print ,(caddr a)))))
 
   (defmacro mac-print-2 (ls)
      (let ((a ls))
-       (list 'progn
-	     (list 'print (car a))
-	     (list 'print (cadr a))
-	     (list 'print (caddr a)))))
+	(list 'progn
+	      (list 'print (car a))
+	      (list 'print (cadr a))
+	      (list 'print (caddr a)))))
   (macroexpand '(mac-print (1 2 3))) => (progn (print 1) (print 2) (print 3))
   (macroexpand '(mac-print-2 (1 2 3))) => (progn (print 1) (print 2) (print 3))
 #+END_SRC
@@ -90,8 +86,8 @@
 #+BEGIN_SRC emacs-lisp
   (defmacro mac-val (x)
     (if (and (atom x) (symbolp x))
-	`(progn (print ,x)
-		(print (+ ,x 1)))
+	 `(progn (print ,x)
+		 (print (+ ,x 1)))
       nil))
   (macroexpand '(mac-val yy)) => (progn (print yy) (print (+ yy 1)))
   (macroexpand '(mac-val 1)) => nil
@@ -102,7 +98,7 @@
 
 需要注意的一点是，对于宏参数，最好不要使用带副作用的操作，这样可能会引发意想不到的后果。
 
-** 与宏相关的一些函数和宏
+* 与宏相关的一些函数和宏
 
 这里我只介绍四个函数，这也是在 elisp manual 上列出的四个函数。
 
@@ -132,9 +128,9 @@
 
 关于 =environment= 参数，文档上是这样说的：
 
-#+BEGIN_QUOTE
+ #+BEGIN_QUOTE
 /If environment is provided, it specifies an alist of macro definitions that shadow the currently defined macros. Byte compilation uses this feature./
-#+END_QUOTE
+ #+END_QUOTE
 
 具体的用法可以参考这个例子：
 
@@ -148,7 +144,7 @@
 => (progn (setq a (+ a 3)) (setq b (+ b 3)))
 #+END_SRC
 
-** 宏的缩进
+* 宏的缩进
 
 在阅读 emacs 的 elisp 源代码时，你可能会看到某些宏里面还有一条类似这样的声明： =(declare (indent 1))= ，这是在声明宏调用的缩进方式。老实说，文档上关于 declare indent 的部分写的有点晦涩，我尽量多用些例子说明它的用法。
 
@@ -243,7 +239,7 @@ indent 接受的参数有以下几种形式：
  2
  3
  4)
-#+END_SRC
+ #+END_SRC
 
 我们在参数 =1, 2, 3, 4= 所在的行分别按下 tab，观察一下 buffer *trace-output* 中的输出：
 
@@ -281,7 +277,7 @@ indent 接受的参数有以下几种形式：
 #+BEGIN_SRC emacs-lisp
 (defun ind_ind2 (pos state)
   (let ((current-line-delta (- (line-number-at-pos pos)
-			       (line-number-at-pos (nth 1 state)))))
+				(line-number-at-pos (nth 1 state)))))
     (if (zerop (% current-line-delta 2)) '(2) '(4))))
 
 (defun ind_syn2 (a b c d)
@@ -295,14 +291,14 @@ indent 接受的参数有以下几种形式：
     3
   4)
 
-#+END_SRC
+ #+END_SRC
 
 我们甚至可以写出每增一行缩进加一的函数
 
 #+BEGIN_SRC emacs-lisp
 (defun ind_ind3 (pos state)
   (let ((current-line-delta (- (line-number-at-pos pos)
-			       (line-number-at-pos (nth 1 state)))))
+				(line-number-at-pos (nth 1 state)))))
     (list current-line-delta)))
 
 
@@ -315,11 +311,11 @@ indent 接受的参数有以下几种形式：
   2
    3
     4)
-#+END_SRC
+ #+END_SRC
 
 上面的缩进函数的返回值我都使用了带括号的形式，如果不带括号的话那么下面的参数必须与上面的参数保持相同缩进。 =parse-partial-sexp= 的返回值我只用了一个，使用其他的值也许可以写出更加有趣的缩进函数，这里我就不进一步尝试了。
 
-** 宏与 lexical-binding
+* 宏与 lexical-binding
 
 前面我也说到过，宏的结构就是 car 是 符号 =macro= ，cdr 是函数的序对。在 lexical-binding 为 nil 和 非 nil 的情况下对 macro 中的函数是有影响的：
 
@@ -333,19 +329,19 @@ indent 接受的参数有以下几种形式：
 (defmacro foo-2 (x)
   (list 'list x))
 (symbol-function 'foo-2) => (macro closure (t) (x) (list 'list x))
-#+END_SRC
+ #+END_SRC
 
 可以看到，此时 macro 的 cdr 是一个闭包而不是单纯的 lambda 函数。此后即便 lexical-binding 设置为 nil，调用这个宏也会按照词法作用域规则求值。
 
-** manual 中提到的注意事项
+* manual 中提到的注意事项
 
 这一小节主要是 manual 上关于宏的需要注意的地方，我把它们综合了一下。
 
-*** 宏与编译
+** 宏与编译
 
-#+BEGIN_QUOTE
+ #+BEGIN_QUOTE
 You might ask why we take the trouble to compute an expansion for a macro and then evaluate the expansion. Why not have the macro body produce the desired results directly? The reason has to do with compilation.
-#+END_QUOTE
+ #+END_QUOTE
 
 当宏调用出现在将要被编译的 Lisp 程序中时，Lisp 编译器会像解释器一样调用宏定义，然后得到宏展开的结果。但与解释器不同的是，编译器不会继续求值，而是将展开结果插入到程序中。这样一来，编译后的代码可以完成宏的功能，又可以利用编译码的速度。如果宏展开期间有副作用的话是不能这样做的，因为编译器的副作用对运行时没有作用。
 
@@ -358,7 +354,7 @@ You might ask why we take the trouble to compute an expansion for a macro and th
   (require 'some-compile-macro))
 #+END_SRC
 
-*** 编译时求值（eval）
+** 编译时求值（eval）
 
 在宏展开时，在宏体中对宏的参数表达式求值可能会带来一些问题。如果用户碰巧使用了和宏的形参名字相同的实参的话会出现问题，就像这样：
 
@@ -380,7 +376,7 @@ You might ask why we take the trouble to compute an expansion for a macro and th
 
 manual 上对此的建议是：不要在宏展开时对参数表达式进行求值，而是将求值的部分留到宏的展开结果中，这样就可以在运行时求值了。
 
-*** 宏的多次展开
+** 宏的多次展开
 
 如果宏在展开过程中含有副作用的话，宏的行为可能会与宏的展开次数有关。你应该尽量避免宏展开中的副作用，除非你十分清楚你要做什么。
 
@@ -398,19 +394,20 @@ manual 上对此的建议是：不要在宏展开时对参数表达式进行求�
   (let ((object (empty-object)))
     (if condition
         (setcar object condition))
-    object))
+      object))
 #+END_SRC
 
 每当 =initialize= 被调用时，一个新的 =(nil)= 就会被创建。所以不用担心各个调用之间的副作用问题。但是如果上面的代码被编译了，那么 initialize 中的 =(empty-object)= 调用会被展开，并在之后所有对 initialize 调用过程中重复使用。这显然不是我们想要看到的。
 
 避免这种病态情况的一种方法是将空对象视为常量（即 '(nil)），你不会在 '(nil) 之类的常量上使用 setcar，因此自然也不会在 (empty-object) 上使用它。
 
-*** 其他建议
+** 其他建议
 
 - 请注意不要在宏展开期间完成运行时的工作，记得一定要返回一个表达式
 - 注意宏参数在展开表达式中的求值次数，写的好的宏会注意避免掉对某个表达式的重复求值
 - 注意名字冲突问题，使用 =make-symbol= 或 =gensym= 等工具来解决问题
 
-** 一些工具宏
+* 一些工具函数和宏
 
 上面的各小节基本涵盖了 manual 中 macro 一章的所有内容，但光凭这些干巴巴的东西还不足以让你写出好看好用的宏。这一小节的任务是简单介绍一些可以在宏定义中使用的工具宏，以及一些更加实际的例子。
+

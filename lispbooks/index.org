@@ -1,12 +1,12 @@
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style_gongzhitaao.css" />
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/kagamine_rin.ico">
 #+OPTIONS: html-style:nil
-#+OPTIONS: toc:1 num:nil ^:nil
+#+OPTIONS: toc:1 num:nil ^:t
 
 #+STARTUP: fold
 #+TITLE: Lisp books
 #+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS90dy9wb3N0L3Nob3cvODM2ODY5OA==.png" alt="load failed"></div>@@
-#+DATE: [2021-08-25 Wed]
+#+DATE: [2021-08-25 Wed 16:30]
 
 Here is a collection of Lisp books, this page may update from time to time.
 
@@ -98,6 +98,28 @@ file: [[file:Algorithms-for-Functional-Programming.pdf][Algorithms for Functiona
 ** description
 
 This book presents a variety of widely used algorithms, expressing them in a pure functional programming language to make their structure and operation clearer to readers. In the opening chapter the author introduces the specific notations that constitute the variant of Scheme that he uses. The second chapter introduces many of the simpler and more general patterns available in functional programming. The chapters that follow introduce and explain data structures, sorting,
+
+* R^{n}RS
+
+website:
+
+- [[http://www.scheme-reports.org/][home page]]
+- [[https://practical-scheme.net/wiliki/schemexref.cgi][SchemeCrossReference]]
+
+files:
+
+- [[file:r0rs-AIM-349.pdf][r0rs]]
+- [[file:r1rs-AIM-452.pdf][r^{1}rs]]
+- [[file:r2rs-AIM-848.pdf][r^{2}rs]]
+- [[file:r3rs.pdf][r^{3}rs]]
+- [[file:r4rs.pdf][r^{4}rs]]
+- [[file:r5rs.pdf][r^{5}rs]]
+- r^{6}rs
+  - [[file:r6rs.pdf][r6rs]] [[file:r6rs-lib.pdf][lib]] [[file:r6rs-app.pdf][appendices]] [[file:r6rs-rationale.pdf][rationale]]
+  - [[file:errata-corrected-r6rs.pdf][er6rs]] [[file:errata-corrected-r6rs-lib.pdf][elib]] [[file:errata-corrected-r6rs-app.pdf][eapp]] [[file:errata-corrected-r6rs-rationale.pdf][erationale]]
+- r^{7}rs
+  - [[file:r7rs.pdf][r^{7}rs small]] [[file:errata-corrected-r7rs.pdf][er7rs]]
+  - [[https://practical-scheme.net/gauche/man/gauche-refe/R7RS-large.html][r7rs large]]
 
 * <Common Lisp>
 @@html:<hr class="Solid">@@
@@ -209,6 +231,10 @@ file: [[file:Common-LISP-A-Gentle-Introduction-to-Symbolic-Computation.pdf][Comm
 
 This highly accessible introduction to Lisp is suitable both for novices approaching their first programming language and experienced programmers interested in exploring a key tool for artificial intelligence research. The text offers clear, reader-friendly explanations of such essential concepts as cons cell structures, evaluation rules, programs as data, and recursive and applicative programming styles.
 The treatment incorporates several innovative instructional devices, such as the use of function boxes in the first two chapters to visually distinguish functions from data, use of evaltrace notation in later chapters to illustrate the operation of evaluation rules, and "Dragon stories" to explain recursion. The book contains nearly 400 diagrams and illustrations, and 77 pages of answers to exercises. Advanced topics and "toolkit" sections, and a variety of complete programs, extend readers' programming power.
+
+* X3J13/94-101R
+
+file: [[file:X3J13-94-101R.pdf][ANSI Programming Common Lisp]]
 
 * <other books>
 @@html:<hr class="Solid">@@
