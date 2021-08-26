@@ -5,7 +5,7 @@
 
 #+STARTUP: fold
 #+TITLE: Lisp books
-#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS90dy9wb3N0L3Nob3cvODM2ODY5OA==.png" alt="load failed"></div>@@
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9jaGFuLnNhbmtha3Vjb21wbGV4LmNvbS90dy9wb3N0L3Nob3cvODM2ODY5OA==.jpg" alt="load failed"></div>@@
 #+DATE: [2021-08-25 Wed 16:30]
 
 Here is a collection of Lisp books, this page may update from time to time.
