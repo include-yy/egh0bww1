@@ -81,7 +81,7 @@
 
 由于 macro 接收参数时不求值的特性，在上面的 =mac-print= 宏展开中，将 表表达式 =(1 2 3)= 传递给宏后，它被成功绑定到了 =ls= 上，然后绑定到 let 变量 =a= 上（使用 let 仅仅是为了说明宏参数的值仅仅是个普通的表达式罢了），而没有出现类似 =Debugger entered--Lisp error: (invalid-function 1)= 的错误。
 
-对于 Lisp 宏来说，它接受的参数类型只有两种，即 /atom/ 和 /list/ （elisp 中也有 /vector/ ，其他字面量也许可以，比如 /hashtable/ ）。下面的例子中，我对宏参数使用 =predicate= 来判断其类型：
+对于 Lisp 宏来说，它接受的参数类型只有两种，即 /atom/ 和 /list/ （是的，凡不是 list 的都算作 atom，比如 string vector 之类的）。下面的例子中，我对宏参数使用 =predicate= 来判断其类型：
 
 #+BEGIN_SRC emacs-lisp
   (defmacro mac-val (x)
@@ -410,4 +410,3 @@ manual 上对此的建议是：不要在宏展开时对参数表达式进行求�
 * 一些工具函数和宏
 
 上面的各小节基本涵盖了 manual 中 macro 一章的所有内容，但光凭这些干巴巴的东西还不足以让你写出好看好用的宏。这一小节的任务是简单介绍一些可以在宏定义中使用的工具宏，以及一些更加实际的例子。
-
