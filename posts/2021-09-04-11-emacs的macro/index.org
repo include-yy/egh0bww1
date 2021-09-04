@@ -4,11 +4,11 @@
 #+DATE: [2021-08-21 Sat 09:58]
 #+TAGS: emacs
 
-在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]emacsemacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
+在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]后，我觉得应该先学一下 emacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
 
 宏可以用来定义新的控制结构和其他的语言特性。宏定义起来很像函数，但相比于函数是为了求值，宏是为了得到另一个 Lisp 表达式，它在随后才被用来求值。得到新表达式的过程被称为宏的 *展开* 。
 
-光是宏本身的话其实没什么好谈的，不就是宏的定义与展开吗？但是弄清楚了这两点并不能让你迅速熟练宏的使用，毕竟 /the best way to learn write macro is to write macro/ 。在本文中，除了向你介绍宏的基本使用方法外，我还会介绍一些好用的工具宏，以及一些简单的例子，希望对你有所帮助。
+光是宏本身的话其实没什么好谈的，不就是宏的定义与展开吗？但是弄清楚了这两点并不能让你迅速熟练宏的使用，毕竟 /the best way to learn write macro is to write macro/ 。在本文中，除了向你介绍宏的基本使用方法外，我还会介绍一些简单的例子，做一些补充说明。
 
 * 宏与函数的区别
 
@@ -407,6 +407,302 @@ manual 上对此的建议是：不要在宏展开时对参数表达式进行求�
 - 注意宏参数在展开表达式中的求值次数，写的好的宏会注意避免掉对某个表达式的重复求值
 - 注意名字冲突问题，使用 =make-symbol= 或 =gensym= 等工具来解决问题
 
-* 一些工具函数和宏
+* 一些补充
 
-上面的各小节基本涵盖了 manual 中 macro 一章的所有内容，但光凭这些干巴巴的东西还不足以让你写出好看好用的宏。这一小节的任务是简单介绍一些可以在宏定义中使用的工具宏，以及一些更加实际的例子。
+上面的几节基本上介绍完了 elisp manual 中宏一章的所有内容，文章到这里也本应该结束了。但是在偶然的一次搜索中我发现 =backquote= 居然是可以嵌套的，这又引发我去看了看 /on lisp/ 和 /let over lambda/ ，这两本书颠覆了我对于 common lisp 和 lisp macro 的看法。下面我会介绍一下嵌套 =backquote= 的用法，以及一些简单的宏。当我了解过 common lisp 和它的宏后，我会用一篇文章来详尽地叙述与之相关的内容。
+
+** nested backquote
+
+对于 =`(,(+ 1 2))= 这样的表达式，我们一眼就可以看出它的结果是 =(3)= ，但是 =``(a ,,(+ 1 2))= 呢？这就涉及到嵌套 =backquote= 的求值方式了，在 stackoverflow 上的帖子[fn::https://stackoverflow.com/questions/7549550/using-two-backquotes-and-commas-common-lisp]中是这样说的：
+
+#+BEGIN_QUOTE
+Common Lisp[fn::http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm]
+
+If the backquote syntax is nested, the innermost backquoted form should be expanded first. This means that if several commas occur in a row, the leftmost one belongs to the innermost backquote.
+
+R5RS[fn::https://schemers.org/Documents/Standards/R5RS/HTML/r5rs-Z-H-7.html#%_sec_4.2.6]
+
+Quasiquote forms may be nested. Substitutions are made only for unquoted components appearing at the same nesting level as the outermost backquote. The nesting level increases by one inside each successive quasiquotation, and decreases by one inside each unquotation.
+#+END_QUOTE
+
+关于 Common lisp 的那段话的大意是：如果 =backquote= 是嵌套的，最内部的 =backquote= 首先被展开，如果几个 =,= 连续出现，最左边的那个属于最内部的 =backquote= 。而 R5RS 的那段的意思是：准引用是可以嵌套的， 只有 =,= 表达式的嵌套层次与最外层的 =backquote= 相同时表达式才会求值。嵌套层次随 =`= 出现递增，随 =,= 出现递减。
+
+按照 R5RS 的说明， =``(a ,,(+ 1 2))= 的求值是很好解释的：最外层的 =backquote= 对应第二个 =,= ，所以 =(+ 1 2)= 会被求值，从而得到 =`(a ,3)= 。但是 CL 那一段是什么意思？如果说最内层先展开的话，岂不是先使用第一个 =,= ？我不是太清楚 CL 中的 =backquote= 是怎么实现的，但是在 elisp 里面它就是一个宏，具体实现可以参考 backquote.el。下面我们以 CL 为准，来解释一下它的 =backquote= 嵌套规则。
+
+参考 CLHS 中的说法， =backquote= 的求值方式是这样的：
+
+- `basic 等于 'basic，即 (quote basic)
+- `,form 等价于 form
+- `,@form 结果不定
+- `(x1 x2 x3 ... xn . atom) 解释为 (append [x1] [x2] [x3] ... [xn] (quote atom))其中
+  - [form] 被解释为 (list `form)，它包含一个在之后被解释的 =backquote= form
+  - [,form] 被解释成 (list form)
+  - [,@form] 被解释成 form
+- `(x1 x2 x3 ... xn) 等价于 `(x1 x2 x3 ... xn . nil)
+- `(x1 x2 x3 ... xn . ,from) 被解释为 (append [x1] [x2] [x3] ... [xn] form)
+- `(x1 x2 x3 ... xn . ,@form) 结果未定义
+- `#(x1 x2 x3 ... xn) 可以解释为 (apply #'vector `(x1 x2 x3 ... xn))
+
+根据上面的求值规则，以及嵌套 backquote 的求值规则，我们可以得到对 =``(a ,,(+ 1 2))= 的另一种解释：
+
+首先，展开最里面的 =backquote= ，即 =`(a ,,(+ 1 2))= 。根据规则容易得到结果：
+
+#+BEGIN_SRC emacs-lisp
+(append (list `a)
+        (list (list '\, (+ 1 2)))
+        '())
+#+END_SRC
+
+上面的表达式求值得到 =(a (\, 3))= ，再添外层的 =`= 就可以得到 =`(a (\, 3)= 了，即 =`(a ,3)= 。上面的 =,(+ 1 2)=  我给写成了 =(list '\, (+ 1 2))= ，其一是因为 =,exp= 等价于 =(unquote exp)= ，其二是因为在 elisp 中使用符号 =\,= 来表示 unquote。我们可以看看 =macroexpand= 给出的结果，由于我上面描述的规则是 CL 中的，所以展开的方式不一定完全一致，不过结果是一样的：
+
+#+BEGIN_SRC emacs-lisp
+(macroexpand '``(a ,,(+ 1 2)))
+->
+(cons '\`
+(list
+ (list 'a
+       (cons '\,
+	     (list
+	      (+ 1 2))))))
+#+END_SRC
+
+老实说，R5RS 中对嵌套引号的解释更加容易弄明白，你只需要数一下反引号和逗号就知道要对那个表达式求值了。关于嵌套 =backquote= 的讲解，在 stackoverflow 上还有一些帖子，可以看看。
+
+- [[https://stackoverflow.com/questions/18008099/chls-innermost-backquoted-form-should-be-expanded-first-meaning][CHLS "innermost backquoted form should be expanded first" meaning]]
+- [[https://stackoverflow.com/questions/17957393/comma-comma-at-in-common-lisp][comma-comma-at in Common Lisp]]
+
+这里最后再说一下几种二重嵌套 =backquote= ： =,@',@= ， =,',@= ， =,,@= 和 =,@,@= 。它们的意思可以通过下面的例子体现出来，具体的解释我就不过多说明了，以下代码可以在 SBCL 中运行。
+
+#+BEGIN_SRC emacs-lisp
+(eval ``(,@',@'(1))) -> 1
+(eval ``,',@'(1)) -> 1
+
+``(,,@'((+ 1 2) (+ 2 3))) -> `(,(+ 1 2) ,(+ 2 3))
+(eval ``(,,@'((+ 1 2) (+ 2 3)))) -> (3 5)
+;; but elisp does this
+``(,,@'((+ 1 2) (+ 2 3))) -> `((\, (+ 1 2) (+ 2 3)))
+
+``(,@,@'((list 1 2) (list 2 3))) -> `(,@(LIST 1 2) ,@(LIST 2 3))
+(eval ``(,@,@'((list 1 2) (list 2 3)))) -> (1 2 2 3)
+;; but elisp does this
+``(,@,@'((list 1 2) (list 2 3))) -> `((\,@ (list 1 2) (list 2 3)))
+#+END_SRC
+
+可以看到，后面两种嵌套在 SBCL 和 emacs 中的行为不一致，elisp 的 =,= 和 =,@= 只会简单的展开，而 CL 中的 =,= 和 =,@= 会应用到每一个元素上。
+
+** 一些宏例子
+
+在这一小节开始前，我向你郑重推荐 /on lisp/ 和 /let over lambda/ ，本节的一些宏例子就是从它们上面抄过来的。这一小节的目的仅仅是打开读者的视野（如果没有了解过的话），所以我不会做过多的说明和讲解。
+
+如果代码没有用注释指明运行环境的话，在 CL 和 emacs 中都可以执行。
+
+*** 解决变量捕获的问题（variable capture）
+
+自然，使用 gensym 等函数可以确保某个宏内部使用的符号不会与外部冲突，但是把它包装一下会不会更好呢？
+
+#+BEGIN_SRC emacs-lisp
+;;elisp
+(defun g!-symbol-p (s)
+  (and (symbolp s)
+       (> (length (symbol-name s)) 2)
+       (string-equal (substring (symbol-name s) 0 2) "g!")))
+
+(defmacro defmacro/g! (name args &rest body)
+  (declare (indent defun))
+  (let ((syms (cl-remove-duplicates
+	       (cl-remove-if-not #'g!-symbol-p (flatten-list body)))))
+    `(defmacro ,name ,args
+       (let ,(mapcar
+	      (lambda (s)
+		`(,s (gensym ,(cl-subseq
+			       (symbol-name s)
+			       2))))
+	      syms)
+	 ,@body))))
+#+END_SRC
+
+这一段宏是 /let over lambda/ 第 3 章上的一个例子，我稍作修改以便在 elisp 中使用，以下是使用例：
+
+#+BEGIN_SRC emacs-lisp
+;;elisp
+(defmacro/g! yy-swap (a b)
+  `(let ((,g!temp ,a))
+     (setq ,a ,b)
+     (setq ,b ,g!temp)))
+
+(setq a 1)
+(setq b 2)
+
+(yy-swap a b)
+(cons a b) -> (2 . 1)
+
+(macroexpand '(yy-swap a b)) -> (let ((temp99 a)) (setq a b) (setq b temp99))
+#+END_SRC
+
+*** 避免参数多次求值
+
+在宏展开中使用 let 变量绑定参数表达式，并在随后代码中使用变量可以让表达式只求值一次。 =once-only= 宏可以做到这一点：
+
+#+BEGIN_SRC emacs-lisp
+;;common lisp approach
+(defmacro once-only (names &rest body)
+  (let ((gensyms (loop repeat (length names) collect (gensym))))
+    `(let (,@(loop for g in gensyms collect `(,g (gensym))))
+       `(let (,,@(loop for g in gensyms for n in names
+			  collect ``(,,g ,,n)))
+	  ,(let (,@(loop for n in names for g in gensyms
+			    collect `(,n ,g)))
+	     ,@body)))))
+
+;; elisp approach
+;; https://www.emacswiki.org/emacs/macro-utils.el
+;; with some modifications
+;; here is another one: https://github.com/mrkkrp/mmt
+(defmacro with-gensyms (symbols &rest body)
+  "Execute BODY in a context where the variables in SYMBOLS are bound to
+fresh gensyms."
+  (cl-assert (cl-every #'symbolp symbols))
+  `(let ,(cl-mapcar #'list symbols '#1=((gensym) . #1#))
+     ,@body))
+
+(defmacro once-only (symbols &rest body)
+  "Execute BODY in a context where the values bound to the variables in
+SYMBOLS are bound to fresh gensyms, and the variables in SYMBOLS are bound
+to the corresponding gensym."
+  (declare (indent 1))
+  (cl-assert (cl-every #'symbolp symbols))
+  (let ((gensyms (cl-mapcar (lambda (x) (gensym)) symbols)))
+    `(with-gensyms ,gensyms
+		   (list 'let (cl-mapcar #'list (list ,@gensyms) (list ,@symbols))
+			 ,(cl-list* 'let (cl-mapcar #'list symbols gensyms)
+				    body)))))
+#+END_SRC
+
+具体使用的话，可以用带有副作用的表达式来说明：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro yy-square (x)
+  (once-only (x)
+    `(* ,x ,x)))
+
+(setq a 1)
+(yy-square (setq a (+ a 1))) -> 4
+a -> 2
+
+
+(macroexpand '(yy-square x)) -> (let ((g156 x)) (* g156 g156))
+#+END_SRC
+
+除了使用 =once-only= 宏， /let over lambda/ 也提供了一种更好的方法：
+
+#+BEGIN_SRC emacs-lisp
+;;elisp
+(defun o!-symbol-p (s)
+  (and (symbolp s)
+       (> (length (symbol-name s)) 2)
+       (string-equal (substring (symbol-name s) 0 2)
+		     "o!")))
+
+(defun o!-symbol-to-g!-symbol (s)
+  (intern (concat "g!"
+		  (cl-subseq
+		   (symbol-name s)
+		   2))))
+
+(defmacro defmacro! (name args &rest body)
+  (let* ((os (cl-remove-if-not 'o!-symbol-p args))
+	 (gs (cl-mapcar 'o!-symbol-to-g!-symbol os)))
+    `(defmacro/g! ,name ,args
+       `(let ,(cl-mapcar 'list (list ,@gs) (list ,@os))
+	  ,(progn ,@body)))))
+#+END_SRC
+
+以下是使用例：
+
+#+BEGIN_SRC emacs-lisp
+;; elisp
+(defmacro! yy-squ (o!x)
+  `(* ,g!x ,g!x))
+
+(yy-squ (setq a (+ a 1))) -> 9
+a -> 3
+#+END_SRC
+
+在参数表中将不想重复求值的变量写成 =o!*= 的形式，然后在返回表达式中写出对应名字的 =g!*= 就可以达到避免重复求值的目的了。使用 =defmacro!= 既可以避免变量捕获，又可以避免重复求值。
+
+*** 在宏里面指定关键字
+
+我在学习 dash 库的时候发现了 --each-while 这个宏，它是 dash.el 中一系列函数的基础。
+
+#+BEGIN_SRC emacs-lisp
+;; from dash.el
+(defmacro --each-while (list pred &rest body)
+  "Evaluate BODY for each item in LIST, while PRED evaluates to non-nil.
+Each element of LIST in turn is bound to `it' and its index
+within LIST to `it-index' before evaluating PRED or BODY.  Once
+an element is reached for which PRED evaluates to nil, no further
+BODY is evaluated.  The return value is always nil.
+This is the anaphoric counterpart to `-each-while'."
+  (declare (debug (form form body)) (indent 2))
+  (let ((l (make-symbol "list"))
+        (i (make-symbol "i"))
+        (elt (make-symbol "elt")))
+    `(let ((,l ,list)
+           (,i 0)
+           ,elt it it-index)
+       (ignore it it-index)
+       (while (and ,l (setq ,elt (pop ,l) it ,elt it-index ,i) ,pred)
+         (setq it ,elt it-index ,i ,i (1+ ,i))
+         ,@body))))
+#+END_SRC
+
+它的用法如下：
+
+#+BEGIN_SRC emacs-lisp
+(setq a '())
+(--each-while '(1 3 5 7 -1 1 3 2) (not (cl-evenp it))
+  (when (> it 1)
+    (push (list it it-index) a)))
+a -> ((3 6) (7 3) (5 2) (3 1))
+#+END_SRC
+
+可以看到，我在上面使用了 =it= 和 =it-index= ，这两个名字并不是参数或者其他什么东西，它们是可以在 --each-while 范围内使用的关键字，用来表示当前元素和当前元素所在的位置。使用时要注意它们不要和变量名字冲突了。
+
+* 后记
+
+本来我只是想记录一下 elisp manual 中 macro 的内容，谁知宏的内容居然如此丰富，果然还是自己见识过于短浅了。
+
+直到写过 CL 宏后我才明白宏接受的参数是 S 表达式，即原子或者表，阻碍我认识到这一点的当属 Scheme 的 syntax-case。没有学 CL 之前，在 elisp 中我一直是通过这种方法来获取符号的：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro get-yy (s)
+  (let ((a `',s))
+    ...))
+
+;;just do this ...
+(defmacro get-yy-good (s))
+  (let ((a s))
+   ...))
+#+END_SRC
+
+这大概是受到了 =datum->syntax= 的影响......
+
+CL 中的宏就是直观的从表达式到表达式的变换，但是 syntax-case 和 syntax-rules 还需要保证宏的卫生性，所以加上了一些额外的限制而导致不那么直观。 /let over lambda/ 中是这样评价卫生宏和 Scheme 的：
+
+#+BEGIN_QUOTE
+As a professional macro programmer you will come into contact with many of these variable capture solutions. The current popular solution is to use so-called hygienic macros. These solutions try to limit or eliminate the impact of unwanted variable capture but unfortunately do so at the expense of wanted, desirable variable capture. Almost all approaches taken to reducing the impact of variable capture serve only to reduce what you can do with defmacro. Hygienic macros are, in the best of situations, a beginner's safety guard-rail; in the worst of situations they form an electric fence, trapping their victims in a sanitised, capture-safe prison. Furthermore, recent research has shown that hygienic macro systems like those specified by various Scheme revisions can still be vulnerable to many interesting capture problems
+
+Still, calling gensym every single time we want a nameless symbol is clunky and inconvenient. It is no wonder that the Scheme designers have experimented with so-called hygienic macro systems to avoid having to type gensym all over the place. The wrong turn that Scheme took was to promote a domain specific language for the purpose of macro construction. While Scheme's mini-language is undeniably powerful, it misses the entire point of macros: macros are great because they are written in lisp, not some dumbed down pre-processor language.
+#+END_QUOTE
+
+我无意评判两种宏的好坏，不过 syntax-case 的难学我可是确实体会到了。CL 的宏变换是非常直接的，从表达式到表达式的。使用我上面提到的 =defmacro!= 是可以避免变量捕捉的（虽然宏的组合看上去实在是难以想象）
+
+摸鱼结束，去干点正事吧。
+
+* 参考资料
+
+| /let over lambda/  | Doug Hoyte  |
+| /on lisp/          | Paul Graham |
+| /ansi common lisp/ | Paul Graham |
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzQ3NzA0Nzgw.jpg" alt="load failed"></div><div class="yyimgcomment">patchouli knowledge</div>@@

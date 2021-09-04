@@ -1,0 +1,97 @@
+* 和表相关的函数和宏
+
+上面的各小节基本涵盖了 manual 中 macro 一章的所有内容，但光凭这些干巴巴的东西还不足以让你写出好看好用的宏。本来我准备在这一节中介绍一下 /let over lambda/ 中的一些例子，但是想了想还是介绍一些表处理函数和宏比较好，因为在写宏的过程中你会不可避免地使用到各种各样的表函数，毕竟宏处理的就是原子和表。
+
+出于我个人学习 dash.el[fn::https://github.com/magnars/dash.el]的目的，这一节的主要目的不是写宏，如果没兴趣的话看看其中和宏有关的例子就行了，即本节的最后一小节。
+
+** 对表中元素的访问
+
+这一小节标题中的“访问”指的是访问表中的元素。
+
+- car, cdr, cxxxxr
+- nth, elt
+
+Lisp 中最著名的两个操作符（或者说函数）就是 =car= 和 =cdr= 了，一个获取 cons 的 car 部分，一个获取 cons 的 cdr 部分。除此之外，Lisp 一般还提供了 caar，cadr 等形式的函数，c 和 r 之间最多可以有 4 个 a 或者 d，即 cxxxxr，它们是 cxr 的叠加，比如 cadr 就等价于 =(lambda (x) (car (cdr x)))= 。common lisp 中除了 car 系列函数外还提供了从 first 到 tenth 十个函数，它们用来获取表中的第一项到第十项。在 elisp 中你可以通过 cl-lib 使用它们。
+
+除了使用 car 系列函数，你还可以使用 =nth= 来通过指定序号访问表中对应元素，比如 =(nth 1 '(1 2))= 会得到 2。与之相似的还有 =elt= ，不过它面向的是 =sequence= ，它除了可以用在 list 上，还可以用在 vector 和 string 上。与 =nth= 不同的是，指定位置的参数是第二个而不是第一个。
+
+** 获取表的子表
+
+表的“子表”指的是由原表中的一部分元素（可以包括所有元素）组成的表。新表中元素的顺序不要求与原表相同。
+
+- nthcdr, last
+- butlast, nbutlast
+- -take, -drop-last
+- -drop, -take-last
+- -take-while, -drop-while
+- remq, remove
+- cl-remove, cl-remove-if, cl-remove-if-not
+- delq, delete
+- cl-delete, cl-delete-if, cl-delete-if-not
+- delete-dups, delete-consecutive-dups
+- cl-remove-duplicates, cl-delete-duplicates
+- -filter, -remove,
+- -slice, -select-by-indice
+
+=nthcdr= ，它的用法可以参考这个简单的例子： =(nthcdr 1 '(1 2 3 4)) -> (2 3 4)= 。另外还有一个叫做 =last= 的函数，它的作用就等价于 =(nthcdr (1- (length ls)) ls)= ，比如 =(last '(1 2 3 4)) -> (4)= 。在 dash 中与 =nthcdr= 对应的是 =-drop= ，它的参数和功能与 =nthcdr= 是一样的。需要注意的是，还有一个叫做 =-take-last= 的函数，它也是返回拿掉前 n 个元素后的表，但是它返回的不是原表的一部分，而是复制的表。
+
+=butlast= 拿掉表最后面的 n 个元素并返回表。 =(buglast (list 1 2 3 4) 2) -> (1 2)= 。如果没有提供第二参数的话，它会默认拿掉最后一个元素。如果第二参数为 0 的话，它会直接返回原表，否则返回的是 copy 的副本。它还有一个带副作用的版本 =nbutlast= ，这个函数会修改原表，并返回修改后的表。dash 中与 =butlast= 对应的是 =drop-last= ，它的形式是 =(-drop-last n list)= 。
+
+=-slice= 可以获取一定范围内的子表，并返回副本，就像 =substring= 一样。它的原型是 =(-slice from &optional to step)= ， =from= 是开始序号， =to= 是终止序号， =step= 是步长，步长的正负与否并不重要。
+
+如果 =from= 大于 =to= 的话，那么函数会返回 nil。如果 =from= 或 =to= 为负数的话，那就会对它们使用表的长度取余（最后得到正数）。如果 =from= 或 =to= 大于表的最大长度的话该函数也能正常调用，它内部使用的 =--each-while= 宏保证对表的访问不会超过最大位置：
+
+- (-slice '(1 2 3 4 5) 1) -> (2 3 4 5)
+- (-slice '(1 2 3 4 5) 0 3) -> (1 2 3)
+- (-slice '(1 2 3 4 5 6) -3 -1) -> (4 5)
+- (-slice '(1 2 3 4 5) 0 10 2) -> (1 3 5)
+- (-slice '(1 2 3 4 5) 5 10 1) -> nil
+
+** 表的增删查改
+
+这一部分主要是对表的增加元素，删除元素，查找元素和修改元素的操作。
+
+*** 增加元素
+
+- push, add-to-list, add-to-ordered-list
+- cl-pushnew
+
+=push= 是一个宏，它接受一个元素和一个表变量，将元素添加到变量表的表首，并将得到的新表保存到变量中。它的作用是修改变量，而不是对原来的表进行修改。例子如下：
+
+#+BEGIN_SRC emacs-lisp
+(setq a '(1 2 3))
+(setq b a)
+(push 4 a)
+a -> (4 1 2 3)
+b -> (1 2 3)
+#+END_SRC
+
+=add-to-list= 与 =push= 相似，也是对变量进行修改得到添加元素后的表，但是如果要添加的元素已经在表中的话，它就不会进行添加。除了接受表变量和新元素外，它还接受 =append= 和 =compare-fn= 两个可选参数。如果 =append= 为非空，则新的元素会被添加到表的末尾，如果 =compare-fn= 是一个函数，则 =add-to-list= 会使用指定的函数来进行比较，默认情况下它使用 =equal= 。另外，文档中还提到不要对词法变量使用这个函数。
+
+=add-to-ordered-list= 的必须参数与 =add-to-list= 相同，但可选参数只有一个 =order= ，它用来指定添加元素的位置。与 =add-to-list= 不同的是，它使用 =eq= 来比较元素是否相等。如果要添加的元素不在表中的话，它会根据 =order= 被添加到表中，如果已经在表中，它的位置很根据 =order= 指定的数字进行调整。 =order= 是一个数字，表中元素的顺序是单调递增序列。
+
+如果 =order= 参数是 nil 的话，新的元素会被添加到表的末尾，这种添加是无序的，没有指定顺序的元素在表尾的顺序不是特定的。已存在的元素的数字顺序值不会改变，表的元素顺序信息存储在变量的 plist 属性 =list-order= 中。
+
+以下是使用这两个函数的例子：
+
+#+BEGIN_SRC emacs-lisp
+(setq foo '(a b))
+(add-to-list 'foo 'c) -> (c a b)
+(add-to-list 'foo 'b) -> (c a b)
+foo -> (c a b)
+
+(setq bar '())
+(add-to-ordered-list 'bar 'a 1) -> (a)
+(add-to-ordered-list 'bar 'c 3) -> (a c)
+(add-to-ordered-list 'bar 'b 2) -> (a b c)
+(add-to-ordered-list 'bar 'b 4) -> (a c b)
+(add-to-ordered-list 'bar 'd) -> (a c b d)
+(add-to-ordered-list 'bar 'e) -> (a c b e d)
+#+END_SRC
+
+与 =add-to-list= 相似的还有 =cl-pushnew= ，不过它默认使用 =eql= 来判断是否相等。可以使用 =:test= 关键字指定比较函数。
+
+*** 删除元素
+
+- remq, remove
+- delete, delete-dups
