@@ -1,0 +1,6 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 如何组织 emacs 的配置代码
+#+DATE: [2021-09-08 Wed 11:57
+#+TAGS: emacs
+
+
