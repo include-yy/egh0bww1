@@ -26,6 +26,7 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2021-09-24-12-emacs的byte-compilation/index.html][2021-09-24-12-emacs的byte-compilation]]
 - [[./posts/2021-09-04-11-emacs的macro/index.html][2021-09-04-11-emacs的macro]]
 - [[./posts/2021-08-20-10-decorator-pattern-decorator-advice-and-emacs-advice/index.html][2021-08-20-10-decorator-pattern-decorator-advice-and-emacs-advice]]
 - [[./posts/2021-07-29-9-使用emacs作为app启动器/index.html][2021-07-29-9-使用emacs作为app启动器]]
