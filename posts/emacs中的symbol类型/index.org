@@ -1,0 +1,7 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: emacs中的symbol类型
+#+TITLE:
+#+DATE: [2021-10-09 Sat 17:07]
+#+TAGS: emacs
+
+
