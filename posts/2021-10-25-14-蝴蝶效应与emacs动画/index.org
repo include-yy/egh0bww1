@@ -516,3 +516,7 @@ f.close()
 他使用的是 run-at-time 来按一定时间间隔向下翻动 buffer，我使用 sit-for 来控制时间间隔。至于哪种方法更好还需要进一步的研究。
 
 上面列出的一些问题等到我有时间的时候再去想想，毕竟最主要的工作已经完成了 —— 播放 bad apple。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzUwMjU1MzQ1.jpg" alt="load failed"></div><div class="yyimgcomment">flandre scarlet</div>@@
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzkyMzM1OA==.jpg" alt="load failed"></div>@@
