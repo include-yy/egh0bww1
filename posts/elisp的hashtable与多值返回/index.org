@@ -1,0 +1,25 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: elisp 中的哈希表与多值返回
+#+TITLE:
+#+DATE: [2021-10-09 Sat 17:06]
+#+TAGS: emacs
+
+本文是对 elisp manual 上 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Hash-Tables.html][Hash Tables]] 一章的学习总结。除了介绍哈希表相关函数的使用，本文也会简单介绍哈希表这种数据结构的原理知识。考虑到 elisp 和 common lisp 中哈希函数存在一定的差异，本文也会介绍一下 CL 中的多值返回和 cl-lib 中的多值返回实现。
+
+顺带一提，我对数据结构和抽象数据类型（ADT）这两个词的理解并不是很清晰，本文开头会介绍一些相关概念。
+
+文中代码使用的环境为：
+
+- emacs 27.1 on windows
+- SBCL 2.0.0 on windows
+- gcc (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 8.1.0
+
+* 数据类型与数据结构
+
+根据维基百科[fn::https://en.wikipedia.org/wiki/Data_type]的描述，数据类型（data type）是数据的一种属性，它告诉解释器或编译器程序员使用数据的方法。大多数程序语言都支持基础的整数类型，浮点数类型，字符类型和布尔类型。类型限制了某个值的取值集合。
+
+
+
+* 什么是哈希表
+
+哈希表也叫散列表，它是一种实现了关联数组（associate array）抽象数据结构的数据结构。

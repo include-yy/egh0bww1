@@ -1,0 +1,20 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: emacs 的函数声明与内联函数
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzQ2OTg1OTEy.jpg" alt="load failed"></div>@@
+#+DATE: [2021-10-31 Sun 20:56]
+#+TAGS: emacs
+
+在阅读 cl-macs.el 中的 =cl-defstruct= 部分代码时，那一长串的函数声明把我吓到了，在具体了解 =cl-defstruct= 工作原理之前，也许我需要弄清楚函数声明的使用方法。同时我也注意到 =cl-typep= 是使用 =define-inline= 定义的，本文顺带也介绍一下内联函数的定义和使用。
+
+本文使用的 elisp 代码可在 emacs 27.1 on windows 下正常运行。本文的写作目的是为之后学习 =cl-defstruct= 和 eieio 做做准备。
+
+* declare 的使用
+
+这里说的函数声明并不是指类似 C 语言放在头文件里面的那种（不过这种也有）。而是一种用于说明函数元（meta）属性的声明。下面是 defun/defmacro/defsubst 的原型：
+
+#+BEGIN_SRC emacs-lisp
+defun name args [doc] [declare] [interactive] body…
+defmacro name args [doc] [declare] body…
+
+
+#+END_SRC

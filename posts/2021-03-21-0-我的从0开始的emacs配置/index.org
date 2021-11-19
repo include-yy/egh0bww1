@@ -43,11 +43,11 @@ manateelazycat 在 emacs-china 的一个帖子中这样写道：
 
 3. 你搞不懂Emacs复杂的配置的原因是因为你不懂 Elisp 编程, 学习Elisp的方法: 老老实实读Emacs内置的 Elisp reference manual, 这么厚的手册怎么学?
 
-- 一页一页的挨着看, 一个API一个API的读, 不要跳过
+ - 一页一页的挨着看, 一个API一个API的读, 不要跳过
 
-- 每个API, 都在 ielm 里面实践一下
+ - 每个API, 都在 ielm 里面实践一下
 
-- 遇到不知道啥鬼用的 API, 去 Google 或 EmacsWiki 上搜索一下, 看看别人怎么用这些API的?
+ - 遇到不知道啥鬼用的 API, 去 Google 或 EmacsWiki 上搜索一下, 看看别人怎么用这些API的?
 
 4. 如果你花了一个月耐下心读完 Elisp reference manual 以后, Emacs 90% 以上的代码你都可以看懂了, 继续折腾复杂插件, 知道 require, autoload, set-key, 各种 hook, defadvice 的在不同环境下的细微差别, 编程上知道 save-excursion, ignore-errors 这些风骚 macro 的用法. 这个阶段可以尝试手动来写一写复杂的配置了, 这个阶段你已经是 Emacs 高级用户了.
 

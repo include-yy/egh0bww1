@@ -18,7 +18,7 @@
 
 大多数程序员会同意一个观点：为自己实现像是字符串，内存分配，表，数组，哈希表或队列之类的基本数据类型通常不是个好主意 —— 它会让你的代码可读性变差，而且其他人维护的难度也会变大。这就是 Glib 和 GTK+ 之类的 C 库起作用的时候 —— 这些库提供了许多可以开箱即用的东西。另外，当你到头来需要一些不简单的实用函数（non-trivial utility functions），比如 [[https://developer.gnome.org/glib/unstable/glib-Unicode-Manipulation.html][Unicode 处理]]，[[https://developer.gnome.org/pango/stable/pango-Scripts-and-Languages.html][使用复杂脚本]]，[[https://developer.gnome.org/gio/unstable/GDBusConnection.html][D-Bus 支持]] 或 [[https://developer.gnome.org/glib/unstable/glib-Data-Checksums.html#glib-Data-Checksums.description][计算校验和]]，问问你自己（或者更糟：等你的项目经理追着问你）避开经过良好测试和良好维护的库是不是一个明智的决定。
 
-特别是，对于像是密码学之类的东西，自己实现一个通常是个[[https://stackoverflow.com/questions/1914257/when-can-you-trust-yourself-to-implement-cryptography-based-solutions][坏主意]]；取而代之的是，使用已有的良好测试的库会更好，比如 NSS（即便如此，你也要注意用正确的方法来使用库）。具体来说，如果你想要和美国政府打交道的话，这个库可能甚至需要经过 [[https://en.wikipedia.org/wiki/FIPS_140][FIPS-140]] 认证，
+特别是，对于像是密码学之类的东西，自己实现一个通常是个[[https://stackoverflow.com/questions/1914257/when-can-you-trust-yourself-to-implement-cryptography-based-solutions][坏主意]]；取而代之的是，使用已有的良好测试的库会更好，比如 NSS（即便如此，你也要注意用正确的方法来使用库）。具体来说，如果你想要和美国政府打交道的话，这个库可能甚至需要经过 [[https://en.wikipedia.org/wiki/FIPS_140][FIPS-140]] 认证。
 
 类似地，例如，虽然在大型场合使用 epoll 比 poll 更为高效，如果你的应用程序只需要处理大约 10 个文件描述符，在两者中选择哪一个可能对你来说是无关紧要的。另一方面，如果你知道你将要处理上千个文件描述符，你也可以将 Glib 用于大部分的库或应用程序 —— 只需要在专门的线程使用 epoll 即可。同上，如果你需要 O(1) 的表删除操作，你可能就不会使用 [[https://developer.gnome.org/glib/unstable/glib-Doubly-Linked-Lists.html][GList]]，而是使用 [[http://git.ozlabs.org/?p=ccan;a=tree;f=ccan/list][嵌入式]] 的表。
 
@@ -26,7 +26,7 @@
 
 最后，尽量不要和[[https://xkcd.com/386/][网上的陌生人]]陷入关于 “臃肿” 的库的荒谬的讨论 —— 这通常是对时间和资源的浪费。
 
-[[./1.jpg]]
+| [[./1.png]] |
 
 ** 清单
 

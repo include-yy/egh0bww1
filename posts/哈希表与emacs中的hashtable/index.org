@@ -1,6 +1,0 @@
-#+SETUPFILE: ../../setup.org
-#+TITLE: 哈希表与 emacs 中的 hashtable
-#+TITLE:
-#+DATE: [2021-10-09 Sat 17:06]
-#+TAGS: emacs
-

@@ -895,7 +895,6 @@ HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR
             DispatchMessage(&msg);
         }
     }
-修改
 #+END_SRC
 
 修改后的窗口过程如下：
