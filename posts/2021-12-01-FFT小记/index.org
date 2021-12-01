@@ -1,0 +1,436 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: FFT 小记
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzU4NjA0MTUw.jpg" alt="load failed"></div>@@
+#+DATE: [2021-11-30 Tue 13:36]
+#+TAGS: math
+
+本文简要介绍了 FFT 的原理，给出了一种最简单算法的实现，算是我个人的一些小小整合。
+
+关于傅里叶变换和 FFT 的文章知乎上已经有不少的优质产出了，比如下面列出的这两篇：
+
+- Heinrich 的 [[https://zhuanlan.zhihu.com/p/19759362][如果看了这篇文章你还不懂傅里叶变换，那就过来掐死我吧]]
+- 月下桃子树 的 [[https://zhuanlan.zhihu.com/p/40505277][FFT(快速傅里叶变换)0基础详解！附NTT（ACM/OI）]]
+
+既然已经有了较为优质的文章，那我写下这篇文章的意义何在呢？就我个人来看，主要是以下两个方面：
+
+1. 多数文章都会涉及到傅里叶变换的物理或数学解释，或者是采用例子引入的形式逐步引入（貌似这才是正道），这样做的好处是文章是 self-contained 的，碰到不懂的知识可以回翻，但如果已经掌握了前置知识，这些说明未免有些多余。我会直接省略掉最基础的数学物理情景引入，直接介绍算法的原理
+
+2. 有些文章没有给出 FFT 的算法实现，在介绍完原理或所谓的蝶形方法后文章就结束了。给了代码的文章大多数使用的是 C/C++/Matlab，而 C/C++ 直接用起来不如带 REPL 的语言方便，毕竟需要编译执行，而且一部分人可能不愿意安装 matlab 或 octave
+
+总的来说，本文带有一定的笔记性质，但同时又希望本文强于个人笔记，提供一个可随时查阅的 FFT 知识入口。本文中出现的代码会给出一定注释以方便理解。
+
+本文选择 Common Lisp 来作为算法实现语言，只需安装 CL 实现即可执行代码。同时考虑到 Python 更为流行，本文同样会给出 Python 的实现。这两种程序语言都内置了复数运算支持。可惜 Javascript 不直接支持复数运算，不然它就是最佳选择了，毕竟有浏览器的地方就有 JS。
+
+本文使用的程序环境为：
+
+- SBCL on Windows 2.0.0
+- Python 3.8.4 on Windows
+
+* 什么是 DFT
+
+因为 FFT 是基于 DFT 的，所以这里不得不提一下它。
+
+抛开一些意义来看，所谓的 DFT 其实就是矩阵运算罢了，通过原向量 X 和矩阵 F 来获得目标矩阵 Y。DFT 的定义是：
+
+\(y_k=\sum\limits_{n=0}^{N-1}x_ne^{-i2\pi k\frac nN}=(1, e^{-i2\pi k\frac1N},e^{-i2\pi k\frac2N} \dots, e^{-i2\pi k\frac{N-1}{N}}) \left(\begin{matrix} x_0 \\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) k=0,1,\dots, N-1\)
+
+它的反变换是：\(x_n = \frac1N \sum\limits_{k=0}^{N-1}e^{2\pi ik\frac nN}y_k \quad (n=0, 1, 2, \dots, N-1)\)
+
+令 \( X=(x_0, x_1, x_2, \dots, x_{N-1})^H , Y=(y_0, y_1, y_2, \dots, y_{N-1})^H \)
+
+以及 \( \phi_k = (1, e^{-i2\pi k\frac1N}, e^{-i2\pi k\frac2N}, \dots, e^{-i2\pi k\frac{N-1}{N}})^H \)，易知 \( \phi_k \) 两两正交。有 \( y_k = \phi_k \cdot X = \phi_k^HX \)
+
+现在令 \( F = (\phi_0, \phi_1, \dots, \phi_{N-1})^H \)，从而有 \(Y=FX\)。若令 \( W_N^{n} = e^{-i2\pi \frac nN } \)，则整个矩阵乘式可表示为：
+
+\( \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&W_N^1&W_N^2&\dots&W_N^{N-1}\\1&W_N^2&W_N^4&\dots&W_N^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{N-1}&W_N^{2(N-1)}&\dots&W_N^{(N-1)^2}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \)
+
+反变换为：
+
+\( \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) = \frac1N\left(\begin{matrix}1&1&1&\dots&1\\1&W_N^{-1}&W_N^{-2}&\dots&W_N^{-(N-1)}\\1&W_N^{-2}&W_N^{-4}&\dots&W_N^{-2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{1-N}&W_N^{2(1-N)}&\dots&W_N^{-(1-N)^2}\end{matrix}\right) \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) \)
+
+若令 \(w = e^{-i2\pi\frac1N}=W_N^1\)，则可将（正）变换表达的更加简单：
+
+\( \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&w&w^2&\dots&w^{N-1}\\1&w^2&w^4&\dots&w^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&w^{N-1}&w^{2(N-1)}&\dots&w^{(N-1)(N-1)}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \)
+
+这个矩阵也被叫做傅里叶矩阵，不过这里我没有写正规化因数 \( \frac{1}{\sqrt{N}} \)。根据情况或惯例，\(w\) 也可取为 \( e^{i2\pi\frac1N} \)。\(w\) 的取值就决定了变换的正逆，如果再加上正规化因数的话，正变换和逆变换只需要调整一下 \(w\) 即可区分。
+
+自然，N 阶阵乘 N 阶列向量的时间复杂度是 \( O(n^2) \)，这一点可以通过朴素乘法实现体现出来：
+
+#+BEGIN_SRC c
+// 为了方便，这里用一维数组存储 N 阶方阵，x[a][b] == *(x+a*n+b)
+void N_m_n(double *res, double *Nm, double*nm, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+	res[i] = 0.0;
+	for (int j = 0; j < n; j++)
+	{
+	    res[i] += Nm[i*n+j] * nm[j];
+	}
+    }
+    return;
+}
+#+END_SRC
+
+** DFT 的实现
+
+这里我们使用信号 \( y = cos(2x) + cos(3x) + cos(5x) \)进行实验。根据奈奎斯特定理，采样角频率至少为两倍最大角频率，即 \( 10 rad/s \)。取采样角频率为 \( 12 rad/s \)，采样区间为 \((0, 2\pi)\)，则采样点个数为 \(N = 12\)。
+
+首先使用 CL 实现：
+
+#+BEGIN_SRC lisp
+;; 采样信号
+(defun yy-f (x)
+  (+ (cos (* 2 x))
+     (cos (* 3 x))
+     (cos (* 5 x))))
+
+;;傅里叶矩阵
+(defun make-fourier (N sgn)
+  (let ((a (make-array `(,N ,N))))
+    (do ((i 0 (+ i 1)))
+	((= i N) a)
+      (do ((j 0 (+ j 1)))
+	  ((= j N))
+	(setf (aref a i j)
+	      (exp (* sgn #C(0 -2) pi i j (/ 1.0 N))))))))
+
+;;矩阵向量乘法
+(defun mat-mul-vec (m v)
+  (let* ((N (length v))
+	 (vec (make-array N)))
+    (do ((i 0 (+ i 1)))
+	((= i N) vec)
+      (setf (aref vec i) 0.0)
+      (do ((j 0 (+ j 1)))
+	  ((= j N))
+	(incf (aref vec i)
+	      (* (aref m i j) (aref v j)))))))
+
+(let* ((N 12) ;; 取 12 个采样点
+       (x (make-array N)))
+  (loop for i below N
+        do (setf (aref x i) (yy-f (/ (* i pi 2) N)))) ;; 获取采样信号值
+  (let ((res1 (mat-mul-vec (make-fourier N 1) x))) ;; 获取变换
+    (print res1 t) ;; 打印变换
+    ;; 打印比对原值和逆变换得到的值
+    (print
+     (map 'vector '-
+          (map 'vector #'(lambda (x) (* x N)) x) ;乘 N 用来抵消逆变换未乘 1/N
+          (mat-mul-vec (make-fourier N -1) res1))
+     t)))
+
+;;为方便观察手动做了一些近似处理
+#(#C(0 0);0
+  #C(0 0);1
+  #C(6 0);2
+  #C(6 0);3
+  #C(0 0);4
+  #C(6 0);5
+  #C(0 0);6
+  #C(6 0);7 = 12 - 5
+  #C(0 0);8
+  #C(6 0);9 = 12 - 3
+  #C(6 0);10 = 12 - 2
+  #C(0 0));11
+
+;;都是接近 0 的值，说明逆变换与原值相近（毕竟有舍入误差）
+#(#C(-3.0695160191385185d-6 1.6852850822087755d-6)
+  #C(-2.413088492581039d-6 1.6852830708727321d-6)
+  #C(-1.7509792851200245d-6 1.6852822343317603d-6)
+  #C(-1.1659329626212411d-6 1.6852817821595204d-6)
+  #C(-3.4761838731147854d-7 1.6852815497630256d-6)
+  #C(5.560783016278492d-7 1.6852815206765511d-6)
+  #C(1.3139656651617315d-7 1.685281628337206d-6)
+  #C(1.4592174473193609d-6 1.6852819000591794d-6)
+  #C(1.598376088542303d-6 1.6852824023629203d-6)
+  #C(2.2046287107002627d-6 1.6852833358663046d-6)
+  #C(4.087005883945949d-6 1.6852854214532373d-6)
+  #C(1.0166025507629683d-5 1.6852919591023401d-6))
+#+END_SRC
+
+上面的结果符合预期。如果你会 python 的话，下面的代码是给你准备的：
+
+#+BEGIN_SRC python
+import cmath
+
+def yy_f (x):
+    return cmath.cos(2*x) + cmath.cos(3*x) + cmath.cos(5*x)
+
+# 嵌套列表推导
+def make_fourier(N, sgn):
+    return [[cmath.exp(-2*cmath.pi*1j/N*i*j) for i in range(0, N)] for j in range(0, N)]
+
+# 矩阵向量乘法运算
+def mat_mul_vec (m, v):
+    a = [0 for i in range(0, len(v))]
+    for i in range(0, len(v)):
+        for j in range(0, len(v)):
+            a[i] += m[i][j] * v[j]
+    return a
+
+# 信号个数
+N = 12
+# 获取采样信号
+x = [yy_f(cmath.pi * 2 * i / N) for i in range(0, N)]
+# 获得 DFT 结果
+y = mat_mul_vec(make_fourier(N, 1), x)
+
+# 进行 IDFT，即 DFT 逆变换
+x1 = mat_mul_vec(make_fourier(N, -1), y)
+x1 = list(map(lambda x: x/N, x1))
+
+# 打印 DFT 结果
+for i in range(0, N):
+    print(y[i])
+
+print ('--------')
+# 打印 IDFT 与原信号的差值
+for i in range(0, N):
+    print(x[i] - x1[i])
+
+# 结果数据，与 CL 一致（未手工近似处理）
+(-5.329070518200751e-15+0j)
+(-4.274358644806853e-15-1.609823385706477e-15j)
+(6.000000000000001-6.994405055138486e-15j)
+(6.0000000000000036+6.106226635438361e-16j)
+(-3.0253577421035516e-15+0j)
+(6.000000000000004-7.438494264988549e-15j)
+(6.217248937900877e-15-6.88324302725924e-15j)
+(6.000000000000008+1.2323475573339238e-14j)
+(3.885780586188048e-15-3.3306690738754696e-15j)
+(5.999999999999999+8.93729534823251e-15j)
+(6+1.715294573045867e-14j)
+(-1.4876988529977098e-14-1.0297318553398327e-14j)
+--------
+-2.0586549626730855e-16j
+(6.6058269965196814e-15+5.488559255325794e-16j)
+(4.440892098500626e-16+4.019214628772775e-15j)
+(7.771561172376096e-16+2.0131296001480145e-15j)
+(-7.358223809900208e-15+1.458762778231005e-15j)
+(-1.1102230246251565e-15-2.4917462186266056e-15j)
+(-5.551115123125783e-16+6.17037270246773e-17j)
+(3.1086244689504383e-15-7.728298151441925e-15j)
+(9.079069498069204e-15+1.5319004943530082e-15j)
+(1.5543122344752192e-15+3.1805645120342776e-15j)
+(-2.3314683517128287e-15+4.1663672132031236e-15j)
+(-5.551115123125783e-15-3.9483364539879407e-16j)
+#+END_SRC
+
+这里有一篇文章可以解释出现上面数据的原理：[[https://www.zhihu.com/question/21314374][如何通俗地解释什么是离散傅里叶变换]]。
+
+* 什么是 FFT
+
+FFT，即“快速傅里叶变换”，它可以将时间复杂度为 \(O(n^2)\) 的 DFT 变为 \(O(nlog(n))\)。需要说明的是它并不是一个算法，而是一类算法。我这里介绍的只是一种思路而已，而且只给出了最简实现。
+
+当看到 \(O(nlog(n))\) 时，我最先想到的就是归并排序，想必 FFT 也用到了分治的思路。分治的思想在于如何把问题分解为多个更小的子问题，且原问题可以由子问题的合并解决。
+
+FFT 能进行的根本也许就在于傅里叶矩阵不是个普通的矩阵，在于 \(e^{-2i\pi k\frac nN}\) 的良好性质。当 N 为偶数时，\(y_k = \sum\limits_{i=0}^{N-1}W_N^{ki}x_{n}\) 可化为：
+
+\(\begin{align} y_k &= \sum\limits_{i=0}^{\frac N2-1}W_N^{2ki}x_{2i} + \sum\limits_{i=0}^{\frac N2 -1}W_N^{k(2i+1)}x_{2i+1} \notag \\ &= \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} + W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1} \notag \end{align} \quad k=0, 1, 2, \dots, N - 1\)
+
+据此易知： \(Y_{half} = \left(\begin{matrix}I_{\frac N2}&D_{\frac N2}^N\end{matrix}\right) \left(\begin{matrix}F_{\frac N2}&0\\0&F_{\frac N2}\end{matrix}\right)\left(\begin{matrix}X_{even}\\X_{odd}\end{matrix}\right)\)，其中
+
+\(D_n^N= \left(\begin{matrix}1\\&W_N^1\\&&W_N^2\\&&&\ddots\\&&&&W_N^{n-1}\end{matrix}\right)\)
+
+\(Y_{half}\) 表示 Y 向量的前一半。
+
+接着，由 \(W_N^{k + \frac N2} = e^{-2i\pi k\frac1N -i\pi}\ = -W_N^k\) 和 \(W_N^{k+N} = W_N^k\)，从而有
+
+\(y_{k+\frac N2} = \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} - W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1}\)
+
+由上式体现出的 \(y_{k+\frac N2}\) 和 \(y_k\) 之间的关系，我们可以补完向量 Y 的另一半：
+
+\(Y = \left(\begin{matrix}I_{\frac N2}&D_{\frac N2}^N\\I_{\frac N2}&-D_{\frac N2}^N\end{matrix}\right) \left(\begin{matrix}F_{\frac N2}&0\\0&F_{\frac N2}\end{matrix}\right)\left(\begin{matrix}X_{even}\\X_{odd}\end{matrix}\right)\)
+
+乘掉最左边的形式主义矩阵，可以得到：
+
+\(y_k = y_{k(even)} + W_N^ky_{k(odd)}, \quad k=0, 1, \dots, \frac N2-1 \)
+
+\(y_{k+\frac N2} = y_{k(even)} - W_N^ky_{k(odd)}, \quad k=0, 1, \dots, \frac N2 -1\)
+
+\(Y_{(even)} = F_{\frac N2}X_{even}, \quad Y_{(odd)} = F_{\frac N2}X_{odd} \)
+
+这应该就是最直接的递归公式了。另外，拿掉奇偶分组的 X 向量，我们就得到了 \(F_{2n}\) 与 \(F_n\) 之间的关系：
+
+\(F_{2n} = \left(\begin{matrix}I_n&D_n^{2n}\\I_n&-D_n^{2n}\end{matrix}\right) \left(\begin{matrix}F_n&0\\0&F_n\end{matrix}\right)P_{2n}\)
+
+其中：
+
+\(P_{2n}=\left(\begin{matrix}1\\&&1\\&&&&1\\&&&&&&\ddots\\&&&&&&&&1&\\&1\\&&&1\\&&&&&1\\&&&&&&&\ddots\\&&&&&&&&&1\end{matrix}\right) \quad \begin{equation}P_{ij} = \begin{cases}1 ,j = 2i + 1, i \le n \\ 1, j=2(i-n), i\ge n+1\\ 0 \ otherwise\end{cases}\end{equation} \)
+
+傅里叶矩阵能够分解应该是快速傅里叶变换可行的根本原因。
+
+** nlogn 的来历
+
+我没有系统地学习过计算理论，所以无法给出一个严谨的分析过程，这里仅对采样点个数为 \(n=2^k \quad k=1, 2, 3, \dots\) 的情况进行分析。
+
+假设 n = 64，根据上面的公式，共有 32 个来自偶数项的 FFT 结果和 32 个来自奇数项的 FFT 结果需要组合得到最终结果，要得到 64 个 y 值就需要 64 次（也许更多）运算。同理，对于 n = 32，从 n = 16 的两个奇偶 FFT 结果合并到 n = 32 需要 32 次运算。
+
+这也就是说，从子节点向父节点合并时，所需要的计算次数仅与父节点的 n 值有关，顶层点 n 值为 64，第二层所有父节点 n 值之和为 \(32 + 32\)，第三层为 \(16 \cdot 4\) ...... 每一层所有父节点的 n 值之和都相同，故每一层的合并操作都需要 64 次操作。
+
+由二分特性，把 64 分到不可再分只需要 6 次，其时间复杂度自然就是 \(O(nlog(n))\)。
+
+** 朴素 FFT 的 朴素实现
+
+上面我给出了对信号 \(y=cos(2x)+cos(3x)+cos(5x)\) 的 DFT 实现，并且我们取 \(N=12\) 来作为区间采样点数。根据推导出的递归公式，我们可以很自然地写出 FFT 的递归实现。
+
+整个算法描述大致如下：
+
+#+BEGIN_SRC
+（仅针对 2 次幂个数点）
+
+- X 为待变换向量，它的长度是 N
+- fft(X, N) 为 FFT 变换函数，它会返回变换后的向量 Y
+- W(n, N) 是虚指数函数 e^(-2*j*pi*n/N)
+
+fft(X,N):
+
+if N is 1 then
+  return X
+else
+  X_even <- X 中的偶数项（序号从 0 开始）
+  X_odd <- X 中的奇数项
+  even_f <- fft(X_even, N/2)
+  odd_f <- fft(X_odd, N/2)
+  result <- 长度为 N 的空向量
+  for i <- 0; i < N/2; i++
+    a <- even_f[i]
+    b <- W(i, N) * odd_f[i]
+    result[i] <- a + b
+    result[i + N/2] <- a - b
+  return result
+#+END_SRC
+
+可以看到，这是个非常简单的递归实现。我在上面给出的递推公式无法处理奇数阶的情况，下面的具体实现仅对 2 的幂次阶有效。因此下面我将采样点个数设为 16 而非 12，16 是 2 的 4 次幂。
+
+#+BEGIN_SRC lisp
+(defun yy-f (x)
+  (+ (cos (* 2 x))
+     (cos (* 3 x))
+     (cos (* 5 x))))
+
+(defun yy-fft (v N)
+  (if (= N 1) v
+      (let* ((half (/ N 2))
+	     (evens (make-array half))
+	     (odds (make-array half)))
+	(do ((k 0 (+ k 1))
+	     (i 0 (+ i 2)))
+	    ((= i N))
+	  (setf (aref evens k) (aref v i)
+		(aref odds k) (aref v (+ i 1))))
+	(let ((evens-r (yy-fft evens half))
+	      (odds-r (yy-fft odds half))
+	      (res (make-array N)))
+	  (loop for i below half
+		do (let ((a (aref evens-r i))
+			 (b (* (exp (* #C(0 -2) pi i (/ 1.0 N)))
+			       (aref odds-r i))))
+		     (setf (aref res i) (+ a b)
+			   (aref res (+ i half)) (- a b))))
+	  res))))
+
+(let* ((N 16) ;; 取 16 个采样点
+       (x (make-array N)))
+  (loop for i below N
+	do (setf (aref x i) (yy-f (/ (* i pi 2) N)))) ;; 获取采样信号值
+  (yy-fft x N))
+
+;; result
+ #(#C(-7.105427357601002d-15 0.0d0)
+     #C(-4.379167817162229d-15 -1.990128627232129d-15)
+     #C(7.9999999999999964d0 -5.10702591327572d-15)
+     #C(7.999999999999999d0 -4.595312355070685d-15)
+     #C(-1.7763568394002505d-15 -1.3322676295501878d-15)
+     #C(7.999999999999997d0 -1.1034605897896593d-14)
+     #C(6.217248937900877d-15 -6.217248937900877d-15)
+     #C(7.931881495962731d-15 8.964512367932808d-16)
+     #C(1.7763568394002505d-15 0.0d0)
+     #C(7.93188149596273d-15 -1.3405404466433406d-15)
+     #C(6.661338147750939d-15 5.995204332975845d-15)
+     #C(7.999999999999997d0 1.1478695107746655d-14)
+     #C(-1.7763568394002505d-15 1.3322676295501878d-15)
+     #C(7.999999999999999d0 5.0394015649207474d-15)
+     #C(7.999999999999997d0 5.329070518200751d-15)
+     #C(-4.37916781716223d-15 1.5460394173820636d-15))
+#+END_SRC
+
+以下是 Python 实现：
+
+#+BEGIN_SRC python
+import cmath
+
+def yy_f (x):
+    return cmath.cos(2*x) + cmath.cos(3*x) + cmath.cos(5*x)
+
+def yy_fft (v, N):
+    if N == 1:
+        return [v[0]]
+    else:
+        half = N // 2;
+        # 获取奇偶向量
+        evens = [v[i] for i in range(0, N, 2)]
+        odds = [v[i] for i in range(1, N, 2)]
+        # 子 fft
+        evens_r = yy_fft(evens, half)
+        odds_r = yy_fft(odds, half)
+        # 结果向量
+        res = [0 for i in range(0, N)]
+
+        for i in range(0, half):
+            # 递归公式
+            a = evens_r[i]
+            b = cmath.exp(-2j * cmath.pi * i / N) * odds_r[i]
+            res[i] = a + b
+            res[i + half] = a - b
+        return res
+
+# 获取信号
+M = 16
+x = [yy_f(cmath.pi * 2 * i / M) for i in range(0, M)]
+r = yy_fft(x, M)
+
+for i in range(0, M):
+    print(r[i])
+
+# result:
+(-6.8833827526759706e-15+0j)
+(-4.294195025611368e-15-1.7849861614373374e-15j)
+(7.9999999999999964-4.6629367034256575e-15j)
+(7.999999999999999-4.6802851466215464e-15j)
+(-1.7763568394002505e-15-1.5543122344752192e-15j)
+(7.999999999999997-1.1119578689447454e-14j)
+(7.105427357601002e-15-6.217248937900877e-15j)
+(7.84690870441187e-15+1.101593702588072e-15j)
+(1.5543122344752192e-15+0j)
+(7.84690870441187e-15-1.5456829124381322e-15j)
+(6.661338147750939e-15+5.551115123125783e-15j)
+(7.999999999999997+1.1563667899297517e-14j)
+(-1.7763568394002505e-15+1.5543122344752192e-15j)
+(7.999999999999999+5.124374356471609e-15j)
+(7.9999999999999964+5.329070518200751e-15j)
+(-4.294195025611368e-15+1.3408969515872725e-15j)
+#+END_SRC
+
+* 后记和延申阅读
+
+如你所见，本文仅仅介绍了 FFT 的最简单的一种算法，这也是我写这篇文章的目的所在，即学习 FFT 的基本原理。如果有时间的话，后续我会介绍非 2 次幂个数点的处理方式，以及各种各样的 FFT 算法。时间精力所限，本文就到这里了。
+
+关于傅里叶变换和 FFT 的文章可谓不可胜数，既然已经有了这么多好文章，那我还有什么写的必要呢？好文章是普适的，但是它的编排和范围不可能适合每一个人，对于比较重要的知识，进行一定的整理是必要的。要说的话，写文章也算是自我实现的一种方式，它可以作为我曾经存在于网上的记录（这说法好怪）。
+
+以下是我在写这篇文章中发现的不错的文章，由于太过麻烦，下面全部都是中文内容（或自带中文翻译）。
+
+- [[https://oi-wiki.org/math/poly/fft/][快速傅里叶变换 —— OI Wiki]]
+
+- [[https://ww2.mathworks.cn/help/matlab/ref/fft.html][快速傅里叶变换 —— MATLAB fft]]
+
+- [[https://en.wikipedia.org/wiki/Fast_Fourier_transform][Fast Fourier transform —— WikiPedia]]
+
+- [[https://www.ruanx.net/fft/][快速傅里叶变换 —— Ruan Xingzhi]]
+
+- [[https://www.cnblogs.com/21207-iHome/p/6048925.html][离散傅里叶变换 ——  XXX已失联]]
+
+* 参考资料
+
+- [[https://www.cnblogs.com/bigmonkey/p/11936214.html][线性代数笔记28——复矩阵和快速傅立叶变换]]
