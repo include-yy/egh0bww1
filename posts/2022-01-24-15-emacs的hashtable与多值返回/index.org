@@ -1384,7 +1384,7 @@ VALUE.  In any case, return VALUE.  */)
 
 本哈希表的实现和测试我整合后放在 [[https://gist.github.com/include-yy/4b30d26e2a8b8bcdd46c1bcd717b3756][gist]] 上了，可以方便地获取，这里就不放测试了，放张图说明测试的成功吧（毕竟测试代码也有近两百行......）。
 
-| [[./6.png]] |
+| [[./6.PNG]] |
 
 代码也可以通过下载来获得：[[./yyhash.el][yyhash]] [[./yyhash-test.el][test]]
 
