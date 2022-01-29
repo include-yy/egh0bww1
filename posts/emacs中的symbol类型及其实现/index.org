@@ -1,0 +1,17 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: emacs中的symbol类型及其实现
+#+TITLE:
+#+DATE: [2021-10-09 Sat 17:07]
+#+TAGS: emacs
+
+本文简单介绍了 emacs 中符号类型的使用，同时对 emacs 中的符号实现源代码进行了简单的分析。除此之外，本文还将 emacs 与 common lisp 的符号进行了横向比较，并介绍了这两种语言中的模块管理机制。
+
+由于阅读源代码的需要，本文中使用的 common lisp 实现为 Embedded common lisp，它使用 C 语言实现，相比 SBCL 读起来应该容易不少。
+
+本文使用的编程环境为：
+
+- emacs 27.2 x86-64
+
+- ECL 21.2.1 built with msvc
+
+* 什么是 symbol
