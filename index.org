@@ -26,6 +26,7 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2022-02-01-16-emacs的abbrev使用介绍/index.html][2022-02-01-16-emacs的abbrev使用介绍]]
 - [[./posts/2022-01-24-15-emacs的hashtable与多值返回/index.html][2022-01-24-15-emacs的hashtable与多值返回]]
 - [[./posts/2021-12-01-FFT小记/index.html][2021-12-01-FFT小记]]
 - [[./posts/2021-10-25-14-蝴蝶效应与emacs动画/index.html][2021-10-25-14-蝴蝶效应与emacs动画]]
