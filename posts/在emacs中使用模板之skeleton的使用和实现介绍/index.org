@@ -1,0 +1,26 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 在 emacs 中使用模板之 skeleton 的使用和实现介绍
+#+TITLE:
+#+DATE: [2022-02-02 Wed 15:54]
+#+TAGS: emacs
+
+https://www.emacswiki.org/emacs/template-simple.el
+
+https://www.math.s.chiba-u.ac.jp/~matsu/emacs/emacs22/autoinsert.html
+
+https://yiufung.net/post/pure-emacs-lisp-init-skeleton/
+
+http://stanhe.github.io/2018/06/08/d2018-06-08/
+
+https://www.emacswiki.org/emacs/SkeletonPair
+
+https://www.reddit.com/r/emacs/comments/av1h8v/how_i_became_a_vertebrate_or_skeletons_help_lazy/
+
+https://blog.51cto.com/darksun/1355333
+
+http://yangyingchao.github.io/emacs/2014/09/03/Emacs-%E8%87%AA%E5%8A%A8%E8%A1%A5%E5%85%A8%E5%A4%B4%E6%96%87%E4%BB%B6.html
+
+http://blog.jqian.net/post/emacs-skeleton.html
+
+http://blog.jqian.net/post/emacs-skeleton.html
+
