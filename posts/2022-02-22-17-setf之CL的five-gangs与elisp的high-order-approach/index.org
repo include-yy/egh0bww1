@@ -1,0 +1,995 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: setf 之 CL 的 five gangs 与 elisp 的 high-order approach
+#+TITLE: @@html:<div class="yyheadimg"><img src="./1.jpg" alt="load failed"></div>@@
+#+DATE: [2022-02-21 Mon 9:08]
+#+TAGS: emacs
+
+由标题可知，本文的内容与 =setf= 这个宏有关，这里我假设你已经知道了什么是 =setq= 。本文的主要内容可认为分为两大部分，首先我会展示 =setf= 的使用方法，以及介绍 CL 中 =setf= 的扩展方法。随后我会介绍 emacs 中的 =setf= 机制。在后一部分我会简单分析 emacs 中的实现，它位于 gv.el 文件中，核心代码行数在 200 行左右。
+
+在文中我会穿插一些 CL 和 emacs-lisp 中 setf 的简单用例以方便理解。在文章的最后我会集中列出一些用例，以供充分的参考。elisp reference manual 上的使用示例实在有点少。
+
+本文使用的代码环境如下：
+
+- emacs 27.2 x86_64 on windows
+- ECL 21.2.1 32 bit built with msvc
+
+* 什么是 setf
+
+学过一点 Lisp（特指 CL）的人都知道，有个叫 =setq= 的东西，使用它可以方便地设置符号的 =symbol-value= 值，而不必要使用蹩脚的 =set= 。在 CL 中它是个 =special form= ，在 emacs lisp 中它是个 =#<subr>= 。下面的 =setq= 表达式和 =set= 表达式的效果相同：
+
+#+BEGIN_SRC lisp
+(setq a 1) => 1
+(set 'a 1) => 1
+;; emacs-lisp
+(symbol-function 'setq)
+=> #<subr setq>
+;; common-lisp
+(symbol-function 'setq)
+=> SPECIAL
+#+END_SRC
+
+=setf= 可以理解为 =setq= 一般化后的版本。除了符号外，它可以接受一个表达式，然后对表达式想要取值的“位置”进行赋值操作。换句话说，它可以根据 =getter= 表达式来得出对应的 =setter= 表达式，也就是获得 =getter= 对应的逆操作。举例来说的话就是这样：
+
+#+BEGIN_SRC lisp
+(setq a '(1 2 3))
+(progn (setf (car a) 2) a) => (2 2 3)
+(progn (setf (car (cdr a)) 3) a) => (2 3 3)
+(progn (setf (car (cdr (cdr a))) 4) a) => (2 3 4)
+#+END_SRC
+
+=setf= 中的“位置”被称为 /generalized variable/ ，非要翻译一下的话就是“一般化变量”。不加说明的话，下面我们使用 =gv= 来作为它的缩写。除了上面例子中使用的表操作， =setf= 还支持向量，哈希表等等。 /On Lisp/ 的 176 页中这样写道：
+
+#+BEGIN_QUOTE
+All the most frequently used Common Lisp access functions have predefined inversions, including car, cdr, nth, aref, get, gethash, and the access functions created by defstruct.
+#+END_QUOTE
+
+容易看出 =setq= 中的 "q" 对应的是 =quote= ，用了它我们就不用写 ='= 了。那么 =setf= 中的 字母 "f" 对应的是哪个呢？不论是 common-lisp 还是 elisp 都使用 “PLACE” 来称呼 =setf= 中的赋值位置，那合理猜想一下 “f” 对应的应该是 “form”，也就是“形式”。不过也有认为它对应的应该是起源于 “function” 的说法[fn::https://cireu.github.io/2019/09/17/lisp-setf/]，而且有文献支持。文章中给出的 pdf[fn::http://www.softwarepreservation.org/projects/LISP/interlisp-d/Deutsch-3IJCAI.pdf] 有兴趣的同学可以读一读。
+
+stackoverflow 有关于【f】本意的讨论，可以前往观之[fn::https://stackoverflow.com/questions/23808189/what-does-the-f-in-setf-stand-for] 。它的起源是 “function” 应该是没错了，不过个人理解为 field 或 form 也不是什么问题，毕竟你管不着我，我也管不着你（笑）。
+
+
+* CL 中的 setf 与 gv
+
+在这一节中我会介绍在 CL 中扩展 =setf= 的方法。 =setf= 默认支持一些常见的 =getter= ，我们可以使用 CL 提供的一些机制来对其进行扩展。对我这 CL 新手来说， /On Lisp/ 上的一些例子看的我觉得有点匪夷所思。
+
+对于简单情况和复杂情况，CL 提供了不同的宏来供用户使用。 =define-modify-macro= 可以用来定义类似于 =incf= 和 =decf= 的宏，它的原型如下：
+
+#+BEGIN_SRC lisp
+(define-modify-macro symbol lambda-list function-name [doc])
+#+END_SRC
+
+其中， =symbol= 是想要定义的宏的名字， =lambda-list= 是参数表，表示除 gv 外的其他参数。 =function-name= 是具体的赋值操作函数，它的第一个参数就是 gv，它的返回值将赋给 gv 对应的位置。举例来说，假如我们想要对一个 gv 进行取反操作，我们可以这样：
+
+#+BEGIN_SRC lisp
+(define-modify-macro yy-nnot () not)
+(setq a '(1 2 3))
+(yy-nnot (car a))
+a => (NIL 2 3)
+#+END_SRC
+
+下面是一些带参数的例子：
+
+#+BEGIN_SRC lisp
+(define-modify-macro yy-nmul (n) (lambda (place n) (* place n)))
+(setq a 2)
+(yy-nmul a 3) => 6
+
+(define-modify-macro yy-3mul (m n) (lambda (place o p) (* place o p)))
+(yy-3mul a 2 3) => 36
+
+(define-modify-macro yy-nconc (&rest ls) (lambda (place &rest ls) (apply #'nconc place ls)))
+(setq a '(1 2 3))
+(yy-nconc a '(4) '(5))
+a => (1 2 3 4 5)
+#+END_SRC
+
+简单来说，使用 =define-modify-macro= 可以简化一些 =setf= 的操作，就比如使用 =incf= 我们就可以写 =(incf a 20)= 而不用写 =(setf a (+ a 20))= 了。emacs-lisp 在 cl.el 文件中也实现了这个宏，它在内部使用了 =cl-callf= 来完成 gv 的求值与赋值。考虑到 cl.el 已经废弃了，最好还是不要用了。
+
+=define-modify-macro= 只能用来编写一些简单的宏，想要实现更加复杂的功能，我们需要使用 =define-setf-expander= （以下简称 =dse= ）和 =get-setf-expansion= （以下简称 =gse= ）来定义和获取 gv 的一些信息。它们的原型如下：
+
+#+BEGIN_SRC lisp
+-----------------------------------------------------------------------------
+DEFINE-SETF-EXPANDER                                                  [Macro]
+Syntax: (define-setf-expander symbol defmacro-lambda-list {decl | doc}*
+          {form}*)
+Defines the SETF-method for generalized-variables (SYMBOL ...).
+When a form (setf (SYMBOL arg1 ... argn) value-form) is evaluated, the FORMs
+given in the DEFINE-SETF-EXPANDER are evaluated in order with the parameters in
+DEFMACRO-LAMBDA-LIST bound to ARG1 ... ARGn.  The last FORM must return five
+values
+        (var1 ... vark)
+        (form1 ... formk)
+        (value-var)
+        storing-form
+        access-form
+in order.  These values are collectively called the five gangs of the
+generalized variable (SYMBOL arg1 ... argn).  The whole SETF form is then
+expanded into
+        (let* ((var1 from1) ... (vark formk)
+               (value-var value-form))
+          storing-form)
+The doc-string DOC, if supplied, is saved as a SETF doc and can be retrieved
+by (DOCUMENTATION 'SYMBOL 'SETF).
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+GET-SETF-EXPANSION                                                 [Function]
+Args: (form)
+Returns the 'five gangs' (see DEFINE-SETF-EXPANDER) for PLACE as five values.
+Does not check if the third gang is a single-element list.
+-----------------------------------------------------------------------------
+#+END_SRC
+
+简单起见，咱们还是先从 =gse= 开始说起。由上述文档可知， =gse= 会返回一个“五元组”（five gangs），它们分别是：
+
+- =(var1 ... vark)= ，它是一个符号表，各符号 *对应* 于出现在 =(symbol arg1 ... argn)= 中的 =arg1 ... argn=
+- =(form1 ... formn)= ，它是 =(symbol arg1 ... argn)= 中的各 =arg1 ... argn= 表达式
+- =(value-var)= 最终用于赋值操作的符号
+- =storing-form= ，执行赋值操作的表达式
+- =access-form= ，用于访问 =form= 对应“位置”的表达式
+
+这里我们用个简单的例子来说明各值的具体作用：
+
+#+BEGIN_SRC lisp
+(get-setf-expansion '(aref x (incf b)))
+(#:G113 #:G114)
+(X (INCF B))
+(#:G115)
+(SI:ASET #:G113 #:G114 #:G115)
+(AREF #:G113 #:G114)
+#+END_SRC
+
+上面对应的 =form= 是 =(aref x (incf b))= ，可见表中有两个表达式，所以五元组的第一元素对应的是长度为 2 的符号表。第二元素就是 =form= 中各参数表达式，第三元素是出现在 =storing-form= 中的符号，第四元素是赋值操作表达式，第五元素是值访问表达式。
+
+=setf= 在遇到定义好的扩展（使用 =dse= 定义的展开器）时会将其展开成默认形式：
+
+#+BEGIN_SRC lisp
+(let* ((var1 from1) ... (vark formk)
+       (value-var value-form))
+  storing-form)
+#+END_SRC
+
+可见，单纯地使用 =setf= 不需要 =access-form= 。
+
+下面我们不使用 =setf= ，而是自己编写一个宏来作为对五元组处理的例子：
+
+#+BEGIN_SRC lisp
+(defmacro yy-arefset (form val)
+  (assert (eq (car form) 'aref))
+  (multiple-value-bind (vs fs g sop aop)
+      (get-setf-expansion form)
+    `(let (,@(mapcar #'list vs fs)
+	   (,(car g) ,val))
+       ,sop)))
+
+(setq a #(1 2 3))
+(yy-arefset (aref a 1) 1)
+a => #(1 1 3)
+#+END_SRC
+
+如果我们想使用 =setf= 而不是像上面一样自己定义宏，那么可以使用 =define-setf-expander= 来定义新的五元组生成器：
+
+#+BEGIN_SRC lisp
+(define-setf-expander yy-arefset-g (place index)
+  (let ((var (gensym))
+	(pos (gensym))
+	(setvar (gensym)))
+    (values
+     `(,var ,pos)
+     `(,place ,index)
+     `(,setvar)
+     `(setf (aref ,var ,pos) ,setvar)
+     `(aref ,var ,pos))))
+
+(get-setf-expansion '(yy-arefset-g a (+ 1 2))) =>
+(#:G152 #:G153)
+(A (+ 1 2))
+(#:G154)
+(SETF (AREF #:G152 #:G153) #:G154)
+(AREF #:G152 #:G153)
+
+(setq a #(1 2 3))
+(setf (yy-arefset-g a 0) 2) => #(2 2 3)
+
+(macroexpand '(setf (yy-arefset-g a 0) 2)) =>
+(LET* ((#:G167 A) (#:G168 0))
+  (MULTIPLE-VALUE-BIND (#:G169) 2 (SETF (AREF #:G167 #:G168) #:G169)))
+#+END_SRC
+
+CL 还提供了一种轻松定义 =getter= 对应的 =setter= 的方法，那就是使用 =defsetf= 。它的原型如下：
+
+#+BEGIN_SRC lisp
+-----------------------------------------------------------------------------
+DEFSETF                                                               [Macro]
+Syntax: (defsetf symbol update-fun [doc])
+        or
+        (defsetf symbol lambda-list (store-var*) {decl | doc}* {form}*)
+Defines an expansion
+(setf (SYMBOL arg1 ... argn) value)
+=> (UPDATE-FUN arg1 ... argn value)
+or
+(let* ((temp ARG)*)
+  (multiple-value-bind (temp-s*)
+      values-form
+    rest)
+  where REST is the value of the last FORM with parameters in
+  LAMBDA-LIST bound to the symbols TEMP* and with STORE-VAR* bound to
+  the symbols TEMP-S*.  The doc-string DOC, if supplied, is saved as a
+  SETF doc and can be retrieved by (documentation 'SYMBOL 'setf).
+-----------------------------------------------------------------------------
+#+END_SRC
+
+它的用法分为两种，一种简单的和一种复杂的，下面先演示简单的用法：
+
+#+BEGIN_SRC lisp
+(defun yy-caar (x) (car (car x)))
+(defun yy-caar-set (x v) (setf (caar x) v))
+(defsetf yy-caar yy-caar-set)
+
+(setq a '((1) 2 3))
+(setf (yy-caar a) 2)
+a => ((2) 2 3)
+(macroexpand '(setf (yy-caar a) 1)) =>
+(YY-CAAR-SET A 1)
+#+END_SRC
+
+相比于简单用法，复杂用法使用 =store-var= 与 =setf= 剩余参数绑定，处理起来更加灵活：
+
+#+BEGIN_SRC lisp
+(defun yy-cadr (x) (second x))
+(defsetf yy-cadr (lst) (new-val)
+  `(progn (setf (cadr ,lst) ,new-val)))
+
+(setq a '(1 2 3))
+(setf (yy-cadr a) 3)
+a => (1 3 3)
+#+END_SRC
+
+除了说使用 =defsetf= ，我们还可以使用 =(defun (setf fun) ...)= 的形式来定义 =setter= ，例如：
+
+#+BEGIN_SRC lisp
+(defun yy-car (x) (car x))
+(defun (setf yy-car) (val ls) (rplaca ls val) val)
+(setq a '(1 3 3))
+(setf (yy-car a) 2) => (2 3 3)
+#+END_SRC
+
+注意上面的参数表中，值放在第一位。
+
+以上，我们就完成了对 CL 中的 setf 和 gv 的简单介绍。
+
+
+* 简单实现 CL 中的 setf 和 gv 机制
+
+通过上一节的介绍，我们已经基本清楚了 CL 提供的 setf 和 gv 设施。它们是：
+
+- =define-modify-macro= ，提供简单的 =setf= 扩展
+- =defsetf= ，方便地定义 =getter= 对应的 =setter=
+- =dse= 和 =gse= ，复杂且强大的 gv 扩展工具
+
+为了进一步理解 setf 和 gv，我们可以考虑自己实现一个简单版本的 setf 和 gv。在这一节中，我们会一步一步实现一个简化版的 gv 机制。
+
+容易想到，gv 中最关键的部分肯定是 five gangs 和 setf 宏，其他更简单的东西是在它们的基础上建立起来的。我们首先应该考虑实现 =define-setf-expander= 和 =get-setf-expansion= 。定义的展开器可以放在符号的 plist 中，不过这里我选择放在统一的 hashtable 中，当定义新的展开器时直接覆盖旧值。
+
+#+BEGIN_SRC lisp
+(defvar *yy-expander-table* (make-hash-table))
+(defun yy-ref-table (s)
+  (multiple-value-bind (v f) (gethash s *yy-expander-table*)
+    (and f v)))
+(defun yy-set-table (s v)
+  (setf (gethash s *yy-expander-table*) v))
+(defun yy-clr-table ()
+  (clrhash *yy-expander-table*))
+#+END_SRC
+
+接着就是编写 =define-setf-expander= 了，简便起见我使用 =yy-dse= 来作为它的名字（ =get-setf-expansion= 也同理）。
+
+#+BEGIN_SRC lisp
+(defmacro yy-dse (name lambda-ls &rest form)
+  (assert (and (not (null lambda-ls))
+	       (not (null form))))
+  (yy-set-table name (coerce `(lambda ,lambda-ls ,@form) 'function)))
+
+(defun yy-gse (form)
+  (if (symbolp form)
+      (let ((v (gensym))
+	    (g (gensym)))
+	(values `(,v) `(,form) `(,g) `(setq ,form ,g) v))
+      (let ((res (yy-ref-table (car form))))
+	(assert res)
+	(apply res (cdr form)))))
+#+END_SRC
+
+如你所见，它们两个是非常简单的函数和宏，用起来需要非常小心，因为基本上没有做任何检查（反正就是个玩具）。接下来我们就开始实现 =setf= 了，这是整个 gv 机制的要点之一。
+
+=setf= 接受成对的参数，并按顺序完成赋值操作。它的整个原理并不复杂，实现如下：
+
+#+BEGIN_SRC lisp
+(defmacro yy-setf (&rest form)
+  (if (/= (logand (length form) 1) 0)
+      (error "yy-setf: Wrong-number-of-arguments(~A)" (length form)))
+  (if (and form (null (cddr form)))
+      (let ((place (pop form))
+	    (val (car form)))
+	(if (symbolp place) `(setq ,place ,val)
+	    (multiple-value-bind
+		  (vars fms value-var storing access) (yy-gse place)
+	      `(let* (,@(mapcar #'list vars fms)
+		      (,(car value-var) ,val))
+		 ,storing))))
+      (let ((sets nil))
+	(prog ()
+	 it
+	   (push `(setf ,(pop form) ,(pop form)) sets)
+	   (when form (go it)))
+	(cons 'progn (nreverse sets)))))
+#+END_SRC
+
+有了 =gse= =dse= 和 =setf= ，我们就已经完成了对 gv 机制的实现，下面用几个基本操作说明一下使用方法：
+
+#+BEGIN_SRC lisp
+(yy-dse car (x)
+	(let ((v (gensym))
+	      (s (gensym)))
+	  (values
+	   `(,v)
+	   `(,x)
+	   `(,s)
+	   `(yy-setcar ,v ,s)
+	   `(car ,v))))
+(defun yy-setcar (x v)
+  (setf (car x) v))
+
+(setq a '(1 2 3))
+(yy-setf (car a) 2) => 2
+a => (2 2 3)
+
+(yy-dse aref (x n)
+	(let ((v0 (gensym))
+	      (v1 (gensym))
+	      (s (gensym)))
+	  (values
+	   `(,v0 ,v1)
+	   `(,x ,n)
+	   `(,s)
+	   `(yy-setvec ,v0 ,v1 ,s)
+	   `(aref ,v0 ,v1))))
+
+(defun yy-setvec (x n v)
+  (setf (aref x n) v))
+
+(setq a #(0 1 2))
+(yy-setf (aref a 0) 2)
+a => #(2 1 2)
+#+END_SRC
+
+可以看到，即便是最简单的 =car= =aref= ，使用这套机制来实现也有点小麻烦，下面我们添加一些辅助函数和宏，也就是 =define-modify-macro= 和 =defsetf= 。由于在 =defun= 中使用 =(setf name)= 形式式定义需要自己定义一个 =defun= ，这里就不实现它了。出于实现简单考虑， =yy-ds= 只实现了接受修改函数名，而 =define-modify-macro= 的参数表只接受普通参数，没有考虑使用 =optional= 或 =rest= 的情况。
+
+#+BEGIN_SRC lisp
+(defmacro yy-ds (symbol function-or-ls &optional store-var &rest form)
+  (if (not (symbolp function-or-ls)) (error "yy-ds: not symbol")
+      (let ((fun function-or-ls))
+	`(yy-dse ,symbol (&rest x)
+		 (assert x)
+		 (let ((vs (mapcar (lambda (x) (gensym)) x))
+		       (g (gensym)))
+		   (values vs x `(,g) `(funcall #',',fun ,@vs ,g) `(,',symbol ,@vs)))))))
+
+(defun yy-scar (x v) (setf (car x) v))
+(yy-ds car yy-setcar)
+
+(setq a '(1 2 3))
+(yy-setf (car a) 2)
+a => (2 2 3)
+#+END_SRC
+
+下面是 =yy-dmm= 的实现：
+
+#+BEGIN_SRC lisp
+(defmacro yy-dmm (name arglist func)
+  (let* ((arglist-1 (cons 'obj arglist)))
+    `(defmacro ,name ,arglist-1
+       (multiple-value-bind (vs fs val st as) (yy-gse obj)
+	 `(let* (,@(mapcar #'list vs fs)
+		 (,(car val) ,as))
+	    (setq ,(car val) (funcall #',',func ,(car val) ,,@arglist))
+	    ,st)))))
+
+(yy-dmm yy-incf (x) +)
+(setq a 1)
+(yy-incf a 4) => 5
+a => 5
+#+END_SRC
+
+以上，我们就完成了对 gv 机制的一个基本实现。完整实现我放在了 gist[fn::https://gist.github.com/include-yy/dddaba707bfeebb177f0bfba06056097] 上。下面我们来一些测试代码：
+
+#+BEGIN_SRC lisp
+(defun yy-setcar (x v) (setf (car x) v))
+(defun yy-setcdr (x v) (setf (cdr x) v))
+(defun yy-setcaar (x v) (setf (caar x) v))
+(defun yy-setcadr (x v) (setf (cadr x) v))
+(defun yy-setcdar (x v) (setf (cdar x) v))
+(defun yy-setcddr (x v) (setf (cddr x) v))
+(yy-ds car yy-setcar)
+(yy-ds cdr yy-setcdr)
+(yy-ds caar yy-setcaar)
+(yy-ds cadr yy-setcadr)
+(yy-ds cdar yy-setcdar)
+(yy-ds cddr yy-setcddr)
+
+(setq a '(1 (2) (3 (4))))
+(yy-setf (car (car (cdr a))) 3) => a is (1 (3) (3 (4)))
+(yy-setf (cdr a) 2) => a is (1 . 2)
+(setq a '((1)))
+(yy-setf (caar a) 3) => a is ((3))
+(setq a '(1 2))
+(yy-setf (cadr a) 4) => a is (1 4)
+(setq a '((1) 2))
+(yy-setf (cdar a) 5) => a is ((1 . 5) 2)
+(setq a '(1 2 3))
+(yy-setf (cddr a) 5) => a is (1 2 . 5)
+
+(yy-dmm yy-mulf (x y) *)
+
+(setq a '(1 2 3))
+(yy-mulf (car a) 2 3)
+(yy-mulf (cadr a) 2 3)
+(yy-mulf (car (cddr a)) 2 4)
+a => (6 12 24)
+#+END_SRC
+
+
+* elisp 中的 gv 机制
+
+elisp 中的 cl.el 提供了 =define-modify-macro= 和 =defsetf= ，但是只提供了 =dse= 而没有 =gse= 。在 cl.el 中有这样一段注释：
+
+#+BEGIN_SRC emacs-lisp
+;; FIXME: CL used to provide get-setf-method, which was used by some
+;; setf-expanders, but now that we use gv.el, it is a lot more difficult
+;; and in general impossible to provide get-setf-method.  Hopefully, it
+;; won't be needed.  If needed, we'll have to do something nasty along the
+;; lines of
+;; (defun get-setf-method (place &optional env)
+;;   (let* ((witness (list 'cl-gsm))
+;;          (expansion (gv-letplace (getter setter) place
+;;                      `(,witness ,getter ,(funcall setter witness)))))
+;;     ...find "let prefix" of expansion, extract getter and setter from
+;;     ...the rest, and build the 5-tuple))
+#+END_SRC
+
+由注释可知，elisp 现在提供了全新的 gv 机制，它的实现位于 gv.el 中。因此本节的内容主要是对 gv.el 功能的介绍。由于要讲清楚它的功能必须要说明它的原理，这一节我会依照 gv.el 中的实现给出一个更简单的实现以方便理解。在下一节中我们会完整地介绍 gv.el 的全部功能。
+
+gv.el 的版权时间是从 2012 年开始的，它的作者是 Stefan Monnier。在文件开头的注释简要介绍了实现原理，这里我结合自己理解简述一下。相比于 CL 中的 =define-setf-expander= ，它使用了不同的方法重新实现了 setf 机制。
+
+=dse= 定义了返回五元组 =(vars values stores setter access)= 的展开器。与之不同的是，gv.el 使用了基于高阶函数的方法。展开器会返回一个函数而不是五元组。该函数接受一个 =do= 函数并完成相应工作。 =do= 函数接受两个参数，第一参数是获取 =PLACE= 值的表达式，第二参数是一个函数，它接受一个值表达式，并返回将 =PLACE= 设置为该值的表达式。
+
+怎么理解这个高阶函数的使用方法呢？我的理解是：首先使用展开器来获取 gv 的 =getter= 和 =setter= 表达式，并将它们以代码的形式存放到展开器返回的高阶函数中。类似于这个样子：
+
+#+BEGIN_SRC
+(setq a (<generate-function> <something>)
+a =>
+(lambda (do)
+  (funcall do <getter-form> <setter-function>))
+#+END_SRC
+
+这样一来，我们把动作写进 =do= 函数里面，就可以执行我们想要的操作了。如果想要获取值就可以返回第一参数的值，并忽略掉 =do= 的第二参数。如果想要进行赋值操作，就可以将想要的值放入 =do= 函数中，并在函数中调用 =setter= 函数获取赋值代码。这两个操作的代码如下：
+
+#+BEGIN_SRC emacs-lisp
+;; 获取值
+(funcall a (lambda (g s) g))
+;; 设置值
+(defmacro (set-a a v-exp)
+    (funcall a (lambda (g s)
+		 (funcall s v-exp))))
+(set-a a <something>)
+#+END_SRC
+
+这大概就是 gv.el 的基本原理。实际上不用展开器我们也可以定义出可用的高阶函数，下面我们来实现一下最基本的配套函数，也就是 =car= 和对应的 =setcar= 。
+
+#+BEGIN_SRC emacs-lisp
+(defvar yy-high-order-store-table (make-hash-table))
+;;为(car symb) 中的生成对应的高阶函数
+(defun yy-genit (symb)
+  `(lambda (doit)
+     (funcall doit `(car ,',symb)
+	      (lambda (v) `(setcar ,',symb ,v)))))
+
+(puthash 'yycar 'yy-genit yy-high-order-store-table)
+
+(defmacro yy-setf (place val)
+  (if (atom place)
+      `(setq ,place ,val)
+    (funcall (funcall (gethash (car place) yy-high-order-store-table)
+		      (cadr place))
+	     (lambda (g s)
+	       (funcall s val)))))
+
+(setq a '(1 2 3))
+(car a) => 1
+(yy-setf (yycar a) 2) => 2
+a => (2 2 3)
+#+END_SRC
+
+上面的实现是个相当简陋的实现，使用哈希表来存储高阶函数生成函数，只支持单参数的 =getter= 函数，没有处理宏展开以及 function indirection， =setf= 不支持多组，不过也足以说明原理了。
+
+
+* elisp 的 gv.el 实现分析
+
+上一小节实现的 =yy-setf= 太过简陋，在这一小节中我们学习一下 gv.el 中的实现。为了减小篇幅，这里我省去了源代码中的注释内容。
+
+对应于 CL 中 =dse= 的是名为 =gv-define-expander= 的宏，它接受一个符号和一个高阶函数，并将高阶函数放入符号的 plist 中，我上面实现的是放入哈希表中。 =gv-define-expander= 只有几行，高阶函数需要自行编写：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro gv-define-expander (name handler)
+  (declare (indent 1) (debug (sexp form)))
+  `(function-put ',name 'gv-expander ,handler))
+#+END_SRC
+
+接下来介绍一下用于生成高阶函数的 =gv-define-setter= 和 =gv--defsetter= 。 =gv-define-setter= 在内部调用 =gv-define-expander= 将高阶函数与符号绑定。 =gv-define-setter= 是对 =gv--defsetter= 的简单包装：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro gv-define-setter (name arglist &rest body)
+  (declare (indent 2) (debug (&define name sexp def-body)))
+  `(gv-define-expander ,name
+     (lambda (do &rest args)
+       (declare-function
+        gv--defsetter "gv" (name setter do args &optional vars))
+       (gv--defsetter ',name (lambda ,arglist ,@body) do args))))
+#+END_SRC
+
+下面是 =gv-defsetter= 的定义，由它可以生成高阶函数应用于 =do= 函数时的调用过程。
+
+#+BEGIN_SRC emacs-lisp
+(defun gv--defsetter (name setter do args &optional vars)
+  (if (null args)
+      (let ((vars (nreverse vars)))
+        (funcall do `(,name ,@vars) (lambda (v) (apply setter v vars))))
+    ;; FIXME: Often it would be OK to skip this `let', but in general,
+    ;; `do' may have all kinds of side-effects.
+    (macroexp-let2 nil v (car args)
+      (gv--defsetter name setter do (cdr args) (cons v vars)))))
+#+END_SRC
+
+可以注意到， =gv-define-setter= 定义的第四行 =(lambda (do &rest args)= ，高阶函数除了接受 =do= 函数外还接受 =rest= 参数，并将其作为 =gv-defsetter= 调用的 =args= 参数。而 =gv--defsetter= 对其的处理是使用单次求值宏 =macroexp-let2= 将这些参数一层层包起来，再统一交给 =setter= 处理。这个疑点会在我介绍 =gv-get= 时得到解决。这里我使用 =setcar= 作为例子介绍 =gv-define-setter= 的使用。
+
+#+BEGIN_SRC emacs-lisp
+(gv-define-setter yycar (val x)
+  `(setcar ,x ,val))
+(setq a '(1 2 3))
+(setf (yycar a) 2)
+a => (2 2 3)
+#+END_SRC
+
+可以看到，要定义 =setter= 需要将值参数 =val= 作为第一参数，其余参数位置不变。除了 =gv-define-setter= ，elisp 还提供了更加方便的 =gv-define-simple-setter= 来定义简单赋值：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro gv-define-simple-setter (name setter &optional fix-return)
+  (declare (debug (sexp (&or symbolp lambda-expr) &optional sexp)))
+  (when (eq 'lambda (car-safe setter))
+    (message "Use `gv-define-setter' or name %s's setter function" name))
+  `(gv-define-setter ,name (val &rest args)
+     ,(if fix-return
+          `(macroexp-let2 nil v val
+             `(progn
+                (,',setter ,@args ,v)
+                ,v))
+        ``(,',setter ,@args ,val))))
+#+END_SRC
+
+使用它，我们可以将 =yycar= 的定义写的更加简单：
+
+#+BEGIN_SRC emacs-lisp
+(defun yycar2 (x) (car x))
+(gv-define-simple-setter yycar2 setcar)
+(setq a '(1 3 3))
+(setf (yycar2 a) 2)
+a => (2 3 3)
+#+END_SRC
+
+它的可选参数 =FIX-RETURN= 在 =setter= 不返回 =val= 时很有用，可以用来确保 =setf= 表达式的值为 =val= ，举例来说的话就像这样：
+
+#+BEGIN_SRC emacs-lisp
+(defun yy-setter (x v) (prog1 'wocao (setcar x v)))
+(setq a '(2 3 3))
+(yy-setter a 3) => wocao
+a => (3 3 3)
+(gv-define-simple-setter yycar3 yy-setter t)
+(setf (yycar3 a) 4) => 4
+a => (4 3 3)
+#+END_SRC
+
+接下来就是接口宏 =setf= 了，根据它的定义我们可以清楚地明白它的作用，这里我就不废话了：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro setf (&rest args)
+  (declare (debug (&rest [gv-place form])))
+  (if (/= (logand (length args) 1) 0)
+      (signal 'wrong-number-of-arguments (list 'setf (length args))))
+  (if (and args (null (cddr args)))
+      (let ((place (pop args))
+            (val (car args)))
+        (gv-letplace (_getter setter) place
+          (funcall setter val)))
+    (let ((sets nil))
+      (while args (push `(setf ,(pop args) ,(pop args)) sets))
+      (cons 'progn (nreverse sets)))))
+#+END_SRC
+
+接下来就来到了本小节的重头戏 —— 高阶函数的标准调用入口 =gv-get= 。在这里我们将解决掉上面指出的疑点。
+
+#+BEGIN_SRC emacs-lisp
+ 1 (defun gv-get (place do)
+ 2   (cond
+ 3    ((symbolp place) (funcall do place (lambda (v) `(setq ,place ,v))))
+ 4    ((not (consp place)) (signal 'gv-invalid-place (list place)))
+ 5    (t
+ 6     (let* ((head (car place))
+ 7            (gf (function-get head 'gv-expander 'autoload)))
+ 8       (if gf (apply gf do (cdr place))
+ 9         (let ((me (macroexpand-1 place
+10                                  ;; (append macroexpand-all-environment
+11                                  ;;         gv--macro-environment)
+12                                  macroexpand-all-environment)))
+13           (if (and (eq me place) (get head 'compiler-macro))
+14               ;; Expand compiler macros: this takes care of all the accessors
+15               ;; defined via cl-defsubst, such as cXXXr and defstruct slots.
+16               (setq me (apply (get head 'compiler-macro) place (cdr place))))
+17           (if (and (eq me place) (fboundp head)
+18                    (symbolp (symbol-function head)))
+19               ;; Follow aliases.
+20               (setq me (cons (symbol-function head) (cdr place))))
+21           (if (eq me place)
+22               (if (and (symbolp head) (get head 'setf-method))
+23                   (error "Incompatible place needs recompilation: %S" head)
+24                 (let* ((setter (gv-setter head)))
+25                   (gv--defsetter head (lambda (&rest args) `(,setter ,@args))
+26                                  do (cdr place))))
+27             (gv-get me do))))))))
+#+END_SRC
+
+首先，若 =place= 是符号，那么直接使用最简单的形式应用 =do= 函数。若 =place= 是非序对值则直接报错。
+
+接下来的 =place= 就是 =(symbol exp ...)= 的情况了，若在 =symbol= 的 plist 中找到了高阶函数，那就直接使用 do 和 =(cdr place)= 进行调用。从这里我们就可以看看 =gv-define-setter= 中定义函数的 =rest= 参数的作用了。举例来说，当我们调用 =(setf (yycar2 (yycar2 a)) 2)= （ =(gv-define-simple-setter yycar2 setcar)= 且 =yycar2 is car= ）时， =(car place)= 就是 =yycar2= ， =(cdr place)= 就是 =((yycar2 a))= 。 =gv--defsetter= 展开就是先对 =(yycar2 a)= 求值并绑到一个变量上（假设是 a0），随后再使用 =(setcar a0 2)= 来完成赋值。对于 =getter= 函数多参的情况也是类似的过程。
+
+接着，若在 =(car place)= 中未找到高阶函数， =gv-get= 会通过三种方式来进一步查找，一是使用宏展开，二是使用 =compiler-macro= ，三是使用 function indirection。最后实在不行就使用 =gv-setter= 来获取 =setter= 函数，不过这个在 gv.el 里面几乎是个空实现。
+
+那么，什么是 =compiler-macro= 呢？顾名思义，编译宏，应该是编译期才起作用的宏，事实上也是如此[fn::https://www.gnu.org/software/emacs/manual/html_node/cl/Macros.html]。下面的代码可以说明其作用：
+
+#+BEGIN_SRC emacs-lisp
+(funcall (get 'cadr 'compiler-macro) '(cadr x) 'x) => (car (cdr x))
+#+END_SRC
+
+下面我们以 =gv-letplace= 来收尾，它的定义如下：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro gv-letplace (vars place &rest body)
+  (declare (indent 2) (debug (sexp form body)))
+  `(gv-get ,place (lambda ,vars ,@body)))
+#+END_SRC
+
+使用它，我们可以容易定义一些像是 =incf= ， =decf= 的宏，比如这个：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro yy-mulf (place &optional n)
+  (unless n (setq n 0.114514))
+  (gv-letplace (gEt sEt) place
+    (funcall sEt `(* ,gEt ,n))))
+#+END_SRC
+
+以上，我们就完成了对 gv.el 的基本介绍。与 five gangs 相对进行比较的话，我们可以这样来列：
+
+- =gv-define-simple-setter= 对应于 =defsetf=
+- =gv-define-setter= 对应于 =define-setf-expander=
+- =gv-get= 可认为对应于 =get-setf-expansion=
+- =gv-letplace= 对应于 =define-modify-macro=
+
+在这一小节完成之前，我们还介绍两个小玩具，它们是 =gv-ref= 和 =gv-deref= 。它们借助高阶函数实现了类似于指针的取址操作和解引用操作（也就是 =&= 和 =*= ）。定义如下：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro gv-ref (place)
+  (let ((code
+         (gv-letplace (getter setter) place
+           `(cons (lambda () ,getter)
+                  (lambda (gv--val) ,(funcall setter 'gv--val))))))
+    (if (or lexical-binding
+            ;; If `code' still starts with `cons' then presumably gv-letplace
+            ;; did not add any new let-bindings, so the `lambda's don't capture
+            ;; any new variables.  As a consequence, the code probably works in
+            ;; dynamic binding mode as well.
+            (eq (car-safe code) 'cons))
+        code
+      (macroexp--warn-and-return
+       "Use of gv-ref probably requires lexical-binding"
+       code))))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(defsubst gv-deref (ref)
+  (funcall (car ref)))
+
+(gv-define-setter gv-deref (v ref) `(funcall (cdr ,ref) ,v))
+#+END_SRC
+
+举个简单例子说明一下使用吧：
+
+#+BEGIN_SRC emacs-lisp
+(defun yy-swap (a b)
+  (let ((c (gv-deref a)))
+    (setf (gv-deref a) (gv-deref b)
+	  (gv-deref b) c)))
+
+(defun yy-swap2 (a b)
+  (cl-psetf (gv-deref a) (gv-deref b)
+	    (gv-deref b) (gv-deref a)))
+
+(let ((a 1)
+      (b 2))
+  (let ((a& (gv-ref a))
+	(b& (gv-ref b))
+	res)
+    (yy-swap a& b&)
+    (push (list a b) res)
+    (yy-swap2 a& b&)
+    (push (list a b) res)))
+=> ((1 2) (2 1))
+#+END_SRC
+
+本节完结。关于 gv 的更多例子可以参考 gv.el，除去上面的实现，该文件的剩余部分都是在生成对应的 setf 形式。
+
+
+* 一些 setf 和 gv 的例子
+
+我会使用 CL 和 elisp 中的 gv 机制来分别实现这一节中的每一个例子，以供参考。这些例子来自 On lisp 和 gv.el。
+
+
+** incf, decf
+
+用过 CL 的人都知道这两个宏，CL 不能没有 incf/decf ，就像 C 不能没有 i++（笑）。
+
+#+BEGIN_SRC lisp
+(define-modify-macro yy-incf (&optional (x 1)) +)
+(define-modify-macro yy-decf (&optional (x 1)) -)
+#+END_SRC
+
+以下是使用 =gv-letplace= 实现的 incf 和 decf。
+
+#+BEGIN_SRC emacs-lisp
+(defmacro yy-inc/dec (name op)
+  `(defmacro ,name (place &optional n)
+     (gv-letplace (gett sett) place
+       (macroexp-let2 nil v (or n 1)
+	 (funcall sett `(,',op ,gett ,v))))))
+
+(yy-inc/dec yy-incf +)
+(yy-inc/dec yy-decf -)
+#+END_SRC
+
+
+** 字符串的范围赋值
+
+在 elsip 中我们可以使用 =substring= 来获取字符串的字串，借助 gv，我们也可以来设置某范围内的串。
+
+由于我没找到 CL 里面的 =substring= 和设置子字符串函数，这里简单写了两个，所以看起来有点长。
+
+#+BEGIN_SRC lisp
+(defun yy-sbs (s from &optional to)
+  (let* ((to (or to (length s))))
+    (assert (> to from))
+    (let ((my-s (make-string (- to from)))
+	  (f from))
+      (loop for i from f below to
+	    for j from 0
+	    do (setf (aref my-s j) (aref s i)))
+      my-s)))
+
+(defun yy-sbs-set (s fr to str)
+  (let ((to (or to (length s))))
+    (assert (integerp fr))
+    (assert (>= (length s) to))
+    (loop for i from fr below to
+	  for j from 0
+	  do (setf (aref s i) (aref str j)))
+    s))
+
+(define-setf-expander yy-sbs (s from &optional to)
+  (let ((v0 (gensym))
+	(v1 (gensym))
+	(v2 (gensym))
+	(g (gensym)))
+    (values
+     `(,v0 ,v1 ,v2)
+     `(,s ,from ,to)
+     `(,g)
+     `(yy-sbs-set ,v0 ,v1 ,v2 ,g)
+     `(yy-sbs ,v0 ,v1 ,v2))))
+#+END_SRC
+
+下面是 elisp 实现，这是 elisp manual 上的例子
+
+#+BEGIN_SRC emacs-lisp
+(gv-define-expander yy-sbs
+  (lambda (doit place from &optional to)
+    (gv-letplace (gett sett) place
+      (macroexp-let2* nil ((start from) (end to))
+	(funcall doit `(substring ,gett ,start ,end)
+		 (lambda (v)
+		   (funcall sett `(cl--set-substring
+				   ,gett ,start ,end, v))))))))
+#+END_SRC
+
+
+** On Lisp 中的 _f 宏与 elisp 中的 cl-callf
+
+这个宏的原型如下：
+
+#+BEGIN_SRC lisp
+(defmacro _f (op place &rest args) ...)
+#+END_SRC
+
+它接受一个函数，一个 gv 和一些参数，然后将函数 op 应用于 gv 和参数，即 =(apply op place args ...)= ，随后将得到的结果放入 gv 中。相比于 incf 或 decf ，它的适用性显然更强，使用它甚至可以进行乘除操作。
+
+以下是 On Lisp 上的实现：
+
+#+BEGIN_SRC lisp
+(defmacro _f (op place &rest args)
+  (multiple-value-bind (vars forms var set access)
+      (get-setf-expansion place)
+    `(let* (,@(mapcar #'list vars forms)
+	    (,(car var) (,op ,access ,@args)))
+       ,set)))
+#+END_SRC
+
+在 elisp 中有类似的东西，它们叫做 =cl-callf= 和 =cl-callf2= ，定义如下
+
+#+BEGIN_SRC emacs-lisp
+(defmacro cl-callf (func place &rest args)
+  "Set PLACE to (FUNC PLACE ARGS...).
+FUNC should be an unquoted function name or a lambda expression.
+PLACE may be a symbol, or any generalized variable allowed by
+`setf'."
+  (declare (indent 2) (debug (cl-function place &rest form)))
+  (gv-letplace (getter setter) place
+    (let* ((rargs (cons getter args)))
+      (funcall setter
+               (if (symbolp func) (cons func rargs)
+                 `(funcall #',func ,@rargs))))))
+
+(defmacro cl-callf2 (func arg1 place &rest args)
+  "Set PLACE to (FUNC ARG1 PLACE ARGS...).
+Like `cl-callf', but PLACE is the second argument of FUNC, not the first.
+\(fn FUNC ARG1 PLACE ARGS...)"
+  (declare (indent 3) (debug (cl-function form place &rest form)))
+  (if (and (cl--safe-expr-p arg1) (cl--simple-expr-p place) (symbolp func))
+      `(setf ,place (,func ,arg1 ,place ,@args))
+    (macroexp-let2 nil a1 arg1
+      (gv-letplace (getter setter) place
+        (let* ((rargs (cl-list* a1 getter args)))
+          (funcall setter
+                   (if (symbolp func) (cons func rargs)
+                     `(funcall #',func ,@rargs))))))))
+#+END_SRC
+
+=cl-callf2= 的 =place= 是第三参数，而 =cl-callf= 和 =_f= 一样是第二参数。On Lisp 上使用这个宏方便地实现了记忆化：
+
+#+BEGIN_SRC lisp
+(defun memoize (fn)
+  (let ((cache (make-hash-table :test #'equal)))
+    #'(lambda (&rest args)
+	(multiple-value-bind (val win) (gethash args cache)
+	  (if win
+	      val
+	      (setf (gethash args cache)
+		    (apply fn args)))))))
+(defun fib (n)
+   (cond ((= n 0) 0)
+         ((= n 1) 1)
+         (t (+ (fib (- n 1)) (fib (- n 2))))))
+
+(time (fib 30))
+  real time : 0.502 secs
+  run time  : 0.515 secs
+  gc count  : 16 times
+  consed    : 86166048 bytes
+  832040
+
+(_f memoize (symbol-function 'fib))
+
+(time (fib 30))
+  real time : 0.000 secs
+  run time  : 0.000 secs
+  gc count  : 1 times
+  consed    : 7616 bytes
+  832040
+#+END_SRC
+
+
+** 排序
+
+在 On Lisp 中，作者使用 gv 实现了多变量冒泡排序，下面是代码：
+
+#+BEGIN_SRC lisp
+(defmacro sortf (op &rest places)
+  (let* ((meths (mapcar #'(lambda (p)
+			    (multiple-value-list
+			     (get-setf-expansion p)))
+			places))
+	 (temps (apply #'append (mapcar #'third meths))))
+    `(let* ,(mapcar #'list
+		    (mapcan #'(lambda (m)
+				(append (first m)
+					(third m)))
+			    meths)
+		    (mapcan #'(lambda (m)
+				(append (second m)
+					(list (fifth m))))
+			    meths))
+       ,@(mapcon #'(lambda (rest)
+		     (mapcar
+		      #'(lambda (arg)
+			  `(unless (,op ,(car rest) ,arg)
+			     (rotatef ,(car rest) ,arg)))
+		      (cdr rest)))
+		 temps)
+       ,@(mapcar #'fourth meths))))
+
+(setq a 1 b 2 c 3)
+(sortf > a b c)
+(list a b c) => (3 2 1)
+
+(setq a '(1 1 4 5 1 4))
+(sortf > (nth 0 a) (nth 1 a) (nth 2 a) (nth 3 a) (nth 4 a) (nth 5 a))
+a => (5 4 4 1 1 1)
+#+END_SRC
+
+我反正是想不到 gv 还能这么用。下面是我用 elisp 实现的代码：
+
+#+BEGIN_SRC emacs-lisp
+(defmacro yy-sortf (op &rest places)
+  (let ((temps (cl-loop for a in places
+			collect (gensym))))
+    `(let* ,(cl-mapcar #'list
+		       temps
+		       (mapcar #'(lambda (p)
+				   (gv-letplace (ge se) p
+				     ge))
+			       places))
+       ,@(mapcon (lambda (rest)
+		   (mapcar
+		    (lambda (arg)
+		      `(unless (,op ,(car rest) ,arg)
+			 (cl-rotatef ,(car rest) ,arg)))
+		    (cdr rest)))
+		 temps)
+       ,@(cl-mapcar (lambda (v p) (gv-letplace (g s) p (funcall s v)))
+		    temps places))))
+
+(setq a '(1 2 3))
+(sortf > (car a) (caddr a) (cadr a))
+a => (3 1 2)
+#+END_SRC
+
+
+* 后记
+
+在去学校的火车上，由于手机没电了且实在闲的无聊，我读完了 gv.el 的实现并完成了本文的一半，剩下的一半总算是在今晚完成了。读完 gv.el 的最大收获是重新学了一遍二阶宏的写法，联想起寒假推的色鸟鸟，二阶堂真红不就是“二阶红”吗（笑）。
+
+@@html:<div class="yyheadimg"><img src="./2.jpg" alt="load failed"></div><div class="yyimgcomment">Nikaidou Shinku</div>@@
+
+寒假快要结束的几天，《保健室的老师与沉迷吹泡泡的助手》汉化出来了，也算是对我的一点慰藉吧（笑）。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgzMzQwNDU4.jpg" alt="load failed"></div><div class="yyimgcomment">shirobana</div>@@
+
+今天（22 号）上午 9:00 出了考研成绩，通过我这 68 分的数学一，我学到了一点，那就是十七乘四得六十八。根据我的专业课和数学课分数，我还学到了一点，那就是 =(reverse "68") => "86"= ，这不就是八六吗（笑）。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgwOTE3NjU0.jpg" alt="load failed"></div><div class="yyimgcomment">hachiroku</div>@@
+
+好了，玩笑话说的差不多了，来点正经的东西吧。在查资料的过程中我发现了一个与 CL 相关的日文网站 https://g000001.cddddr.org/ ，上面有接近两千篇内容。这网站的名字也挺别致， =g000001= 正是 =(gensym)= 的第一个返回值，而 =cddddr= 是 =cxr= 的最后一个。在这个网站上可以找到许多 CL 相关的内容，希望对你有所帮助。
+
+お前の明日が、お前が思っているよりもずっと、ずっと……素敵な一日になることを祈ってる〜
+
+
+* 参考资料
+
+- /On lisp/ - Paul Graham
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzI2NTY1NDY1.jpg" alt="load failed"></div><div class="yyimgcomment">alice margatroid</div>@@

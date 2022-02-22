@@ -154,6 +154,7 @@ Marx 说过“人是一切社会关系的总和”，根据这个句子仿写一
 
 当然了，这只是我的一种理解。 *把上下文和环境看作同一事物也是一种理解* 。下文不对两者进行明显的区分，可能会存在混用。
 
+
 * 什么是作用域（scope）
 
 首先，我们需要知道作用域是用来描述什么的 —— 它描述的是名字绑定在程序中的可见性。 *某个名字绑定的作用域就是程序中该绑定可见的那一部分* 。
@@ -439,6 +440,7 @@ In addition to the above terms, it is convenient to define *dynamic scope* to me
 
 关于“动态作用域”和“静态作用域”各自的优缺点我没有提，详细的对比可以参考维基百科。
 
+
 * elisp 的 lexical-binding
 
 啰里啰唆的说了那么多，总算是到本文的主要部分。（并不是）
@@ -560,6 +562,7 @@ c => t
 
 这只能说是个比较好玩的例子，在实际编写代码时应该尽量使用一种绑定方式。
 
+
 * Scheme 的 syntax-case
 
 好了，本节是本文的最后一节，会对 Scheme 的 syntax-case 宏进行一个简单的介绍，也作为我学习 Scheme 的一个小结。如果您只对 syntax-case 感兴趣的话，您也只需要阅读本文的这一部分。
@@ -613,33 +616,18 @@ int main(void)
        (progn ,@exp)
      nil))
 
-(cl-flet ((not (x) x))
+(cl-letf (((symbol-function 'not) (lambda (x) x)))
   (yy-unless t (+ 1 2)))
 => 3
 #+END_SRC
 
-很明显，在动态作用域中宏里面的 not 指向了一个恒等函数，没有起到逻辑取反的作用。启动 =lexical-binding= 还不足以使其得到正确的结果，还需要把 =not= 放到参数的位置：
-
-#+BEGIN_SRC emacs-lisp
-(setq lexical-binding t)
-(defmacro yy-unless (condit &rest exp)
-  `(if (funcall 'not ,condit)
-       (progn ,@exp)
-     nil))
-
-(cl-flet ((not (x) x))
-  (yy-unless t (+ 1 2)))
-=> nil
-#+END_SRC
-
-（通过这个实验我发现 elisp 的闭包作用域仅仅保护了变量而没有保护函数（或者说是调用表达式的首元素），毕竟它的函数和变量是分开的）
+很明显，在动态作用域中宏里面的 not 指向了一个恒等函数，没有起到逻辑取反的作用。
 
 从上面的例子中我们可以看到两个问题：
 
 - 宏里面的东西可能在不经意之间对外部造成影响，例如上面的内部定义 =a= 影响了外部定义的 =a= 。
 
-- 外面的一些名字可能对宏的内部造成影响，例如上面对 =not= 的重绑定影响了 =yy-unless= 宏的展开。
-
+- 外面的一些名字可能对宏的内部造成影响，例如上面对 =not= 的重绑定影响了 =yy-unless= 宏的展开。关于捕获问题可以进一步参考 On Lisp，上面有更详细的分析。
 
 卫生宏就是为了解决这两个问题而出现的，第一个问题可以通过对宏内部使用的名字进行重命名解决，它不同于我们普通的手动重命名，它应该是与任何的外部名字没有冲突的名字。后一个问题可以通过”静态作用域“解决，在定义宏的时候就确定宏内名字的指向。上面的例子中，我通过启用 =lexical-binding= 解决了这个问题。
 
@@ -654,6 +642,7 @@ int main(void)
 #+END_SRC
 
 就解决意外的名字捕获这个问题而言，卫生宏只是一种解决方案而已。更多的解决方法可以参考【11】。
+
 
 ** 什么是 syntax-case
 
@@ -848,6 +837,7 @@ int g (int x)
 
 到了这里，我就已经介绍完了 syntax-case 的基本功能与基本的使用方式，以及如何使用它来修改作用域和实现展开时计算。但是这个介绍并不是很全，某些必要的函数还没有介绍。这就是下一节的工作了。
 
+
 ** 与 syntax-case 相关的函数与宏
 
 首先，与 syntax-case 最相关的就是 syntax-rules 啦，毕竟 syntax-case 是从它上面出来的。syntax-rules 是可以用 syntax-case 定义出来的，TSPL 上面是这样写的：
@@ -890,6 +880,7 @@ It is sometimes useful to construct a transformer's output in separate pieces, t
 =generate-temporaries= 用来生成不产生冲突的名字，和 elisp 中的 make-symbol 和 gensym 有点像，不过具体的实现原理是否相似我就不知道了。
 
 以上的函数全部来自 TSPL，Racket 上面可能会定义一些更加好用的函数和宏，想要了解的话可以前往官网文档学习。
+
 
 ** Scheme 宏的一些使用用例
 
@@ -1314,6 +1305,7 @@ Kent，Fridman 写了一个非常厉害的模式匹配宏，链接在[[https://g
 
 以上。
 
+
 * 后记
 
 本文最开始取的题目是“elisp 的 lexical-binding”，但是写着写着突然发现我对作用域这个概念的理解似乎出了点问题，似乎是有必要把作用域相关的概念全都过一遍。看完了作用域后我终于明白了作用域和动态/静态作用域好像根本不是一个东西。这时候我又想起了很久之前学过的 syntax-case，我对里面的 =datum->syntax= 总是无法理解透彻。但是学完作用域后我终于明白了它到底是干什么的了。那就干脆把 syntax-case 也整理一遍吧，蛤。
@@ -1332,6 +1324,7 @@ Kent，Fridman 写了一个非常厉害的模式匹配宏，链接在[[https://g
 如果您对我上面的 syntax-case 教程有些疑问的话欢迎与我讨论，这样有助于我继续优化。这一部分的编写过程主要是按照我的思维变化过程写出来的，有不懂的地方尽管找我。
 
 syntax-case 不就是带了上下文信息的列表变换吗，这有什么难理解的 :p
+
 
 * 参考资料
 
