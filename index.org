@@ -26,6 +26,7 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2022-03-17-18-buffer管理和ibuffer的介绍与使用/index.html][2022-03-17-18-buffer管理和ibuffer的介绍与使用]]
 - [[./posts/2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach/index.html][2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach]]
 - [[./posts/2022-02-01-16-emacs的abbrev使用介绍/index.html][2022-02-01-16-emacs的abbrev使用介绍]]
 - [[./posts/2022-01-24-15-emacs的hashtable与多值返回/index.html][2022-01-24-15-emacs的hashtable与多值返回]]
