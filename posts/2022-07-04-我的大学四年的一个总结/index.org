@@ -1,0 +1,500 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 我的大学四年的一个总结
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzk2Nzc5NTcy.jpg" alt="load failed"></div>@@
+#+DATE: [2022-06-09 Thu 09:36]
+#+TAGS: essay
+
+* 写在前面
+
+啊，不管怎么说这一言难尽的大学生活总算是结束了，也是时候总结一下自己的大学生活了。本文的写作目的就是记录一下大学过程和感受，以及一些有印象的事件和人。
+
+不过，以我现在的写作能力写不出什么好看的文字，如果抽空学两三个月的写作的话本文的观感应该会好上不少。虽说如此，等到我学会了写作再来看没学之前的我也算是一种没有过的体验，所以现在还是直接开写吧。
+
+文章内容除了在分布上大致遵守我在下面列的那个大纲之外可以说是想到哪写到哪，so feel free to read（不过最后我肯定要修改一下，免得读起来不通顺）。出于隐私考虑和本人的记性问题，本文并不能反映我的完整过程（这不是废话吗），但是也无关紧要。
+
+本文包括以下内容：
+
+- 四年生活的概括
+
+- 思考和体会
+
+- 有印象的人和博客
+
+- 之后去干些啥
+
+- 玩过的一些游戏
+
+来点 BGM 就可以开始本文了：[[https://www.bilibili.com/video/BV1nx411c7sH][【初音三夕】1925]]
+
+* 以学年作区分的大学过程
+
+大多数大学本科都是 4 年制，可以分为 8 个学期。比起学期，以学年分段的话可以少写四个二级标题，看起来更舒服一点。
+
+** 第一学年 2018.8 ~ 2019.8
+
+芜湖，这一学年应该是读大学最快乐的时候，也是我大学作息最健康的一个学年，想我曾经也是每天早上七点起床十点睡觉的人。大学里面很多东西对我来说都是新的，比如宿舍、社团之类的玩意，还有图书馆可以用来自习。这一时期的图书馆比较自由，书往座位上一放就行了，所以我非常喜欢去。
+
+我的生活在这一年也非常简单，就是上课、去图书馆、吃饭、睡觉，简单得我都懒得多讲，哈。下面说下比较有印象的事情吧。
+
+1. 国庆放假的时候与几个舍友出去游玩，在地铁上随手看到了王垠写的一些文章[fn::https://www.cnblogs.com/zjoch/p/5147971.html]，没记错的话是在博客园上看到的。我只能说他对我大学期间的编程学习影响深远。
+
+2. 大一上我跟风参加了个搞英语口语练习的社团，每天像有病一样早上六点半起来读英语（现在想来真是有病），不过这不是重点。参加一个月后社团负责人拉我们参加一个费用 50 元的培训课，课上的老师煞费苦心地向我们强调了英语口语的重要性，并建议我们报他们的万元课程。然后我就直接退了。
+
+   这 50 元我也没有白出，至少我学了点营销套路：首先向你强调某东西的重要性，然后捏造社会普遍现实让你觉得自己不行，接着强调自己课程怎么怎么牛逼，拿些背景强调自己怎么怎么厉害，再展望一下获得东西之后的美好未来，最后告诉你价格，还打下折告诉你很实惠。考虑到近几年的疫情，这玩意应该是办不下去了，可喜可贺可喜可贺。
+
+3. 我还参加了学校的科协（全称好像是科学协会来着），负责在里面打杂。具体的人和事记不太清了，结果上来说就是打了一年的杂，然后在大一下结束时退出了。
+
+   不过其中一人我印象深刻，他对航天似乎有着超出常人的热情，晚间散步的时候我还看见过他架天文望远镜。在社团办公室时他能喋喋不休拉着人说上一两小时的航天故事。除此之外似乎不能正常交流（笑）。
+
+4. 大概是大一下开学不久，我看了一些 Linux 和 Freebsd 软文，心中热血沸腾，买了一套几百块的垃圾来装 Freebsd。我至少反复装了十几次 Freebsd 才弄清楚基本操作。这个时候我也不懂网络和 Unix，只能参考一些过时资料，使用系统的 ports，通过 =make install= 从源代码安装软件。
+
+   由于不会找 Freebsd 软件镜像，我只能从默认镜像下载，这些镜像速度一般在十几 k 左右，而且不太稳定，我只能在其他机器上下载后再通过 U 盘拷贝。为了装个 emacs 我至少插拔 U 盘三四十次才找完所有依赖，至于桌面环境还是算了吧。SICP 前两章我就是在 Freebsd 上使用 emacs 在 mit-scheme 环境下学完的。比较可惜的是，这一时间我没有较好的英文水平，没能体验到 Freebsd 系统的独特之处。
+
+
+这一年我基本上延续了高中时的样子，保持了一种比较简单的生活学习状态。经由王垠的影响我对计算机历史有了一些好奇，初步了解到了 emacs，不过正式开始把玩是在两年之后了。
+
+这一年是中华人民共和国成立七十周年。
+
+** 第二学年 2019.9 ~ 2020.8
+
+这一年是我大学生活的重大转折点。首先是我从信息大类分流到了自动化专业，现在看来我对计算机还是更感兴趣点（笑）。其次就是 COVID-19 了，所谓“时代的一粒灰落到个人头上就成了一座山”，疫情对正常生活的影响应该是有目共睹的。（主次好像弄反了）
+
+我在大二上继续延续大一的生活，继续教室-宿舍-食堂-图书馆四地轮换。大二上寒假回家后不久疫情就开始了，我们不得不在家完成了下学期的学习和考试。相比于大一时的无忧无虑，家里蹲大学生活让我开始思考我学这些东西干啥用的。这一时期有印象的事情如下：
+
+1. 大二上下分别完成了模电和数电的学习，算是电路的入门。
+
+   数电课本中已经提到了 FPGA，可惜我当时并没有进一步了解，不过以 FPGA 的知名程度和板子价格，我了解不到也是必然的。
+
+2. 19 年的暑假和 20 年的暑假和不同的好友参加了一些比赛，虽然没啥名次收获，但是还算是有所见识。为了安装 thingworx，我还弄了个内存 32G 的主机，体验了一把狂开网页的快感。
+
+3. 在学习《信号与系统》时，受不了错误繁多的课本，买了绿皮的奥本海姆开始自学，然后被教材质量震惊到了。
+
+4. 大二上寒假花了八天时间参考《Windows程序设计（第五版）》仿写了个扫雷。界面操作和原版差不多，不过时不时会崩掉。
+
+   这是我写过的第一个有点复杂的 GUI 程序，在这之后好像就没这么多空闲时间来玩了。
+
+5. 大二上寒假快结束时舍友向我推荐了碧蓝航线，不知不觉玩到现在居然也有 118 级了。疫情期间上网课的时候是不错的休闲手段。
+
+这一时期基本上没啥杂活了，除了上课外，其余时间就是玩点简单的编程。疫情期间的上课简直就是玩笑，我感觉大二下大部分课程都是在考试前两到三周才开始学。
+
+** 第三学年 2020.8 ~ 2021.8
+
+这是最操蛋的一学年。我的所有挂科都在大三，大三上挂了电力电子，大三下挂了自动控制原理和计算机控制系统。我认为有两个主要原因：疫情影响导致课程安排的不确定性和无休无止的打杂。因为疫情影响，大三上的考试周相比往年至少提前了一到两周。我还负责了班级所有课程的杂物工作，也就是全科课代表…这一学期的小组课设也不少。
+
+更主要的原因可能是我已经麻了，考试电力电子的前两天直接玩起了《巫师3》。大三下开始我就完全进入躺平状态了，晚上两点中睡觉，早上没课直接睡到十点，作业不留到最后不写。大三下结束时喜提两门挂科。
+
+当然这一学期也不是没啥好事，我又把 emacs 捡起来了，拿 emacs 的 org-mode 记起了笔记，经过一些了解后我觉得 emacs 是个可以长期坚持下去的爱好。另外就是 touhou 了，大概是 20 年国庆期间室友给我推荐了《东方绀珠传》，结果发现连 easy 也过不去（连 shift 也不会）。随后便了解到一系列的官方作品和二次创作。emacs 和 touhou 是我大学期间的两大收获。
+
+下面是我觉得有点印象的事情：
+
+1. 加了个 Scheme 讨论群，群友说话又好听，超喜欢在里面的。
+
+2. 与一同学合作完成了单片机和电路设计两大课程设计。这是我在大学期间小组课程中体验最好的两次。
+
+   根据我的经验来看，超过两人的小组作业很难合作完成，一般都是一个人完成整个小组的工作。
+
+
+这两学期的感觉就是操蛋，每当你觉得已经到谷底之后，你还能发现自己提升空间又大了一点。这一时间段我的体重从 160 飙升至 200，暑假又减回 180，还是吃多了动少了。目前我的体重是 168，写到这里我也建议读者注意一下主食的摄入量（笑）。
+
+** 第四学年 2021.8 ~ 2022.6
+
+大四上没什么好说的，保研结果在这一年出来，考研的同学大多带着书来课上复习，上课基本上没啥氛围了。我的考研复习也是三天打鱼两天晒网，在研究生考试的前两天把东方正作的 N 和 EX 难度全部通关了，直到 12 月 25 日前一周才开始全面复习，结果自然是不甚理想。
+
+- 数学1 68分
+- 自动控制原理 86 分
+- 英语1 72 分
+- 政治 59 分
+
+
+不过没想到的是这也能上国家线，真是好笑。
+
+我在大四下的作息完全颠倒了，每天 11 点前没有起来过。到了毕设快要截止的前两周，我的作息变成了这样：早上 7 点睡到 11 点，晚上 7 点睡到 11 点，舍友说我这作息真是阴间。所幸最后毕设还是顺利完成了。
+
+这一学期还真没什么东西好说的，整天坐在电脑前面无所事事。唯一值得拿来说的就是毕业设计，通过毕设我接触到了 FPGA 和 Verilog 语言，花了点时间刷完了 HDLBits 的 178 道题（现在好像又出新题了）。
+
+** 总结
+
+从文本长度来看，很明显从第一年到第四年我写的越来越短。一方面可能是随年龄增长感觉时间越过越快，另一方面可能是受到了疫情的影响。自大三回校后到大四毕业，除了上课和吃饭外我都在寝室，非必要不出寝。我这四年大学生活有两年半受到了疫情的影响，不过这也没啥，比我低届的同学受到影响的时间会更长。我不认为疫情会在两三年后结束。
+
+如果不是刻意回想以及翻翻之前的照片、聊天记录和淘宝记录的话，有些东西还真想不起来了。那些我没有记下来的东西可能不久之后就忘掉了，然后在不经意间再被想起来，然后再被忘掉。
+
+#+BEGIN_QUOTE
+我曾踏足山巅，也曾跌入谷底，二者都让我受益良多 —— 塔里克
+#+END_QUOTE
+
+* 思考和体会
+
+大二上我选过一门叫《科学哲学》的课，老师告诉了我们什么是科学、非科学与伪科学。不过我记得最清楚的还是范式转换。借用一下这个科学哲学中的概念，我这也属于发生了范式转换了。我和过去的我已经判若两人了。
+
+** 你不行就是因为你不够努力，是~這樣~嗎~
+
+#+BEGIN_QUOTE
+In my younger and more vulnerable years my father gave me some advice that I've been turning over in my mind ever since.
+
+`Whenever you feel like critizing anyone,' he told me, `just remember that all the people in this world haven't had the advantages that you've had.'
+
+He didn't say any more, but we've always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that. In consequence, I'm inclined to reserve all judgments, a habit that has opened up many curious natures to me and also made me the victim of not a few veteran bores.
+
+/The Great Gatsby/ —— F.Scott Fitzgerald
+#+END_QUOTE
+
+读完了大学我才理解了上面这段话。人总要等到自己“真有一头牛”的时候才会有感觉，不挨打长不了记性（笑）。遥想自己还曾觉得下面这样的话很励志：
+
+#+BEGIN_QUOTE
+如果你觉得你的祖国不好，你就去建设它；如果你觉得政府不好，你就去考公务员去做官；如果你觉得人民没素质，就从你开始做一个高素质的公民；如果你觉得同胞愚昧无知，就从你开始学习并改变身边的人，而不是一味的谩骂、抱怨、逃离。
+
+如果你觉得新冠病毒不好，那么你就自己变成比新冠病毒更厉害的病毒，卧底它进而改造它，让它不再伤害人类。
+#+END_QUOTE
+
+这个句式有无数具体的版本，二〇年初的时候武汉出现了用垃圾车运肉的奇闻（我在湖北所以印象深刻），我还看到过垃圾车版。
+
+就我目前的认识，环境对个人的影响是非常大的，凭个人与环境对抗无异于螳臂当车。
+
+** 人生是否是确定的
+
+我比较相信决定论，也就是一切都是确定的。这个想法大概是我在二一年冬天看过刘慈欣小说《镜子》后产生的。在小说的那个世界中出现了超弦计算机，具有几乎无限的运算和存贮能力。小说中白冰利用它观看了一系列的过去，并且最终预测了相当远的未来。在小说的最后人类全灭了，不过这也是必然的。
+
+这里摘几句：
+
+#+BEGIN_QUOTE
+白冰说到这里激动起来，开始手舞足蹈，“我是一个狂想爱好者，热衷于在想象中把一切都推向终极，这就让我想到，如果镜像模拟的对象是整个宇宙会怎么样？！”白冰进入一种不能自已的亢奋中，“想想，整个宇宙！奶奶的，在一个计算机内存中运行的宇宙！从诞生到毁灭．．．．．．”
+
+白冰对吕文明点点头，又转向首长：“但您忘了，存在着那样一个时间断面，宇宙是十分简单的，甚至比鸡蛋和细菌都简单，比现实中最简单的东西都简单，因为它那时的原子数是零，没有大小，没有结构。”
+
+有空间啊，近千亿光年直径的空间！还有时间，一百亿年的时间！时空是最实在的存在！要说这个宇宙，还是创造得比较成功的，以前创造的相当多的宇宙连空间都很快湮灭了，只剩时间。
+
+“有个问题：”首长说，“如果你用这组参数再次启动大爆炸，所得到的宇宙与这个完全一样吗？” “是的，而且其演化过程也完全一样，一切在大爆炸时就决定了，您看，物理学穿过量子迷雾之后，宇宙又显示出了因果链和决定论的本性。”
+
+“很对，那时，庞罩在历史和现实上的所有迷雾将一扫而光，一切的一切，在明处和暗处的，过去和现在的，都将赤裸裸地展现于光天华日之下。到那时，光明与黑暗，将不得不进行一场史无前例的大决斗，世界将陷入一片混乱……”
+
+模拟软件退回到出错前，开始分步运行。当现实中的白冰将滑块移过零时点，镜像中虚拟的白冰也正在做着同样的事；错误跟踪程序立刻放大了镜像中的那台超弦计算机的屏幕，可以看到，在那台虚拟计算机的屏幕上，第二层的虚拟白冰也正在将滑块移过零时点；于是，错误跟踪程序又放大了第三层虚拟中的那台超弦计算机的屏幕．．．．．．就这样，跟踪程序一层层地深入，每一层的白冰都在将滑块移过零时点。这是一套依次向下包容的永无休止的魔盒。
+
+所以，虽然这个宇宙中的一切过程早在大爆炸发生时就已经决定，但未来对我们来说仍是未知的，对讨厌由因果链而产生的决定论的人来说，这也是一个安慰吧。
+
+然后，伟大的镜像时代将到来，全人类将面对着一面镜子，每个人的一举一动都能在镜像中精确地查到，没有任何罪行可以隐藏，每一个有罪之人，都不可避免地面临最后审判，那是没有黑暗的时代，阳光将普照到每个角落，人类社会将变得水晶般纯洁。
+
+他把枪放到桌面上，把退出来的子弹在玻璃板上摆成一小圈，像生日蛋糕上的蜡烛。然后，他踱到窗前，看着城市尽头即将落下的夕阳，它在市郊的工业烟尘后面呈一个深红色的圆盘，他觉得它像镜子。
+#+END_QUOTE
+
+我非常喜欢文中说到的两点，即：一切都在宇宙大爆炸时已经决定，但未来对我们来说仍是未知的。
+
+需要说明的是，在写下这行字的时候，我对决定论，实在论，量子力学，混沌理论等等都没有什么了解。希望之后有点时间去了解。
+
+** 自顶向下和自底向上，which one to choose?
+
+我最初从编程中了解到自顶向下和自底向上（Top-Down and Buttom-Up）这两个概念，借写这篇文章的机会，这里再次重温一下（有点跑题了）。
+
+一句话概括的话，自顶向下就是从一般到特殊，而自底向上就是从特殊到一般。除了程序设计之外，它们还被用在许多其他地方，比如管理。自顶向下一般从全局出发，将所面对的东西逐步细化，分解成更小的部分。与之相对，自底向上从局部开始，将各部分拼接起来组成更大的系统。两种方法或者说思路各有各的优劣之处。自顶向下可能不够详细，而自底向上可能视角不够宏观。
+
+从小到大我接收的应该都是自顶向下式的教学，这也包括我的大学阶段。一般的课本会在开头介绍所述内容的历史，发展概括等总体知识，并在之后的章节中进一步阐述。教学活动由老师主导，学生负责接收。不过我的学习也并不全是自顶向下的，高中刷题疲乏后我会在课上画椭圆“研究”圆锥曲线，还捣鼓出了一些前人证明过的定理；高中时对数学比较感兴趣，找《men of mathematics》来读（当然没读完）；大学里面除学了 C/C++ 外还学了点Lisp……
+
+| [[./1.jpg]] |
+
+相比于统一的授课，自己捣鼓更能给我带来收获感，但是毫无目的的学习跟随机游走没有太大的区别。学习 Lisp 显然对我的大学成绩没有帮助，大一草草翻过的《数学分析八讲》现在也了无印象。就我个人来看，我大学所学并没有明显地强过学习大纲中的内容，采了路边野花几朵了属于是。
+
+不过这点野花可以视为我自底向上思想的开始。Paul Graham 在 /ANSI Common Lisp/ 中这样写到：
+
+#+BEGIN_QUOTE
+Almost any program can benefit from having the language tailored to suit its needs, but the more complex the program, the more valuable bottom-up programming becomes. A buttom-up program can be written as a series of layers, each one acting as a sort of programming language for the one above.
+
+Buttom-up programming leads naturally to extensible software. If you take the principle of bottom-up programming all the way to the topmost layer of your program, then that layer becomes a programming language for the user.
+
+Working bottom-up is also the best way to get reusable software. The essence of writing reusable software is to separate the general from the specific, and bottom-up programming inherently creates such a separation.
+#+END_QUOTE
+
+Paul 在序言中强调了自底向上编程的灵活性，它在构建中能分为一个个分离的层，从下到上一层层构建起可用的程序。除了这本书外，他比较有名的还有 /Hackers & Painters/ （黑客与画家）。
+
+自底向上是否如 Paul 所说好于自顶向下呢？我不太清楚，不过大多数时候我们是无法知道事物全貌的，除了从边角开始了解也别无他法。我现在没有时间也没有兴趣去想一个东西是否有什么意义了，如果有其他盲人告诉我大象的其他形状那是最好，没有就没有吧。
+
+** 总结
+
+这一节是我用时最多的一节，毕竟写起来还得动脑子，想想是否能代表自己大学期间在思维和观点上的主要变化。上面的这些内容我感觉不太够，但是短时间内也想不出其他的来了。
+
+在刚进入大学时我还给自己立了三个行事准则：要透过现象看本质，善和恶没有明显的分界，最后一个忘了。当时好像还记在了纸上，现在看来简直中二的一匹，不过也简单的一匹。
+
+我还是当个草履虫好了。
+
+| [[./paramecium.jpg]] |
+
+* 有印象的人和博客
+
+这一节包括一些在大学期间认识的同学和了解到的网友，以及一些对我有影响的博客。非公众人物我一笔带过了，可能只有我知道是谁了。
+
+** 大学中
+
+同学A，也就是我在上文提到的一起完成小组作业的那位。
+
+同学B，通过西尾维新的《戏言》系列认识。
+
+学长C，临近毕业时与其交流过一段时间，得以管中窥豹研究生的日常。
+
+老师D，为我提供了指导。
+
+** 王垠（yin wang）
+
+王垠可以说是大学期间对我有很大影响的人之一了，不过也不知道这影响是好是坏（笑）。正是看了他的博客我才了解到 lambda 演算，Lisp 语言等新奇玩意。我使用 emacs 也主要是受到了他的影响。熟悉 Lisp 的人大多对他有一定的了解，这里我就不过多展开了。
+
+下面是他的一些博客，第一个很早以前就没有更新了，第二个 2022 年还有更新，最后一个是他的笔记本。对于博客内容我不作评价，yin wang 似乎在奇怪的路上越走越远了。。。
+
+- https://docs.huihoo.com/homepage/shredderyin/emacs.html
+
+- [[http://www.yinwang.org]]
+
+- https://yinwang1.wordpress.com/
+
+** 刘未鹏（pongba）
+
+刘未鹏的一系列文章给了我相当大的震撼，尤其是这一篇，是我看过讲 Y 组合子最好的文章：[[http://mindhacks.cn/2006/10/15/cantor-godel-turing-an-eternal-golden-diagonal/][康托尔、哥德尔、图灵——永恒的金色对角线]]。他本人的一些生活经历可以去博客里面看看，这里就不叙述了。
+
+其他的文章也推荐一下：
+
+- [[http://mindhacks.cn/2008/06/13/why-is-quicksort-so-quick/][数学之美番外篇：快排为什么那样快]]
+
+- [[http://mindhacks.cn/2011/07/10/the-importance-of-knowing-why-part3/][知其所以然（三）：为什么算法这么难？]]
+
+- [[http://mindhacks.cn/2009/05/17/seven-years-in-nju/][我在南大的七年]]
+
+
+除了他博客里的文章，他更多地是在 C++ 上写了不少，这些文章可以在 CSDN 上找到，看了应该能有不少的收获。
+
+** Andy Stewart（manateelazycat）
+
+emacs 黑客，创造了 EAF，lsp-bridge 等著名 emacs 插件，对我的 emacs 学习之路有非常大的影响，我的配置直接参考了他的配置结构。这是他的 github 主页和博客：
+
+- https://github.com/manateelazycat
+
+- https://manateelazycat.github.io
+
+博客里除了技术文章外还有许多的思考与感悟。
+
+** Christopher Wellons（skeeto）
+
+他的博客我可以说是从大一看到大四，每当搜索什么东西的时候似乎总能在搜索页面找到他。从文章日期来看，他从 2006 年就开始写到现在，最近的文章日期是 2022 年 6 月 26 日，也算是十几年笔耕不辍了。
+
+- https://nullprogram.com/index/
+
+** others
+
+再这么罗列下去二级标题可能太多了会影响阅读，下面就不分列了。这个列表并没有什么排序规则，我按照看到的顺序从上写到下。表中的 =Name= 部分是名字， =Description= 部分是说明或我找到的代表作。
+
+这也足以见得我逛了多少知乎……
+
+| Name               | Description                                                |
+| [[https://coolshell.cn/][陈皓（左耳朵耗子）]] | https://coolshell.cn/articles/11564.html                   |
+| [[http://marisa.moe][圆角骑士魔理沙]]     | https://www.zhihu.com/question/34819931/answer/482024102   |
+| [[https://www.zhihu.com/people/skywind3000][韦易笑]]             | https://www.zhihu.com/question/21090429/answer/44109092    |
+| [[https://www.zhihu.com/people/DBinary][DBinary]]            | https://www.zhihu.com/question/22085329/answer/774074211   |
+| [[https://zilongshanren.com/][子龙山人]]           | https://emacs-china.org 站长                               |
+| [[https://www.zhihu.com/people/peng-an-dr-quest][蓬岸 Dr.Quest]]      | https://www.compumuseum.com 站长 （可以在上面玩东方）      |
+| [[https://www.zhihu.com/people/jia-ming-zi-34][贾明子]]             | https://zhuanlan.zhihu.com/p/56155844                      |
+| [[https://www.zhihu.com/people/huan-mie-ling-wang][幻灭凌王]]           | https://www.zhihu.com/question/20007972/answer/280052804   |
+| [[https://www.zhihu.com/people/an-ling-91][Anlin]]              | https://zhuanlan.zhihu.com/p/511328237                     |
+| [[https://www.zhihu.com/people/knifefire][knifefire]]          | k**fire                                                    |
+| [[https://www.zhihu.com/people/ldbeth][LdBeth]]             | https://www.zhihu.com/question/482003599/answer/2083557954 |
+| [[https://www.zhihu.com/people/trebor-19][trebor]]             | https://www.zhihu.com/question/424460244/answer/2326298890 |
+| [[https://www.zhihu.com/people/whitecap-68/posts][whitecap]]           | https://zhuanlan.zhihu.com/p/62496841                      |
+| [[https://www.zhihu.com/people/ye-mei-mo][夜昧魔]]             | https://www.zhihu.com/question/331360109/answer/729093726  |
+| [[https://www.zhihu.com/people/cheng-gan-63-38][程某人]]             | https://www.zhihu.com/question/513358321/answer/2335064112 |
+| [[https://www.zhihu.com/people/Rn8W0514][李欣宜]]             | https://www.zhihu.com/question/354425756/answer/884046633  |
+| [[https://www.zhihu.com/people/galgamelovereuphoria][醉里挑灯看剑]]       | https://www.zhihu.com/question/420955450/answer/1481002904 |
+| [[https://www.zhihu.com/people/pian-gang-zhi][片冈智]]             | https://www.zhihu.com/question/513625095/answer/2327897511 |
+| [[https://www.zhihu.com/people/xiao-yan-4-3-86][小延]]               | https://zhuanlan.zhihu.com/p/459344336                     |
+| [[https://www.zhihu.com/people/wu-46][吴四六]]             | https://zhuanlan.zhihu.com/p/107341922                     |
+| [[https://www.zhihu.com/people/a-kong-ustuki][AkoUtsuki]]          | https://zhuanlan.zhihu.com/p/452317542                     |
+| [[https://www.zhihu.com/people/wu-pu-hui-qian-ren][五浦汇前人]]         | https://zhuanlan.zhihu.com/p/448366162                     |
+| [[https://www.zhihu.com/people/paizhaorushi][拍照稀烂帮帮主]]     | COVID-19                                                   |
+| [[https://www.zhihu.com/people/li-chong-52-17][李崇]]               | https://zhuanlan.zhihu.com/p/22387769                      |
+| [[https://www.zhihu.com/people/leng-zhe][冷哲]]               | https://www.zhihu.com/question/22584031/answer/87788004    |
+| [[https://www.zhihu.com/people/yao-dong-27][姚冬]]               | https://www.zhihu.com/question/264728220/answer/286429809  |
+| [[https://www.zhihu.com/people/hongbo_zhang][张宏波]]             | https://www.zhihu.com/question/479243721/answer/2062068827 |
+| [[https://www.zhihu.com/people/parker-liu][parker liu]]         | https://www.zhihu.com/question/28104479/answer/42639911    |
+| [[https://www.zhihu.com/people/heng-xu-zhi-jing][恒虚之境]]           | https://zhuanlan.zhihu.com/p/76862132                      |
+| [[https://www.zhihu.com/people/jiang-yu-chen-76-98][蒋宇辰]]             | https://www.zhihu.com/question/279354736/answer/406276919  |
+| [[https://www.zhihu.com/people/feng-dong][冯东]]               | https://www.zhihu.com/question/49759408/answer/118069077   |
+| [[https://www.zhihu.com/people/yu-zhou-yu-jiang][笑活子]]             | https://www.zhihu.com/question/411059873/answer/1864990578 |
+| [[https://www.zhihu.com/people/rednaxelafx][RednaxelaFX]]        | https://www.zhihu.com/question/30005744/answer/46442409    |
+| [[https://www.zhihu.com/people/qi-lu-xian-zhi-68][歧路先知]]           | https://www.zhihu.com/question/270553979/answer/1023415745 |
+| [[https://www.zhihu.com/people/zhudouxiaole][朱元]]               | https://www.zhihu.com/question/65647171/answer/233495694   |
+| [[https://www.zhihu.com/people/gao-xing-2-79][高兴]]               | https://zhuanlan.zhihu.com/p/33592538                      |
+| [[https://www.zhihu.com/people/cui-bobby][Mushroobby]]         | https://zhuanlan.zhihu.com/p/435214414                     |
+| [[https://www.zhihu.com/people/wang-bin-1-53][龙泉寺扫地僧]]       | https://www.zhihu.com/question/24462113/answer/27950939    |
+| [[https://www.zhihu.com/people/jason-hu-42-79][Jason Hu]]           | https://www.zhihu.com/question/21578571/answer/700799496   |
+| [[https://www.zhihu.com/people/aton][苏莉安]]             | https://www.zhihu.com/question/29643471/answer/1617400164  |
+| [[https://www.zhihu.com/people/zengjiaplus][曾加]]               | https://zhuanlan.zhihu.com/p/33126929                      |
+| [[https://www.zhihu.com/people/Erdnussoelbearbeiter][Heinrich]]           | https://zhuanlan.zhihu.com/p/19763231                      |
+
+这个列表肯定是不全的，不过也无所谓。
+
+* 之后去干些啥
+
+回望过去之后就是展望未来了。这里没有必要写太远的东西，毕竟没法预料未来。
+
+大概一两年前某晚我和我父聊了聊一个人应该具备的基本能力。我爸想了几秒钟告诉我比较重要的是学习能力，沟通能力和身体能力。拿“人应该具备什么能力”去搜可以搜出一大堆能力要素来，不过根部节点肯定是越少越好，这样方便继续向下分支。我这个分类也不一定足够好，要看实际的东西能不能很好地填到这个分配框架里面。
+
+上面这段话和这一节的内容没太大关系，就算这里要展望未来我大概也只会写点之后要学的东西。
+
+** 学点计算机知识
+
+自我上大学以来，除了不得不学的专业课之外，了解和学习最多的是一些泛计算机知识，我从大一到大四都在不断地给自己列要学的东西，不过到最后也就学了一小部分而已。（到了大三之后就基本上没干啥了，忙死了）
+
+| [[./2.PNG]] |
+
+纵观我这大学这几年列的目标，那只能用零散来形容。不过本来就是凭兴趣学的东西，也没有什么零散不零散之说。如果要说我现在和过去有啥不同的话，那大概是上文提到过的，视角从“自顶向下”变成了“自底向上”了。之所以到现在为止我还没系统地学过 C++ 是因为我认为面向对象不从 Samlltalk 开始学起就不太好，现在看来也是有点离谱。
+
+之前还写过一篇《[[http://incf19.com/yynotes/posts/2020-09-14-%E6%88%91%E6%89%80%E8%AE%A4%E8%AF%86%E7%9A%84%E7%BC%96%E7%A8%8B%E4%B8%8E%E8%AE%A1%E7%AE%97%E6%9C%BA/index.html][我所认识的编程与计算机]]》，希望通过它来对编程有个总体上的认知。现在看来对我来说也是个不错的总结，不过光有知识的框架还不够，还需要从底部不断地填充细节。没有学习计算机之前，我简单地将计算机知识分作硬件部分和软件部分，后来学了点还知道可以继续细化。不过要我现在来看的话，沾的上“计算机”三个字的东西都可以算作计算机知识。
+
+要说之后要学点什么的话，那首先是把 elisp manual 和 emacs manual 看完。我一直想要给 elisp manual 中的一些重要章节写一些注解，大概至少需要写到 25 章对应的位置，感觉还有个几百篇可以写。希望这一项可以在未来的两三年之内完成，之后可能就兴趣转移了。就我个人来看，跟着 emacs 学编程是绝对没有问题的，各种意义上来说它的功能已经非常齐全了，不断学习就能不断发现新东西，把计算机的各个方面都玩一遍。这比我一个人随机游走要好很多，毕竟 emacs 可是内置了浏览器，计算器，parser，游戏，邮件客户端，文件管理器等东西的“操作系统”，在 29.1 中还内置了 sqlite3 支持。
+
+另外需要了解一些计算机网络知识，现在不得不需要我们对网络知识有一定的了解。为了在网上更加高效和准确地获取信息和知识就不得不付出一些额外的努力。我在大学学过《计算机网络》课程和《配置交换机》实验课，不过也仅仅是一些基础知识。有些东西不动手的话是没办法弄清楚的，要是没有多台计算机的话，我也不会在局域网里面折腾远程桌面，用我的垃圾台式连上性能较好的笔记本来用。要不是 Windows 家庭版不支持远程桌面服务器，我也不会折腾 rdpwrap。当然，这部分的学习就看我之后会碰到怎样的网络环境了。
+
+如果有闲暇时间，我希望去了解一些硬件知识。进行毕业设计时我使用 FPGA 实现了一个简单的以太网协议，实现了上位机和 FPGA 开发板之前的简单通信。鉴于网上资料的丰富程度和 FPGA 用于通信领域的成熟程度，这个任务做起来难度并不大（倒不如说比较简单）。如果说 CPU 是通用计算资源的话，那 FPGA 可看作通用逻辑资源，写 verilog 有种搭积木的感觉。拿 FPGA 应该能做出不少好玩的东西，不过它的板子相比起来说还是太贵了点…
+
+最后，有时间的话去把 blog 翻新一下，现在还用着几乎裸露的 html，之后看有没有时间把博客应有的最小功能加上。
+
+** 学点 PIM 知识
+
+PIM（personal information management）也就是个人信息管理。我是从[[https://karl-voit.at/tags/pim/][这个博客]]了解到这个概念的，博客的开头是这样的：
+
+#+BEGIN_QUOTE
+Personal Information Management (PIM) can be understood in a narrower sense (Calendar, Todos, Contacs) or in a very broad sense which I do prefer: it is the art of organizing yourself and your data.
+
+I don't even limit PIM to digital data. I've started loving PIM before I was aware of its existence: I was the one in school who was designing and optimizing his Filofax paper sheets, who knew why the previous twenty marks (and their average) were not optimal, when a teacher is going to ask me to summarize the previous lecture by maintaining statistics, and so forth.
+
+So I am an organizer freak and I am proud of it.
+#+END_QUOTE
+
+个人信息管理就是个人数据的管理，不过作者也没有把它局限于电子数据，他还强调了对自身的管理。对现在的我来说最重要的可能是个人信息安全方面的东西。网上的人是裸体的这句话可不是在开玩笑，要获取一个人的信息只是成本问题。前段时间（也就几天还是十几天前吧）也出了两件关于信息安全的大事。没记错的话这样的新闻几乎年年都有。
+
+我肯定做不到保证自己信息绝对安全，不过我也不觉得有人能够做到（除非完全隔绝了网络）。我希望能够找到尽量提高个人信息获取成本的方法。
+
+另外就是真的个人管理了。我上高中时看过一本《思维导图》，不过感觉像是软文，所谓的思维导图我感觉有点像书的标题还是大纲之类的玩意。虽说思维导图我觉得没用，但是用 Xmind 画标题图放到 ppt 里面还是挺好的。两年前我还尝试过番茄时钟，不过我可能不太会设置时间。此后我还看到过什么费曼学习法，“GTD”，之类的玩意儿，效果寥寥，不过 GTD 确实可以用来防止忘事。目前我还是简单的单线程工作模型，干一件事还好，多任务就不太会安排了。
+
+上面罗列的这些方法也许并不是真的没有用，而是我没有充分的实践。我可能需要在实践中将它们缝合并找出自己的方法。
+
+** 最后再学点控制
+
+这里的最后不是这一章的最后，而是说我在这最后一个假期学点控制。以后可能用不上学过的控制知识了，最后再看看这两本书。书大概是一年前买的，但最后也就看了百来页左右，希望能在这最后一个暑假读完。
+
+| [[./3.jpg]] | [[./4.jpg]] |
+
+也希望通过这两本书能让我对动力系统有个更好的理解。
+
+大学里面英文文本我读了不少，但大多是编程方面的技术文章和文档，本专业的反倒没看多少。
+
+** 学点写作
+
+高中的时候每个人都应该被议论文折磨过，我上高中的时候还时兴过“任务驱动型”作文。高中毕业后对写作也没啥兴趣，暑假直接学 C 语言去了。大学期间倒是写过一些简单的技术文章，不过都是结构简单的八股文。
+
+现在看来，没人设限的话写作也是个充满乐趣的过程，写不出来的时候散散步说不定就会有新的想法。我这毕业总结从六月九号开始什么也憋不出来的状态写到现在(七月一号)，中途也是中断了不少次，再过几天应该就可以完成了。
+
+* 玩过的一些游戏
+
+写了这么多总算是到了比较乐的一章。为了写这一章我还专门去硬盘里面找了一番，大部分的时间都用在找图上了。有些游戏我可能忘了，不过如果能记到现在那说明游戏应该还不错。
+
+本来还想记录下看过的动画片儿和听过的歌，不过实在是太多了。
+
+为了减少二级标题的数量，这里采用游戏类型的方式来分类。
+
+** RPG
+
+RPG （role-playing game）即角色扮演游戏。
+
+- blacksouls
+
+游戏作者是寿司勇者，目前出了两部，分别是 I 和 II。游戏内容涉及到一些克苏鲁元素，其中小红帽令我印象深刻。小红帽也有专门的一作《小红帽之森》，介绍了一些背景，具体内容就不展开了~
+
+| [[./5.jpeg]] |
+| [[./6.PNG]]  |
+
+- 废都物语
+
+这是我的大学舍友在大二时推荐给我的，非常精致的 rpg，我比较喜欢龙娘。
+
+| [[./8.jpg]] |
+
+| [[./7.PNG]] |
+
+去硬盘里找了找，发现打包时间是 2019 年 12 月 27 日，这样看差不多是两年半之前通关的。可惜我的盗贼档丢了，只有同学的档，现在连最终 boss 都过不去了。
+
+这俩是我印象最深刻的了，我还玩了一大堆的小黄油，但是不太记得名字了，这里再贴一张最近挺火的厨圣（笑），可惜我不知道图片的出处。
+
+| [[./9.jpg]] |
+
+** 平台游戏
+
+平台游戏即 platform game。“主要的游戏方式是在2D平面上使用各种方式在悬浮平台上进行移动和穿过各种障碍。”，维基百科上是这样说的。
+
+- 空洞骑士（Hollow knight）
+
+游戏介绍上把它分到了类银河恶魔城游戏里面，不过这里归为平台游戏应该是对的。游戏内容大概是主角不断在圣巢中探险并发掘真相的过程。音乐很棒。玩废都物语的时候我也在玩它，不过我在 21 年的 9 月份左右才打败了辐光和梦格林。
+
+| [[./10.PNG]] |
+
+不过，这游戏的第二部迟迟没有出来，也是够鸽的。
+
+- 蔚蓝（celeste）
+
+这同样也是一部非常优秀的游戏。游戏中梅德林（madeline）在登山过程中收到了多人帮助，最后与坏德林（badeline）和解并登上了最高峰。梅德林是一个非常可爱的角色。
+
+| [[./11.jpg]] |
+
+这个游戏自带作弊模式，所以成就还挺容易拿的。
+
+| [[./12.PNG]] |
+
+- Rabi ribi
+
+萌且硬核的游戏，成就党的噩梦。我的 steam 有一张它的壁纸。
+
+| [[./13.PNG]] |
+
+| [[./14.PNG]] |
+
+** 东方
+
+东方（touhou）属于 STG （ShooTing Game），但是 STG 类的游戏我好像除了雷霆战机外只玩过东方。
+
+我具体开始玩的时间不太清楚了，大概是在 2020 年的冬季。到 2021 年的 12 月份我通关了所有整数点作的 N + Ex。
+
+| [[./15.PNG]] |
+
+** VN
+
+VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
+
+这一部分是我大学期间玩的数量最多的游戏。游戏的顺序大致是我玩的顺序，我尽量使用游戏中的图片。一些印象不深且硬盘找不到的就放不上来了。
+
+| *沙耶の唄*                                   | *お兄ちゃん、朝までずっとギュッてして!* | *美少女万華鏡-理と迷宮の少女*                              |
+| [[./16.PNG]]                                     | [[./17.png]]                                | [[./18.png]]                                                   |
+| *星空的回憶-Wish upon a shooting star-*      | *120円*                                 | *Flowers Blooming at the End of Summer*                    |
+| [[./19.PNG]]                                     | [[./20.jpg]]                                | [[./21.PNG]]                                                   |
+| *いろとりどり 系列*                          | *ココロのカタチとイロとオト*            | *アメイジング・グレイス -What color is your attribute？*   |
+| [[./22.PNG]]                                     | [[./23.jpg]]                                | [[./24.PNG]]                                                   |
+| *The Dandelion Girl: Don't You Remember Me?* | *星空列车与白的旅行*                    | *続・殺戮のジャンゴ 地獄の賞金首*                          |
+| [[./25.PNG]]                                     | [[./26.PNG]]                                | [[./27.jpg]]                                                   |
+| *planetarian ～ちいさなほしのゆめ～*         | *NEKOPARA Vol. 1*                       | *保健室のセンセーとシャボン玉中毒の助手*                   |
+| [[./28.PNG]]                                     | [[./29.jpg]]                                | [[./30.jpg]]                                                   |
+| *サノバウィッチ*                             | *腐り姫*                                | *NIL*                                                      |
+| [[./43.PNG]]                                     | [[./44.jpg]]                                | [[./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgyNDg4Nzky.png]] |
+
+
+下面是一些我玩过但是没有完全通关的游戏，或者是仅听说过的游戏，记录一下以后有时间再去看看。
+
+| *rewrite 系列* | *ATRI -My Dear Moments-*                       | *Yumeutsutsu Re:Master*                    |
+| [[./31.jpg]]       | [[./32.jpg]]                                       | [[./33.jpg]]                                   |
+| *まいてつ*     | *さくら、もゆ。-as the Night's,Reincarnation-* | *ドーナドーナいっしょにわるいことをしよう* |
+| [[./34.png]]       | [[./35.jpg]]                                       | [[./36.png]]                                   |
+| *ゴスデリ*     | *鬼ごっこ！*                                   | *月に寄りそう乙女の作法*                   |
+| [[./37.png]]       | [[./38.PNG]]                                       | [[./39.jpg]]                                   |
+| *eden**        | *Summer Pockets*                               | *穢翼のユースティア*                       |
+| [[./40.PNG]]       | [[./41.jpg]]                                       | [[./42.jpg]]                                   |
+
+* 后记
+
+从六月九日写到七月四日也已将近一个月，再多用点时间感觉还能再加点东西，但是之后也有之后的事情要做了，老拖着也不好。本文在内容上已经达到了我的目的，即简单记录一下大学过程。
+
+除了具体的记录外，本文也可看作一个不可返回的 Save Point，可以作为今后的一个锚点。要想把人生聚集到一个点光凭这篇文章肯定不够，我想到的最有效的方法是 Remake（但是记忆消失了等于没有，所以最好还是异世界转生）。
+
+玩笑话说的差不多了，就这样吧。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgyNDg4Nzky.png" alt="load failed"></div><div class="yyimgcomment">cirno</div>@@

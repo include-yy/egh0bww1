@@ -1,6 +1,6 @@
 #+SETUPFILE: ../../setup.org
 #+TITLE: 我所认识的编程与计算机
-#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9tYWRlaW5hYnlzcy5mYW5kb20uY29tL3dpa2kvRmFwdXRh.png" alt="load failed"></div>@@
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9tYWRlaW5hYnlzcy5mYW5kb20uY29tL3dpa2kvRmFwdXRh.PNG" alt="load failed"></div>@@
 #+DATE: [2020-09-14 Mon]
 #+TAGS: talk wasistwas
 

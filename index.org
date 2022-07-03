@@ -25,6 +25,8 @@
 #+END_SRC
 
 #+RESULTS:
+#+begin_raw
+- [[./posts/2022-07-04-我的大学四年的一个总结/index.html][2022-07-04-我的大学四年的一个总结]]
 - [[./posts/2022-06-26-19-关于backquote理解的一个汇总与总结/index.html][2022-06-26-19-关于backquote理解的一个汇总与总结]]
 - [[./posts/2022-03-17-18-buffer管理和ibuffer的介绍与使用/index.html][2022-03-17-18-buffer管理和ibuffer的介绍与使用]]
 - [[./posts/2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach/index.html][2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach]]
@@ -77,3 +79,4 @@
 - [[./posts/2020-03-05-布尔函数的表示与化简/index.html][2020-03-05-布尔函数的表示与化简]]
 - [[./posts/2020-03-02-C风格字符串缺陷及改进/index.html][2020-03-02-C风格字符串缺陷及改进]]
 - [[./posts/2019-03-18-1div(chx)^n积分的一般形式/index.html][2019-03-18-1div(chx)^n积分的一般形式]]
+#+end_raw
