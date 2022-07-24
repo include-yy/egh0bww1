@@ -1,17 +1,11 @@
 #+SETUPFILE: ../../setup.org
 #+TITLE: emacs中的symbol类型及其实现
-#+TITLE:
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzg1Nzk0NzMw.jpg" alt="load failed"></div>@@
 #+DATE: [2021-10-09 Sat 17:07]
 #+TAGS: emacs
 
-本文简单介绍了 emacs 中符号类型的使用，同时对 emacs 中的符号实现源代码进行了简单的分析。除此之外，本文还将 emacs 与 common lisp 的符号进行了横向比较，并介绍了这两种语言中的模块管理机制。
+本文简单介绍了 emacs 中符号类型，同时对 emacs 中的符号实现进行了简单的分析。
 
-由于阅读源代码的需要，本文中使用的 common lisp 实现为 Embedded common lisp，它使用 C 语言实现，相比 SBCL 读起来应该容易不少。
-
-本文使用的编程环境为：
-
-- emacs 27.2 x86-64
-
-- ECL 21.2.1 built with msvc
+本文使用的编程环境为 =emacs 28.1 x86-64 on windows= ，源代码为 =emacs 27.2= 。在 =symbol= 的实现上各版本的 emacs 应该几乎没有区别，主要是我懒得再生成一遍 tag 文件了。
 
 * 什么是 symbol

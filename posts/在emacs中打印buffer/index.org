@@ -1,0 +1,42 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 在 emacs 中打印 buffer
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzg5MzgzNTIw.jpg" alt="load failed"></div>@@
+#+DATE: [2022-07-08 Fri 15:45]
+#+TAGS: emacs
+
+某种意义上我也是闲到一定程度了，不然我也不会想到用 emacs 来打印内容，毕竟 Windows 上有这么多的现成工具可用。不过令我没想到的是 emacs 早已内置了打印功能。
+
+本文的写作目的是介绍 emacs 打印模块的功能及简单使用，但也不限于此。本文会花一定篇幅来介绍和打印相关的背景知识。
+
+本文中使用的编程环境为：
+
+- emacs 28.1 x86_64 on Windows 10
+
+
+* 什么是打印
+
+在日常生活中，打印一般就是指将 Word 或 Pdf 文件上的内容通过打印机打印到纸张上，至少我接触到的大多就是这些。在一些编程语言中的输出函数也用到了 =print= 这个单词，比如 =printf= ， =println= ， =print= 等等。这一节我尝试给打印下一个比较一般的定义。
+
+在英文中“打印”和“印刷”对应的单词都是 printing。我这里还是查一下字典：
+
+#+BEGIN_QUOTE
+打印：<动词> 把计算机中的文字、图像等印到纸张、胶片等上面。
+
+印刷：<动词> 把文字、图画等做成板，涂上油墨，印在纸张上。近现代印刷用各种印刷机及计算机操作的排版系统。我国的手工印刷，多用棕刷子蘸墨刷在印版上，然后放上纸，再用干净的棕刷子在纸背上用力擦过，所以焦作印刷。
+
+--- 《现代汉语词典》 第 7 版
+
+printing: <unconutable noun> the activity or business of producing writing or images on paper or other material with a machine.
+
+--- Canbridge Dictionary
+#+END_QUOTE
+
+不管是打印还是印刷都强调了把“文字，图画”等“印”到“纸张，胶片”上。打印比印刷更加现代一点，它的定义中强调了计算机。维基百科中的 [[https://en.wikipedia.org/wiki/Printing][Printing]] 条目的第一句话是这样写的：
+
+#+BEGIN_QUOTE
+Printing is a process for mass reproducing text and images using a master form or template.
+#+END_QUOTE
+
+参照各种三要素法，我也将打印分为三个要素，即原件，打印方式和成品。一般来说我们判断打印质量好不好是看成品内容是否符合原件，以及打印结果的清晰程度。这也就是说打印结果应保留原件的全部内容。从保留内容上来说，复制粘贴应该也算是一种打印。
+
+
