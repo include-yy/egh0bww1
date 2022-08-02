@@ -26,6 +26,7 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2022-08-03-20-使用org-mode管理浏览器书签/index.html][2022-08-03-20-使用org-mode管理浏览器书签]]
 - [[./posts/2022-07-04-我的大学四年的一个总结/index.html][2022-07-04-我的大学四年的一个总结]]
 - [[./posts/2022-06-26-19-关于backquote理解的一个汇总与总结/index.html][2022-06-26-19-关于backquote理解的一个汇总与总结]]
 - [[./posts/2022-03-17-18-buffer管理和ibuffer的介绍与使用/index.html][2022-03-17-18-buffer管理和ibuffer的介绍与使用]]
