@@ -1,0 +1,722 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 在 emacs 中使用模板之 skeleton tempo 和 autoinsert 的使用介绍
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzg1Nzk0NzMw.jpg" alt="load failed"></div>@@
+#+DATE: [2022-02-02 Wed 15:54]
+#+TAGS: emacs
+
+最开始了解到 skeleton 是在阅读 emacs manual 的 autotype 一章，这一章介绍了 emacs 自带的模板功能，但是当时我没有使用的需求，而且 yasnippt 和它的官方模板仓库已经足够好用了，所以就一直搁到现在。看了下文件的创建时间，是 2022/02/02，过了六七个月总算是有时间来将它完成了。（笑）
+
+本文的折腾动机是为 org-capture-templates 的模板添加一个生成模板的 dsl，虽然 org-capture 已经提供了一些比较方便的模板关键字（比如 %F，%(exp)，%g 等等），但是逻辑复杂起来之后模板就比较难维护，如果不遵守一定格式的话可读性非常差，差不多就是只写（write only）模板了。就像这样：
+
+| [[./1.PNG]] |
+
+既然如此，那干脆用 elisp 来生成模板。考虑到 skeleton 是 emacs 自带，故选择它来尝试是否能够实现模板生成语言的功能。autoinsert，skeleton 和 tempo 三位一体，本文也会简单介绍 autoinsert 和 tempo。
+
+这三个包的代码实现都在千行之内，加起来不超过两千行，分析起来应该不会很费劲。
+
+本文使用的环境如下：
+
+- emacs 28.1 x86_64 on windows 10
+
+* 什么是模板
+
+什么是模板这个问题相信我不用做过多的解释，这也不是本文的重点，不过这里还是简单说几句。日常生活中我们会用到不少的模板，寄快递的时候有寄送模板，写 ppt 的时候有 ppt 模板，发邮件的时候有邮件模板，申请专利的时候也有专利模板，等等。要我说这些不同模板之间的共性的话， *那就是通过较少的东西来得到较多的东西* ，这样就不用我们负责整个文件或文本的内容了。
+
+编程语言或多或少都提供了我上面提到的模板功能，比如 C 中的宏，C++ 中的模板，Lisp 中的 defmacro，等等。注意这里指的模板仅仅是由少到多意义上的模板，其他的功能这里就不进行讨论了。
+
+* skeleton 的使用介绍
+
+skeleton 是一个非常简单的模板生成工具，在没有阅读代码之前我还以为是类似 yasnippet 的巨包。skeleton.el 首次出现在这个 [[https://github.com/emacs-mirror/emacs/commit/ac59aed83fbdfd298f58a1a7e638264b0c3b0caa][commit]] 中，时间是 1994 年的 5 月 22 日，比 tampo 的 [[https://github.com/emacs-mirror/emacs/commit/813f532d2f0d18dcda7d93be2c6cd841815ff8b8#diff-9d1def0c465d8a08ffd7ec38e24f84f61aab86d4549f87e92fc7ffa4f6370d4c][commit]] 的 1994 年 5 月 2 日稍晚。
+
+首先来介绍一下模板中提供的一些关键字。skeleton 模板格式为 =(INTERACTOR ELEMENT ...)= ， =INTERACTOR= 一般是 =nil= ，它的其他形式见下文。 =ELEMENT= 就是模板内容，可以是字符或字符串，以及以下关键字：
+
+- =\n= ，表示换行，在 skeleton 开头和末尾不起作用
+- =>= ，根据当前 major mode 调整缩进
+- =&= ，如果之前的 ELEMENT 插入了内容则处理下一个元素，类似与运算
+- =|= ，如果之前的 ELEMENT 没有插入内容则处理下一元素，类似或运算
+- =-NUM= ，向前删除 =NUM= 个字符
+- =@= ，将当前位置加入到 =skeleton-positions= 中
+- =resume= ，如果触发了 =quit= 则从这一点继续
+- =nil= ，直接跳过
+
+除了上面这些关键字外，还有两个特殊点的，它们是 =_= 和 =-= ，叫做 /interesting point/ ，可以用来将 =region= 内的内容插入到模板中，并使用展开的结果替换原先区域。举例来说的话就是这样：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-1
+    "example 1"
+    nil
+    "(" _ ")")
+#+END_SRC
+
+当你选中一块区域并调用 =yys-1= 时，region 内的内容会被加上一对小括号。需要注意的是， /interesting point/ 非常 *interesting* 。除了使用 region 来表示插入内容外，还可以在调用 skeleton 时通过 =C-u= 指定数量参数，如果指定正数，那么 =_= 就表示当前位置向后 N 个单词，就像这样：
+
+| [[./2.gif]] |
+
+使用负数的情况更加微妙一些，我花了一些时间来理解 =skeleton-insert= 注释的意思。当我们使用 =C-x SPC= 依次标记多个 region 后，使用负数参数调用一个 skeleton 函数会从前往后依次以 region 内容来替换模板中的 =_= ，总共有负数绝对值个 region，直到最近的一个 region 标记为止。例子如下：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-2
+    "example 2"
+    nil
+    "(" _ ")" "[" _ "]" "{" _ "}")
+#+END_SRC
+
+| [[./3.gif]] |
+
+注意到，当参数为 -1 时就是当前的 marked region，这也是存在 actived region 时的默认行为。
+
+如果你足够细心的话，你会发现上面每次我调用 =yys-2= 时光标都在字符串的最后，这是因为光标在先前的 regions 中间时会造成影响，此时光标会成为被影响 region 的新边界，例子如下：
+
+| [[./4.gif]] |
+
+最后再说明一下 =-= 的作用，它不会将 region 内容插入到模板中。如果模板中不存在 =-= 那么在模板展开后光标会移动到 =_= 首次出现的位置，如果 =-= 出现在了模板中，那么在完成模板插入后，光标会移动到最后一次出现 =-= 的位置，如果两者都不存在，那么光标会在插入字符串的末尾。读者不妨一试。
+
+** 定义和使用 skeleton
+
+就像上面的例子那样，使用 =define-skeleton= 即可定义新的 skeleton，它的函数原型如下：
+
+#+BEGIN_SRC emacs-lisp
+(define-skeleton COMMAND DOCUMENTATION &rest SKELETON)
+#+END_SRC
+
+其中， =COMMAND= 是 skeleton 的名字， =DOCUMENTATION= 是文档字符串，剩下内容就是 skeleton 模板了。使用上面提到的关键字和其他的表达式就可编写模板。除了关键字外，下面再介绍一下其他注意事项。
+
+首先，除关键字和字符串外，在 skeleton 模板中还可以使用 elisp 表达式。这也就意味着可以在模板中实现非常丰富的功能。在 skeleton 模板中区分了用于副作用的表达式和使用返回值的表达式，副作用表达式需要使用 =quote= ，该表达式的作用仅仅是副作用求值，skeleton 会忽略掉它的任何返回值。非副作用表达式可返回任何合法的 skeleton 表达式，比如字符串，关键字，甚至是 subskeleton。这也就意味着 skeleton 是可嵌套的。
+
+接下来就是上面提到过的 =INTERACTOR= ，上面只说了它可以是 nil，它还可以是字符串或表达式。当它是字符串时，在调用 skeleton 时会弹出读取输入的 minibuffer，得到的输入被放入 =str= 中。当它是表达式时，表达式的返回值会被放入 =str= 中。如果从函数而不是命令调用该 skeleton，并且指定了 =str= 参数，那么 =INTERACTOR= 会被忽略。举个例子来说的话就是这样：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-3 "example-3"
+    "Read String: "
+    str)
+
+  (define-skeleton yys-4 "example-4"
+    (lambda () "HEllo")
+    str)
+
+  (yys-3 "just str")
+  =>
+  just str
+
+  (yys-4 "World")
+  =>
+  World
+#+END_SRC
+
+读者可以自己试一试上面这两个 skeleton，前者会读入一个字符串并在当前 buffer 中插入该字符串，后者直接插入 "HEllo"。
+
+接下来我们说说 subskeleton，与主 skeleton 不同，subskeleton 可以重复读取输入并插入，并在用户输入空字符串时终止。在 subskeleton 的 =INTERACTOR= 中插入 =%s= 可以在 minibuffer 中提供一些帮助信息。 subskeleton 的 =INTERACTOR= 也可以是由字符串组成的表，这样 subskeleton 就不会无限重复，而是进行 N 次，每次使用表中的一个字符串：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-5 "example-5"
+    nil
+    (("A" "B" "C") str))
+
+  (yys-5)
+  =>
+  ABC
+#+END_SRC
+
+上面就把 skeleton 介绍的差不多了，感兴趣的同学可以去看看 [[https://www.emacswiki.org/emacs/SkeletonMode][emacswiki]] ，上面的例子和解释都非常详细，也提到了我没有讲的部分（比如 =@= 的使用），如果我在写这一部分之前就看了 wiki 上的内容我可能就不会写了（笑）。不过关于 =_= 和 =-= 的 /interesting point/ 内容在 wiki 上没有，希望我这篇能给 wiki 起到一个补充说明的作用。
+
+我本想写一些更详细的例子，但是 emacswiki 已经够详细了。
+
+** 一些补充
+
+如果我们要使用 skeleton 模板的话，大概百分之九十的时间我们只会简单使用 =define-skeleton= 来定义模板，并通过调用模板名来展开模板。但 skeleton.el 中还有其他的一些功能，本着全收集的理念，这里做一些补充说明。
+
+skeleton.el 的前 100 行左右是一些 option variables。简单说一下：
+
+- =skeleton-transforamtion-function= ，对 skeleton 模板中的每个字符串做变换，它应该返回变换后的字符串，或是 nil 表示不做变换，一般用在小写改大写和首字母大写上。
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-6 "exp 6"
+    nil
+    "hello" "world")
+
+  (setq skeleton-transformation-function 'upcase)
+
+  (yys-6)
+  =>
+  HELLOWORLD
+#+END_SRC
+
+- =skeleton-autowrap= ，当该项为非空时，当使用 =C-x SPC= mark 一片区域时，且 skeleton 函数调用没有参数时，skeleton 的参数值默认为 -1，也就是我们上面提到的带参调用 skeleton 函数的默认情况
+  - 该值默认为 =t=
+
+- =skeleton-end-newline= ，若为非空，在插入 skeleton 模板后在末尾加上换行符
+  - 默认为 =t=
+
+- =skeleton-end-hook= ，在模板插入后执行的 hook，此时变量 =v1= ， =v2= 依然可见
+  - =v1= =v2= 的解释见后文
+
+- =skeleton-filter-function= ，参数是一整个 skeleton 模板表达式，需要返回一个 skeleton 模板。
+  - 仅出现在 =skeleton-proxy-new= 函数中，在模板展开前先“过滤”一遍，默认是 =identity= ，即不做变换
+  - 一言以蔽之，某种临时函数
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-7 "exp 7"
+    nil
+    "hello" "world")
+  (setq lexical-binding t)
+  (let ((skeleton-filter-function (lambda (sk)
+				    (mapcar
+				     (lambda (x) (if (string= x "hello") nil x))
+				     sk))))
+    (yys-7))
+  =>
+  world
+#+END_SRC
+
+- =skeleton-untabify= ，非空时在使用 =-NUM= 向前删除时取消缩进
+  - 默认为 nil，还有一行 =bug#12223= 的注释，看来最好不要动它
+
+- =skeleton-newline-indent-rigidly= ，为非空时对带有 =\n= 的当前行进行无脑（ragidly）缩进，否则使用 major mode 的 indent-line-function
+  - 无脑缩进指和上一行保持一致
+
+例子（在 fundmental mode 中）
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-8 "exp 8"
+    nil
+    "   Hello" \n
+    > "world")
+
+  ;; goto a empty fundmental mode buffer
+  ;; run
+
+  (let ((skeleton-newline-indent-rigidly t))
+    (yys-8))
+  => ;; use `>' to show blank
+  >   Hello
+  >   world
+#+END_SRC
+
+- =skeleton-further-elements= ，类似 =let= 的变量表，若设置，在调用 skelelton 函数时会展开为 =let= 绑定，绑定的变量可在 skelelton 模板中作为元素使用
+  - 相当于为 skeleton 模板提供了一个求值环境，可以用做设置当前 mode 等功能
+  - 直接用 =let= 是不行的
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-9 "exp 9"
+    nil
+    hello \n
+    world)
+
+  (let ((skeleton-further-elements
+	 '((hello "HELLO")
+	   (world "WORLD"))))
+    (yys-9))
+  =>
+  HELLO
+  WORLD
+#+END_SRC
+
+- =skeleton-subprompt= ，一个字符串，用于上面提到的 subskeleton 的 "%s" 形式的 prompt 字符串
+  - 读者可以尝试在 subskeleton 中加入 "%s" 来看看多了什么东西
+
+- =skeleton-positions= ，存放 skeleton 展开过程中使用 =@= 保存的位置，是最近一次 skeleton 模板展开的保存位置，表中元素的顺序和插入顺序相反
+  - 需要一些辅助函数来使用，但是 skeleton.el 未提供，留给用户去扩展了
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (define-skeleton yys-10 "exp 10"
+    nil
+    @ "Hello" @ \n
+    @ "World" @ \n)
+
+  (yys-10)
+  =>
+  Hello
+  World
+
+  skeleton-positions
+  =>
+  (95 90 89 84)
+#+END_SRC
+
+接下来开始就是函数和宏了，也简单介绍一下吧：
+
+- =define-skeleton= ，定义 skeleton 的宏，它返回一个插入 skeleton 模板的函数，调用该函数即可进行模板展开
+
+- =skeleton-proxy-new= ，被 =define-skeleton= 生成的函数调用的函数，主要作用是处理 prefix argument，可看作是专门为处理 /interesing point/ 写的函数
+
+- =skeleton-insert= ，模板展开的动作执行者，被 =skeleton-proxy-new= 调用。
+
+关于这个函数，我们这里做一点比较详细的补充。你应该注意到了上面的一些例子中我在模板里多次使用了 =str= 这个符号，这是 skeleton 默认提供的变量，除了它之外还有四个：
+
+- =help= ，帮助字符串
+- =input= 初始输入（字符串或带序号的 cons）
+- =v1, v2= 可任意使用的两个变量
+
+想要在 skeleton 中使用其他变量的话直接用就行，这些是 skeleton 默认提供的而已。 =help= 和 =input= 分别用于提供 =skeleton-read= 的帮助消息（ =C-h= 显示）和默认输入。
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (skeleton-insert '("read"
+		     '(setq input "hahaha")
+		     '(setq help "quit with :q :p")
+		     "Hello" \n
+		     str \n
+		     help \n
+		     '(setq v1 "wo") '(setq v2 "rld")
+		     input \n
+		     v1 v2 \n))
+  =>
+  Hello
+  123
+  quit with :q :p
+  hahaha
+  world
+#+END_SRC
+
+在对上面代码求值时，prompt 中的默认输入是 "hahaha"，按下 =C-h= 可显示 "quit with :q :p"。
+
+最后需要说明的是，在 skeleton 中使用 elisp 表达式时，表达式返回值应该是非 =t= ，否则会出现死循环：
+
+#+BEGIN_SRC emacs-lisp
+  (skeleton-insert '(nil t))
+  =>
+  Debugger entered--Lisp error: (error "Lisp nesting exceeds ‘max-lisp-eval-depth’")
+  skeleton-internal-1(t t nil)
+  skeleton-internal-1(t t nil)
+  ......
+#+END_SRC
+
+- =skeleton-read= ，在 skeleton 模板中读取输入，类似一系列的 read-minibuffer 函数。
+
+- =skeleton-internal-list= 和 =skeleton-internal-1= ，内部实现函数，感兴趣可以看看
+
+** skeleton pair
+
+老实说感觉这部分和 skeleton 的主要功能关系不大，不过它既然写了那我也写写。这一部分代码的功能是自动插入匹配的括号，也就是说输入 =(= 自动输入 =)= 之类的功能。我目前使用的 =electric-pair-mode= 效果不错，也没必要用 =skeleton pair= 。
+
+emacs wiki 上有一篇讲它的[[https://www.emacswiki.org/emacs/SkeletonPair][文章]]。
+
+- =skeleton-pair= ，是否使用自动插入功能，默认为 nil，即不使用
+
+- =skeleton-pair-on-word= ，是否在单词内使用自动插入功能，默认为 nil，即不使用
+
+- =skeleton-pair-filter-function= ，在插入前执行的函数，若返回 nil 则进行插入
+  - 默认为 =(lambda () nil)=
+
+- =skeleton-pair-alist= ，存放配对展开 skeleton 模板的 alist，alist 中的项的 car 是对应的字符
+  - 它的优先级在 =skeleton-pair-default-alist= 之上
+  - 可以参考 =skeleton-pair-default-alist= 来编写
+
+- =skeleton-pair-default-alist= ，默认的字符匹配 alist
+
+- =skeleton-pair-insert-maybe= ，字符自动插入函数，将它绑定到你想要自动插入的字符按键上，替换掉 =self-insert-command= 即可
+
+
+如果你想要体验 skeleton 的这个功能，首先关闭 =electric-pair-mode= （或其他相关 mode），然后设置 =skeleton-pair= 为 =t= ，然后将想要自动插入的按键绑定好即可。
+
+** 小结
+
+通过这一节我们学会了 skeleton 的基本使用方法。现在我们使用 skeleton 来改进一下文章开头提到的 capture 模板。
+
+#+BEGIN_SRC emacs-lisp
+;; use skeleton to generate template
+(defun t--sexp2string (s) (format "%S" s))
+
+(defmacro t--letf (bindings &rest body)
+  "bind val and function to symbol
+use 'val for variable and fun for function
+for example
+(t--letf
+  ((a '1+)
+   ('b 1))
+  (a b))
+the result is 2"
+  (declare (indent defun))
+  (let ((new-bind
+	 (mapcar (lambda (x) (if (not (consp (car x)))
+				 (cons `(symbol-function ',(car x))
+				       (cdr x))
+			       (cons `(symbol-value ,(car x))
+				     (cdr x))))
+		 bindings)))
+    `(letf ,new-bind
+       ,@body)))
+
+(defmacro t-gen-capture-template (bindings &rest skeleton)
+  "generate capture template.
+`skeleton' is a list of ELEMENTS, you don't need to add `INTERACTOR'"
+  `(t--letf ,bindings
+     (with-temp-buffer
+       (skeleton-insert
+	',(cons nil skeleton))
+       (buffer-string))))
+
+;; example of using t-gen-capture-template
+(defmacro t-gen-capture-template-example (key hashname)
+  (cl-assert (stringp key))
+  (cl-assert (symbolp hashname))
+  `(t-gen-capture-template
+    ((s 't--sexp2string)
+     (e 't-with-current-key-buffer)
+     (p 'macroexpand-all))
+    "* [[%:link][%:description]]\s"
+    "%" (s (p '(e ,key (t-add-repeat-tag (md5 "%:link") ,hashname 'gethash)))) \n
+    ":PROPERTIES:" \n
+    ":YYOB-ID:\s"
+    "%" (s (p '(e ,key (if (string= (t-add-repeat-tag (md5 "%:link") ,hashname 'gethash) "")
+			   (progn (puthash (md5 "%:link")
+					   (t-control-key-counter ,key 'z) ,hashname)
+				  (t-control-key-counter ,key))
+			 (gethash (md5 "%:link") ,hashname)))))
+    \n
+    ":YYOB-CREATE-TIME:\s" "%T" \n
+    ":YYOB-MD5:\s" "%" (s '(md5 "%:link")) \n
+    ":END:\s"
+    "%" (s '(if (string= "" "%i") "" "\n%i"))))
+#+END_SRC
+
+至少看上去整洁了不少...
+
+| [[./6.png]] |
+
+* tempo 的使用介绍
+
+就像上面说的，tempo 比 skeleton 早出生了 20 天，也不知道两者之间有没有什么共性。在 emacs manual 中找不到它的文档，只能去源代码里面浏览注释了。tempo 也有 emacs wiki 页面，只不过没有 skeleton 那么详细。这一节我会介绍一些 [[https://www.emacswiki.org/emacs/TempoMode][wiki]] 上没有的内容。
+
+tempo 的代码行数差不多是 skeleton 的两倍，功能也更多一些。顺带一提，这个包里面一个宏也没有，不妨大胆猜测一下，作者在开始写包的时候还不会宏（笑），不过也可能是不喜欢用宏。
+
+| [[./5.PNG]] |
+
+同样，我们从关键字开始。相比于 skeleton，tempo 没有 =INTERACTOR= 项，在 =tempo-define-template= 的第二参数即模板元素构成的表，其中的元素可以是：
+
+- 字符串
+- =p= ，表示这一位置会存到 =tempo-marks= 中
+- =r= ， =tempo-insert= 的 =ON-REGION= 参数非空时，当前 region 中的内容会放到 =r= 的位置，否则和 =p= 同功能
+- =(p PROMPT <NAME> <NOINSERT>)= ，若 =tempo-interactive= 非空，弹出 =PORMPT= minbuffer 提示用户输入字符串并插入字符串到该位置。若 =NAME= 非空，那么得到的字符串可以用在 =s= 处。如果 =NAME= 已经有值了，那就不会弹出 PROMPT。若 =NOINSERT= 非空，那么读取得到的字符串不会插入，而是仅保存到 =NAME= 中，而且覆盖已存在的 =NAME= 。注释建议我们在 =<NOINSERT>= 处使用 =noinsert= 符号来提高可读性
+- =(P PROMPT <NAME> <NOINSERT>)= ，类似上一条，但不受 =tempo-interactive= 的影响
+- =(r PROMPT <NAME> <NOINSERT>)= ，类似上一条，但当 =tempo-interactive= 为空且 =tempo-insert= 的 =ON-REGION= 为空时调用时，当前 region 会插入该位置。
+- =(s NAME)= ，插入之前由 =(p ...)= 读入的字符串
+- =&= ，插入换行符，但在该行开头到该字符间仅有空白时不生效
+- =%= ，插入换行符，但在改行结尾到该字符间仅有空白时不生效
+- =n= ，插入换行符
+- =>= ，表明该行根据 major mode 进行缩进。一般放在想要缩进文本的后面
+- =r>= ，类似 =r= ，但是会对 region 进行缩进
+- =(r> PROMPT <NAME> <NOINSERT>)= ，类似 =(r ...)= ，但会对 region 进行缩进
+- =n>= ，换行并缩进
+- =o= ，类似于 =%= ，但保留光标到换行符之前（需要验证）
+- =nil= ，什么也不做
+- 其他，会对该元素调用 =tempo-user-elemets= 中的函数，直到不返回 nil 为止，并插入返回值。如果所有函数都返回 nil，那么元素会被求值并插入值。值得一说的是，若元素返回了表，比如 =(l foo bar)= ，那么在 =l= 符号后的元素按照通常规则进行插入，这就允许单表达式返回多个元素
+
+可以看到，相比于 skeleton，tempo 的关键字更多更丰富。下一节我们用一些例子来说明它们的用法。
+
+** 定义和使用 tempo
+
+类似 =define-skeleton= ，我们也可以使用 =tempo-define-template= 来定义 =tempo= 模板和 =tempo= 函数：
+
+#+BEGIN_SRC emacs-lisp
+(defun tempo-define-template (name elements &optional tag documentation taglist)
+#+END_SRC
+
+与 =define-skeleton= 不同的是， =tempo-define-template= 会同时定义模板和同名模板函数，而且会给 =name= 加上一些修饰，比如使用 =hello= 作为 =name= 最后会得到 =tempo-template-hello= 。这个函数的 =&optional= 参数我们留到最后再介绍。
+
+这里我们举个简单的例子：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-11"
+   '("HELLO" n "WORLD"))
+
+  (tempo-template-yys-11)
+  =>
+  HELLO
+  WORLD
+
+  tempo-template-yys-11
+  =>
+  ("HELLO" n "WORLD")
+#+END_SRC
+
+使用 =tempo-define-template= 定义的 tempo 函数会调用 =tempo-insert-template= 来展开模板并将结果插入 buffer 中。而 =tempo-insert-template= 转而会调用 =tempo-insert= ，它负责处理 template 中的每个 =ELEMENT= 。
+
+使用 =tempo-insert-prompt= 可从 minibuffer 中读取字符串并插入当前位置，需要将 =tempo-interactive= 设为 =t=
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-12"
+   '("HELLO"
+     (tempo-insert-prompt "read char")))
+
+  (setq tempo-interactive t)
+  (tempo-template-yys-12) ;; and type 123 in minbuffer, RET
+  =>
+  HELLO123
+#+END_SRC
+
+使用这些东西就足够我们写一些简单的 tempo 模板了，不过到 =tempo-insert-prompt= 这里也才是 tempo.el 源代码的一半，剩下一半我们留到下一节详细介绍。下面我们给出一些上一节列出的元素的使用例。
+
+首先是 =r= ，它的行为和 =tempo-insert-region= 这个选项有关。当它为非空时，调用 =tempo= 函数会默认将 current region 插入该位置，若调用时使用了 prefix argument，则和 =p= 一个效果。当它为空时刚好反过来。读者可以使用下面的代码，分别在 =tempo-insert-region= 为 =t= 和 =nil= 时看看加数字前缀和不加前缀的区别。所谓 current region 就是之前 Mark 过的 region。
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-13"
+   '("(" r ")"))
+#+END_SRC
+
+带括号的 =P= 和 =p= 效果差不多，就一起说了算了。当 =tempo-interactive= 非空时， =(p PROMPT <NAME> <NOINSERT>)= 会读取输入并插入，而 =(P...)= 不受该变量影响。
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-14"
+   '((P "hello" apple) n
+     (s apple)))
+
+  (tempo-template-yys-14) ;; eval and type "123"
+  =>
+  123
+  123
+
+  (tempo-define-template
+   "yys-15"
+   '((P "world" apple noinsert) n
+     (s apple)))
+
+  (tempo-template-yys-15)
+  =>
+  ;; a `\n' here
+  123
+#+END_SRC
+
+=(r ...)= 和上面的效果类似，将上面代码的 =P= 改为 =r= ，再将 =tempo-interactive= 和 =tempo-insert-region= 设为 nil，在调用 tempo 函数时添加 prefix argument 即可将 region 内容插入 r 所在位置。
+
+=%= =&= 和 =n= 都是用来插入换行符的元素，通过以下例子可知各自作用：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-16"
+   '(" " & "hello" &
+     % "world" n
+     "include-yy" n))
+
+  (tempo-template-yys-16)
+
+  > hello
+  >world
+  >include-yy
+
+  (tempo-define-template
+   "yys-17"
+   '(%))
+#+END_SRC
+
+由 =yys-16= 的结果可知 =%= 在模板中没有发挥作用，这是因为在 tempo 处理该元素时后面的内容还没有插入 buffer，所有仅靠 tempo 模板中的内容是无法触发 =%= 的换行作用的。将光标放到有字符的 buffer 行首并调用 =yys-17= 可知其效用。
+
+除了这三个外还有一个 =o= ，它类似于 =%= ，但是在插入换行符后仍将光标保持在当前行：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-18"
+   '("ABC" o " DEF"))
+
+  ;; place cursor at here:
+  ;; []abc
+  ;; and call yys-18
+  =>
+  ABC DEF
+  abc
+#+END_SRC
+
+tempo.el 中的注释建议不要在模板的开头使用它，否则会有比较奇怪的效果。
+
+最后说一下返回 =(l a b c)= 形式的情况：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-19"
+   '((l "a" "b" "c")))
+
+  (tempo-template-yys-19)
+  =>
+  abc
+#+END_SRC
+
+** tempo.el 概述
+
+类似 skeleton 那一节，这里我们从头到尾介绍一下 tempo.el 中出现的变量和函数（没有宏）。
+
+- =tempo-interactive= 用于 =(p ...)= ，判断是否弹出 prompt
+  - 默认为 nil，即不弹出用于输入的 minibuffer
+
+- =tempo-insert-region= ，是否自动插入 region，即不添加 prefix arg 时或不处于 actived region 时是否插入 region，用于 =(r ...)=
+  - 默认为 nil，此时 =(r ...)= 等同于 =(p ...)= ，除非添加 prefix arg
+
+- =tempo-show-compeltion-buffer= ，非空时显示带补全项的 buffer，默认为 =t=
+  - 看了一下，唯一用它的函数是 =tempo-complete-tag=
+
+- =tempo-leave-completion-buffer= ，按键时是否隐藏补全项 buffer，默认为 nil，即不隐藏
+
+- =tempo-insert-string-functions= ，对所有插入的字符串的处理函数表，表中的函数应返回另一字符串
+  - 默认值为空表，注释没有说明表中存在多个函数时如何处理，只举了例子 '(upcase)
+  - 具体用法在函数 =tempo-process-and-insert-string= 中，若有多个函数则按表中顺序串联调用
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-20"
+   '("Hello"))
+
+  (let ((tempo-insert-string-functions
+	 '((lambda (s) (concat s " world"))
+	   (lambda (s) (concat s "!!!")))))
+    (tempo-template-yys-20))
+  =>
+  Hello world!!!
+#+END_SRC
+
+- =tempo-tags= ，tag 和对应 tempo 模板组成的关联表
+  - 默认为空表
+  - 具体作用和用法见下文
+
+- =tempo-local-tags= ，局部的 tag 表
+  - 默认为 ='((tempo-tags . nil))= ，且要求 tempo-tags 项总是表中的最后一项
+  - 用法见下文
+
+- =tempo-collection= ，当前 buffer 中所有定义的 tag，是 buffer-local 变量
+
+- =tempo-dirty-collection= ，表明当前的 tag collection 是否需要重新构造
+  - buffer-local 变量
+
+- =tempo-marks= ，模板展开过程中使用 =p= 保存的位置，类似 skeleton 中的 =@=
+  - 可被 =tempo-forward-mark= 和 =tempo-backward-mark= 使用，skeleton 没提供类似的函数
+  - buffer-local 变量
+
+- =tempo-match-finder= ，用于寻找匹配 tag 的正则，默认为 "\\b\\([[:word:]]+\\)\\="
+  - 还可以绑定函数的符号，函数需要返回 =(STRING . POS)= 形式的返回值
+  - 用法见后文
+
+- =tempo-user-elements= ，用于识别用户自定义元素的函数表，函数接受一个参数，若参数是该函数的目标，函数会返回值供 =tempo-insert= 进行插入
+  - 默认为空表
+
+例子：
+
+#+BEGIN_SRC emacs-lisp
+  (tempo-define-template
+   "yys-21"
+   '(a b))
+
+  (let ((tempo-user-elements
+	 '((lambda (x) (and (eq x 'a) "a"))
+	   (lambda (x) (and (eq x 'b) "b")))))
+    (tempo-template-yys-21))
+  =>
+  ab
+#+END_SRC
+
+- =tempo-named-insertions= ，存储带名字的插入，也就是使用 =(p...)= =(P...)= 或 =(r...)= 读入的名字和字符串
+  - 默认为 nil，是 buffer-local 变量
+
+- =tempo-region-start= 和 =tempo-region-end= ，两个 marker，在插入 region 时有用
+
+- =tempo-define-template= ，定义 tempo 模板和 tempo 模板函数的函数，tag 参数用于补全，不过还是留到下文解释
+  - 参数 documentation 是注释部分
+  - 参数 taglist 是 tag 参加要添加到的表的符号，若为 nil 则默认添加到 =tempo-tags=
+
+- =tempo-insert-template= ，用于插入 tempo 模板的函数，第二参数用于确定是否获取 region
+
+- =tempo-insert= ，用于插入 tempo 模板中的各元素，被 =tempo-insert-template= 调用
+
+- =tempo-insert-prompt-compat= 和 =tempo-insert-prompt= ，用于读入字符串
+  - compat 应该是兼容的意思，不知道这个函数的作用... 可能仅仅是为了在 =tempo-insert= 中用的方便而已
+
+- =tempo-is-user-element= ，判断是否是用户定义的元素，也就是使用上面提到的 =tempo-user-elements= 进行判断
+  - 当 =tempo-user-elements= 某函数返回非空值时， =tempo-is-user-element= 返回该值，否则返回 nil
+
+- =tempo-forget-insertions= ，清空 =tempo-named-insertions= ，在模板展开后调用，清除该次模板展开引入的 =NAMES=
+
+- =tempo-save-named= ，保存一些数据到名字中，用于 =tempo-insert= 的 =(p|P|r...)= 等系列
+
+- =tempo-insert-named= ，插入 =name= 对应的字符串。用于在 =(s ...)= 的元素展开中
+
+- =tempo-process-and-insert-string= ，该函数用于字符串的插入，它接受字符串，处理后返回该插入的字符串
+  - =tempo-insert-string-functions= 控制它的行为，若为 nil 则直接插入
+
+- =tempo-insert-mark= ，将当前位置作为 mark 插入 =tempo-marks= 中，也就是 =p= 所在的位置
+  - 需要说明的是，它会将模板插入开始和末尾的位置也插入
+
+- =tempo-forward-mark= 和 =tempo-backward-mark= ，向下一个/上一个保存在 =tempo-marks= 中的点移动
+  - tempo.el 中没有清空 =tempo-marks= 这个变量的代码，也就是说只要插入了位置，那么就一直在 =tempo-marks= 里了
+  - 考虑到这是个 buffer-local 变量且模板内 marker 是相邻关系，没有删除操作应该不是个问题
+
+接下来就是我们上面说了很多遍“见下文”的 tag 了。它大概在 tempo.el 的最后 200 行。
+
+- =tempo-add-tag= ，参数表是 =(tag template &optional tag-list)= ，它将 =(tag . template)= 添加到 tag-list 这个 alist 中，默认是 =tempo-tags=
+  - 如果 =tag= 名字已经在 =tag-list= 中出现了，那就会覆盖掉原先的项
+  - 这是一个用户函数，通过 =M-x tempo-add-tag= 调用，通过两次选择来确定加入到 tag-list 中的 tag 名字和 tempo 函数
+
+- =tempo-use-tag-list= ，参数表是 =(tag-list &optional completion-function)=
+  - 这个函数看的我很迷惑，tempo.el 中没有函数使用了它
+
+- =tempo-invalidae-collection= ，接受可选参数 =global= ，函数作用是将所有的 collection 标记为废弃状态（也就是需要重新构建）
+  - 若 =global= 为 =t= ，那么所有 buffer 中的 =tempo-dirty-collection= 都被设为 =t= ，否则只有当前 buffer
+
+- =tempo-build-collection= ，构建一个 collection 并返回它。如果当前 buffer 的 =tempo-dirty-collection= 为 t，那么会构建新 collection 并返回，否则直接使用旧 collection
+
+- =tempo-find-match-string= ，接受字符串或函数来找到匹配 tag list 的位置 =(STRING . POS)= ，若没找到则返回 nil
+  - 若参数为函数，则函数负责查找，并返回 =(STRING . POS)= 形式的值
+  - 就是个查找函数而已，被 =tempo-complete-tag= 使用
+
+- =tempo-complete-tag= ，找到并展开一个 tag
+  - 就是读入 tag 然后展开，寻找方向是光标处向前寻找。如果找到的名字不全，还可以通过设置一些参数来显示可能的 tag
+
+- =tempo-display-completions= ，是被 =tempo-complete-tag= 使用的显示补全 tag 的函数
+
+- =tempo-expand-if-complete= ，若 tag 完整则进行展开的函数，否则不展开
+  - 是个用户命令
+
+相信你也从上面的这些函数看出来了，tempo 提供的 tag 机制就是添加一些方便记忆的 tag 名字和对应的 tempo 函数，然后就可以使用 =tempo-complete-tag= 或 =tempo-expand-if-complete= 来进行对应模板展开。因为涉及到较多的用户操作，这里不便演示，读者可以自行尝试。
+
+* autoinsert 的使用介绍
+
+写了这么多总算是来到了最后一节。autoinsert.el 仅有 445 行，而且大概一半是默认模板。这一节内容应该不会很多。
+
+命令 =auto-insert= 会在 =auto-insert-alist= 中查找满足条件的项，然后将项中的模板插入到当前光标位置中。 =auto-insert-alist= 中的项的格式为 =(CONDITION . ACTION)= 或 =((CONDITION . DESCRIPTION) . ACTION)= 。其中：
+
+- =CONDITION= 可以是匹配文件名的正则，或是某个 major-mode 的名字
+- =DESCRIPTION= 是用于填充 =auto-insert-prompt= 的字符串
+- =ACTION= 可以是：
+  - 一段 skeleton 模板
+  - 文件绝对路径名或相对于 =auto-insert-directory= 的文件名
+  - 一个可调用的函数
+  - 或是一个包含多个 =ACTION= 的向量
+
+如何编写 =auto-insert-alist= 中的项这里我就不做介绍了，autoinsert.el 中有非常多且详细的例子。
+
+接下来我们说说这个包里面的命令，作为使用者的我们大概只需要知道 =auto-insert= 即可，它会根据当前情况来选择插入的模板。如果我们需要定义新的模板，可以使用 =define-auto-insert= ，它会构建模板并添加到 =auto-insert-alist= 中。
+
+如果我们想要在打开文件时自动插入模板，我们可以打开 =auto-insert-mode= 。
+
+以上差不多就是 autoinsert.el 的全部功能了。
+
+* 后记与延申阅读
+
+花了差不多两天时间把代码和文档看完了，然后完成了这篇文章。就我个人来看，我还是更喜欢 skeleton 一点，它比 tempo 更加简单，但是对我来说功能已经足够了。
+
+这几天北方的冷空气终于过来了，晚上都不需要吹空调了。
+
+下面这些讨论和文章是我找到的为数不多关于 skelelton 的资料，希望对你有所帮助。
+
+- https://www.math.s.chiba-u.ac.jp/~matsu/emacs/emacs22/autoinsert.html
+
+- https://www.reddit.com/r/emacs/comments/av1h8v/how_i_became_a_vertebrate_or_skeletons_help_lazy/
+
+- http://blog.jqian.net/post/emacs-skeleton.html
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzQ5OTcyNjkz.jpg" alt="load failed"></div><div class="yyimgcomment">Merlin Prismriver</div>@@
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgwMjk5MTgy.jpg" alt="load failed"></div><div class="yyimgcomment">Merlin Prismriver</div>@@
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzg4NTIxMzc0.jpg" alt="load failed"></div><div class="yyimgcomment">Merlin Prismriver</div>@@
