@@ -1,0 +1,25 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: emacs中的symbol类型及其实现
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzg5MzgzNTIw.jpg" alt="load failed"></div>@@
+#+DATE: [2021-10-09 Sat 17:07]
+#+TAGS: emacs
+
+本文简单介绍了 emacs 中符号类型，同时对 emacs 中的符号实现进行了简单的分析。文章的内容大致可以分为两大部分：
+
+- 对 elisp manual 上 symbol 一章内容的整理和举例
+
+- 对 symbol C 实现的分析
+
+本文使用的编程环境为 =emacs 28.1 x86-64 on windows= ，源代码为 =emacs 27.2= 。在 =symbol= 的实现上近年来各版本的 emacs 应该没有太大区别，主要是我懒得再对 emacs 源代码生成一遍 tag 文件了。
+
+* 什么是 symbol
+
+
+
+* 后记
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzMyNTU1MTA0.jpg" alt="load failed"></div><div class="yyimgcomment">Lyrica Prismriver</div>@@
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzIyOTc5Nzcz.jpg" alt="load failed"></div><div class="yyimgcomment">Lyrica Prismriver</div>@@
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzE5NTU5MDgx.jpg" alt="load failed"></div><div class="yyimgcomment">Lyrica Prismriver</div>@@
