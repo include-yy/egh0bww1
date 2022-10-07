@@ -26,6 +26,7 @@
 
 #+RESULTS:
 #+begin_raw
+- [[./posts/2022-10-07-23-用elisp玩brainfuck-I/index.html][2022-10-07-23-用elisp玩brainfuck-I]]
 - [[./posts/2022-09-09-22-emacs的symbol类型及其实现/index.html][2022-09-09-22-emacs的symbol类型及其实现]]
 - [[./posts/2022-08-31-21-在emacs中使用模板之skeleton-tempo-autoinsert的使用介绍/index.html][2022-08-31-21-在emacs中使用模板之skeleton-tempo-autoinsert的使用介绍]]
 - [[./posts/2022-08-03-20-使用org-mode管理浏览器书签/index.html][2022-08-03-20-使用org-mode管理浏览器书签]]
