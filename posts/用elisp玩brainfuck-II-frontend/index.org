@@ -1,0 +1,10 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 用 elisp 玩 brainfuck Ⅱ frontend
+#+TITLE:
+#+DATE: [2022-10-16 Sun 16:39]
+#+TAGS: emacs
+
+#+BEGIN_QUOTE
+由于时间关系，我们的课程会跳过语法解析这块，主要因为这一块内容传统编译器课程讲解已经很多了，而且现代语言设计已经基本上 syntax 和 semantics 解耦，理论上可以给任何语言换成不同的语法（最有名的像 coffescript）。但是这一块内容本身还是很有意思的，推荐龙书的 chap1-chap5，斯坦福的 cs143 （B站有视频），这篇[[https://blog.reverberate.org/2013/07/ll-and-lr-parsing-demystified.html][综述]]写的也不错。
+#+END_QUOTE
+
