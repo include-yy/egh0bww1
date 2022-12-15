@@ -1,0 +1,91 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 怎么弄个自己的博客 —— 安装和使用数据库
+#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzc1Njc0NTky.jpg" alt="load failed"></div>@@
+#+DATE: [2022-12-11 Sun 23:45]
+#+TAGS: blog
+
+在读完这篇 [[../2022-12-11-翻译-Introduction-to-Databases/index.html][Introduction to Databases]] 的翻译后，相信你对数据库是什么有了一个最基本的认识。本文将会介绍一些常见的数据库的安装和使用，我安装过的有 MySQL 和 PostgreSQL，本文会以它们为例。一个简单的博客应用也用不着分布式数据库，本文就不介绍 NoSQL 等相关内容了。
+
+如果我们的目的只是搭建一个纯静态的博客的话，仅使用 HTTP 服务器即可，但为了更加丰富的功能，我们有必要使用动态网页。而且许多现有的博客系统都使用了数据库，所以简单了解一下安装和使用不是没有用的。本文不会详细介绍 SQL 的用法，不过会给出一些不错的学习资料。简单的增删查改（CRUD，Create, Read, Update and Delete）搜一搜就知道怎么用了。
+
+本文使用的环境如下：
+
+- Ubuntu Server 22.04.1 LTS on VMware 16.1.2 on Windows 10
+
+* 数据库是用来存什么的
+
+在没有了解数据库之前，我将数据库理解为保存数据的硬盘。根据上面译文中的定义，数据库是“一个有组织的 *数据* 的集合”，硬盘中保存的是我们按分类放入不同文件夹中的数据，当然算是有组织的；我们使用文件系统（file system）和资源管理器（explorer.exe）来管理硬盘中的数据，那文件系统和资源管理器与我当然就是 DBMS 和 DBA；我在不断地使用硬盘中的数据，那么我就是与 DBMS 交互的用户。这样一看要素还挺齐全的。
+
+但是 DBMS 显然和文件系统还是存在一些区别，或者说它们完全不是一个东西。计算机的文件系统是存储和组织计算机数据的方法，它将设备中的空间划分为特定大小的块，并将这些块组织成文件和目录，并记录哪些块分配给了哪个文件，以及哪些块没有使用。DBMS 则是“允许用户进行定义、创建、维护和访问数据库”的软件。数据库文件当然是要在文件系统的基础上存储在计算机中，但使用 DBMS 相比于仅仅存储文件具有其他的优势，如冗余消除、数据一致性和完整性、数据安全、数据备份等等。DBMS 是建立在文件系统的基础上的。我在搜索过程中找到了 stackoverflow 上的一个[[https://stackoverflow.com/questions/38120895/database-vs-file-system-storage][问答]]，这里截一段过来：
+
+#+BEGIN_QUOTE
+A database is generally used for storing related, structured data, with well defined data formats, in an efficient manner for insert, update and/or retrieval (depending on application).
+
+On the other hand, a file system is a more unstructured data store for storing arbitrary, probably unrelated data. The file system is more general, and databases are built on top of the general data storage services provided by file systems.
+
+There are also differences in the expected level of service provided by file systems and databases. While databases must be self consistent at any instant in time (think about banks tracking money!), provide isolated transactions and durable writes, a file system provides much looser guarantees about consistency, isolation and durability. The database uses sophisticated algorithms and protocols to implement reliable storage on top of potentially unreliable file systems. It is these algorithms that make database storage more expensive in terms of processing and storage costs that make general file systems an attractive option for data that does not require the extra guarantees provided by a database.
+
+As technology moves forward, though, the lines are blurring, as some file systems pick up features previously the domain of databases (transactions, advanced queries) and some databases relax the traditional constraints of consistency, isolation and durability. ZFS and BTRFS might be considered examples of the former, MongoDB and CouchDB examples of the latter. [[https://www.quora.com/What-is-the-difference-between-a-file-system-and-a-database/answer/Christian-Smith-2][[Quora]​]]
+
+数据库通常是存储具有明确数据格式的、相关的、结构化的数据，并以高效的方式进行插入、更新和检索（这取决于应用需求）。
+
+另一方面，文件系统是一个更加非结构化的数据存储，用于存储任意的、可能不相关的数据。文件系统更加通用，而数据库则建立在文件系统提供的一般数据存储服务之上。
+
+文件系统和数据库所提供的预期服务水平也有差异。虽然数据库必须在任何时候都是一致的（想想银行对金钱的追踪），提供隔离的事务和持久写入，但文件系统对一致性、隔离性和持久性的保证要松的多。数据库使用复杂的算法和协议，在可能不可靠的文件系统之上实现可靠的存储。这些算法使得数据库存储在处理和存储成本方面更加昂贵，使得一般的文件系统对于不需要数据库提供的额外保证的数据来说是一个有吸引力的选择。
+
+不过，随着技术的发展，文件系统和数据库的界限也越来越模糊，一些文件系统获得了以前属于数据库的功能（事务、高级查询），而一些数据库则放松了一致性、隔离性和持久性等传统约束。ZFS 和 BTRFS 可以被认为是前者的例子，MongoDB 和 CouchDB 是后者的例子。
+#+END_QUOTE
+
+在文件系统看来文件就是一些数据块而已，而 DBMS 要求存储在数据库中的数据具有结构。数据库中的数据也叫 *结构化数据* ，它们可以通过固定的键值来获取相应信息，而且具有固定的格式，它们是高度组织和整齐格式化的数据，可以轻易放入表格中。 *非结构化数据* 指不规则的，不方便使用的数据，它们没有预定义的数据模型，或者是数据结构不规则不完整。非结构化数据的例子有图片、视频等。在结构与非结构之间还有一类叫做 *半结构化数据* ，它没有像结构化数据那样固定的数据结构，但是它包含了一些结构化元素，比如标记和组织元数据，使其更容易分析。半结构化数据的例子有 HTML，XML，JSON 等等。
+
+很明显， *数据库在处理结构化数据时才能发挥它的优势* ，或者说它就是为了处理这类数据而生的。数据库是可以存储二进制数据的，但这样并不能为我们带来什么好处，在用户想要访问该文件时反而多出了数据库这一中介，拖慢了访问速度。大多数情况下，如果要存储图片、文件、视频等大文件对象，应该直接以文件形式存储，而不建议存储到数据库中。关于这个问题我也找到了一些不错的问答，我将它们放在了文末的附录中，就不放在这里影响阅读了。
+
+凡是程序可以读取文件，那为什么程序不自己处理数据，而是要用数据库呢？我曾经也纠结过这个问题，下一节我将就我找到的一些资料简单聊聊。
+
+* 我们为什么需要数据库
+
+不知道你是否听说过编辑器的 M*N 问题，在 LSP（Language Server Protocol）协议出现之前，假设有 M 个编辑器和 N 种编程语言，你想为所有这 M 个编辑器提供 N 种语言支持，那么你就需要编写 M * N 个编辑器插件，每个编辑器各 N 个。而在出现了·
+
+设计模式。
+
+在我看来，数据库的一大意义就是提供了通用的接口，几乎所有的通用 DBMS 都提供了 SQL 支持。如果说操作系统提供的是将磁盘数据视为文件的抽象，那么数据库就是在其基础上提供了对应用存储需求的高级抽象。数据库使用的 SQL 语言就像是编程语言中的标准库一样，有着非常强的复用性。学会了 SQL 几乎就能和所有数据库打交道。
+
+数据库为我们实现了相当多的功能。比如以下这些：
+
+- 1
+- 2
+
+使用简单的 SQL 我们就能用上这些强大的功能，这相比于自己手写的粗糙实现要强无数倍，就拿 sqlite 来说，它的每一行代码都经过了极其严格的测试。
+
+所以，为什么我们需要数据库？它让我们以一种简单和通用的方式对数据进行存储和访问。我们无需关注其具体实现，只需要用就行了。使用它就是在享受无数人的劳动成果。
+
+* 作为 DSL 的 SQL
+
+
+
+* MySQL 的安装和使用
+
+* PostgreSQL 的安装和使用
+ER 图
+
+* 附录：文件系统与 DBMS 的区别
+
+- https://stackoverflow.com/questions/38120895/database-vs-file-system-storage
+
+* 附录：为什么不应该在数据库中存储大的二进制文件
+
+- https://dba.stackexchange.com/questions/2445/should-binary-files-be-stored-in-the-database
+- https://stackoverflow.com/questions/662488/would-you-store-binary-data-in-database-or-in-file-system
+- https://stackoverflow.com/questions/815626/to-do-or-not-to-do-store-images-in-a-database
+- https://www.tianqiweiqi.com/web-storage-file-or-database.html
+
+* 后记
+
+从四年前接触编程到现在，我还没有正经用过数据库。一方面是我并非计算机科班没有接触过数据库相关课程，另一方面写玩具代码很少会用到存储相关的功能，顶多就是读写简单格式的文件而已。我写过的和数据库最相关的小玩具可能是[[https://github.com/include-yy/account-manager][这个]]，用 Python 的字典实现了一个简单账号密码管理软件，用 toml 作为存储格式。彼时的我虽然完全没有了解过数据库，但是对“后端就是增删查改”有所耳闻（笑），所以就在这个玩具里面实现了简单的增删查改操作。现在看来，大多数编程语言中的哈希表可以看作一种简单的非关系数据库。
+
+文件系统与数据库的对比。
+我写过一点账户管理软件。
+
+计算，控制，存储与通信
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzc1MzIzMTgz.png" alt="load failed"></div>@@
