@@ -1,0 +1,1017 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: The Org Manual 13.9 全解
+#+DATE: [2023-01-15 Sun 16:45]
+#+EMAIL: 969041171@qq.com
+#+HTML_DOCTYPE: html5
+#+TAGS: blog
+#+OPTIONS: toc:nil
+#+OPTIONS: html5-fancy:t
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzEwNDY0Nzk2OA==.png" alt="load failed"></div>@@
+
+本文是对 org manual 的第 13.9 章，即由 org 导出 HTML 功能文档的讲解。如果你不能完全理解文档的内容，希望这篇文章能对你有所帮助。
+
+从 13.1 到 13.6 是 org export 的通用知识，这里我们也会进行介绍和讲解。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 11
+- org-mode 9.5.5
+
+#+TOC: headlines 2
+
+* <13.1 ~ 13.6>
+** <13.1> 导出分派器
+
+通过在 org buffer 中使用 =C-c C-e= 我们可以调出导出操作界面。如果我们设置 =org-export-dispatch-use-expert-ui= 为非空值，那么只会在 minibuffer 中显示，不过可以使用 =?= 键切换回全尺寸显示。如果我们只是使用 html 导出的话，只需记住在 =C-c C-e= 后按下 =h h= 即可，如果想要在导出后在浏览器打开网页也可以 =h o= ，不过我更建议通过刷新来观察新导出的网页。使用专家模式的导出速度更快。
+
+如果当前有 region 被选中，那么 org 只会导出被选中的区域。
+
+org 还提供了一些选项，如 =C-a= 切换异步导出， =C-b= 切换是否仅导出 body， =C-s= 是否只导出 subtree， =C-v= 是否只导出可见部分。这些选项我一次也没有用过。
+
+** <13.2> 导出设定
+
+org 的导出设定有四种作用方式：用于全局的变量；用于单独文件的 buffer-local 变量或 in-buffer 设定；用于文件的关键字或 =OPTIONS= 选项；以及用于标题的属性。下层的设定会覆盖上层设定。
+
+可以通过 =#+SETUPFILE: filename or URL= 来在当前文件中引入其他文件中的设定。可用于所有后端的选项包括： =AUTHOR= ， =CREATOR= ， =DATE= ， =EMAIL= ， =LANGUAGE= ， =SELECT_TAGS= ， =EXCLUDE_TAGS= ， =TITLE= ， =EXPORT_FILE_NAME= 。对于特定于后端的设定，可以使用 =C-c C-e #= 然后选择后端将它们插入到当前 buffer。文档建议我们使用 =#+= 然后 =M-TAB= 插入关键字。
+
+这里我们拉个列表介绍一下这一节出现的关键字：
+
+- =AUTHOR= ，文档的作者， =user-full-name=
+- =CREATOR= ，创建文档输出的实体 =org-export-creator-string= ，默认为 "Emacs 28.2 (Org mode 9.5.5)"
+- =DATE= ，日期或时间戳，比如 =#+DATE: [2023-01-19 14:09]=
+- =EMAIL= ，邮箱地址 =user-mail-address=
+- =LANGUAGE= ，用于转换某些字符串的语言，比如 =#+LANGUAGE: fr= 后目录标题变为 Table des matières
+- =SELECT_TAGS= ，默认值是 =("export")= ，当某个树带有 =export= tag 时，org 会选取并导出它的子树
+- =EXCLUDE_TAGS= ，默认值是 =("noexport")= ，当树带有 =noexport= tag 时，org 会在导出中不包含它
+- =TITLE= ，文档的标题。对于长标题可以使用多个 =TITLE=
+- =EXPORT_FILE_NAME= ，指定导出文件名。若不指定则使用 buffer 名或根据后端格式进行选择
+
+文档中还介绍了许多 =OPTIONS= 选项，我们留到具体的 HTML 导出部分介绍它们的具体效果。
+
+** <13.3> 内容目录
+
+我们可以使用变量 =org-export-with-toc= 来全局控制导出的目录生成行为，也可以通过 =#+OPTIONS: toc:?= 来设置是否生成目录以及生成目录的层级。 =?= 可以是数字或 =nil= ， =nil= 表示不生成目录，数字表示最多生成到多少级标题。目录会包含文档中（到最大深度）的所有标题。
+
+13.3 中文档中写到： /Org includes both numbered and unnumbered headlines in the table of contents/ ，所谓的 =numbered= 和 =unnumbered= 是指导出时标题前是否有序号，org 在导出时会在目录中包含所有的标题，无论是否带序号，我们可以通过在标题中指定 =UNNUMBERED= 属性来取消序号：
+
+#+BEGIN_SRC org
+  ,* <13.3> 内容目录
+  :PROPERTIES:
+  :UNNUMBERED: t
+  :END:
+
+  # t 是随便想的一个值，也许非 notoc 没有什么影响
+#+END_SRC
+
+如果我们不想在目录中包含无序号的标题，我们可以将 =UNNUMBERED= 属性值设置为 =notoc= ，这样目录中就没有这个标题了。如果我们想在目录中使用另一个名字的话，我们可以使用 =ALT_TITLE= 属性：
+
+#+BEGIN_SRC org
+  ,* 这是标题
+  :PROPERTIES:
+  :ALT_TITLE: 这是目录中的标题名
+  :END:
+#+END_SRC
+一般 org 会将目录插入在第一个标题之前，若想将它移至别处，可以首先通过 =(setq org-export-with-toc nil)= 或 =#+OPTIONS: toc:nil= 关闭标题，然后把 =#+TOC: headlines N= 放在目录的期望所在地。
+
+我们也可以使用 =#+TOC: headlines N local= 来设定当前所在位置的局部目录，N 是目录深度。局部目录与全局目录不冲突，不需要指定 =#+OPTIONS: toc:nil= 。
+
+我们还可以使用 =:target= 来指明这个目录指向哪一个 id，这里我就不演示了，我们把具体的效果和使用介绍留到 HTML 导出。
+
+** <13.4> 文件包含
+
+如果我们想在当前文档中引入其他文件的内容，我们可以使用 =INCLUDE= 关键字，它的用法非常灵活。根据文档描述它的完整语法如下（用了一点正则标记）：
+
+#+BEGIN_SRC org
+  ,#+INCLUDE "filepath" {src|export|example}? {if src|export, then language}? {:keyword vale}*
+#+END_SRC
+
+其中，它的第一参数是文件位置，第二可选参数是 block 类型，可以是 =example= ， =export= 和 =src= 。第三可选参数是用于格式化内容的源代码语言，它可用于 =export= 和 =src= 类型。剩下的是一些关键字指定的选项。
+
+如果我们不指定类型，那么 =INCLUDE= 的作用就是直接将 =include= 文件中的内容插入当前文件中。 =example= 的作用是将文件中的内容以原格式插入导出结果中，比如我们 =#+INCLUDE: "./1.txt" example= ，那么 org 导出的 HTML 文件中 1.txt 中的内容会使用 =<pre>= tag，这样在浏览器中显示的结果会带有换行。 =src= 表示将文件内容以 =SRC= 格式导出，比如导出 C 源文件我们可以： =#+INCLUDE: "./1.c" src c= 。
+
+=export= 特殊一点，它指定的是导出的类型，如果使用的后端与 =export= 指定的语言不一致，那么文件内容不会被导出。如果我们使用 =export= 指定了一种标记语言，那么 org 不会检查文件的语法，也不会改变文件的内容。
+
+就像上面说的，如果我们不指定文件类型，那么 org 会直接将文件内容插入到当前位置，把它视作 org 源代码，并做一些处理和检查。在 =include= 文件中的脚注会被拿到当前文件中（如果 =include= 文件与当前文件脚注重名，org 会处理）， =include= 文件中的内容会从属于引入位置的标题，即 =include= 文件中的标题到这里成了当前位置的下一级标题。不过我们也可以使用 =:minlevel= 来指定 =include= 文件中内容的最低级数，指定 =:minlevel 1= 的话它就成为了一级标题。
+
+我们可以使用 =:lines= 关键字指定引入文件的哪一部分。它有三种语法，分别是 =start-end= ， =-end= 和 =start-= 。第一种表示从 =start= 到 =end= （不包括）行，第二种表示到 =end= 行（不包括），第三种表示从 =start= 行开始（到文件末尾）。
+
+=filepath= 参数可以指定使用 =include= 文件中的哪一个标题，比如 =#+INCLUDE: "./1.org::*headline"= 。此时如果使用 =:lines= 则从相对于 =headline= 的位置开始。如果我们只想获取内容，忽略掉属性等东西，我们可以将 =:only-contents= 设置为 =t= 。
+
+** 剩下的内容
+
+关于 org 的宏我之前写过一篇文章： [[../2023-01-17-24-org-mode导出宏-org-macro/index.html][org-mode 导出宏 org-macro]]，可以作为参考。
+
+最后是 13.6 节的注释。在 org 文件中我们可以使用 =#= 开头创建注释行，这些内容不会被导出。除此之外我们也可以使用 =#+BEGIN_COMMENT ... #+END_COMMENT= 创建注释区域。使用 =COMMENT= 标题会注释掉所有的子树，我们可以使用 =C-c ;= 来切换这个状态。
+
+* <13.9> 导出到 HTML
+
+在 =C-c C-e= 打开的界面中，我们可以使用 =h h= 和 =h H= 由 org 得到 HTML 文件，前者由 =name.org= 得到 =name.html= ，后者将结果输出到临时 buffer 中。此外还有一个 =h o= 选项，可以在生成 HTML 文件后在默认浏览器中打开文件。
+
+** <13.9.3> HTML 文档类型
+
+org 提供了以下文档类型，我们可以使用空文件导出来观察文件头的不同之处：
+
+- html4-strict
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html4-strict
+    ,#+OPTIONS: html-style:nil
+    =>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+    <html>
+  #+END_SRC
+
+- html4-transitional
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html4-transitional
+    ,#+OPTIONS: html-style:nil
+    =>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+    "http://www.w3.org/TR/html4/loose.dtd">
+    <html>
+  #+END_SRC
+
+- html4-frameset
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html4-frameset
+    ,#+OPTIONS: html-style:nil
+    =>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+    <html>
+  #+END_SRC
+
+- xhtml-strict
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: xhtml-strict
+    ,#+OPTIONS: html-style:nil
+    =>
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  #+END_SRC
+
+- xhtml-transitional
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: xhtml-transitional
+    ,#+OPTIONS: html-style:nil
+    =>
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  #+END_SRC
+
+- xhtml-frameset
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: xhtml-frameset
+    ,#+OPTIONS: html-style:nil
+    =>
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  #+END_SRC
+
+- xhtml-11
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: xhtml-11
+    ,#+OPTIONS: html-style:nil
+    =>
+
+    <?xml version="1.0" encoding="utf-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml11.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  #+END_SRC
+
+- html5
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    =>
+    <!DOCTYPE html>
+    <html lang="en">
+  #+END_SRC
+
+- xhtml5
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: xhtml5
+    ,#+OPTIONS: html-style:nil
+    =>
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  #+END_SRC
+
+注意到上面的 =transitional= ， =frameset= 和 =strict= 了吗？它们和 W3C 标准有关，这里我就不做介绍了，感兴趣的同学可以搜索一下。如果没有什么要求的话，我们应该尽量使用最新的标准，也就是 html5，从上面的导出结果来看它也是最短的。
+
+org 默认使用 =xhtml-strict= 导出。我们可以通过 =HTML_DOCTYPE= 来在 buffer 中指定类型，或通过修改 =org-html-doctype= 。通过 =#+OPTIONS: html5-fancy:t= 或 =(setq org-html-html5-fancy)= ，我们可以使用 HTML5 标准中新增的块级元素。HTML5 文档可以使用任意的 =#+BEGIN ... #+END= 块，参考 =org-html-html5-elements= 的值，我们可以使用 =article= ， =aside= ， =audio= ， =canvas= ， =details= ， =figcaption= ， =figure= ， =footer= ， =header= ， =menu= ， =meter= ， =nav= ， =output= ， =progress= ， =section= ， =summary= ， =video= ：
+
+#+BEGIN_SRC org
+  ,#+HTML_DOCTYPE: html5
+  ,#+OPTIONS: html-style:nil
+  ,#+OPTIONS: html5-fancy:t
+
+  ,#+BEGIN_article
+  article
+  ,#+END_article
+
+  <article id="org4de5007">
+  <p>
+  article
+  </p>
+  </article>
+
+  ,#+BEGIN_aside
+  aside
+  ,#+END_aside
+
+  <aside id="org449c690">
+  <p>
+  aside
+  </p>
+  </aside>
+
+  ,#+ATTR_HTML: :controls controls
+  ,#+BEGIN_audio
+  ,#+HTML: <source src="1.wav" type="audio/wav">
+  ,#+END_audio
+
+  <audio controls="controls" id="org4d7c547">
+  <source src="1.wav" type="audio/wav">
+  </audio>
+
+  ,#+ATTR_HTML: :id myca :width 200 :height 100 :style border:1px solid #000000;
+  ,#+BEGIN_canvas
+  ,#+END_canvas
+
+  <canvas id="myca" width="200" height="100" style="border:1px solid #000000;">
+  </canvas>
+
+  ,#+BEGIN_details
+  ,#+HTML: <summary>Details</summary>
+  ,#+HTML: Something small enough to escape casual notice.
+  ,#+END_details
+
+  <details id="org8b849f6">
+  <summary>Details</summary>
+  Something small enough to escape casual notice.
+  </details>
+
+  ,#+BEGIN_figure
+  ,#+HTML: <img src="1.jpg">
+  ,#+BEGIN_figcaption
+  ,#+HTML: A cirno
+  ,#+END_figcaption
+  ,#+END_figure
+
+  <figure id="org5cfccd7">
+  <img src="1.jpg">
+  <figcaption id="org2c6f7bb">
+  A cirno
+  </figcaption>
+  </figure>
+
+  ,#+BEGIN_footer
+  yy desu
+  ,#+END_footer
+
+  <footer id="orgfd8c676">
+  <p>
+  yy desu
+  </p>
+  </footer>
+
+  ,#+BEGIN_header
+  ,#+HTML: This is a header
+  ,#+END_header
+
+  <header id="org0a38a20">
+  This is a header
+  </header>
+
+  ,#+BEGIN_menu
+  ,#+HTML: <li> 123 </li>
+  ,#+HTML: <li> 456 </li>
+  ,#+END_menu
+
+  <menu id="org658f142">
+  <li> 123 </li>
+  <li> 456 </li>
+  </menu>
+
+  ,#+ATTR_HTML: :min 0 :max 100 :low 33 :hight 66 :optimum 80 :value 50
+  ,#+BEGIN_meter
+  ,#+HTML: at 50/100
+  ,#+END_meter
+
+  <meter min="0" max="100" low="33" hight="66" optimum="80" value="50" id="orgd46aab6">
+  at 50/100
+  </meter>
+
+  ,#+BEGIN_nav
+  ,#+HTML: <ol> <li>Bikes</li> <li> BMX </li> <li> Jump Bike 3000 </li> </ol>
+  ,#+END_nav
+
+  <nav id="orgace557a">
+  <ol> <li>Bikes</li> <li> BMX </li> <li> Jump Bike 3000 </li> </ol>
+  </nav>
+
+  ,#+ATTR_HTML: :id file :max 100 :value 70
+  ,#+BEGIN_progress
+  ,#+HTML: 70%
+  ,#+END_progress
+
+  <progress id="file" max="100" value="70">
+  70%
+  </progress>
+
+  ,#+BEGIN_section
+  ,#+HTML: <h1> Chossing an apple </h1>
+  This document provides a guide to help you ...
+  ,#+END_section
+
+  <section id="org52a9d64">
+  <h1> Chossing an apple </h1>
+  <p>
+  This document provides a guide to help you &#x2026;
+  </p>
+  </section>
+
+  ,#+BEGIN_summary
+  ,#+HTML: A keyword
+  ,#+END_summary
+
+  <summary id="org0ceee7e">
+  A keyword
+  </summary>
+
+  ,#+ATTR_HTML: :controls controls :width 350
+  ,#+BEGIN_video
+  ,#+HTML: <source src="movie.mp4" type="video/mp4">
+  ,#+END_video
+
+  <video controls="controls" width="350" id="org46d3316">
+  <source src="movie.mp4" type="video/mp4">
+  </video>
+#+END_SRC
+
+当你使用了 HTML5 中没有的标签时，org 会导出 class 为标签名的 div 块，就像这样：
+
+#+BEGIN_SRC org
+  ,#+HTML_DOCTYPE: html5
+  ,#+OPTIONS: html-style:nil
+  ,#+OPTIONS: html5-fnacy:t
+
+  ,#+BEGIN_yy
+  hello
+  ,#+END_yy
+
+  <div class="yy" id="orgdcc713c">
+  <p>
+  hello
+  </p>
+#+END_SRC
+
+** <13.9.2> HTML 导出设定
+
+在 13.2 节中我们看到了一些可用于所有导出的设定，这一节介绍了特定于 HTML 的设定。
+
+- =DESCRIPTION= ，在 HTML 中插入 ~<meta name="description">...</meta>~ ，如果内容比较多可以插入多行
+  - 除了 =DESCRIPTION= 外，还可通过修改 =org-html-meta-tags= 添加新的 =meta= 标签
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+DESCRIPTION: 和 emacs 相关的文章
+    ,#+DESCRIPTION: 第二条 description
+
+    <meta name="description" content="和 emacs 相关的文章
+    第二条 description" />
+  #+END_SRC
+
+- =HTML_DOCTYPE= ，指定文档类型，比如 HTML5，XHTML 等
+
+- =HTML_CONTAINER= ，指定用于包含一级标题元素和节的容器，默认为 =div=
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+HTML_CONTAINER: section
+
+    ,* Hello
+    ,** World
+    yy
+
+    ,* C
+
+    =>
+
+    <section id="outline-container-org29cc9bc" class="outline-2">
+    <h2 id="org29cc9bc"><span class="section-number-2">1.</span> Hello</h2>
+    <div class="outline-text-2" id="text-1">
+    </div>
+    <div id="outline-container-org18399a4" class="outline-3">
+    <h3 id="org18399a4"><span class="section-number-3">1.1.</span> World</h3>
+    <div class="outline-text-3" id="text-1-1">
+    <p>
+    yy
+    </p>
+    </div>
+    </div>
+    </section>
+
+    <section id="outline-container-org35f4961" class="outline-2">
+    <h2 id="org35f4961"><span class="section-number-2">2.</span> C</h2>
+    </section>
+  #+END_SRC
+
+- =HTML_LINK_HOME= 和 =HTML_LINK_UP= ，指定主页和上一级页面
+  - 若指定这两个选项，那么在 body 的开头会插入相关内容
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+HTML_LINK_HOME: google.com
+    ,#+HTML_LINK_UP: gnu.org
+
+    <body>
+    <div id="org-div-home-and-up">
+     <a accesskey="h" href="gnu.org"> UP </a>
+     |
+     <a accesskey="H" href="google.com"> HOME </a>
+    </div>
+    ...
+  #+END_SRC
+
+- =HTML_MATHJAX= ，用于 mathjax 的设定，后文介绍
+
+- =HTML_HEAD= ，添加到 =<head>= 中的任意内容行
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+
+    ,#+HTML_HEAD: <p>add something</p>
+    ,#+HTML_HEAD: <p>again</p>
+
+    <p>add something</p>
+    <p>again</p>
+    </head>
+  #+END_SRC
+
+- =HTML_HEAD_ETREA= ，添加到 =<head>= 中的额外的行，它在 =HTML_HEAD= 添加内容的后面
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+
+    ,#+HTML_HEAD_EXTRA: <p>extra contents</p>
+    ,#+HTML_HEAD_EXTRA: <p>extra again</p>
+    ,#+HTML_HEAD: <p> head contents</p>
+
+    <p> head contents</p>
+    <p>extra contents</p>
+    <p>extra again</p>
+    </head>
+    <body>
+    ...
+  #+END_SRC
+
+- =KEYWORDS= ，描述文档内容的关键字。org 的 HTML 导出器会将它作为 =<meta>= 标签插入。可使用多个 =KEYWORDS=
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+KEYWORDS: emacs elisp org-mode
+    ,#+KEYWORDS: more about gnu
+
+    <meta name="keywords" content="emacs elisp org-mode more about gnu" />
+  #+END_SRC
+
+- =LATEX_HEADER= ，添加到 preamble 的任意行，后文介绍
+
+- =SUBTITILE= ，文档的副标题。若文档类型是 html5 且 CSS 含 subtitle 类，那么导出器会使用它
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+
+    ,#+TITLE: a title
+    ,#+SUBTITLE: a subtitle
+
+    <body>
+    <div id="content" class="content">
+    <h1 class="title">a title
+    <br>
+    <span class="subtitle">a subtitle</span>
+    </h1>
+    </div>
+  #+END_SRC
+
+这里我们也介绍适用于全部导出的设定，作为对上一节中关键字内容的补充：
+
+- =AUTHOR= ，作者名
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+AUTHOR: include-yy
+
+    <meta name="author" content="include-yy" />
+  #+END_SRC
+
+- =CREATOR= ，页面生成工具名，指定了似乎在生成的 HTML 中体现不出来
+  - 需要配合 preamble 或 postamble 使用，具体见后文
+
+- =DATE= ，日期或时间戳，同上
+
+- =EMAIL= ，邮件地址，同上
+
+- =LANGUAGE= ，指定文档的导出语言 =org-export-default-language= ，默认是 ="en"=
+
+- =SELECT_TAGS= 和 =EXCLUDE_TAGS= ，给标题打上默认提供的 =export= 或 =noexport= tag，然后再导出你就知道它的作用了
+
+- =TITLE= ，指定文章的标题
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+TITLE: 这是一篇文章
+
+    <head>
+    ...
+    <title>这是一篇文章
+    ...
+    </head>
+
+    <body>
+    <div id="content" class="content">
+    ...
+    <h1 class="title">这是一篇文章</h1>
+    ...
+    </div>
+    </body>
+  #+END_SRC
+
+- =EXPORT_FILE_NAME= ，导出文件的名字，可用来指定文件名，比如 =#+EXPORT_FILE_NAME: yy= ，那么在导出到 HTML 时我们就得到了 =yy.html=
+
+还剩一些 =OPTIONS= 选项没有介绍，这里简单说一下，比较全的列表可以参考 [[https://orgmode.org/manual/Export-Settings.html][13.2 Export Settings]]
+
+- =,= ， =org-export-with-smart-quotes= ，是否开启智能引号。若为 =t= 则将双引号识别为主引号，单引号识别为副引号，将单个单引号识别为撇号（apostrophes）。默认关闭
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+OPTIONS: ,:t
+
+    “在 HTML 导出中似乎没有什么作用”
+    ‘确实’
+
+    "no use in html export"
+    'maybe'
+
+    <p>
+    “在 HTML 导出中似乎没有什么作用”
+    ‘确实’
+    </p>
+
+    <p>
+    "no use in html export"
+    'maybe'</p>
+  #+END_SRC
+
+- =*= ， =org-export-with-emphasize= 是否导出使用富文本标记的内容，比如 =*word*, /word/, _word_ and +word+.= 。默认开启
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+
+    ,*word* /word/ _word_ +word+
+
+    <p>
+    <b>word</b> <i>word</i> <span class="underline">word</span> <del>word</del>
+    </p>
+  #+END_SRC
+
+- =-= ， =org-export-with-special-strings= ，对特殊字符串的识别。默认开启
+  参考变量文档的解释如下：
+  #+BEGIN_EXAMPLE
+    Non-nil means interpret "\-", "--" and "---" for export.
+
+    When this option is turned on, these strings will be exported as:
+
+       Org     HTML     LaTeX    UTF-8
+      -----+----------+--------+-------
+       \-    &shy;      \-
+       --    &ndash;    --         –
+       ---   &mdash;    ---        —
+       ...   &hellip;   \ldots     …
+  #+END_EXAMPLE
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+
+    \-
+    --
+    ---
+    ...
+
+    <p>
+    &#x00ad;
+    &#x2013;
+    &#x2014;
+    &#x2026;</p>
+  #+END_SRC
+
+  #+BEGIN_EXPORT html
+  <p>
+  &#x00ad;
+  &#x2013;
+  &#x2014;
+  &#x2026;
+  </p>
+  #+END_EXPORT
+
+- =:= ， =org-export-with-fixed-width= ，开启意味着也导出以 =:= 开头的行。默认开启
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+OPTIONS: ::t
+    : hello
+
+    <pre class="example">
+    hello
+    </pre>
+
+    ,#+OPTIONS: ::nil
+
+    : world
+
+    (empty output)
+  #+END_SRC
+
+- =<= ， =org-export-with-timestamps= ，是否导出时间或日期戳。默认为 =t=
+  - 可以设为 =t= （全部导出）， =active= （导出活跃时间戳）， =inactive= （导出不活跃时间戳）， =nil= 全不导出
+
+- =\n= ， =org-export-preserve-breaks= ，是否在导出时保留所有的换行。默认关闭
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+OPTIONS: \n:t
+
+    1
+    2
+    3
+
+    <p>
+    1<br>
+    2<br>
+    3<br>
+    </p>
+  #+END_SRC
+
+- =^= ， =org-export-with-sub-superscripts= ，是否使用类 Tex 语法表示下标和上标。若开启，那么 =a^b= 和 =a^{b}= 表示上标， =a_{b}= 和 =a_b= 表示下标。默认开启
+  - 若设置为 =^:{}= ，那么只有 =a^{b}= 和 =a_{b}= 会被识别
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+OPTIONS: ^:t
+
+    a_b a^b a_{b} a^{b}
+
+    <p>
+    a<sub>b</sub> a<sup>b</sup> a<sub>b</sub> a<sup>b</sup>
+    </p>
+
+
+    ,#+OPTIONS: ^:nil
+    a_b a^b a_{b} a^{b}
+
+    <p>
+    a_b a^b a_{b} a^{b}
+    </p>
+  #+END_SRC
+
+- =arch= ， =org-export-with-archived-trees= ，是否导出带有 =ARCHIVE= tag 的树。默认值为 =headline=
+  - 拥有三个选项， =nil= 表示不导出， =t= 表示导出， =headline= 表示仅导出标题
+
+- =author= ， =org-export-with-author= ，是否导出作者名。默认为 =t= ，即导出
+
+- =broken-links= ， =org-export-with-broken-links= ，是否导出损坏的链接。默认为 =nil= ，即不导出
+  - 可设置为 mark，这样导出结果中会对损坏链接进行标记
+
+- =c= ， =org-export-with-clocks= 是否导出 =CLOCK= 关键字，默认为 =nil= ，即不导出
+
+- =creator= ， =org-export-with-creator= ，是否在 postamble 中导出创建工具信息，默认为 =nil=
+
+- =d= ， =org-export-with-drawers= ，是否包括 drawer 信息，默认为 =(not "LOGBOOK")=
+  - 非空意味着导出表中包含的 =drawer= ，默认导出除 =LOGBOOK= 外的 =drawer= 。为 =t= 时导出所有，为 =nil= 全不导出
+
+- =date= ， =org-export-with-date= ，是否在导出文件中包含日期，默认为 =t= ，即导出
+
+- =e= ， =org-export-with-entities= ，是否导出实体，默认为 =t= ，即导出
+  - 实体包括的内容可参考 =org-entities=
+
+- =email= ， =org-export-with-email= 是否导出作者的 email 信息，默认为 =nil= ，即不导出
+
+- =f= ， =org-export-with-footnotes= 是否导出 =footnotes= ，默认为 =t=
+
+- =H= ， =org-export-headline-levels= 设定导出标题级数，在指定级别以下的标题将以列表项导出，默认为 =3=
+  #+BEGIN_SRC org
+    ,#+HTML_DOCTYPE: html5
+    ,#+OPTIONS: html-style:nil
+    ,#+OPTIONS: H:1
+
+    ,* Hello
+    ,** World
+    123
+    ,** Yes
+
+    <div id="outline-container-orgee6812b" class="outline-2">
+    <h2 id="orgee6812b"><span class="section-number-2">1.</span> Hello</h2>
+    <div class="outline-text-2" id="text-1">
+    </div>
+    <ol class="org-ol">
+    <li><a id="org1c72bf3"></a>World<br>
+    <div class="outline-text-3" id="text-1-1">
+    <p>
+    123
+    </p>
+    </div>
+    </li>
+    <li><a id="org489255e"></a>Yes<br></li>
+    </ol>
+    </div>
+    </div>
+  #+END_SRC
+
+- =inline= ， =org-export-with-inlinetasks= ，是否导出 inlinetasks，默认为 =t= ，即导出
+
+- =num= ， =org-export-with-section-numbers= ，设定序号级数，若设为 N ，那么仅给 1 到 N 即标题添加序号，默认为 =t= ，即为所有标题添加序号
+  - 可以通过设置标题属性 =UNNUMBERED= 为非空值来取消该标题的序号
+  - 注意与 =H= 的配合
+
+- =p= ， =org-export-with-planning= ，是否导出时间规划信息，默认为 =nil= ，即不导出
+  - 规划信息包括标题下的 =SCHEDULED= ， =DEADLINE= 和 =CLOSED=
+
+- =pri= ， =org-export-with-priority= ，是否导出 priority cookies，默认为 =nil= ，即不导出
+
+- =prop= ， =org-export-with-properties= ，是否导出属性 =drawers= ，默认为 =nil= ，即不导出
+
+- =stat= ， =org-export-with-statistics-cookies= 是否导出 statistics cookies，默认为 =t= ，即导出
+
+- =tex= ， =org-export-with-latex= ，是否使用 LaTex 环境，默认为 =t= ，即使用
+  - 除 =nil= 和 =t= 外还可为 =verbatim= ，即原样输出，而不是像 =nil= 那样忽略掉数学公式
+
+- =timestamp= ， =org-export-time-stamp-file= ，是否包括导出文件的创建时间，默认为 =t= ，即包括
+
+- =title= ， =org-export-with-title= ，是否导出标题，默认为 =t= ，即导出
+
+- =toc= ， =org-export-with-toc= ，是否导出标题，见上一节的相关内容
+
+- =todo= ， =org-export-with-todo-keywords= ，是否包括 =TODO= 关键字，默认为 =t= ，即包括
+
+- =|= ， =org-export-with-tables= ，是否包括表格，默认为 =t= ，即包括
+
+某些选项我只进行了简单介绍而没有给出实例，某些是因为太过简单而没有必要，而另一些是因为我没有使用过有关功能，也就没法给出例子。
+
+** <13.9.4> preamble和 postamble
+
+通过设定 =org-html-preamble= 为 =t= ，我们可以在 HTML 中添加 preamble，它位于 HTML 中 body 最靠前的位置。如果我们设置了 =HTML_LINK_UP= 或 =HTML_LINK_HOME= ，那么 preamble 紧随其后。
+
+preamble 的默认值为 =org-html-preamble-format= 中未被修改的值，即 =(("en" ""))= 。我们可以根据文档对其进行修改，想要查看文档可以 =C-x v org-html-preamble-format= 。参考文档可知它是一个包含多个表的表，其中的每一个表的 =car= 是语言， =cadr= 是包含一些额外元素的 HTML 代码，这些额外内容包括：
+
+- =%t= 代表标题
+- =%s= 代表副标题
+- =%a= 代表作者名
+- =%e= 代表作者邮箱
+- =%d= 代表日期
+- =%c= 会被 =org-html-creator-string= 替换
+- =%v= 会被 =org-html-validation-link= 替换
+- =%T= 代表导出时间
+- =%C= 代表最后修改时间
+
+如果我们想在其中使用 =%= ，我们可以使用 =%%= 转义。下面是一个 preamble 的例子：
+
+#+BEGIN_SRC elisp
+  (setq org-html-preamble t)
+  (setq org-html-preamble-format '(("en" "<p> %t %a hello world</p>")))
+#+END_SRC
+
+使用这个 preamble，我们对以下 org 内容进行导出：
+
+#+BEGIN_SRC org
+  ,#+HTML_DOCTYPE: html5
+  ,#+OPTIONS: html-style:nil
+  ,#+HTML_LINK_UP: google.com
+  ,#+AUTHOR: include-yy
+  ,#+TITLE: 123
+
+  <body>
+  <div id="org-div-home-and-up">
+   <a accesskey="h" href="google.com"> UP </a>
+   |
+   <a accesskey="H" href=""> HOME </a>
+  </div><div id="preamble" class="status">
+  <p> 123 include-yy hello world</p>
+  </div>
+  ...
+#+END_SRC
+
+我们也可以直接设置 =org-html-preamble= 为字符串来作为 preamble 模板，或者设置为某一返回插入字符串的函数，该函数将导出选项的 plist 作为它唯一的参数。
+
+postamble 与 preamble 相似，也有 =org-html-postamble= 和 =org-html-postamble-format= 变量。另外 =org-html-postamble= 可直接设为 =auto= ，这表示使用默认的 postamble，它包括作者名，作者邮箱，创建工具名，以及日期。
+
+postamble 位于 body 的末尾，而且它的外层就是 body。
+
+** <13.9.5> 在 org 中嵌入 HTML
+
+我们可以使用 =@@html:...@@= 嵌入不会被转义的 HTML 内容。我们也可以使用 =EXPORT= 块或 HTML 关键字：
+
+#+BEGIN_SRC org
+  ,#+HTML: Literal HTML code for export
+
+  ,#+BEGIN_EXPORT html
+    All lines between these markers are exported literally
+  ,#+END_EXPORT
+
+  <div id="content" class="content">
+  Literal HTML code for export
+
+  All lines between these markers are exported literally
+  </div>
+#+END_SRC
+
+这样来看，只要我们想的话，我们完全可以在 org 文件中写 HTML，不过大多数时候是没有必要的。
+
+** <13.9.6> 标题的 HTML 导出
+
+标题会以 =<h1>= 至 =<h6>= 导出，并带有一个唯一的 =id= ，当 =org-html-self-link-headlines= 被设为非空值时，标题也会使用 =<a>= ，这样标题就具有指向它们自己的 =href= 属性。
+
+#+BEGIN_SRC org
+  # (setq org-html-self-link-headlines t)
+  ,* headline
+
+  <div id="outline-container-orgd2259c7" class="outline-2">
+  <h2 id="orgd2259c7"><span class="section-number-2">1.</span> <a href="#orgd2259c7">headline</a></h2>
+  </div>
+#+END_SRC
+
+似乎不太具有开启的必要...
+
+** <13.9.7> 链接的 HTML 导出
+
+org 的 HTML 导出后端会将 org 链接导出到等效的 HTML 链接。对于链接到外部文件的链接，后端会将其转换为相对路径。对于 radio target（即使用 =<<<>>>= 的 target），org 也能处理。
+
+对于链接到其他 org 文件的链接，后端会自动将文件扩展名变为 =html= 并将路径相对化。如果在 org 文件相同目录下存在同名 HTML 文件，那么这样的转变不需要其他的人为操作了。我们可以使用 =org-html-link-org-files-as-html= 设为 =nil= 来关闭这一功能。
+
+#+BEGIN_SRC org
+  [[./1.jpg]]
+
+  <<<here>>>
+
+  goto here
+
+  [[./2.org]]
+
+  <div id="org0cd6e63" class="figure">
+  <p><img src="./1.jpg" alt="1.jpg" />
+  </p>
+  </div>
+
+  <p>
+  <a id="org501824e">here</a>
+  </p>
+
+  <p>
+  goto <a href="#org501824e">here</a>
+  </p>
+
+  <p>
+  <a href="./2.html">./2.html</a></p>
+  </div>
+#+END_SRC
+
+org 文件在导出到 HTML 时可以使用特殊的指令。比如使用 =#+ATTR_HTML= 可以为 =<a>= 和 =<img>= tag 指定新的格式属性。就像这样：
+
+#+BEGIN_SRC org
+  ,#+HTML_DOCTYPE: html5
+  ,#+OPTIONS: html5-fancy:t
+  ,#+OPTIONS: html-style:nil
+
+  ,#+ATTR_HTML: :title The org mode website :style color:red;
+  [[https://orgmode.org]]
+
+  <p title="The org mode website" style="color:red;">
+  <a href="https://orgmode.org" title="The org mode website" style="color:red;">https://orgmode.org</a>
+  </p>
+#+END_SRC
+
+** <13.9.8> 表格的 HTML 导出
+
+在导出表格时，org 的 HTML 后端使用 =org-html-table-default-attributes= 作为属性。默认情况下导出器不会为表格绘制框架和格子线。可以使用如下的属性来控制：
+
+#+BEGIN_SRC org
+  ,#+CAPTION: This is a table with lines around and between cells
+  ,#+ATTR_HTML: :border 2 :rules all :frame border
+  | 1 | 2 |
+
+  <table border="2" cellspacing="0" cellpadding="6" rules="all" frame="border">
+  <caption class="t-above"><span class="table-number">Table 1:</span> This is a table with lines around and between cells</caption>
+
+  <colgroup>
+  <col  class="org-right" />
+
+  <col  class="org-right" />
+  </colgroup>
+  <tbody>
+  <tr>
+  <td class="org-right">1</td>
+  <td class="org-right">2</td>
+  </tr>
+  </tbody>
+  </table>
+#+END_SRC
+
+org 为表格导出提供了一些选项，可以在 [[https://orgmode.org/manual/Tables-in-HTML-export.html][13.9.8]] 找到。由于我没有很多地使用表格，关于表格的样式折腾留到之后的文章。
+
+** <13.9.9> 图像的 HTML 导出
+
+当 org 文件中的链接没有描述时，HTML 导出后端将它看作行内图像，比如 =[[file:myimg.jpg=]]= 是图像，而 =[[file:myimg.jpg][the image]]= 是链接。
+
+如果 org 的链接描述是另一个图像链接时，org 的 HTML 导出后端会将它作为低清晰度的图片，而将链接作为高清晰度的图片：
+
+#+BEGIN_SRC org
+  [[file:high.jpg][file:./low.jpg]]
+
+  <div id="orgd31723d" class="figure">
+  <p><a href="high.jpg"><img src="./low.jpg" alt="low.jpg" /></a>
+  </p>
+  </div>
+#+END_SRC
+
+我们可以使用 =CAPTION= 设置图片的标题，使用 =ATTR_HTML= 设置图片的属性。
+
+** <13.9.10> 数学公式的 HTML 导出
+
+org 默认使用 MathJax 来在网页中显示数学公式块，这是一种开箱即用的方式。我们可以使用 =org-html-mathjax-options= 来指定 MathJax 的一些设置，或是使用 =OPTIONS: HTML_MATHJAX= 。比如：
+
+#+BEGIN_SRC org
+#+HTML_MATHJAX: align: left indent indent: 5em tagside: left
+#+END_SRC
+
+我们可以查看 =org-html-math-options= 的文档来了解所有的选项。通过 =org-html-mathjax-template= 我们可以控制 MathJax 模板。
+
+除了 MathJax 我们也可以使用 LaTex 将公式转化为小图片插入到网页中。由于 Windows 上折腾 Latex 相对来说有点麻烦，这里就不介绍这种方式了。
+
+** <13.9.11> 文本块的 HTML 导出
+
+在 org babel 出现之前，一种比较流行的方式是使用 =:textarea= 属性来进行代码的导出：
+
+#+BEGIN_SRC org
+  ,#+ATTR_HTML: :textarea t :width 40
+  ,#+BEGIN_EXAMPLE
+    (defun org-xor (a b)
+       "Exclusive or."
+       (if a (not b) b))
+  ,#+END_EXAMPLE
+
+  <p>
+  <textarea cols="40" rows="3">
+  (defun org-xor (a b)
+     "Exclusive or."
+     (if a (not b) b))</textarea>
+  </p>
+#+END_SRC
+
+当然现在我们有 =#+BEGIN_SRC= 可用了（笑）。
+
+** <13.9.12> CSS 支持
+
+在刚开始使用 org-mode 生成 HTML 时我被它的默认样式给丑到了，然后就放弃 org 去使用 wordpress 了（残念）。后来我看了看别人基于 org 的个人博客，比我想象的要好看的多，但是当时我不太懂 HTML 和 CSS，不是太理解就凭 [[https://orgmode.org/manual/CSS-support.html][13.9.12]] 这几个 CSS 是怎么让网页好看起来的。到了现在认真读文本了我才发现原来是：
+
+#+BEGIN_QUOTE
+your style specifications may change these, in addition to any of the standard classes like for headlines, tables, etc.
+#+END_QUOTE
+
+原来凡是 HTML tag 都是可以用 CSS 的啊...
+
+我们可以使用 =#+HTML_HEAD= 来添加自己的 CSS 文件，然后使用 =#+OPTIONS: html-style:nil= 关掉默认的简陋 CSS：
+
+#+BEGIN_SRC org
+  ,#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="style1.css" />
+  ,#+HTML_HEAD_EXTRA: <link rel="alternate stylesheet" type="text/css" href="style2.css" />
+  ,#+OPTIONS: html-style:nil
+
+  <link rel="stylesheet" type="text/css" href="style1.css" />
+  <link rel="alternate stylesheet" type="text/css" href="style2.css" />
+#+END_SRC
+
+我们可以使用 =HTML_CONTAINER_CLASS= 属性来将某个 CSS 类赋给树。通过指定 =CUSTOM_ID= ，我们也可以给某个树指定特定于 ID 的 CSS。
+
+这里推荐几个不错的 org 博客，我可能会在自己写 CSS 时进行一些借鉴：
+
+- https://taingram.org/
+- https://gongzhitaao.org/orgcs/s （我正在使用的）
+
+* 后记
+
+本文算是把整个 13.9 文档过了一遍，如果你也看文档而且碰巧搜索到了这篇文章，那希望文中的代码示例对你的理解有所帮助。
+
+在下一篇文章中，我们会简单学习 org HTML 导出后端的实现，然后从头到尾地写出一个自用的 CSS 来（希望吧）。
+
+@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzY1OTMwNjY0.jpg" alt="load failed"></div>@@
