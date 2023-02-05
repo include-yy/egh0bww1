@@ -1,0 +1,344 @@
+#+SETUPFILE: ../../setup.org
+#+TITLE: 对 org 到 HTML5 导出的补充
+#+DATE: [2023-02-04 Sat 14:08]
+#+FILETAGS: emacs org_mode
+#+HTML_DOCTYPE: html5
+#+OPTIONS: html5-fancy:t
+#+OPTIONS: toc:nil
+
+#+BEGIN_yyheadimg
+​[[https://www.pixiv.net/artworks/90486424][file:./0.jpg]]
+#+END_yyheadimg
+
+在上一篇文章折腾过 org 的 HTML 导出后，我本以为这已经差不多了，但是在不断的搜索过程中还能找到其他博客的更好的导出效果，所以说做事尽量还是不要闭门造车（笑）。
+
+本文在内容上是对上一篇文章的补充和改进，文中会拿几个不错的博客做做例子，并给出实现相似效果的代码。本文应该是我在折腾 org 到 HTML 导出的最后一篇长篇大论式的文章（希望如此）。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 11
+- org-mode 9.5.5
+
+#+TOC: headlines 2
+
+* preamble and home-and-up
+
+经过前面一些文章的介绍，我们已经知道了这两个 org 元素位于 =<body>= 的开头位置。我们可以在 preamble 中插入一些导航链接，就像 [[https://sachachua.com/blog/][Sacha Chua]] 的博客一样：
+
+| [[./1.png]] |
+
+注意到上面的 Home, Resources, Footer, Contact 和 Search 了吗，这一栏在她的博客的所有文章中都会出现，这就起到了导航作用。它的源代码如下（2023-02-04）：
+
+#+BEGIN_SRC html
+<div class="sticky contain-to-grid top-menu">
+  <nav class="top-bar">
+    <ul class="links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/resources">Resources</a></li>
+      <li><a href="#footer">Footer</a></li>
+      <li><a href="/blog/contact/">Contact</a></li>
+      <li><a href="/blog/search/">Search</a></li>
+    </ul>
+  </nav>
+</div>
+#+END_SRC
+
+如果我们只用 home-and-up 的话，也可以像 [[https://taingram.org/][taingram]] 这样，做一个“悬浮”的 home up 链接：
+
+| [[./2.png]] |
+
+#+BEGIN_SRC html
+  <div id="org-div-home-and-up">
+    <a href="https://taingram.org/blog">Blog</a>
+    <a href="https://taingram.org/">Home</a>
+  </div>
+#+END_SRC
+
+原先我打算做成 Shaca 那样的，现在发现对于单篇文章来说似乎不太必要，给读者 HOME 和 UP 页面的链接已经足够了。Sacha 博客的规模很恐怖，不过感觉她已经快写了二十年的博客了，倒也正常。我甚至都懒得给文章打上 tag。
+
+虽说 org-html 的 home-and-link 中选项给我们限定死了只能用两个 =%s= ，但我们完全没必要按照它的来， =org-html-home/up-format= 可以设置为任何我们想要的内容，而且由于 elisp =format= 函数的特性，其中的 =%s= 我们不写也没关系：
+
+#+BEGIN_SRC elisp
+  (format "Hello world" 1 2) => Hello world
+#+END_SRC
+
+不过话又说回来，添加这些东西最直接的方式应该是在 =org-html-head= 变量中添加自己想要的 HTML 内容。这样得到的内容是自由程度最高的。
+
+* 作为“万恶之源”的引用导出
+
+org 在导出 html 时会在许多块上添加一些 =id= ，这些 id 是使用 =org-html--reference= 生成的。虽然从显示上说这些 =id= 并没什么坏处，但是每次导出 HTML 这些 id 都会变一变，这就使得 =git diff= 命令会显示出一些不必要的红红绿绿。
+
+最简单的想法就是 advice 一下 =org-html--reference= ，让它在每次调用时生成序号递增的 =id= ，这样只要 org 源文件中出现需要 id 的地方不发生变化的话，html 导出结果中的 id 也不会改变。另一种思路是对调用 =org-html--reference= 的函数使用 advice，让它使用我们想要的 id 或者干脆丢掉 id。下面是 =org-html--reference= 的代码：
+
+#+BEGIN_SRC elisp
+(defun org-html--reference (datum info &optional named-only)
+  "Return an appropriate reference for DATUM.
+
+DATUM is an element or a `target' type object.  INFO is the
+current export state, as a plist.
+
+When NAMED-ONLY is non-nil and DATUM has no NAME keyword, return
+nil.  This doesn't apply to headlines, inline tasks, radio
+targets and targets."
+  (let* ((type (org-element-type datum))
+	 (user-label
+	  (org-element-property
+	   (pcase type
+	     ((or `headline `inlinetask) :CUSTOM_ID)
+	     ((or `radio-target `target) :value)
+	     (_ :name))
+	   datum)))
+    (cond
+     ((and user-label
+	   (or (plist-get info :html-prefer-user-labels)
+	       ;; Used CUSTOM_ID property unconditionally.
+	       (memq type '(headline inlinetask))))
+      user-label)
+     ((and named-only
+	   (not (memq type '(headline inlinetask radio-target target)))
+	   (not user-label))
+      nil)
+     (t
+      (org-export-get-reference datum info)))))
+#+END_SRC
+
+对于形如 =<<abc>>= 的内部链接，如果我们将 =org-html-prefer-user-labels= 设为 =t= （默认为 nil），那么该链接的内容会成为供跳转的 =id= 。我将该变量设为 =t= 后 =<<abc>>= 和 =<<<abc>>>= 都能正确导出至 ~<a id="abc">abc</a>~ ，但是指向 =<<<abc>>>= 的链接给导出成了一个随机 id，有点奇怪。
+
+经过一番调查，我发现 =org-html-link= 在寻找 radio target id 时使用的是 =org-export-get-reference= 而不是 =org-html--reference= ，而这就会导致一个问题：不论我们是否开启 =org-html-prefer-user-labels= ，radio target 的 *名字* 都不会被 =org-html--reference= 中的 =org-export-get-reference= 缓存。
+
+=org-html-link= 在获取 radio link 指向的 target 时会使用 =org-export-get-reference= 生成的 id。而用于生成 target 的 =org-html-target= 在内部调用的是 =org-html--reference= ，在选项开启时就是 target 名字。这就使得 target 和 link 的 id 不一致，从而导致链接无效。这也许是个 bug，但是关注这个的人太少了所以没被发现（笑）。
+
+要修复这个问题的话，我们可以将 =org-html-link= 中的 ~((string= type "radio"))~ 分支处的 =org-export-get-reference= 改为 =org-html--reference= 。不过我更建议添加 override advice 而不是修改源代码。
+
+下文中我们会一一分析 =org-html--reference= 出现的地方需要怎样修改，我发现有些地方完全是把 =org-html--reference= 拆开了来用（笑）。在本文的最后我会给出对 =org-html--reference= 和 =org-export-get-reference= 的修改代码。下面的代码都打开了 =org-html-prefer-user-labels= 选项。
+
+* headlines and toc
+
+在导出 headline 时，ox-html 会为每个 headline 生成随机的 id，就像这样：
+
+| [[./3.png]] |
+
+整个 headline 的结构是这样的： =<div><h2></h2><div>...</div></div>= ，第一个 =div= 由 =org-html-headline= 生成，它负责包围 headline 及其内容， =<h2>= 中的内容是 headline，标题级别也不限于 =h2= 。第二个 =div= 由 =org-html-section= 生成。感觉这两个 =div= 中的 =id= 似乎都不怎么有必要。
+
+我们到底需不需要这第二个 =div= 呢？我在网上找到了一个博客的做法：[[http://www.albertzhou.net/blog/2019/10/org-mode-publish.html][org-mode在publish时去掉多余的div和id]]。这位博主的做法比较激进，直接通过装饰器覆盖了 =org-html-headline= 函数，去掉了两个 =div= 块，只保留了标题和内容，下图是一整个原 headline 内容的 HTML 代码截图：
+
+| [[./4.png]] |
+
+这位博主的文章中没有 toc，所以标题的 id 有无也不太重要，但是 toc 我还是要的，所以 id 也必须得有。指定标题 id 的一种方式是使用 =CUSTOM_ID= ，这样标题的 id 值就会使用 =CUSTOM_ID= 指定的字符串，但这样一来我们想要每个标题都不使用随机字符串的话就得给所有标题加上 =CUSTOM_ID= ，还挺麻烦的。
+
+我们可以修改 =org-html-headline= 来生成确定的 id，也可以修改 =org-html--reference= 来专门为标题生成 id。结合上一节中我提到的 =org-html--reference= ，这里我选择修改 =org-html--reference= ，并且修改 =org-html-headline= 和 =org-html-section= ，移除掉其中不需要的 =id= 。由于这几个函数都比较长，这里我只给出修改思路，我会在文末给出所有修改的完整代码。
+
+对 =org-html-headline= ：
+- 将 outline-container 格式化字符串中的 id 删除，同时删掉 format 中的对应参数项
+
+对 =org-html-section= ：
+- 将格式化字符串中的 id 删除，同时删除对应参数项
+
+对 =org-html--reference= 的修改：
+
+- 对 headline 做特殊处理，使用对应于 headline 序号的 id，简单截一段：
+  #+BEGIN_SRC elisp
+    (when (eq type 'headline)
+      (unless user-label
+	(let ((numbers (org-export-get-headline-number datum info)))
+	  (setq user-label (concat "org-h-" (mapconcat #'number-to-string numbers "-"))))))
+  #+END_SRC
+
+下面是修改后的效果：
+
+| [[./5.png]] |
+
+现在，得到的 =section= 块中的各 id 值就和当前位置有关了，而不是一个根据内容随机生成的字符串。这里我选择修改 =org-html--reference= 而不是把 id 生成写死在 =org-html-headline= 中的原因是 =org-html--format-toc-headline= 会在内部调用 =org-html--reference= 来获取各 headline 的 id，如果我们只修改 =org-html-headline= 的话是无法让两者同步的，下图是修改 =org-html--reference= 后生成的 toc：
+
+| [[./10.png]] |
+
+* image
+
+之前的文章我已经展示过我对图片导出吹毛求疵的 advice 代码（笑）：
+
+#+BEGIN_SRC elisp
+(defun ad-org-html--wrap-image (st)
+  (replace-regexp-in-string "\n\n" "\n" st))
+
+(advice-add 'org-html--wrap-image :filter-return 'ad-org-html--wrap-image)
+(advice-remove 'org-html--wrap-image 'ad-org-html--wrap-image)
+#+END_SRC
+
+本来我以为这应该已经结束了，但是我当时居然没有注意到图片会带 =id= ：
+
+| [[./6.png]] |
+我们可以通过 =#+NAME= 或 =#+LABEL= 来设置这个 id，但是当我们不设置时 ox-html 还是会为我们生成一个随机的 id，这里需要我们对 =org-html--reference= 做一些修改，我们加上以下代码即可：
+
+#+BEGIN_SRC elisp
+  (when (org-html-standalone-image-p datum info)
+    (unless user-label (setq user-label "")))
+#+END_SRC
+
+同样，我们可以修改 =org-html--wrap-image= 来去掉一些不愉快的空格：
+
+#+BEGIN_SRC elisp
+  (defun yynt|org-html--wrap-image (contents info &optional caption label)
+    "Wrap CONTENTS string within an appropriate environment for images.
+    INFO is a plist used as a communication channel.  When optional
+    arguments CAPTION and LABEL are given, use them for caption and
+    \"id\" attribute."
+    (let ((html5-fancy (org-html--html5-fancy-p info)))
+      (format (if html5-fancy "\n<figure%s>\n%s%s</figure>" ;;去掉了最后一个 \n
+		"\n<div%s class=\"figure\">\n%s%s\n</div>")
+	      ;; ID.
+	      (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
+	      ;; Contents.
+	      (if html5-fancy contents (format "<p>%s</p>" contents))
+	      ;; Caption.
+	      (if (not (org-string-nw-p caption)) ""
+		(format (if html5-fancy "<figcaption>%s</figcaption>\n" ;; 去掉和加上 \n
+			  "\n<p>%s</p>")
+			caption)))))
+  (advice-add 'org-html--wrap-image :override 'yynt|org-html--wrap-image)
+  ;;(advice-remove 'org-html--wrap-image 'yynt|org-html--wrap-image)
+#+END_SRC
+
+[[./7.png]]
+
+关于图片的一个比较好玩的功能是，如果 org 中的链接是以 =[[high_resolution][low_resolution]]= 的形式给出的，那么这张图片显示 =low_resolution= 的图片，如果你点击它，你会跳转到 =high_resolution= 的位置，比如 =[[https://www.pixiv.net/artworks/90486424][file:./0.png]]= 。行间导出时它会以 ~<a href=xxx><img src=xxxx></a>~ 的形式导出，单独导出时会在外面加上 =<figure>= ，以下是示范效果：
+
+[[https://www.pixiv.net/artworks/90486424][file:./0.jpg]]
+
+这个功能运转正常，我也没什么好修改的。
+
+* special block
+
+当我们使用非标准 =#+BEGIN= 时，ox-html 会将它们导出为 =div= 块。如果我们开启了 html5 且 BEGIN 后面跟的名字还是 html5 的元素的话，ox-html 会将它们导出为相应的块元素，比如：
+
+| [[./8.png]] |
+
+同样，我也不想要这里的 =id= ，我们可以继续修改 =org-html--reference= ：
+
+#+BEGIN_SRC elisp
+  (when (eq type 'special-block)
+    (unless user-label
+      (setq user-label nil)
+      (setq named-only t)))
+#+END_SRC
+
+加上 advice 后，导出结果如下：
+
+#+BEGIN_SRC html
+<aside>
+hello
+</aside>
+#+END_SRC
+
+* link
+
+到了这里，我们把之前提到的 radio target 和 radio link 的问题解决一下。我们要么修改 =org-html-link= ，要么修改 =org-export-get-reference= 来解决这个问题。这里我选择修改 =org-html-link= ，将对 radio link 使用的 =org-exporg-get-reference= 改为 =org-html--reference= 即可。代码很长，我会放在文章最后的 gist 链接中。
+
+* source block
+
+之前的文章中我也对 source block 的导出做了一点简单的分析，现在让我们参考参考别人的使用经验，提高一下 html 中的源代码块体验。
+
+** 添加代码块折叠功能
+
+我之所以要把所有的代码都放到最后的 gist 上是因为这些代码太长了，那么我们可不可以通过 =<details><summary>...</summary>...</details>= 把代码块折叠起来呢？结合 ox-html 提供的 html5 标签，我们可以这样做：
+
+#+BEGIN_SRC text
+  ,#+BEGIN_details
+  ,#+BEGIN_summary
+  ‣hello
+  ,#+END_summary
+
+  ,#+BEGIN_SRC c
+    #include <stdio.h>
+    int main(int argc, char *argv[])
+    {
+
+	return 0;
+    }
+  ,#+END_SRC
+  ,#+END_details
+#+END_SRC
+
+这样确实实现了功能，但是这样一来代码高亮就看不到了，Sacha 在这篇[[https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/][文章]]中展示了另外一种方法，直接修改 org-html 的导出行为：
+
+#+BEGIN_SRC elisp
+  (setq org-babel-exp-code-template "#+begin_src %lang%switches%flags :summary %summary\n%body\n#+end_src")
+  (defun my-org-html-src-block (src-block _contents info)
+    (let* ((result (org-html-src-block src-block _contents info))
+	   (block-info
+	    (org-with-point-at (org-element-property :begin src-block)
+	      (org-babel-get-src-block-info)))
+	   (summary (assoc-default :summary (elt block-info 2))))
+      (if (member summary '("%summary" ""))
+	  result
+	(format "<details><summary>%s</summary>%s</details>"
+		summary
+		result))))
+  (with-eval-after-load 'ox-html
+    (map-put!
+     (org-export-backend-transcoders (org-export-get-backend 'html))
+     'src-block 'my-org-html-src-block))
+#+END_SRC
+
+** 添加一键复制功能
+
+同样是在 Sacha Chua 的博客中我找到了一段可以实现复制功能的[[https://sachachua.com/blog/2023/01/using-javascript-to-add-a-copy-code-link-to-source-code-blocks-in-my-blog-posts/][代码]]。内容如下：
+
+#+BEGIN_SRC js
+  /* Start of copy code */
+  // based on https://www.roboleary.net/2022/01/13/copy-code-to-clipboard-blog.html
+  const copyLabel = 'Copy code';
+
+  async function copyCode(block, button) {
+      let code = block.querySelector('pre.src');
+      let text = code.innerText;
+      await navigator.clipboard.writeText(text);
+      button.innerText = 'Copied';
+      setTimeout(() => {
+	  button.innerText = copyLabel;
+      }, 500);
+  }
+
+  function addCopyCodeButtons() {
+      if (!navigator.clipboard) return;
+      let blocks = document.querySelectorAll('.org-src-container');
+      blocks.forEach((block) => {
+	  let button = document.createElement('button');
+	  button.innerText = copyLabel;
+	  button.classList.add('copy-code');
+	  let details = block.closest('details');
+	  let summary = details && details.querySelector('summary');
+	  if (summary) {
+	      summary.appendChild(button);
+	  } else {
+	      block.appendChild(button);
+	  }
+	  button.addEventListener('click', async() => {
+	      await copyCode(block, button);
+	  });
+	  block.setAttribute('tabindex', 0);
+      });
+  }
+  document.addEventListener("DOMContentLoaded", function(event) {
+      addCopyCodeButtons();
+  });
+  /* End of copy code */
+#+END_SRC
+
+参考文章中的 CSS，我们还可以设置按钮的样式，详细内容可以阅读原文来进一步了解。
+
+* 后记
+
+所有的代码我都放到了 [[https://gist.github.com/include-yy/2dec9f7fa5aeb0089858e1a01d84096d][gist]]  上，这里就不占用空间了。
+
+关于 org 的 html 导出到这里应该就告一段落了，之后的改进重点应该是在 CSS 和 JS 上了。如果我还会写和 org 的 html 导出有关的文章，那应该是我在写 org 的 HTML 导出后端的时候（笑）。
+
+关于一些不错的博客，这里再推荐两个：
+
+- https://sachachua.com/blog/
+- https://karl-voit.at/
+
+Sacha Chua 的 emacs [[https://sachachua.com/dotemacs/index.html][配置]]值得一看，她的 org 导出设定具有借鉴意义。
+
+#+BEGIN_yyheadimg
+​[[https://www.pixiv.net/artworks/90486424][file:./11.jpg]]
+#+END_yyheadimg
