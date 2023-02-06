@@ -1,0 +1,266 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="icon" type="image/x-icon" href="./cirno_emacs.ico">
+    <link rel="stylesheet" href="./sitestyle.css">
+    <title>怎么弄个自己的 blog —— 从 HTML 到博客</title>
+  </head>
+
+  <body>
+    <div id="Header">
+      <table width="100%" cellpadding="0" summary="Canned page header">
+	<tr>
+	  <td>怎么弄个自己的 blog —— 从 HTML 到博客</td>
+	  <td align="right">
+	    <script src="./datestamp.js"></script>
+	  </td>
+	</tr>
+      </table>
+    </div>
+    <div>
+      <a href="../../index.html">HOME</a> |
+      <a href="../index.html">BLOG</a>
+    </div>
+
+    <div style="width:30%; margin: auto">
+      <a href="https://www.pixiv.net/artworks/104100697">
+	<img src="./104100697_p0.png" style="max-width:100%; border: 1px solid black; margin-left:auto; margin-right: auto;">
+      </a>
+    </div>
+    <div style="margin: auto; width:70%;">
+      <p>就像我在上一篇文章中所说的那样，博客的重点应该在<strong>写</strong>而不是折腾博客上，既然已经有了这么多案例，那就最好不要闭门造车了。本文会简单介绍各种可以写博客的标记语言，然后简单提一下博客要有什么东西。</p>
+      <p>当然我的最终目的还是自己完成从源文档到博客的一整套工具。顺带一提，本文是用 HTML 写的。本文在很大程度上就是一篇简陋的笔记，等到博客完成后我也许会把它合并到更规整的文章里。</p>
+      <h1>使用 HTML 写博客</h1>
+      <p>博客一般都是作为网页呈现的，使用 HTML 编写博客能够得到最大的自由度，但要能够做到这一点你就不得不会一点 HTML+CSS+JavaScript，所以一般应该很少会有人直接用 HTML 来写博客。两位大神 <a href="https://stallman.org/">RMS</a> 和 <a href="http://www.catb.org/~esr/">ESR</a> 都是手搓的 HTML，这可以通过他们的网页源代码看出来：</p>
+      <table width="90%" style="margin-left: auto; margin-right: auto; border: 1px solid black;" border="1">
+	<caption> HTML 源代码 </caption>
+	<tr>
+	  <td> <img src="./1.png" style="max-width:100%"> </td>
+	  <td> <img src="./2.png" style="max-width:100%"> </td>
+	</tr>
+	<tr>
+	  <td style="text-align: center">RMS</td>
+	  <td style="text-align: center">ESR</td>
+	</tr>
+      </table>
+      <p>现在的 HTML 已经有上百个元素了，但是就写一个简单博客这个目的而言，我们需要使用的也就是那十几个而已，这里就简单介绍（学习）一下我们要用到的 HTML 元素。</p>
+      <h2>HTML 中的常见元素</h2>
+      <p>在 <a href= "https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/a">MDN</a> 中我们可以找到所有的 HTML 元素，不过大部分我们都用不上，这里就简单挑几个介绍一下算了：</p>
+      <h3> &lt;h1&gt; 到 &lt;h6&gt; </h3>
+      <p>用于呈现六个不同级别的标题，其中 &lt;h1&gt; 最高，而 &lt;h6&gt; 最低。</p>
+      <details>
+	<summary>从一级到六级标题 </summary>
+	<p>
+	  &lt;h1 style="display:inline"&gt;一级标题&lt;/h1&gt; <br>
+	  &lt;h2 style="display:inline"&gt;二级标题&lt;/h2&gt; <br>
+	  &lt;h3 style="display:inline"&gt;三级标题&lt;/h1&gt; <br>
+	  &lt;h4 style="display:inline"&gt;四级标题&lt;/h2&gt; <br>
+	  &lt;h5 style="display:inline"&gt;五级标题&lt;/h1&gt; <br>
+	  &lt;h6 style="display:inline"&gt;六级标题&lt;/h2&gt; <br>
+	</p>
+      </details>
+      <div style="border: 1px solid black; margin: 1em;">
+	<h1 style="display:inline">一级标题</h1>
+	<h2 style="display:inline">二级标题</h2>
+	<h3 style="display:inline">三级标题</h3>
+	<h4 style="display:inline">四级标题</h4>
+	<h5 style="display:inline">五级标题</h5>
+	<h6 style="display:inline">六级标题</h6>
+      </div>
+      <h3> &lt;a&gt; </h3>
+      <p>可以通过 href 属性创建通向其他网页、文件、同一页面内的位置、电子右键地址或任何其他 URL 的超链接。</p>
+      <ul>
+	<li><a href="https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/a"> &lt;a&gt - HTML（超文本标记语言） | MDN</a></li>
+	<li><a href="https://en.wikipedia.org/wiki/Main_Page">Wikipedia, the free encyclopedia</a></li>
+	<li><a href="https://github.com/">Github</a></li>
+	<li><a href="https://www.gnu.org/gnu/gnu.html">关于 GNU 操作系统 - GNU 工程 - 自由软件基金会</a></li>
+	<li><a href="https://www.gnu.org/software/emacs/">GNU Emacs - GNU Project</a></li>
+      </ul>
+      <h3>&lt;p&gt; 和 &lt;br&gt;</h3>
+      <p>&lt;p&gt; 表示文本的一个段落，通常表现为一整块与相邻文本分离的文本。&lt;br&gt; 在文本中生成一个换行符号，它与 &lt;p&gt; 不同，是一个内联元素。</p>
+      <h3>&lt;ol&gt; 和 &lt;ul&gt;</h3>
+      <p>我们可以使用 &lt;ol&gt;（ordered list）和 &lt;ul&gt;（unordered list）来表示有序列表和无序列表，通过在 &lt;ol&gt; ... &lt;/ol&gt; 内使用 &lt;li&gt; ... &lt;/li&gt; 对即可写出表格：</p>
+      <div style="display: flex; border: 1px solid black;">
+	<ol>
+	  <li>我是第一个</li>
+	  <li>第二个</li>
+	  <li>第三个</li>
+	</ol>
+	<ul>
+	  <li>现在是无序列表</li>
+	  <li>前面没有序号</li>
+	  <li>只有点</li>
+	</ul>
+	<ol start="4">
+	  <li>现在从 4 开始</li>
+	  <li>通过修改 start 属性</li>
+	  <li>此处为 4</li>
+	</ol>
+	<ol start="10" reversed="true">
+	  <li>在此基础上还可以倒序</li>
+	  <li>通过修改 reversed 属性</li>
+	  <li>从 10 倒序开始</li>
+	</ol>
+	<ol>
+	  <li value="1">使用 &lt;li&gt; 的 value 属性</li>
+	  <li value="1">可以直接指定序号值</li>
+	  <li value="4">现在是 4</li>
+	</ol>
+      </div>
+      <h3> &lt;table&gt;</h3>
+      <p>&lt;table&gt; 用来创建表格，与 table 配合的 tag 非常的多，有 &lt;caption&gt，&lt;colgroup&gt;，&lt;col&gt;，&lt;thead&gt;，&lt;tbody&gt;，&lt;tr&gt;，&lt;td&gt 等。</p>
+      <h3> &lt;q&gt; 和 &lt;blockquote&gt;</h3>
+      <p>&lt;blockquote&gt; 表示位于其中的是引用内容。通常在渲染时这部分的内容会有一定的缩进。若引文来源于网络，则可以将原内容的出处 URL 地址设置到 cite 上，若要以文本形式告知读者引文出处，可以通过 &lt;cite&gt; 元素</p>
+      <p>&lt;q&gt; 是 HTML 引用标签，表示一个封闭的行内引用文本。在使用它时最好不要引入换行符，如果要引用长文本应使用 &lt;blockquote&gt; 替代。</p>
+      <blockquote>你说的对，但是《原神》是由米哈游自主研发的一款全新开放世界冒险游戏。游戏发生在一个被称作「提瓦特」的幻想世界，在这里，被神选中的人将被授予「神之眼」，导引元素之力‌​​​‌‌‌‌‌‌‌‌​​‌‌​‌‌‌​‌​。你将扮演一位名为「旅行者」的神秘角色，在自由的旅行中邂逅性格各异、能力独特的同伴们，和他们一起击败强敌，找回失散的亲人——同时，逐步发掘「原神」的真相。</blockquote>
+      <p><q>子在川上曰 逝者如斯夫 不舍昼夜</q>的意思是：在岸上等着吧，仇人的尸体早晚会从河上飘过来的。这里对引文使用了 &lt;q&gt; 标记，注意引号无法复制。</p>
+      <h3>&lt;img&gt;</h3>
+      <p>通过 &lt;img&gt; 我们可以在文档中嵌入图片。一般来说 Web 最常用的图像格式包括：APNG，AVIF，GIF，JPEG，PNG，SVG 和 WebP。WebP 在静态图像和动画的性能均比 PNG，JPEG，JIF 好得多。</p>
+      <p>上面这些标签只是 HTML 标签的一小部分，而且我连最通用的 &lt;div&gt; 标签也没有介绍。关于 HTML 元素的参考可以阅读 <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element"> HTML 元素参考</a>。很多标签是为了语义化而出现的，关于什么是语义化可以参考这个<a href="https://developer.mozilla.org/zh-CN/docs/Learn/Accessibility/HTML">链接</a>。</p>
+      <h2>CSS 与 JavaScript</h2>
+      <p>使用 HTML 我们可以搭起网页的骨架，或者说是网页的内容。如果你使用过一些比较简单的标记语言（比如 markdown 或 org-mode）的话，你应该对这些元素并不陌生，你可以很容易地在 markdown 中找到对应物。光是这些标签是没有办法显示出好看的内容的，想要在浏览器中阅读 markdown 博客你首先需要使用它来生成 HTML，然后使用 CSS 提供的样式和排版，最后使用 JavaScript 提供的动态功能。如果没有 CSS 的话生成的博客大概和你现在看到的这个网页差不多，光秃秃的。如果没有 JavaScript 就没有太多的动态效果，虽然对于静态博客来说有没有动态效果都差不多就是了。</p>
+      <p>CSS 的全称是 Cascading Style Sheets，即层叠样式表，它是一种用来为 HTML 或 XML 添加样式（字体、间距和颜色）的计算机语言。如果所有的网页都像本网页的话，那么互联网会非常枯燥。使用 CSS 可以完全控制浏览器如何显示 HTML 元素，从而充分展示好看的设计样式。关于 CSS 的学习应该有不少的书，这里就不推荐了，让我们以一个简单的 CSS 动画结束对 CSS 的介绍。</p>
+      <div class="progress"></div>
+      <p>如果说 HTML 是骨架，CSS 是皮，那么 JavaScript 就是肉了。JS 运行在浏览器中，在页面加载的时候自动执行。当然现在 JS 不仅可以在浏览器中运行，还可以在服务端运行，比如 Node，deno 等等。通过使用 JavaScript 我们能够做与网页操作、用户交互和 Web 服务器相关的所有事情。关于如何学习和使用 JS 我也没什么好说的，这里只推荐一本<a href="https://zh.javascript.info/">现代 JavaScript 教程</a>。</p>
+      <p>在我开始了解 HTML+CSS+JavaScript 之前，我写博客都是通过 Emacs 将 org-mode 源文件转化为 HTML，再配上网上找到的 CSS 凑成一个博客，HTML 在我眼里就是难写的代名词。现在为了从头构建博客我也不得不啃这一口屎，结果我发现这屎的味道居然还不错。原先我是通过 Emacs 的 ox-html 导出博文再在浏览器中检查，现在写完一段直接就可以 F5 刷新看看效果了，这样反倒简便不少。因为博客网页比较简单，配合上 Emacs 的 HTML mode，这些 tag 输入并不麻烦，而且自由度远比 org-mode 要高。</p>
+      <p>但这并不意味着 HTML 就非常好写，由于博客结构简单，其中许多 HTML 代码都是重复的。下面让我们来学习和制造一些工具，在灵活和方便之间做一个折衷。</p>
+      <h1>从标记语言到 HTML</h1>
+      <p>编写博客并不要求我们都会 HTML，我们可以使用更加简单的标记语言，比如 Markdown 来编写博客，然后使用一些工具将 md 文件生成可被浏览器读取的 html。大多数的静态博客工具都对比较流行的标记语言提供了支持，比如 Hugo、Hexo、Jekyll 都支持 markdown。本节的任务是介绍一些常见（或不常见）的标记语言，为读者（和我）开阔一下视野。</p>
+      <p>各种标记语言都有相应的工具来帮助我们生成 HTML，如果我们想要让不同标记语言生成相似的 HTML 格式，我们可以考虑对各语言的 parser 中间产物进行一些处理得到一种统一的表达方式，再由它来生成我们想要的 HTML：</p>
+      <div style="text-align:center"><img src="./3.png" style="max-width: 70%; margin-left:auto; margin-right: auto;"></div>
+      <p>不过实际上我们也没必要这样自找麻烦，一般的工具都会提供直接生成 HTML 的功能，给生成的 HTML 提供相同或相似的 CSS 即可。</p>
+      <h2>markdown</h2>
+      <p>以下内容来自<a href="https://zh.wikipedia.org/zh-cn/Markdown">维基百科</a></p>
+      <blockquote>markdown 是一种轻量级标记语言，由约翰·格鲁伯和亚伦·斯沃茨发明。它允许人们使用易读易写的纯文本格式编写文档，然后转换成有效的 HTML 文档。这种语言吸收了很多在电子邮件中已有的纯文本标记的特性。<br>由于 markdown 的轻量化、易读易写特性，而且对于图片、图表、数学公式都有支持，目前许多网站都广泛使用 markdown 来撰写帮助文档或是用于论坛上发表消息。如 Github，Discord，Reddit 等。markdown 甚至能被用来撰写电子书。</blockquote>
+      <p>就算你很少接触编程，没有上过 github，如果你使用过各种笔记软件的话你也应该对 markdown 很熟悉了。相比于 txt 它的功能足够丰富，相比于 word，ppt 它又显得简单快捷。在没有使用 org-mode 之前我一直在使用 markdown 编写博客，写完后将文本通过软件转换为 html，最后再复制到博客上。我用过一些 markdown 编辑器，我觉得最好用的还是 <a href="https://github.com/marktext/marktext">marktext</a>，我也听说过 <a href="https://typora.io/">typora</a>，只不过听说要付费就没有再进一步了解了。</p>
+      <p>考虑到之后可能仍会使用 markdown，这里我简单介绍一下 markdown 的基本用法，算是给自己做个笔记：</p>
+      <ul>
+	<li> 可以使用 <code>=</code> 和 <code>-</code> 分别表示一级标题和二级标题，也可以在一行的开头使用 <code>#</code> 表示标题，一个 <code>#</code> 对应一个级别，和 &lt;h1&gt; 到 &lt;h6&gt; 类似</li>
+	<p> 这是一级标题 <br>
+	  ====== <br>
+	  这是二级标题 <br>
+	  ------ <br>
+	  下面是一级至六级标题： <br>
+	  # H1 <br>
+	  ## H2 <br>
+	  ### H3 <br>
+	  #### H4 <br>
+	  ##### H5 <br>
+	  ###### H6 <br>
+	</p>
+	<li>在 markdown 中分段可以在段末添加两个空格，或者在段与段之间添加一个空行</li>
+	<p>这是一段<span style="background-color:red">&#20;</span><span style="background-color:green">&#20;</span><br>这是下一段</p>
+	<p>这是一段<br><span style="color:green">(empty)</span><br>这是下一段</p>
+	<li>在一行的开头使用 <code>*</code>，<code>+</code> 或 <code>-</code> 开头作为无序列表标记，列表内容与标记之间需要一个空格</li>
+	<div style="display: flex;">
+	  <p style="margin: 10px">* 第一项<br>* 第二项<br>* 第三项</p>
+	  <p style="margin: 10px">+ 第一项<br>+ 第二项<br>+ 第三项</p>
+	  <p style="margin: 10px">- 第一项<br>- 第二项<br>- 第三项</p>
+	</div>
+	<li>有序列表使用数字加上 <code>.</code> 号来表示，点与内容中间需要一个空格：</li>
+	<p>1. 第一项<br>2. 第二项<br>3. 第三项</p>
+	<li>在一行的开头使用 <code>&gt;</code> 来表示引用，内容与 <code>&gt;</code> 之间需要一个空格：</li>
+	<p>&gt; 引用内容</p>
+	<li>使用 <code>`</code> 来把代码包起来，就像这样：<span style="color:green">`printf()`</span></li>
+	<li>使用 <code style="color:blue">``` lang</code> 可以创建代码块，lang 指定使用的语言</li>
+	<p>``` c <br> printf("hello world");<br>return 0;<br>```</p>
+	<li>使用 <code>[链接名称](链接 URL)</code> 来创建链接，或者是 <code>&lt;url&gt;</code></li>
+	<li>使用 <code>![alt 属性文本](图片地址 可选标题)</code> 来创建图片</li>
+	<li>使用 <code>|</code> 来创建表格， <code>-</code> 被用来分隔表头和其他行</li>
+	<p>| 表头 | 表头 |<br>| --- | --- |<br> | 单元格 | 单元格 |<br> | 单元格 | 单元格 |</p>
+	<p>可以使用 <code>:-</code> 设置左对齐，<code>:-:</code> 设置中对齐，<code>-:</code> 设置右对齐</p>
+	<p>| a | b | c|<br>| :--- | :---: | ---:| </p>
+	<li>对于具有特殊意义的字符，可以使用 <code>\</code>（反斜线）来进行转义，以便插入普通符号：</li>
+	<p> <code>\</code> <code>`</code> <code>*</code> <code>_</code> <code>{}</code> <code>[]</code> <code>()</code> <code>#</code> <code>+</code> <code>-</code> <code>.</code> <code>!</code></p>
+	<li>最后是一些富文本标记</li>
+	<p><code>*文本*</code> 表示斜体，<code>**文本**</code> 和 <code>__文本__</code> 表示粗体，<code>***文本***</code> 或 <code>___文本___</code> 表示粗斜体</p>
+	<p>使用三个以上的 <code>*</code>，<code>-</code> 或 <code>_</code> 来建立一个分隔线，行内不能有其他东西，星号或减号之间可以插入空格</p>
+	<p>使用 <code>~~文本~~</code> 来表示删除线，使用 <code>&lt;u&gt;</code> 表示带下划线文本，使用 <code>[^文本]</code> 表示脚注</p>
+      </ul>
+      <p>当然了这个列表并不是很全，我只是列出了比较常见的用法。由于 markdown 过于简陋，基于 markdown 也有相当多的衍生，这里就不一一展开了。</p>
+      <p>最后再介绍一些工具吧：</p>
+      <ul>
+	<li>markdown 的 emacs major-mode：<a href="https://jblevins.org/projects/markdown-mode/">Markdown Mode for Emacs</a></li>
+	<li>markdown 的 JS parser：<a href="https://github.com/markedjs/marked">marker: A markdown parser and compiler</a></li>
+	<li>markdown 的 Python parser：<a href="https://github.com/miyuchina/mistletoe">A fast, extensible and spec-compliant Markdown parser in pure Python</a></li>
+      </ul>
+      <h2>org-mode</h2>
+      <p>org-mode 是我除了 md 之外最熟悉的一种格式，我现在所有的博客文章都是通过 org 文件生成 HTML，再加上 CSS 发布的。org-mode 与其说是一种文件格式，不如说是一个文本处理系统，使用它可以做 GTD，使用电子表格，做双链笔记，做文学编程，做项目管理，等等。不过如果想要发挥它的全部力量还得是在 Emacs 中使用它。现在其他的编辑器中也有对 org-mode 的支持，比如 vim 和 vscode，但都不如 Emacs。</p>
+      <p>相比于 markdown，org-mode 要复杂的多，我不可能像对 markdown 一样在这里列一张 org-mode 操作速查表，而且我也没有必要这样做，因为 org-mode 有很多非常详尽的文档，比如它的<a href="https://orgmode.org/manual/">官方文档</a>。如果你要问我 org-mode 值不值得学，那我认为这个问题等价于你是否觉得 Emacs 值不值得学，如果你觉得 Emacs 很好玩，那么不妨去玩玩 org-mode 看看有没有兴趣；如果你使用其他的编辑器，比如 vim 或 vscode，那 org-mode 对你可能可有可无。只有在 elisp 中 org-mode 才有最强的可扩展性，我现在还在用自己写的<a href="https://github.com/include-yy/yyorg-bookmark">插件</a>管理浏览器书签。</p>
+      <p>当然我们的重点是由 org-mode 生成 HTML。org-mode 提供了非常多的导出格式，这些在文档的第 13 章有详细描述。第 13 章中涉及了导出到 txt，Beamer，HTML，Latex，Markdown，OpenDocument，Org（导出到自己），Texinfo 等格式。我们只需要关注 13.9 的导出到 HTML 即可。在这一节中，文档介绍了我们可以对导出过程进行哪些配置，我一直使用的是默认配置，居然也没感到任何不对（笑）。后续我会写一篇详细配置 org 的 HTML 导出的文章，毕竟我之前的老文章也需要更好的 HTML 导出。这里介绍一些不错的 org 导出用 CSS：</p>
+      <ul>
+	<li><a href="https://gongzhitaao.org/orgcss/">A Clean and Comfort Stylesheet</a></li>
+	<li><a href="https://github.com/fniessen/org-html-themes">How to export Org mode files into awesome HTML in 2 minutes</a></li>
+	<li><a href="https://loomcom.com/blog/0110_emacs_blogging_for_fun_and_profit.html">Emacs Blogging for Fun and Profit</a></li>
+      </ul>
+      <p>在文档的第 14 章还介绍了 org-mode 的发布系统。由于我没怎么用过就不详细介绍了，下面再介绍一些工具完事。</p>
+      <ul>
+	<li>org-mode 在 org-element.el 中提供了一个 parser：<code>org-element-parse-buffer</code>，具体可参考 <a href="https://orgmode.org/worg/dev/org-element-api.html">Org Element API</a></li>
+	<li>其他语言的 parser 可以参考这个<a href="https://orgmode.org/worg/org-tools/index.html">网页</a></li>
+      </ul>
+      <h2>其他</h2>
+      <p>虽然我也想详细地讲一讲其他的一些标记语言，但是这些我都没有用过，也讲不出什么来，这里就简单提一下，留个标记以后找起来方便一点。</p>
+      <p>DITA 的全名是 Darwin Information Typing Architecture，即达尔文信息类型化体系结构。它基于 XML，用于创造，制作和交付为导向的内容。<a href="https://www.dita-ot.org/">DITA Open Toolkit</a> 是一个开源的 DITA 发布引擎。</p>
+      <p>Asciidoc 是一种平的文本标记语言，用于技术内容的编写。AsciiDoc 内容可以使用编辑器编写，使用版本控制系统管理，并能够输出到多种格式。在它的<a href="https://asciidoc.org/">官方网站</a>中它与其他标记语言进行了对比。Asciidoc 的官方工具是 Ruby 写的 <a href="https://docs.asciidoctor.org/asciidoctor/latest/">Asciidoctor</a>，不过也有 JS 版本。</p>
+      <p>DocBook XSL，是一种用于技术文档的语义标记语言。原本用于编写和计算机软硬件相关的技术文档，现在也被用于很多其他的文档。使用相关工具似乎需要用到 XSLT 这门语言。这是它的官方网站：<a href="https://docbook.org/">https://docbook.org/</a></p>
+      <p>reSturctedText（RST）是一种用于文本数据的文件格式，主要用于 Python 编程语言社区的技术文档。</p>
+      <p>djot 是我在翻看 <a href="https://github.com/matklad">matklad</a> 的<a href="https://matklad.github.io/">博客</a>时发现的一种格式。这是它的仓库：<a href="https://github.com/jgm/djot">A light markup language</a>。根据 Readme 所说，它对 commonmark（markdown 的标准）进行了一些改进以更加容易解析。</p>
+      <p>就我自己来说，我之后会选择 Asciidoc 和 djot 作为写博客的尝试。</p>
+      <h1>从 HTML 到博客</h1>
+      <p>现在，有了这么多的标记语言可选，我们也不用担心不会 HTML 怎么写博客了。接下来我们更关心的是博客的组织和外观的问题。接下来我主要从博客目录结构，博客的布局，博客的组成元素这三个方面来描述一下一个博客应该应该是什么样子的。</p>
+      <h2>博客的目录结构</h2>
+      <p>这一部分从某种意义上来说也许是最无关紧要的，只要能找到文件的位置，我们把所有的博客文件都放在同一个文件夹中也不是不行。博客的目录结构取决于我们使用的博客生成工具，我会在下面介绍 Hugo 和 Hexo 时简单描述一下他们的文件目录结构。</p>
+      <p>如果你也想自己组织博客的话，有很多没有使用博客工具的博客都可以参考，比如我下面列出来的这些。可以在代码托管网站上找到这些网站的源代码：</p>
+      <ul>
+	<li><a href="https://archive.casouri.cc/index.html">BHL0338</a></li>
+	<li><a href="https://github.com/matklad">matklad</a></li>
+	<li><a href="https://beautifulracket.com/">Beautiful Racket by Matthew Butterick</a></li>
+      </ul>
+      <p>博客的构建结果应该和博客的原文档放在一起吗？文章中的图片应该和 HTML 在同一目录下，还是放在统一的目录中？过去我纠结过这个问题，现在看来哪种都行，看个人喜好吧。</p>
+      <h2>页面的布局</h2>
+      <p>现在，让我们看看博客中的文章的布局（layout）应该是怎样的。HTML 的段落标签默认从页面的最左到最右，但这样看起来并不舒服，所以一般文章的内容在整个页面中是居中的，就像你现在看到的一样。</p>
+      <p>文章一般也会提供目录，用来在文章个标题之间定位和跳转。目录可以放在文章的开头，也可以放在文章主体的左侧或右侧，并且随页面滚动一起运动。也可以将目录做成开关式的，通过点击来打开或关闭。</p>
+      <p>文章的末尾一般会有 footer，这样可以起到一个留白的效果，到达文章末尾处不会显得太突兀。footer 可以放置一些和文章相关的内容，比如作者，创建和修改时间，CC 协议的图片等。</p>
+      <p>这大概是我能想出来的比较明显的布局，其他的可以参考一些博客工具的文档，它们会对编写主题提供帮助，比如：</p>
+      <ul>
+	<li><a href="https://codex.wordpress.org/zh-cn:%E5%8D%9A%E5%AE%A2%E7%9A%84%E8%AE%BE%E8%AE%A1%E5%92%8C%E5%B8%83%E5%B1%80">WordPress：博客的设计和布局</a></li>
+	<li><a href="http://jekyllcn.com/docs/themes/">主题 - Jekyll · 简单静态博客网站生成器</a></li>
+      </ul>
+      <h2>博客的元素</h2>
+      <p>一篇最简单的文章只需要内容即可，一个最简单的博客只需要一个包含所有文章的主页即可，不过这些不太够，我们希望在这之上还加点别的。</p>
+      <ul>
+	<li>一般的博客会在页面的开头放置一个导航栏，方便读者在不同页面之间移动</li>
+	<li>博客也许会提供归档功能，将不同的文章按照时间顺序归为不同类别</li>
+	<li>博客也许会提供归类功能，根据 tag 将文章分类，并使用专门的页面来展示同一类的文章</li>
+	<li>博客的空白部分可以放一些好玩的小组件</li>
+	<li>......</li>
+      </ul>
+      <p>原本我准备在这一节大书特书，不过写到这里才发现大部分的元素或者说特性都是很 trivial 的，照着已有的博客模板做就行了。我原本打算在下一节对 Hugo 和 Hexo 做简单的介绍，不过关于它们的文章在网上已经有很多了，感觉不是很有必要，本文就到这里吧。</p>
+      <h1>下面要做的工作</h1>
+      <p>从源文档到博客大概就是这样一个过程，我接下来的要写的文章大致可以分为三类，一是如何直接使用 HTML 写博客，二是如何使用一些语言和工具生成 HTML，三是如何（抄袭）设计出自己博客的布局和外观。具体一点大概是这样：</p>
+      <ul>
+	<li>如何使用和配置 org-mode 导出 HTML</li>
+	<li>对博客生成工具的简单介绍</li>
+	<li>如何方便地使用 HTML 编写博客</li>
+      </ul>
+      <p>在上面这些工作完成后，我们就可以开始博客的部署了，我打算使用 github pages 或 cloudflare page。</p>
+    </div>
+    <div style="width:30%; margin: auto">
+      <a href="https://www.pixiv.net/artworks/104495086">
+	<img src="./104495086_p0.png" style="max-width:100%; border: 1px solid black; margin-left:auto; margin-right: auto;">
+      </a>
+    </div>
+
+    <hr/>
+    <footer>
+      <p style="text-align:center;">
+	<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">
+	  <img alt="知识共享许可协议" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" />
+	</a>
+	<br>本作品采用
+	<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">知识共享署名-相同方式共享 4.0 国际许可协议</a>进行许可。
+      </p>
+    </footer>
+  </body>
+</html>

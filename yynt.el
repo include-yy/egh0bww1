@@ -40,6 +40,10 @@
   (t-restore-var)
   (t-restore-adv))
 
+(defun t-imgattr ()
+  (interactive)
+  (insert "#+ATTR_HTML: :class top-down-img"))
+
 (t-setq org-html-home/up-format "\
 <div id=\"home-and-up\"> <a href=\"../../index.html\">HOME</a> \
 <a href=\"../index.html\">BLOG</a></div>
@@ -57,7 +61,7 @@
 <p class=\"creator\">Creator: %c</p>
 </div>
 <a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
-<img alt=\"CC-BY-SA 4.0\" src=\"./by-sa.svg\"></a>
+<img alt=\"CC-BY-SA 4.0\" src=\"../../img/by-sa.svg\"></a>
 </div>")))
 
 (t-setq org-html-prefer-user-labels t)

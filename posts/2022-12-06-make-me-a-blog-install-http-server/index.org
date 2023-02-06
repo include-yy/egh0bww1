@@ -1,0 +1,307 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: blog
+#+TITLE: 怎么弄个自己的 blog —— 安装和使用 HTTP 服务器
+#+DATE: [2022-10-13 Thu 23:22]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/66235651][file:0.png]]
+
+在上一篇文章中我提到了 blog 最后是以 HTML 页面的形式呈现的，所以我们还是需要一个 HTTP 服务器。虽然我们不一定要将 blog 发到远程服务器上，放在本地自娱自乐也行，但是 blog 不发出来那还叫 blog 吗？我们先从最基本的 HTTP 服务器说起，之后我也会介绍一些其他玩意儿，比如 github-pages，cloudflare worker 等。
+
+你可能听说过 LAMP 之类的词，LAMP 就是 Linux+Apache+Mysql+PHP 的缩写，它们四个组合起来提供网站服务。本文主要涉及它们中的两个，也就是 Linux 和 Apache，不过我会把 Apache 替换为 Nginx。
+
+本文包括的内容如下：
+
+- 操作系统的选择
+- 和网页相关的一些知识
+- Nginx 的安装与配置
+- 下一步的工作
+
+本文使用的环境如下：
+
+- Ubuntu Server 22.04.1 LTS on VMware 16.1.2 on Windows 10
+- nginx 1.18.0 (Ubuntu)
+
+* 操作系统的选择
+
+可用的操作系统还是很多的，比如 Windows Server，Linux 和 BSD 系列。Windows Server 我还没安装过，FreeBSD 我简单用过，但现在还不是很习惯，我最熟悉的还是 Linux，虽然我只敲过一些简单的 bash 命令和使用 =apt install= 装过一些常见的软件。
+
+Linux 发行版少说也有上百个吧，就我了解的话比较常见的有 Ubuntu，RedHat，Debain，SUSE，CentOS（死了），Arch，Gentoo 等等。本文会使用 Ubuntu Server ，这是我最熟悉的 Linux 系统。如果你会一点 Linux 也可以选择其他系统。
+
+Ubuntu Server 的下载链接在这：[[https://ubuntu.com/download/server][Get Ubuntu Server]]，下载完成后就可以开始安装了。我不是太建议直接使用真正的远程服务器（毕竟要花钱，不过 AWS 也有免费机器...），也不是太建议在真机上装（镜像刻录啥的好麻烦...），我推荐装在虚拟机上，比如 VMware，分配 2 个核心，2 GB 内存和十几个 GB 的硬盘就可以了。装在虚拟机上主要有两个好处，一是执行一些关键操作前可以保存快照，这样弄错了也可以快速回退，二是从宿主机器传输文件到虚拟机的速度很快，这样不用太关心网络问题。
+
+在具体的安装过程中我推荐使用最小安装（minimal），这样装完的系统基本上啥也没有，非常干净，也就不会出现各种各样奇怪的错误。不过这样装完后需要自己安装一些基础功能，比如 vim，lsof 等等。
+
+我使用的是 Ubuntu Server 22.04.1 LTS，我录制了一个[[https://www.bilibili.com/video/BV1De4y1E7VZ/][视频]]来展示它在 VMware 中的安装过程。完成安装后你就得到了几乎全裸的 Ubuntu Server。下面是一些镜像的配置教程：
+
+- [[https://mirrors.tuna.tsinghua.edu.cn/help/ubuntu/][tsinghua ubuntu 镜像使用帮助]]
+- [[https://mirrors.ustc.edu.cn/help/ubuntu.html][ustc ubuntu 源使用帮助]]
+
+如果你的主机中有本地代理服务器，可以让虚拟机直接使用，通过修改 =/etc/apt/apt.conf.d/proxy.conf= 中的内容来让 apt 使用代理，就像这样：
+
+#+BEGIN_SRC conf
+  Acquire::http::Proxy "http://192.161.145.14:8080";
+  Acquire::https::Proxy "http://192.161.145.14:8080";
+#+END_SRC
+
+（如果你在系统安装过程中指定了代理就不需要上面的配置，在 =/etc/apt/apt.conf.d/= 中会有一个代理配置文件）
+
+配置好 apt 后就可以执行一些更新操作了：
+
+#+BEGIN_SRC bash
+  sudo apt update
+  sudo apt upgrade
+#+END_SRC
+
+执行完上面两条指令后我们就可以安装一些基础软件了：
+
+#+BEGIN_SRC bash
+  # 编辑器
+  sudo apt install vim
+  sudo apt install nano
+
+  # ping
+  sudo apt install iputils-ping
+
+  # lsof
+  sudo apt install lsof
+
+  # net-tools
+  sudo apt install net-tools
+#+END_SRC
+
+此时的虚拟机是没有启用防火墙的，这样我们后续的操作会方便一些。如果你不喜欢 VMware 的界面的话，可以使用 SSH 工具远程连接虚拟机，比如 Xshell，MobaXterm 之类的软件。我在系统安装过程中指定了安装 SSH 服务器。使用 =hostname -I= 即可获取虚拟机的 ip 地址。
+
+[[./1.JPG]]
+
+* 和网页相关的一些知识
+
+这是个很大的话题，我只是简单写过一点 HTML，CSS 和 JS 而已，我们还是参考下[[https://en.wikipedia.org/wiki/Web_page][维基百科]]吧：
+
+#+BEGIN_QUOTE
+A web page (or webpage) is a hypertext document on the World Wide Web. Web pages are delivered by a web server to the user and displayed in a web browser. A website consists of many web pages linked together under a common domain name. The name "web page" is a metaphor of paper pages bound together into a book.
+
+网页是万维网上的超文本文档。它们由网络服务器发送给用户，并在浏览器上显示。网站由在同一域名下的许多链接在一起的网页组成。
+#+END_QUOTE
+
+上面这句话至少包含了这些要素：万维网（World Wide Web）、超文本文档（hypertext）、服务器（web server）、浏览器（browser）、网站（website）、域名（domain name）、链接（link）。下面我们就这些关键字来简单地了解一下网页及其相关技术。这里我假设你已经知道了一些简单的计算机网络知识，关于什么是万维网以及万维网的发展历史我就不提了。
+
+超文本是指可以显示在电脑显示器或其他电子设备上的文本。相比于普通的文本， *超文本* 可以包含链接到其他文件页面的 *超链接* （hyperlink）。它是一种非线性的文本结构，用纸质文本很难呈现出来。超文本标记语言，即 HTML（HyperText Markup Language），是用于创建网页的标准标记语言。它允许嵌入图像和对象，可以使用 CSS（层叠样式表）定义元素的外观和布局，可以嵌入 JavaScript 脚本语言来执行一些动作。
+
+至于什么是服务器，我之前理解为“可以通过网络访问的计算机”。维基百科对 server 给出了两种意思，一是提供服务的计算机程序，比如文件服务器，数据库服务器等；二是提供服务的计算机。这么看来服务器的重点还是在“服务”上。严格来说，server 指提供服务的程序，server 与 client（客户端）相对，运行 server 程序的设备被称为主机（host）。下文中我会区分服务器和主机。
+
+提供网络服务的服务器就是网络服务器（web server）了，它包含 HTTP 服务器。HTTP 服务器能够理解 URL 和 HTTP 协议。客户端可以通过网站域名访问服务器，服务器可以将它的内容分发给客户端。网络浏览器（web browser）就是用来访问网站的客户端，它将来自网络服务器的文件呈现在屏幕上。这里借用 [[https://developer.mozilla.org/zh-CN/docs/Learn/Common_questions/What_is_a_web_server][MDN]] 上的一张图来描述一下浏览器和服务器的关系：
+
+[[./2.PNG]]
+
+* Nginx 的安装与配置
+
+#+BEGIN_QUOTE
+nginx [engine x] is an HTTP and reverse proxy server, a mail proxy server, and a generic TCP/UDP proxy server, originally written by Igor Sysoev.
+
+-- https://nginx.org/en/
+
+NGINX is open source software for web serving, reverse proxying, caching, load balancing, media streaming, and more. It started out as a web server designed for maximum performance and stability.
+
+-- https://www.nginx.com/resources/glossary/nginx/
+#+END_QUOTE
+
+我这里选择了 Nginx 而不是 Apache 也没有什么特殊的原因，只是我对它稍微熟悉一些，对于一个小博客来说执行速度和稳定性可能并不是非常重要。
+
+在 Ubuntu 上安装 Nginx 非常简单，直接 =apt install nginx= 即可。安装完成后可以使用 =systemctl status nginx= 来检查 HTTP server 的运行状态：
+
+[[./3.PNG]]
+
+如果你的虚拟机上出现了上述结果，那就说明安装成功了。接着我们可以用虚拟机的 ip 地址和 80 端口来进行访问 =http://192.168.171.135:80= ，因为我使用了 Ubuntu server 的最小安装，所以这里我们不需要设置防火墙。
+
+[[./4.PNG]]
+
+这样就安装成功了，非常简单。下面我们简单了解一下 Nginx 的配置。下面的内容主要参考了 Nginx 的 [[https://nginx.org/en/docs/beginners_guide.html][Beginner's Guide]] 和《深入理解 Nginx 模块开发与架构解析第二版》的第二章。
+
+** 基本配置
+
+我们的目的不是配置一个高性能的 HTTP 服务器，所以很多选项我都没有改。需要我们配置的内容并不是很多。在 Ubuntu 下安装 Nginx 默认的配置位置为 =/etc/nginx/= 。 =ls= 一下可以看到以下内容：
+
+[[./5.PNG]]
+
+其中， =nginx.conf= 就是总配置文件，在它里面还 =include= 了许多子配置文件。在该文件中可以看到如下内容：
+
+#+BEGIN_SRC text
+  ##
+  # Virtual Host Configs
+  ##
+  include /etc/nginx/conf.d/*.conf
+  include /etc/nginx/sites-enabled/*
+#+END_SRC
+
+所谓的 =Virtual Host= 就是虚拟主机，《深入理解》一书中对它的解释如下：
+
+#+BEGIN_QUOTE
+由于 IP 地址的数量有限，因此经常存在多个主机域名对应着同一个 IP 地址的情况，这时在 nginx.conf 中就可以按照 server_name（对应用户请求中的主机域名）并通过 server 块来定义虚拟主机，每个 server 块就是一个虚拟主机，它只处理与之相对应的主机域名请求。这样，一台服务器上的 Nginx 就能以不同的方式处理访问不同主机域名的 HTTP 请求了。
+#+END_QUOTE
+
+我们只需要根据默认的虚拟主机配置文件来在该目录下创建自己的配置即可。
+
+虚拟主机相关的配置位于 =sites-enabled= 目录中，该目录下有一个 =default= 文件，其中未注释的选项如下：
+
+#+BEGIN_SRC text
+  server {
+	 listen 80 default_server;
+	 listen [::] 80 default_server;
+
+	 root /var/www/html;
+
+	 index index.html index.htm index.nginx-debian.com
+
+	 server_name _;
+
+	 location / {
+		  try_files $uri $uri/ =404;
+	 }
+
+  }
+#+END_SRC
+
+其中：
+
+- =listen= 决定 Nginx 如何监听端口，在 =listen= 后可以只加 IP 地址、端口或主机名
+  - =default_server= 表示将该 =server= 作为整个 Web 服务的默认 =server= ，如果一个请求无法匹配配置中的所有主机域名时，就会使用默认的虚拟主机
+- =server_name= 是虚拟主机的名字，Nginx 处理请求时会取出 header 中的 Host 来与每个 =server= 中的 =server_name= 进行匹配，以此决定由哪一个 =server= 块处理请求
+  - 如果 Host 与多个 =server_name= 匹配，则根据匹配优先级来选择实际处理的 =server= 块
+- =location [=|~|~*|^~|@] /uri/= 会尝试根据用户请求中的 URI 来匹配 =location= 中的 uri 表达式，如果可以匹配则选择 =location= 块中的配置来处理用户请求
+  - === 表示完全匹配， =~= 表示大小写敏感， =~*= 表示大小写不敏感， =^~= 表示只需前半段匹配即可， =@= 表示仅用于 Nginx 服务内部请求之间的重定向，不直接处理用户请求
+  - 当一个请求可能匹配多个 =location= 时，这个请求会被第一个 =location= 处理
+  - =location /= 可以匹配所有的 HTTP 请求，它一般作为最后一个 =location=
+- =root= 定义资源文件相对于 HTTP 请求的根目录，上面的配置中 =root= 为 =/var/www/html=
+- =index= 是网站首页，可有多个文件参数，Nginx 会按顺序访问
+- =try_files= 后接多个路径参数，且最后一个必须是 uri 参数。它会按顺序访问每一个路径，如果可以有效读取则向用户返回路径对应的文件结束请求。如果所有路径都找不到有效的文件，就重定向到最后的参数 uri 上
+
+了解这些选项的意思后我们就可以开始编写自己的配置文件了，我们可以直接在 =default= 文件中修改，也可以创建自己的配置文件，这里我选择后者，在 =sites-enabled= 目录下创建 =yy= 文件，在其中写入：
+
+#+BEGIN_SRC text
+  server {
+	   listen 80;
+
+	   server_name i.cn;
+
+	   root /var/www/yy;
+	   index index.html;
+
+	   location / {
+		    try_files $uri $uri/ =404;
+	   }
+  }
+#+END_SRC
+
+随后依次执行以下 bash 命令：
+
+#+BEGIN_SRC bash
+  cd /var/www
+  sudo mkdir yy
+  cd yy
+  echo "Hello world" | sudo tee index.html
+#+END_SRC
+
+在完成上面的步骤后，我们可以参考这一条 [[https://stackoverflow.com/questions/14972792/nginx-nginx-emerg-bind-to-80-failed-98-address-already-in-use][stackoverflow]] ，使用 =pkill -f nginx & wait $!= 来杀死 Nginx，然后使用 =sudo nginx -t= 测试配置文件是否正确，最后使用 =sudo systemctl start nginx= 来重新启动 nginx。或者我们直接使用 =sudo nginx -s reload= 来更新配置。
+
+完成上面操作后我们有了两个虚拟主机，一个是 Nginx 默认创建的主机，一个是域名为 =i.cn= ，主页内容为 =Hello world= 的主机。由于我们使用了虚拟机，我们没办法给它一个域名。不过我们可以修改位于 =C:\Windows\System32\drivers\etc= 的 =hosts= 文件来添加本地域名，以便我们访问该虚拟主机。在 =hosts= 的末尾添加如下内容即可（ip 地址使用你的虚拟机的地址）
+
+#+BEGIN_SRC text
+192.168.171.135 i.cn
+#+END_SRC
+
+现在，在你的浏览器中输入 =i.cn= ，就可以看到如下页面了：
+
+[[./6.PNG]]
+
+** web 目录权限设置
+
+在上面我们添加了新的虚拟主机 =i.cn= 并完成了简单访问，现在让我们看看它们的目录和文件权限：
+
+| [[./7.PNG]] | [[./8.PNG]] |
+
+可以看到所有者和用户组都是 =root= ，这不是一个很好的做法，毕竟网站的管理者不太需要 root 权限。我们可以创建一个网站管理用户，或者直接使用当前用户作为管理者，就像这样：
+
+#+BEGIN_SRC bash
+  cd /var/www
+  sudo chown -R $USER:$USER /var/www/yy
+#+END_SRC
+
+可以得到这样的结果，这样其他用户就无法修改 =yy= 内的文件了。
+
+[[./9.PNG]]
+
+我似乎没有在一些教程中看到修改 Nginx 用户组以及添加 www 用户组的操作，这一步也许不是必须的，不过这里还是提一下吧。假设我们使用 =sudo chmod 750= 使 =yy= 目录的权限改为 =750= ，那么再次访问 =i.cn= 会得到如下结果：
+
+[[./10.PNG]]
+
+这是因为现在 Nginx 的 worker 进程无法访问 =yy= 目录，它至少需要 =rx= 权限才能读取目录中的内容。我们可以添加一个 =www= 组，给予该组 =rx= 权限，然后将 Nginx 放入该组中，这可以通过修改 =nginx.conf= 来进行：
+
+#+BEGIN_SRC text
+user www-data www;
+#+END_SRC
+
+随后使用以下 bash 命令修改 =yy= 目录权限：
+
+#+BEGIN_SRC bash
+  groupadd www
+  sudo chown yy:www /var/www/yy
+  sudo chmod 750 /var/www/yy
+#+END_SRC
+
+通过 =sudo nginx -s reload= 更新 Nginx 配置后重新访问 =i.cn= ，可见即便 =others= 完全没有权限现在也能正常打开网页了。
+
+关于权限设置可以参考这一篇文章以了解更多：
+
+- [[https://www.cnblogs.com/sochishun/p/7413572.html][Linux系统Web网站目录和文件安全权限设置]]
+
+** 一些其他的 Nginx 选项
+
+上面我只是介绍了最基础的配置选项，这里再介绍一些作为补充，某些选项可能比较有用。
+
+- =autoindex on= ，开启目录浏览功能：
+
+#+BEGIN_SRC bash
+  mkdir hhh # 注意权限，此处省略了 chmod 和 chown
+  cd /var/www/yy/hhh
+  echo "hhh" | tee 1.html 2.html 3.html
+#+END_SRC
+
+在 =/etc/nginx/sites-enabled/yy= 中的 =server= 块中添加 =autoindex on;= ，随后运行 =sudo nginx -s reload= ，然后在浏览器中输入 =i.cn/hhh= ：
+
+[[./11.PNG]]
+
+- =alias file-path|dir-path;= ，为路径设置别名：
+
+承接上面的例子，我们在配置 =yy= 中添加：
+
+#+BEGIN_SRC text
+  location /h/ {
+	   alias /var/www/yy/hhh/;
+  }
+#+END_SRC
+
+更新配置后在浏览器中输入 =i.cn/h/1.html= ，我们会在浏览器中看到目录 =/hhh/1.html= 中的内容，即 =hhh= 。
+
+关于它与 =root= 的区别可以看这个[[https://stackoverflow.com/questions/10631933/nginx-static-file-serving-confusion-with-root-alias][解答]]，如果你在使用过程中遇到了问题，它应该能解答你的疑惑。
+
+- =proxy_pass= ，设置代理：
+
+首先将 =default= 配置中的端口设置为 5000，然后在 =yy= 中添加如下配置：
+
+#+BEGIN_SRC text
+  location = /incf/ {
+	   proxy_pass = http://127.0.0.1:5000/;
+  }
+#+END_SRC
+
+更新配置后使用浏览器访问 =i.cn/incf/= ，可得到 Nginx 的默认页面。
+
+* 下一步的工作
+
+上面我只是简单介绍和演示了 Nginx 的基本配置和使用。作为一个强大的 HTTP 服务器，它的功能当然不止这些，但是一个简单的静态博客用不了这么多功能，所以我们的介绍就到这里了。
+
+本文中我们介绍了 LAMP 中的 L 和 A，接下来的文章我会介绍 MySQL 和 PHP。感觉对于静态的博客来说这些都用不上了（笑），但是如果我们使用的博客软件中使用了这些技术，那多了解一点还是有好处的。
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/60280196#1][file:-1.png]]

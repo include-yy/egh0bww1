@@ -78,7 +78,8 @@ figcaption{
 }
 
 #table-of-contents li {
-    clear:both
+    clear:both;
+    padding-top: 0;
 }
 
 #content {
@@ -280,7 +281,7 @@ td.org-center{
 footer {
     margin: auto;
     line-height: 1em;
-    max-width: 50rem;
+    max-width: 58rem;
     align-items: center;
     justify-content: center;
 }
@@ -321,6 +322,11 @@ p{
 
 dl,ol,ul{
     margin:0 auto;
+    word-wrap:break-word;
+}
+
+li {
+    padding-top: .3em;
 }
 
 blockquote{

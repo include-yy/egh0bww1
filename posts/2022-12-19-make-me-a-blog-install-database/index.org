@@ -1,0 +1,577 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: blog
+#+TITLE: 怎么弄个自己的博客 —— 安装和使用数据库
+#+DATE: [2022-12-11 Sun 23:45]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/75674592][file:0.jpg]]
+
+在读完这篇 [[../2022-12-11-翻译-Introduction-to-Databases/index.html][Introduction to Databases]] 的翻译后，相信你对数据库是什么有了一个最基本的认识。本文将会介绍常见的数据库的安装和使用，我只装过 MySQL，本文会以它为例。一个简单的博客应用也用不着分布式数据库，本文就不介绍 NoSQL 等相关内容了。
+
+如果我们的目的只是搭建一个纯静态的博客的话，仅使用 HTTP 服务器即可，但为了更加丰富的功能，我们有必要使用动态网页。而且许多现有的博客系统都使用了数据库，所以简单了解一下安装和使用是没有坏处的。本文不会详细介绍 SQL 的用法，不过会给出一些不错的学习资料。简单的增删查改（CRUD，Create, Read, Update and Delete）搜一搜就知道怎么用了。
+
+本文使用的环境如下：
+
+- Ubuntu Server 22.04.1 LTS on VMware 16.1.2 on Windows 10
+
+{{{toc}}}
+
+* 数据库是用来存什么的
+
+在没有了解数据库之前，我将数据库理解为保存数据的硬盘。根据上面译文中的定义，数据库是“一个有组织的 *数据* 的集合”，硬盘中保存的是我们按分类放入不同文件夹中的数据，当然算是有组织的；我们使用文件系统（file system）和资源管理器（explorer.exe）来管理硬盘中的数据，那文件系统和资源管理器与我当然就是 DBMS 和 DBA；我在不断地使用硬盘中的数据，那么我就是与 DBMS 交互的用户。这样一看要素还挺齐全的。
+
+但是 DBMS 显然和文件系统还是存在一些区别，或者说它们完全不是一个东西。计算机的文件系统是存储和组织计算机数据的方法，它将设备中的空间划分为特定大小的块，并将这些块组织成文件和目录，并记录哪些块分配给了哪个文件，以及哪些块没有使用。DBMS 则是“允许用户进行定义、创建、维护和访问数据库”的软件。数据库文件当然是要在文件系统的基础上存储在计算机中，但使用 DBMS 相比于仅仅存储文件具有其他的优势，如冗余消除、数据一致性和完整性、数据安全、数据备份等等。DBMS 是建立在文件系统的基础上的。我在搜索过程中找到了 stackoverflow 上的一个[[https://stackoverflow.com/questions/38120895/database-vs-file-system-storage][问答]]，这里截一段翻译过来：
+
+#+BEGIN_QUOTE
+数据库通常是存储具有明确数据格式的、相关的、结构化的数据，并以高效的方式进行插入、更新和检索（这取决于应用需求）。
+
+另一方面，文件系统是一个更加非结构化的数据存储，用于存储任意的、可能不相关的数据。文件系统更加通用，而数据库则建立在文件系统提供的一般数据存储服务之上。
+
+文件系统和数据库所提供的预期服务水平也有差异。虽然数据库必须在任何时候都是一致的（想想银行对金钱的追踪），提供隔离的事务和持久写入，但文件系统对一致性、隔离性和持久性的保证要松的多。数据库使用复杂的算法和协议，在可能不可靠的文件系统之上实现可靠的存储。这些算法使得数据库存储在处理和存储成本方面更加昂贵，使得一般的文件系统对于不需要数据库提供的额外保证的数据来说是一个有吸引力的选择。
+
+不过，随着技术的发展，文件系统和数据库的界限也越来越模糊，一些文件系统获得了以前属于数据库的功能（事务、高级查询），而一些数据库则放松了一致性、隔离性和持久性等传统约束。ZFS 和 BTRFS 可以被认为是前者的例子，MongoDB 和 CouchDB 是后者的例子。
+
+[[https://www.quora.com/What-is-the-difference-between-a-file-system-and-a-database/answer/Christian-Smith-2][[Quora]​]]
+#+END_QUOTE
+
+在文件系统看来文件就是一些数据块而已，而 DBMS 要求存储在数据库中的数据具有结构。数据库中的数据也叫 *结构化数据* ，它们可以通过固定的键值来获取相应信息，而且具有固定的格式，它们是高度组织和整齐格式化的数据，可以轻易放入表格中。 *非结构化数据* 指不规则的，不方便使用的数据，它们没有预定义的数据模型，或者是数据结构不规则不完整。非结构化数据的例子有图片、视频等。在结构与非结构之间还有一类叫做 *半结构化数据* ，它没有像结构化数据那样固定的数据结构，但是它包含了一些结构化元素，比如标记和组织元数据，使其更容易分析。半结构化数据的例子有 HTML，XML，JSON 等等。
+
+很明显， *数据库在处理结构化数据时才能发挥它的优势* ，或者说它就是为了处理这类数据而生的。数据库是可以存储二进制数据的，但这样并不能为我们带来什么好处，在用户想要访问该文件时反而多出了数据库这一中介，拖慢了访问速度。大多数情况下，如果要存储图片、文件、视频等大文件对象，应该直接以文件形式存储，而不建议存储到数据库中。当然了这是我目前的观点，关于这个问题我也找到了一些不错的问答，我将它们放在了文末的附录中，就不放在这里影响阅读了。
+
+凡是程序可以读取文件，那为什么程序不 *自己实现* 处理数据，而是要用数据库呢？我曾经也纠结过这个问题，下一节我将就我找到的一些资料简单聊聊。
+
+* 我们为什么要用数据库
+
+我觉得最大的原因是大部分人写不出数据库来（笑）。先别说我这种连数据库课程也没有学过的小白，就算你学过了 CMU 15-445 之类的课程，还写了一个玩具级别的数据库，如果想要在生产环境中使用要做的测试可不少。《人月神话》中提到要将程序变成编程系统产品至少要九倍于写出程序的成本。Oracle 12.2 有将近 [[https://news.ycombinator.com/item?id=18442941][2500w]] 行 C 代码，开源的 MySQL 有大约 [[https://dba.stackexchange.com/questions/80466/why-is-mysql-server-software-so-huge][230w]] 行，就连 SQLite 这个小型的数据库也有 [[https://dba.stackexchange.com/questions/80466/why-is-mysql-server-software-so-huge][21w]] 行（据说 SQLite 的测试代码量远大于源代码量）。这样量级的代码不是一个人能够完成的，更不用说各种各样的测试了。
+
+（上面列出的代码行数我没有验证过，不过量级应该没有太大的问题，如果感兴趣的话可以考虑 clone 下来用 git 统计一下。）
+
+此外，不知道你是否听说过编辑器的 M * N 问题，在 LSP（Language Server Protocol）出现之前，假设有 M 个编辑器和 N 种编程语言，你想为所有这 M 个编辑器提供 N 种语言支持，那么你就需要编写 M * N 个编辑器插件，每个编辑器各 N 个。在 LSP 出现之后，通过 LSP 这个桥梁，工作量可以下降到 M + N，如下图所示：
+
+[[./1.png]]
+
+这也是我认为我们应该用数据库的第二个原因，它入门起来应该很容易。在我看来，数据库的一大意义就是提供了通用的接口，几乎所有的通用 DBMS 都提供了 SQL 支持。如果说操作系统提供的是将磁盘数据视为文件的抽象，那么数据库就是在其基础上提供了对应用存储需求的高级抽象。数据库使用的 SQL 语言就像是编程语言中的标准库一样，有着非常强的复用性。学会了 SQL 几乎就能和所有数据库打交道。
+
+当然正如 [[../2022-12-15-翻译-Why-LSP/index.html][Why LSP?]] 中指出的一样，上图的比例也许不太对，应该是下面这一张：
+
+[[./2.png]]
+
+图左是应用程序，图右是 DBMS，中间的小球是 SQL 语言。真正重量级（或者说重要）的还是应用程序与 DBMS。SQL 真正解决的也并不是什么 M * N 问题。它更重要的还是规范了 DBMS 的操作界面，描述了 DBMS 应该提供的一般功能。使用 SQL 这一界面我们就能利用 DBMS 提供的高级功能。
+
+总而言之，数据库已经是一个成熟好用的产品了，用别人的比自己手搓要强一万倍。当然我这也只是从使用角度来讲，要学习数据库原理的话手搓是少不了的。
+
+* 作为 DSL 的 SQL
+
+对于 SQL，一般的教程在介绍时都会说它“是一门简单易学的语言”，事实上也确实如此。我大概花了半天翻了翻《MySQL 必知必会》就了解了一些最基础的用法。虽然我现在一行实际的 SQL 都没写过，但我相信我需要的功能都能搜到。这一节我不会详细介绍 SQL，而是简单介绍一些 SQL 的特性，如果要入门 SQL 的话，听说下面两本书还不错：
+
+- MySQL Crash Course -- Ben Forta （MySQL 必知必会）
+- SQL 基础教程 -- Mick
+
+首先，SQL 是一种声明式语言，所谓声明式就是指告诉计算机 What 而不是 How。如果我们想要从某个表中取出满足条件的一列，我们可以这样，下面代码的功能是获取价格大于 2.5 元的商品名和价格：
+
+#+BEGIN_SRC sql
+  SELECT prod_name, prod_price
+  FROM products
+  WHERE prod_price > 2.50;
+#+END_SRC
+
+换成命令式的写法，用 JS 取数组中的项大概是这样：
+
+#+BEGIN_SRC js
+  let result = []
+  let products = [{name: "carrots", price: 1.5},
+		  {name: "pen", price: 3.0},
+		  {name: "tnt", price: 4.0}]
+
+  for (let i = 0; i < products.length; i++) {
+      if (products[i].price > 2.50) {
+	  result.push(products)
+      }
+  }
+#+END_SRC
+
+声明式编程的重点是让计算机明白目标而非流程，命令式则要明确指出每一步该怎么做。SQL 允许用户在高层数据结构上工作，它不要求用户了解具体的数据结构。这有利于减轻用户负担，提高数据的独立性。
+
+SQL 中也有嵌套结构，称为子查询（Sub Query）或嵌套查询（Nested Query），是一种嵌套在其他 SQL 查询的 WHERE 字句中的查询。它将一个 SELECT 字句的查询结果作为另一个语句的输入。例子如下：
+
+#+BEGIN_SRC sql
+  SELECT lastName, firstname
+  FROM employees
+  WHERE officeCode IN (SELECT officeCode
+		       FROM offices
+		       WHERE country = 'China')
+#+END_SRC
+
+上面代码的作用是查询办事处为中国的员工的姓和名。其中，子查询返回位于中国的所有办公代码 =officeCode= ，外部查询根据 =officeCode= 返回对应员工的姓和名。
+
+SQL 中也提供了一种叫做视图（View）的抽象。它用来保存一组查询指令的结果，只存放指令而不存放数据。使用它可以隐藏实体表，简化查询。如果表中数据发生了变化，视图中查询出的数据也会随之改变。视图就像一个窗口，通过它可以看到数据库中用户感兴趣的数据及变化。
+
+SQL 也提供了类似编程语言中过程（procedure）或函数（function）的抽象，它叫做存储过程（stored procedure）。存储过程是在大型数据库中的一组为了完成特定功能的 SQL 语句集，用户通过指定存储过程的名字并给出参数来对存储过程进行调用。
+
+SQL 还提供了类似钩子（Hook）的触发器（trigger），可以用来监视某种情况并触发某种操作。当某个事件触发时（比如表操作 INSERT，DELETE 或 UPDATE），就会激活它执行。
+
+最后，SQL 提供了对事务（Transaction）的支持，它可以将若干条 SQL 语句打包在一次，共同执行一个完整的任务。只有所有的 SQL 语句都执行完成，整个事务才算成功，一旦某个 SQL 语句执行失败，整个事务就失败了。失败后需要回滚所有的 SQL 语句。
+
+** SQL 注入
+
+就算你没有听说过这个名词，你也应该见过这张 meme：
+
+[[./3.png]]
+
+或者这张：
+
+[[./4.png]]
+
+所谓 SQL 注入（injection）是指在输入字符串中注入 SQL 指令，如果设计不良的程序忽略了字符串检查，那么注入的恶意指令就会被数据库服务器误认为是正常的 SQL 语句并执行，从而使得数据库被恶意破坏。
+
+SQL 的原理也非常简单，即数据和代码的混淆，本应该作为数据的 SQL 字段意外传递了其他信息，命令在运行时超过预期的范围，从而允许可能有害的行为。Cloudflare 的[[https://www.cloudflare.com/zh-cn/learning/security/threats/sql-injection/][教程]]给出了一些例子，并给出了应对方法，简单总结如下：
+
+- 使用参数化查询。强制开发人员定义所有的 SQL 代码，然后仅将特定参数传递给 SQL 查询；输入的数据明确地给出有限范围，无法进行扩展。这使得数据库可以区分输入的数据和要运行的代码
+- 对用户输入进行转义。为了避免用户恶意将 SQL 关键字输入 API 请求中，可以对用户提供的输入进行转移，告诉数据库不要将其解析为命令或条件
+
+* MySQL 的安装和使用
+
+说了这么多废话总算是来到了干实事的这一节。MySQL 应该是我在 Linux 上装过的第一个数据库，之后也顺便了解了 MariaDB、PostgreSQL、Redis、SQLite、SQL Server、MongoDB 等数据库。就简单的博客应用来说不管什么数据库都是够用的，这里选择 MySQL 只是我比较熟悉而已，如果你使用的博客系统使用了别的数据库，尽管用就是了。
+
+** 安装 MySQL 8.0
+
+与 HTTP 服务器的环境一样，我们使用 Ubuntu Server mininal 系统。我们可以在 MySQL 官网上找到 apt 相关的[[https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/][教程]]，跟着走就行了。嫌官方教程太简陋的话可以看[[https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-22-04][这个]]。
+
+需要说明的是，某些博客系统可能会指定某个特定版本的 MySQL，比如 5.7，下面安装的是最新的 MySQL 8.0，我会在下一节给出 5.7 版本的安装方法。具体用哪一个版本的 MySQL 取决于博客系统的要求，高版本并不一定能与低版本兼容。
+
+首先，更新 apt 并安装 mysql-server：
+
+#+BEGIN_SRC bash
+  sudo apt update
+  sudo apt install mysql-server
+#+END_SRC
+
+完成安装后，运行以下命令确保启动了 mysql 服务：
+
+#+BEGIN_SRC bash
+  sudo systemctl start mysql.service
+#+END_SRC
+
+再通过以下命令判断 mysql 是否正常运行：
+
+#+BEGIN_SRC bash
+  systemctl status mysql
+#+END_SRC
+
+得到如下结果说明安装成功：
+
+[[./5.PNG]]
+
+按照惯例接下来需要运行 =mysql_secure_installation= 来进行安全性方面的配置，比如禁止远程 root 登入和删除样本用户。对于 MySQL 8.0 会有如下的问题：
+
+1. 是否设置密码验证插件，该插件会检查用户的密码是否足够强，建议选 Y 和 STRONG（也就是 2）
+
+   #+BEGIN_SRC text
+     VALIDATE PASSWORD COMPONENT can be used to test passwords
+     and improve security. It checks the strength of password
+     and allows the users to set only those passwords which are
+     secure enough. Would you like to setup VALIDATE PASSWORD component?
+
+     Press y|Y for Yes, any other key for No: Y
+
+     There are three levels of password validation policy:
+
+     LOW    Length >= 8
+     MEDIUM Length >= 8, numeric, mixed case, and special characters
+     STRONG Length >= 8, numeric, mixed case, special characters and dictionary                  file
+
+     Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG:
+      2
+   #+END_SRC
+
+2. 随后的 PROMPT 会提示你设置 root 用户的密码，需要两次输入
+   #+BEGIN_SRC text
+     New password:
+
+     Re-enter new password:
+   #+END_SRC
+   在这一步的时候，你可能会碰到这样的报错：
+   #+BEGIN_SRC text
+     ... Failed! Error: SET PASSWORD has no significance for user 'root'@'localhost' as the authentication
+     method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER
+     instead if you want to change authentication parameters.
+   #+END_SRC
+   然后进入输入密码的死循环。想要退出死循环建议先输入两次相同密码，看见 =Do you wish to continue with the password provided?= 时再 =C-c= 。
+
+   出现这种情况的原因是 Ubuntu 上的 MySQL 默认安装后 root 登入 MySQL 默认是不需要密码的，所以也就没有办法设置 New password。为了让 =mysql_secure_installation= 正常运行下去，我们可以先 =sudo MySQL= 使用 root 登入 MySQL，再使用下面的代码修改默认密码：
+   #+BEGIN_SRC sql
+     ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Yy@114514';
+   #+END_SRC
+   随后使用 =exit= 退出 MySQL，继续运行 =sudo mysql_secure_installation= 进行配置。
+
+3. 是否删除匿名用户，这个账户用于测试目的，这里可以直接 =Y= 删除掉：
+   #+BEGIN_SRC text
+     By default, a MySQL installation has an anonymous user,
+     allowing anyone to log into MySQL without having to have
+     a user account created for them. This is intended only for
+     testing, and to make the installation go a bit smoother.
+     You should remove them before moving into a production
+     environment.
+
+     Remove anonymous users? (Press y|Y for Yes, and other key for No) : Y
+   #+END_SRC
+
+4. 是否禁用 root 远程登入，直接 =Y= ：
+   #+BEGIN_SRC text
+     Normally, root should only be allowed to connect from
+     'localhost'. This ensures that someone cannot guess at
+     the root password from the network.
+
+     Disallow root login remotely? (Press y|Y for Yes, any other key for no) : Y
+   #+END_SRC
+
+5. 是否移除测试数据库以及对它的访问，直接 =Y= ：
+   #+BEGIN_SRC text
+     By default, MySQL comes with a database named 'test' that
+     anyone can access. This is also intended only for testing,
+     and should be removed before moving into a production
+     environment.
+
+     Remove test database and access to it? (Press y|Y for Yes, any other key for No): Y
+   #+END_SRC
+
+6. 重新加载 =privilege tables= ，使到此位置的所有配置生效，直接 =Y= ：
+   #+BEGIN_SRC text
+     Reloading the privilege tables will ensure that all changes
+     made so far will take effect immediately.
+
+     Reload privilege tables now? (Press y|Y for Yes, any other key for No) : Y
+   #+END_SRC
+
+7. 完成，此时屏幕会显示 =All done!= ，到了这里我们就完成了 MySQL 基本的安全配置
+
+** 安装 MySQL 5.7
+
+对于 Ubuntu Server 22.04，在 apt 里面找不到 MySQL-5.7：
+
+#+BEGIN_SRC text
+  sudo apt-cache policy mysql-server
+
+  mysql-server:
+    Installed: 8.0.31-0ubuntu0.22.04.1
+    Candidate: 8.0.31-0ubuntu0.22.04.1
+    Version table:
+  ,*** 8.0.31-0ubuntu0.22.04.1 500
+	 500 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages
+	 500 http://archive.ubuntu.com/ubuntu jammy-security/main amd64 Packages
+	 100 /var/lib/dpkg/status
+      8.0.28-0ubuntu4 500
+	 500 http://archive.ubuntu.com/ubuntu jammy/main amd64 Packages
+#+END_SRC
+
+[[https://wordpress.org/about/requirements/][Wordpress]] 等博客系统现在（2022-12-17）使用的还是 MySQL-5.7（或者 MariaDB 10.3 或更高），所以我们还是有必要学习一下如何安装 MySQL-5.7。
+
+如果你像我一样已经完成了 MySQL-8.0 的安装，那么你需要首先卸载 MySQL-8.0，才能开始安装 MySQL-5.7。卸载[[https://askubuntu.com/a/172516][步骤]]如下：
+
+1. 停止 mysql：
+   #+BEGIN_SRC bash
+     sudo systemctl stop mysql
+   #+END_SRC
+   [[./6.PNG]]
+
+2. 使用 =apt-get= 移除所有 mysql 相关的包：
+   #+BEGIN_SRC bash
+     sudo apt purge mysql-server mysql-client mysql-common mysql-server-core-* mysql-client-core-*
+   #+END_SRC
+
+3. 删除所有的 MySQL 配置：（小心 =sudo rm -rf= !!!）
+   #+BEGIN_SRC bash
+     sudo rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
+   #+END_SRC
+
+4. 移除所有不需要的包
+   #+BEGIN_SRC bash
+     sudo apt autoremove
+     sudo apt autoclean
+   #+END_SRC
+
+在完成了以上操作后，MySQL-8.0 应该已经被完全地移除了，现在我们开始安装 MySQL-5.7。
+
+首先我们前往 https://dev.mysql.com/downloads/repo/apt/ ，目前最新的文件是 =mysql-apt-config_0.8.24-1_all.deb= 。下载文件后放到服务器上，或者我们下载后对下载链接直接使用 =wget= ：
+
+#+BEGIN_SRC bash
+wget https://dev.mysql.com/mysql-apt-config_0.8.24-1_all.deb
+#+END_SRC
+
+网上的一些其他教程也许和这里的链接有所不同，甚至你在这个网页上看到的文件也与我看到的不同。这也无所谓，使用能够得到这个配置文件的方法就行了。
+
+接着，参考[[https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/][官方文档]]运行以下命令来配置软件包：
+
+#+BEGIN_SRC bash
+sudo dpkg -i mysql-apt-config_0.8.24-1_all.deb
+#+END_SRC
+
+由于我这个 Ubnutu Server minimal 环境太简陋了，所有这里没有弹出 Dialog，而直接是字符界面......
+
+[[./7.PNG]]
+
+这里还是让我们先装上 =dialog= ：
+
+#+BEGIN_SRC bash
+sudo apt-get install dialog
+#+END_SRC
+
+接着再次 =sudo dpkg -i mysql-apt-config_0.8.24-1_all.deb= ，可以看到如下界面：
+
+[[./8.PNG]]
+
+选择第一项后可以看到：
+
+[[./9.PNG]]
+
+嗯？怎么只有 8.0？看了这个[[https://stackoverflow.com/questions/73250312/how-can-i-install-mysql-5-7-on-ubuntu-22-04-lts][帖子]]我才发现 Ubuntu 18.04 是最后一版支持 MySQL-5.7 的系统...
+
+那么，除了从源代码安装（还是算了吧）我们只能用之前的配置文件尝试一下了，参考[[https://www.vultr.com/docs/how-to-install-mysql-5-7-on-ubuntu-20-04/][这里]]使用下面命令下载配置文件。由于之前安装了官网的 =mysql-apt-config= 配置，这里首先移除掉它：
+
+#+BEGIN_SRC bash
+sudo dpkg -P mysql-apt-config
+wget https://dev.mysql.com/get/mysql-apt-config_0.8.12-1_all.deb
+sudo dpkg -i mysql-apt-config_0.8.12-1_all.deb
+#+END_SRC
+
+按照教程要求选择 =Ubuntu Bionic= ，随后和上面一样，选第一项后来到版本选择界面：
+
+[[./10.PNG]]
+
+这里选择 5.7 即可（不要选 7.5），完成后运行如下命令：
+
+#+BEGIN_SRC bash
+  sudo apt-get update
+#+END_SRC
+
+这里出现了一条 Warning： _/W: http://repo.mysql.con/apt/ubuntu/dists/bionic/InRelease: Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details/_ 。参考上面的教程可以用以下命令解决：
+
+#+BEGIN_SRC bash
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 467B942D3A79BD29
+sudo apt-get update
+#+END_SRC
+
+不过文中面对的是 Error，这里的 Warning 我就不管了（笑）。
+
+运行 =sudo apt-cache policy mysql-server= ，现在就能看到 5.7 版本了：
+
+#+BEGIN_SRC text
+  sudo apt-cache policy mysql-server
+
+  mysql-server:
+    Installed: 8.0.31-0ubuntu0.22.04.1
+    Candidate: 8.0.31-0ubuntu0.22.04.1
+    Version table:
+  ,*** 8.0.31-0ubuntu0.22.04.1 500
+	 500 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages
+	 500 http://archive.ubuntu.com/ubuntu jammy-security/main amd64 Packages
+	 100 /var/lib/dpkg/status
+      8.0.28-0ubuntu4 500
+	 500 http://archive.ubuntu.com/ubuntu jammy/main amd64 Packages
+      5.7.40-1ubuntu18.04 500
+	 500 http://repo.mysql.com/apt/ubuntu bionic/mysql-5.7 amd64 Packages
+#+END_SRC
+
+接着，使用如下命令安装 MySQL-5.7：
+
+#+BEGIN_SRC bash
+sudo apt install -f mysql-client=5.7* mysql-community-server=5.7* mysql-server=5.7*
+#+END_SRC
+
+与上面 MySQL-8.0 的安装过程不同，中途它会要求你输入 root 密码，所以在进行基本安全配置时就不会有上面更改 root 密码的死循环。记住这里输入密码是没有回显的。
+
+接下来的步骤和 MySQL-8.0 差不多，运行 =mysql_secure_installation= 进行安全配置即可，可能有一些顺序上的不同。
+
+完成配置后，使用 =systemctl status mysql= 检查 MySQL-5.7 的状态，使用 =mysql --version= 检查 MySQL 版本：
+
+[[./11.PNG]]
+
+可见 MySQL-5.7 工作正常，我们成功完成了它的安装。
+
+Ubuntu 22 的版本代号是 jammy，而 Ubuntu 18 的代号才是 bionic，我们这相当于是强行在 Ubuntu 22 上装 Ubuntu 18 上的 MySQL，也不知道这种办法还能用多久（应该还挺久的）。如果这种方法还装不上的话，我们要么选择 MariaDB，它的安装过程与 MySQL 非常像（毕竟就是 MySQL 分出来的），要么从源代码安装吧（够折腾的）。当然还有一种方法，那就是使用 docker。
+
+** 配置 MySQL
+
+不管你安装的是 8.0 还是 5.7，它们在基础配置上并没有什么区别。MySQL 的配置文件位于 =/etc/mysql/= 中，配置文件名是 =my.cnf= 。如果我们不修改这个文件，那么我们使用的就是 MySQL 的默认配置。MySQL 默认使用 3306 端口，而且禁用远程连接。
+
+[[./12.PNG]]
+
+由于我们直接使用 =apt= 安装，参考[[https://dev.mysql.com/doc/refman/8.0/en/postinstallation.html][文档]]，我们无需配置 MySQL 的数据目录，它位于 =/var/lib/mysql= 。接下来我会介绍一些常用的 =my.cnf= 选项，关于配置文件的格式可以参考[[https://dev.mysql.com/doc/refman/8.0/en/option-files.html][这里]]。不同的应用会读取配置文件中的不同 =[group]= ，客户端会读取 =[client]= ， mysql 会读取 =[mysql]= ，mysqld 会读取 =[mysqld]= ，等等。这里我们只对 =[client]= ， =[mysql]= 和 =[mysqld]= 三个 group 进行介绍。
+
+首先是 =[client]= ，它用于指定所有客户端的选项，所有的客户端程序都会使用它。文档中指出所有位于 =[client]= 中的选项必须被所有客户端程序识别，若某程序无法识别某选项会直接退出并实现错误消息。一般会在 =[client]= 中指定 =port= 和 =socket= ，它们是客户端连接的端口和用于本地连接的 socket 文件，这两个选项应与 =[mysqld]= 中的选项相同。一个简单的 =[client]= 配置如下所示：
+
+#+BEGIN_SRC conf
+  [client]
+  port = 3306
+  socket = /path/to/mysql.sock
+#+END_SRC
+
+我们也可以在用户的 =.my.cnf= （注意 my 前面 有 =.= ）中指定密码，就比如 yy 在 home 目录中添加如下内容的 =.my.cnf= 文件：
+
+#+BEGIN_SRC conf
+  [client]
+  user = "root"
+  password = "Yy@114514"
+#+END_SRC
+
+在 =sudo systemctl restart mysql= 后，你就可以直接通过 =mysql= 命令进入数据库了。如果我们不指定 =user= 的话，客户端会使用当前的用户名来作为数据库用户名，对于 =yy= 来说就是 =yy= 。文档中强调使该文件仅能被所属用户访问。
+
+通过以下命令可以观察 mysql 使用哪些配置文件：
+
+[[./25.PNG]]
+
+接下来是 =[mysql]= group，它的范围没有 =[client]= 那么广，只针对 mysql 这一个客户端。其余与 =[client]= 区别不大。我们可以这样指定 mysql 默认编码：
+
+#+BEGIN_SRC conf
+  [mysql]
+  default-character-set = utf8mb4
+#+END_SRC
+
+最后是选项最多的 =[mysqld]= group。我安装的 MySQL 5.7 的默认 =[mysqld]= 配置位于 =/etc/mysql/mysql.conf.d/mysqld.cnf= ，配置内容大致如下：
+
+[[./26.PNG]]
+
+和上一篇的 HTTP 服务器类似，我们的目的也不是配置一个超强性能的数据库，大部分选项我们也用不上，这里就简单列一些常见的选项：
+
+- =port= ，mysqld 的监听端口，默认 3306
+- =socket= ，本地通信 socket 文件
+- =bind-address= ，绑定的 IP 地址， =127.0.0.1= 表示只接受 localhost， =0.0.0.0= 表示允许任何 IP 访问，为某个特定 IP 则只允许单个 IP 访问
+  - 可以接受多个 IP，IP 之间用空格隔开
+- =skip-networking= ，为 1 表示不再监听 TCP/IP 端口，只通过 socket 或管道进行通信。为 0 则关闭该功能
+- =max-connections= ，最大连接数
+
+很多配置都和数据库的性能相关，我不是很熟悉就没有列出来。网上有很多的 MySQL 配置，可以进行参考。
+
+** 使用 MySQL
+
+此处我没有对 =my.cnf= 进行任何修改，我们使用全默认的 MySQL 学习使用它的方式。MySQL 的 Reference 中的 [[https://dev.mysql.com/doc/refman/8.0/en/tutorial.html][Tutorial]] 是一份非常不错的教程，跟着它走一遍就可以学会最基本的用法了。
+
+在本机上登入数据库可以使用 =mysql -u root -p= ，随后输入 root 密码（是 MySQL 的 root 用户密码，不是系统的 root 密码）即可进入。如果要远程登入数据库还需要 =-h= 选项，本机登入就不需要了。
+
+[[./13.PNG]]
+
+mysql 是数据库的客户端程序，我们通过它与服务端进行交互。除了使用 mysql 外，我们也可以使用多种编程语言中提供的 connector 来与数据库交互，比如 Python，Node，PHP 等。作为 DMBS，MySQL 可以管理多个数据库，每个数据库下面可以有一张或多张表。我们可以使用 =SHOW DATABASES;= 来列出所有的数据库：
+
+[[./14.PNG]]
+
+可见有 4 个已经存在的数据库，它们的名字和作用分别是：
+
+- =information_schema= ，提供了访问数据库元数据的方式。如数据库名或表名，表的数据类型与访问权限等，通过 =SELECT * from information_schema.schemata= 我们可以得到与 =SHOW DATABASES= 相似的结果。实际上 =SHOW DATABASES= 的结果就取自这张表：
+  [[./15.PNG]]
+- =mysql= ，MySQL 的核心数据库，主要负责存储数据库的用户、权限设置、关键字等控制和管理信息。不要轻易修改 mysql 里面的表
+  [[./16.PNG]]
+- =performance_schema= ，用于监控 MySQL 的低级运行过程中的资源消耗等情况，在 5.7.x 版本及以上默认启用
+  [[./17.PNG]]
+- =sys= ，可以看作简化版的 =performance_schema=
+
+在上面的截图中除了 root 用户我们也看到了两个名叫 =mysql.session= 和 =mysql.sys= 的用户。这是在 5.7 中新增的账号， =mysql.sys= 用于 sys schema 中对象的定义。使用它可以避免 DBA 重命名或删除 root 用户时发生的问题。该用户被锁定，无法通过客户端连接。 =mysql.session= 被 MySQL 插件内部使用来访问数据库服务器，同样无法用于连接 MySQL。
+
+我们可以使用 =CREATE DATABASE dbname= 来创建数据库，并使用 =USE dbname= 来选中一个数据库，就像这样：
+
+[[./18.PNG]]
+
+有了数据库之后，我们可以在其中创建表。这里我们创建一张保存编程语言名字和出生年月的表：
+
+[[./19.PNG]]
+
+对名字我使用了 VARCHAR 类型，对生日我使用了 DATE 类型，其他的类型可以参考文档进行了解。不过考虑编程语言的发明可能很难具体到哪一天，这里我们还是把 DATE 改成 YEAR 再说，使用 =ALTER TABLE pls MODIFY birthday YEAR DEFAULT NULL= 即可。使用 =INSERT= 我们可以向表中插入新的列：
+
+[[./20.PNG]]
+
+MySQL 为我们提供了 =LOAD= ，可以方便地从文件中添加数据到数据库中，我在[[https://en.wikipedia.org/wiki/Timeline_of_programming_languages][这个页面]]找到了一些语言的出现时间，然后添加到了一个 txt 文件中：
+
+[[./21.PNG]]
+
+我们使用以下命令可以完成添加， =LOAD= 的完整用法可以参考[[https://dev.mysql.com/doc/refman/8.0/en/load-data.html#load-data-field-line-handling][文档]]：
+
+[[./22.PNG]]
+
+现在让我们看一看在 2000 年后出现的语言：
+
+[[./23.PNG]]
+
+我们可以使用 =TRUNCATE= 清空整张表，或使用 =DELETE= 删除其中的某一项，或是使用 =DROP= 完全移除表（这里失误了，应该先用 =TRUNCATE= 再用 =DROP= 的，如果使用 =TRUNCATE= 应该是 =TRUNCATE TABLE pls= ）：
+
+[[./24.PNG]]
+
+上面我们展示了数据库的一些入门用法，要完整地入门 MySQL 可以去读读官方文档或者一些教材。我们上面的操作都是在 root 用户下完成的，下面我们简单学习一下数据库的用户和权限管理。
+
+** 用户与权限
+
+我们可以使用 =CREATE USER= 来创建用户，比如：
+
+#+BEGIN_SRC sql
+  CREATE USER 'yy1'@'localhost' IDENTIFIED BY 'Yy@191981'
+  CREATE USER 'yy2'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Yy@191982'
+  CREATE USER 'yy3'@'localhost' IDENTIFIED WITH sha256_password BY 'Yy@191983'
+#+END_SRC
+
+用户的格式是 ='name'@'host_name'= ， =name= 是用户名， =host_name= 是主机名。如果只指定用户名而不指定主机名，那么主机名默认为 =%= ，表示对所有主机开放权限。注意到上面指定密码的方式有两种，一是直接 =IDENTIFIED BY= ，二是添加 =WITH plugin BY= ，后者指定了要使用的授权插件，如果我们没有指定的话这里就默认使用 =caching_sha2_password= 。通过下面的命令我们就创建了一个用户：
+
+[[./27.PNG]]
+
+接下来我们就可以使用如下命令为该用户授权了：
+
+#+BEGIN_SRC sql
+GRANT PRIVILEGE ON database.table TO 'username'@'host';
+#+END_SRC
+
+其中的 =PRIVILEGE= 就是权限， =database.table= 是授权的数据库和表， ='username'@'host'= 就是用户和 IP。[[https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#privileges-provided-summary][文档]]中列出了所有的权限，常见的有 =SELECT= =CREATE= ， =ALTER= ， =DROP= ， =INSERT= ， =UPDATE= ， =DELETE= 等等。下面是几条授权命令例子：
+
+#+BEGIN_SRC sql
+  GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES, RELOAD on *.* TO 'yy'@'localhost' WITH GRANT OPTION;
+  GRANT ALL PRIVILEGES ON *.* TO 'yy'@'localhost' WITH GRANT OPTION;
+#+END_SRC
+
+这两条授权命令的结尾都有 =WITH GRANT OPTION= ，这表示被授权的用户有权力为其他用户授权。注意第二条命令的 =ALL PRIVILEGES= ，这是非常危险的，执行后被授权用户拥有了所有的权限。在执行授权命令后可以运行 =FLUSH PRIVILEGES= 来使其立即生效。不过根据[[https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html][文档]]来看这似乎不是必须的，不过用一下也没有什么坏处。
+
+我们可以使用 =SHOW GRANTS FOR 'username'@'host'= 来观察某用户的当前权限：
+
+[[./28.PNG]]
+
+如果我们想移除某用户的某些权限，可以使用：
+
+#+BEGIN_SRC sql
+REVOKE type_of_permission ON database_name.table_name FROM 'username'@'host';
+#+END_SRC
+
+如果我们想要删除某用户，我们可以使用 =DROP USER 'username'@'localhost'= 来删除：
+
+[[./29.PNG]]
+
+同样，这也是非常基础的用户管理功能。除了这种方法外还有其他的方法可以管理用户，这里就不进一步展开了，已经够用了。
+
+本来我还想着介绍一下 PostgreSQL 的安装和使用，不过这 MySQL 就够我喝一壶的，如果你需要安装 PostgreSQL，这个[[https://www.digitalocean.com/community/tutorials/how-to-install-postgresql-on-ubuntu-22-04-quickstart][页面]]也许有用。
+
+* 数据库的安全问题
+
+叫我一个从来没用过数据库的人来研究数据库安全问题显然不太可能，这里我就直接参考 [[https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html][MySQL]] 文档列几条算了。
+
+- 不要把对 =mysql.user= 表的访问权限给任何人！
+- 使用 =GRANT= 和 =REVOKE= 来控制对 MySQL 的访问权限
+- 不要在数据库中存储明文密码！而是使用哈希函数并存储哈希值
+  - 为了避免密码被彩虹表恢复，不要直接对密码使用哈希函数，要加盐
+- 假设所有密码都会受到使用密码表的自动化破解尝试。不要使用容易猜测的密码
+- 使用防火墙。这可以保护免受 50% 的任何软件中的所有类型的漏洞利用
+- 访问 MYSQL 的应用程序不应信任任何用户输入，适当使用防御性编程技术
+- 不要通过网络传输未加密数据，请使用 SSL 或 SSH 的加密协议
+
+* 应不应该在数据库中存储大的二进制文件
+
+- [[https://dba.stackexchange.com/questions/2445/should-binary-files-be-stored-in-the-database][should binary files be stored in the database]]
+- [[https://stackoverflow.com/questions/662488/would-you-store-binary-data-in-database-or-in-file-system][would you store binary data in database or in file system]]
+- [[https://stackoverflow.com/questions/815626/to-do-or-not-to-do-store-images-in-a-database][to do or not to do store images in a database]]
+- [[https://www.tianqiweiqi.com/web-storage-file-or-database.html][web storage file or database]]
+
+* 后记
+
+从开始学编程到现在我还没有正经用过数据库，一方面是我并非计算机科班没有接触过数据库相关课程，另一方面写玩具代码很少会用到存储相关的功能，顶多就是读写简单格式的文件而已。我写过的和数据库最相关的小玩具可能是[[https://github.com/include-yy/account-manager][这个]]，用 Python 的字典实现了一个简单账号密码管理软件，用 toml 作为存储格式。彼时的我虽然完全没有了解过数据库，但是对“后端就是增删查改”有所耳闻（笑），所以就在这个玩具里面实现了简单的增删查改操作。现在看来，大多数编程语言中的哈希表可以看作一种简单的非关系数据库。
+
+本文只使用了 MySQL 的标准客户端 mysql 来访问数据库，我们也可以使用各种语言中提供的 connector 来进行访问，它们在具体操作上没有太大区别，本文就没有介绍和演示。
+
+你觉得计算机最重要的功能，或者说是最重要的几项功能是什么呢？要我说的话就是 *计算* 、 *控制* 、 *存储* 与 *通信* 。写完了这篇文章我算是数据库基本入了个门，就算不会写也会拿起锤子敲几下了。在存储这方面也算是长了点见识。当然了本文只是介绍了最基本的数据库用法，没有讲到如何设计数据模型，这个据说和 ER 图有点关系，如果后续写博客的时候涉及到数据设计也许会用到它。
+
+虽说本文介绍的是 MySQL，但当我的博客应用完成时也许最终不会使用它，有可能会用更加简单的 SQLite。
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/75323183][file:-1.png]]

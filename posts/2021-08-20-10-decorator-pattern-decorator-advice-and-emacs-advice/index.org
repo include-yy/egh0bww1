@@ -1,12 +1,16 @@
 #+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
 #+TITLE: decorator pattern, decorator&advice, and emacs advice
-#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly95YW5kZS5yZS9wb3N0L3Nob3cvMjY2MTM2.jpg" alt="load failed"></div>@@
 #+DATE: [2021-08-20 Fri]
-#+TAGS: emacs
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/38145009][file:0.jpg]]
 
 在阅读 /elisp manual/ 时，我在 Funciton 一章了解到了 /Advising Functions/ ，它的作用是在不修改函数代码的情况下改变函数的行为。这么看来它和装饰器模式是很像的。正好前段时间读了读  /gof/ ，它在“结构型模式”一章中介绍了 decorator。以它们两个来作为主要内容来介绍装饰器及其使用应该会写出一篇不错的笔记。因此本文主要分为两个部分，即介绍装饰器和 emacs 中的 function advice 。
 
 需要注意的是，装饰器模式（Decorator pattern）和装饰器（decorator）不是同一个东西。装饰器模式是设计模式中的一种，而装饰器是一种拓展函数的机制，它也被叫做 Advice[fn::https://en.wikipedia.org/wiki/Advice_(programming)]。本文中除了会介绍 emacs 的 defadvice 外，还会介绍 Python 中的 decorator 的简单使用。
+
+{{{toc}}}
 
 * 什么是装饰器（What is Decorator）
 
@@ -170,7 +174,7 @@
 
 输出结果为：
 
-#+BEGIN_SRC
+#+BEGIN_SRC text
 5 8 13
 21 34 55
 114514 2971215073 114514
@@ -995,4 +999,5 @@ For these reasons, advice should be reserved for the cases where you cannot modi
 
 这大概是我在 2021 年的最后一篇文章了，接下来我可能会非常的忙。看到这里的同学真是辛苦了，我们来年再见。
 
-@@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly9zZWlnYS5uaWNvdmlkZW8uanAvc2VpZ2EvaW0yNzc5NTIx.jpg" alt="load failed"></div><div class="yyimgcomment">koakuma</div>@@
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/33080985][file:-1.jpg]]
