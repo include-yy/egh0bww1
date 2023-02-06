@@ -1,8 +1,27 @@
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../../css/style_gongzhitaao.css" />
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../../img/kagamine_rin.ico">
-#+HTML_LINK_HOME: http://www.incf19.com
-#+HTML_LINK_UP: ../../index.html
-#+OPTIONS: toc:2
-#+OPTIONS: ^:nil
-#+OPTIONS: html-style:nil
+# Org 设定
+#+OPTIONS: toc:nil
+#+OPTIONS: ^:{}
+
 #+AUTHOR: include-yy
+
+# html5 设定
+#+HTML_DOCTYPE: html5
+#+HTML_CONTAINER: section
+#+OPTIONS: html5-fancy:t
+#+OPTIONS: html-style:nil
+#+OPTIONS: html-preamble:t
+#+OPTIONS: html-postamble:t
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./cirno.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./rin.ico">
+#+HTML_LINK_HOME: t
+#+HTML_LINK_UP: t
+
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+#+HTML_HEAD: <script src="./copycode.js"></script>
+# MACRO
+
+#+MACRO: toc #+TOC: headlines 2
+#+MACRO: q @@html<q>$1</q>@@

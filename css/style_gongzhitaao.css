@@ -1,6 +1,4 @@
 /*! normalize.css v4.1.1 | MIT License | github.com/necolas/normalize.css */
-@import url("../fonts/fonts.css");
-@import url("./yy.css");
 html{
     font-family:sans-serif;
     line-height:1.15;
@@ -2381,7 +2379,6 @@ More languages 0% http://orgmode.org/worg/org-contrib/babel/languages.html
 
 }
 
-/* incf19 add here */
 .org-svg{
     background-size: 100% auto;
 }

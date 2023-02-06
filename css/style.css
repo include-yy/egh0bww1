@@ -1,0 +1,428 @@
+html {
+    background-color: rgb(216,231,245);
+}
+
+body {
+    font-size: 1.2rem;
+    line-height: 1.4;
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 1em;
+    color: black;
+    background: rgb(255,250,250);
+    font-family: 'Roboto', sans-serif;
+}
+
+#home-and-up {
+    display: flex;
+    justify-content: flex-end;
+    position: sticky;
+    float: right;
+    top: 0px;
+}
+
+#home-and-up a {
+    font-size: 1.2em;
+    margin: 0 0.5ex;
+    padding: 0.2ex 0.4ex;
+    text-decoration: none;
+    text-transform: uppercase;
+    background: white;
+    border: 2px solid black;
+    border-top: 0;
+    color: rgb(35,73,142);
+}
+
+#home-and-up a:hover {
+    color:rgb(100,72,138);
+}
+
+.title {
+    font-size: 2em;
+    max-width: 60rem;
+    font-weight:700;
+    margin:1em auto;
+    line-height:1.4;
+}
+
+.subtitle, .title{
+    text-align:center
+}
+
+figure {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+img {
+    max-width: 100%;
+    max-height: auto;
+    padding: 5px 5px 0;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(34, 25, 25, 0.4);
+}
+
+.top-down-img {
+    max-width: 33vw;
+}
+
+.org-svg{
+    background-size: 100% auto;
+}
+
+figcaption{
+    margin-top:.3em;
+    font-size: 0.8em;
+}
+
+#table-of-contents li {
+    clear:both
+}
+
+#content {
+    max-width: 54rem;
+    margin: auto;
+    padding-top: 2.8em;
+}
+
+a {
+    color:#527d9a;
+    text-decoration:none;
+    background-color: transparent;
+}
+
+a:hover{
+    color:rgb(250,144,202);
+}
+
+a:active, a:hover {
+    outline-width:0;
+}
+
+.org-src-container{
+    border:1px solid #ccc;
+    box-shadow:3px 3px 3px #eee;
+    font-family:Lucida Console,monospace;
+    font-size:80%;
+    margin:1em auto;
+    padding:.1em .5em;
+    position:relative;
+    background: #FFF;
+}
+
+.org-src-container>pre{
+    overflow:auto
+}
+
+summary {
+    position: relative;
+}
+
+summary .org-src-container {
+    padding: 0
+}
+
+summary .org-src-container pre.src {
+    margin: 0
+}
+
+.org-src-container button.copy-code, summary button.copy-code {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+}
+
+:not(pre)>code{
+    padding:2px 5px;
+    margin:auto 1px;
+    border:1px solid #ddd;
+    border-radius:3px;
+    background-clip:padding-box;
+    color:#333;
+    font-size:80%;
+    background: #FFF;
+}
+
+code,kbd,pre,samp{
+    font-family: consolas, monospace;
+    font-size:1em;
+}
+
+em {
+    font-weight:bolder;
+    font-style:normal;
+}
+
+
+b,strong{
+    font-weight:inherit;
+    font-weight:bolder
+}
+
+dfn{
+    font-style:italic
+}
+
+mark{
+    background-color:#ff0;
+    color:#000
+}
+
+small{
+    font-size:80%
+}
+
+sub,sup{
+    font-size:75%;
+    line-height:0;
+    position:relative;
+    vertical-align:baseline
+}
+
+sub{
+    bottom:-.25em
+}
+
+sup{
+    top:-.5em
+}
+
+hr{
+    box-sizing:content-box;
+    height:0;
+    overflow:visible
+}
+
+textarea{
+    overflow:auto
+}
+
+.org-right{
+    margin-left:auto;
+    margin-right:0;
+    text-align:right
+}
+
+.org-left{
+    margin-left:0;
+    margin-right:auto;
+    text-align:left
+}
+
+.org-center{
+    margin-left:auto;
+    margin-right:auto;
+    text-align:center
+}
+
+.underline{
+    text-decoration:underline
+}
+
+table{
+    margin:1em auto;
+    border-top:2px solid;
+    border-collapse:collapse;
+    box-shadow: 4px 4px 6px #EEE;
+    background: #FFF;
+
+}
+
+table,thead{
+    border-bottom:2px solid
+}
+
+table td+td,table th+th{
+    border-left:1px solid grey;
+}
+
+table tr{
+    border-top:1px solid #d3d3d3;
+    border-right: 2px solid #000;
+    border-left: 2px solid #000;
+}
+
+td,th{
+    padding:.3em .6em;
+    vertical-align:middle
+}
+
+caption.t-above{
+    caption-side:top
+}
+
+caption.t-bottom{
+    caption-side:bottom
+}
+
+caption{
+    margin-bottom:.3em
+}
+
+th.org-center,th.org-left,th.org-right{
+    text-align:center
+}
+
+td.org-right{
+    text-align:right
+}
+
+td.org-left{
+    text-align:left
+}
+
+td.org-center{
+    text-align:center
+}
+
+footer {
+    margin: auto;
+    line-height: 1em;
+    max-width: 50rem;
+    align-items: center;
+    justify-content: center;
+}
+
+#postamble p,#preamble p{
+    font-size:80%;
+    margin:.2em;
+}
+
+#cc-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#cc-container img {
+    float: right;
+    max-width: 100%;
+    max-height: auto;
+    padding: 0;
+    vertical-align: middle;
+    align-items: center;
+}
+
+.timestamp{
+    color:#bebebe;
+    font-size:90%;
+}
+
+p.verse{
+    margin-left:3%;
+}
+
+p{
+    margin:1em auto;
+}
+
+dl,ol,ul{
+    margin:0 auto;
+}
+
+blockquote{
+    margin:1em 2em;
+    padding-left:1em;
+    border-left:3px solid #ccc;
+}
+
+h1{
+    font-size:2em;
+    margin:.67em 0;
+}
+
+h2,h3,h4,h5,h6{
+    color:#a5573e;
+    line-height:1em;
+    font-family:Helvetica,sans-serif;
+}
+
+h1,h2,h3{
+    line-height:1.4em;
+}
+
+h4,h5,h6{
+    font-size:1em;
+}
+
+#footnotes{
+    font-size:90%;
+}
+
+.footpara{
+    display:inline;
+    margin:.2em auto;
+}
+
+.footdef{
+    margin-bottom:1em;
+}
+
+.footdef sup{
+    padding-right:.5em;
+}
+
+.todo{
+    background-color:red;
+}
+
+.done,.todo{
+    color:#fff;
+    padding: .1em .3em;
+    border-radius: 3px;
+    background-clip: padding-box;
+    font-size: 80%;
+    font-family: Lucida Console,monospace;
+    line-height: 1;
+}
+
+.done{
+    background-color:green;
+}
+
+.priority{
+    color:orange;
+    font-family:Lucida Console,monospace
+}
+
+kbd{
+    background-color:#f7f7f7;
+    font-size:80%;
+    margin:0 .1em;
+    padding:.1em .6em;
+}
+
+.todo{
+    background-color:red;
+}
+
+.done,.todo{
+    color:#fff;
+    padding:.1em .3em;
+    border-radius:3px;
+    background-clip:padding-box;
+    font-size:80%;
+    font-family:Lucida Console,monospace;
+    line-height:1;
+}
+
+.tag{
+    font-family:Lucida Console,monospace;
+    font-size:.7em;
+    font-weight:400
+}
+
+.tag span{
+    padding:.3em;
+    float:right;
+    margin-right:.5em;
+    border:1px solid #bbb;
+    border-radius:3px;
+    background-clip:padding-box;
+    color:#333;
+    background-color:#eee;
+    line-height:1
+}
