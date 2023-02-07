@@ -40,29 +40,66 @@
   (t-restore-var)
   (t-restore-adv))
 
+(t-setq org-publish-project-alist
+	`(("resources"
+	   :base-directory ,(expand-file-name "posts")
+	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|css\\|el\\|py\\|c"
+	   :publishing-directory ,(expand-file-name "blog-build/posts")
+	   :publishing-function org-publish-attachment
+	   :recursive t)
+	  ("articles"
+	   :base-directory ,(expand-file-name "posts")
+	   :base-extension "org\\|htm"
+	   :publishing-directory ,(expand-file-name "blog-build/posts")
+	   :publishing-function t-publish-org-htm
+	   :recursive t)
+	  ("js"
+	   :base-directory ,(expand-file-name "js")
+	   :base-extension "js"
+	   :publishing-directory ,(expand-file-name "blog-build/js")
+	   :publishing-function org-publish-attachment)
+	  ("css"
+	   :base-directory ,(expand-file-name "css")
+	   :base-extension "css"
+	   :publishing-directory ,(expand-file-name "blog-build/css")
+	   :publishing-function org-publish-attachment)
+	  ("img"
+	   :base-directory ,(expand-file-name "img")
+	   :base-extension "ico\\|svg\\|jpg\\|gif\\|png"
+	   :publishing-directory ,(expand-file-name "blog-build/img")
+	   :publishing-function org-publish-attachment)
+	  ("homepage"
+	   :base-directory ,default-directory
+	   :base-extension "org"
+	   :publishing-directory ,(expand-file-name "blog-build")
+	   :publishing-function org-html-publish-to-html
+	   :exclude "README\\|setup")
+	  ("yynt"
+	   :components ("resources" "articles" "js" "css" "img" "homepage"))))
+
 (defun t-imgattr ()
   (interactive)
   (insert "#+ATTR_HTML: :class top-down-img"))
 
 (t-setq org-html-home/up-format "\
-<div id=\"home-and-up\"> <a href=\"../../index.html\">HOME</a> \
-<a href=\"../index.html\">BLOG</a></div>
-")
+  <div id=\"home-and-up\"> <a href=\"%s\">BLOG</a> \
+  <a href=\"%s\">HOME</a></div>
+  ")
 
 (t-setq org-html-preamble-format '(("en" "")))
 
 (t-setq org-html-postamble-format '(("en" "\
-<hr>
-<div id=\"cc-container\">
-<div>
-<p class=\"author\">Author: %a</p>
-<p>Created: %d</p>
-<p>Updated: %C</p>
-<p class=\"creator\">Creator: %c</p>
-</div>
-<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
-<img alt=\"CC-BY-SA 4.0\" src=\"../../img/by-sa.svg\"></a>
-</div>")))
+  <hr>
+  <div id=\"cc-container\">
+  <div>
+  <p class=\"author\">Author: %a</p>
+  <p>Created: %d</p>
+  <p>Updated: %C</p>
+  <p class=\"creator\">Creator: %c</p>
+  </div>
+  <a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
+  <img alt=\"CC-BY-SA 4.0\" src=\"../../img/by-sa.svg\"></a>
+  </div>")))
 
 (t-setq org-html-prefer-user-labels t)
 
@@ -105,11 +142,11 @@
 
 (defun t-|org-html--reference (datum info &optional named-only)
   "Return an appropriate reference for DATUM.
-				     DATUM is an element or a `target' type object.  INFO is the
-				     current export state, as a plist.
-				     When NAMED-ONLY is non-nil and DATUM has no NAME keyword, return
-				     nil.  This doesn't apply to headlines, inline tasks, radio
-				     targets and targets."
+  DATUM is an element or a `target' type object.  INFO is the
+  current export state, as a plist.
+  When NAMED-ONLY is non-nil and DATUM has no NAME keyword, return
+  nil.  This doesn't apply to headlines, inline tasks, radio
+  targets and targets."
   (let* ((type (org-element-type datum))
 	 (user-label
 	  (org-element-property
@@ -144,8 +181,8 @@
 
 (defun t-|org-html-headline (headline contents info)
   "Transcode a HEADLINE element from Org to HTML.
-				     CONTENTS holds the contents of the headline.  INFO is a plist
-				     holding contextual information."
+  CONTENTS holds the contents of the headline.  INFO is a plist
+  holding contextual information."
   (unless (org-element-property :footnote-section-p headline)
     (let* ((numberedp (org-export-numbered-headline-p headline info))
            (numbers (org-export-get-headline-number headline info))
@@ -208,10 +245,10 @@
                   ;; When there is no section, pretend there is an
                   ;; empty one to get the correct <div
                   ;; class="outline-...> which is needed by
-				     ;; `org-info.js'.
-				     (if (eq (org-element-type first-content) 'section) contents
-				       (concat (org-html-section first-content "" info) contents))
-				     (org-html--container headline info)))))))
+  ;; `org-info.js'.
+  (if (eq (org-element-type first-content) 'section) contents
+    (concat (org-html-section first-content "" info) contents))
+  (org-html--container headline info)))))))
 
 (defun t-|org-html-section (section contents info)
   "Transcode a SECTION element from Org to HTML.
@@ -446,6 +483,88 @@ INFO is a plist holding contextual information.  See
      (t
       (format "<i>%s</i>" desc)))))
 (t-adv org-html-link :override t-|org-html-link)
+
+(defun t-publish-org-htm (plist filename pub-dir)
+  (if (string= "org" (file-name-extension filename))
+      (org-html-publish-to-html plist filename pub-dir)
+    (unless (file-directory-p pub-dir)
+      (make-directory pub-dir t))
+    (let ((output (expand-file-name (concat (file-name-base filename) ".html") pub-dir)))
+      (unless (file-equal-p (expand-file-name (file-name-directory filename))
+			    (file-name-as-directory (expand-file-name pub-dir)))
+	(copy-file filename output t))
+      ;; Return file name.
+      output)))
+
+(defun t-sitemap-files-to-lisp (files project format-entry)
+  (let ((root (expand-file-name
+	       (file-name-as-directory
+		(org-publish-property :base-directory project)))))
+    (cons 'unordered
+	  (mapcar
+	   (lambda (f)
+	     (list (funcall format-entry
+			    (file-relative-name f root)
+			    project)))
+	   files))))
+
+(defun t-sitemap-find-html-title (file project)
+  (let ((file (org-publish--expand-file-name file project)))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (re-search-forward "<title>\\([^<]*\\)</title>" nil t 1)
+      (match-string 1))))
+
+(defun t-sitemap-format (entry project)
+  (let ((time (substring entry 0 10)))
+    (if (string= (file-name-extension entry) "htm")
+	(let ((name (string-replace "htm" "html" entry))
+	      (title (t-sitemap-find-html-title entry project)))
+	  (format "[%s] [[file:%s][%s]]"
+		  time name title))
+      (format "[%s] [[file:%s][%s]]"
+	      time entry (org-publish-find-title entry project)))))
+
+(defun t-sitemap ()
+  (interactive)
+  (let* ((project (assoc "articles" org-publish-project-alist))
+	 (root (expand-file-name
+		(file-name-as-directory
+		 (org-publish-property :base-directory project))))
+	 (sitemap-filename (expand-file-name "index.org" root)))
+    (let ((files (remove sitemap-filename
+			 (org-publish-get-base-files project))))
+      (setq files (reverse files))
+      (insert "* 目录\n"
+	      (org-list-to-org
+	       (t-sitemap-files-to-lisp files project 't-sitemap-format))))))
+
+(defun t-home-sitemap-format (entry project)
+  (let ((time (substring entry 0 10)))
+    (if (string= (file-name-extension entry) "htm")
+	(let ((name (string-replace "htm" "html" entry))
+	      (title (t-sitemap-find-html-title entry project)))
+	  (format "[%s] [[file:%s][%s]]"
+		  time (concat "posts/" name) title))
+      (format "[%s] [[file:%s][%s]]"
+	      time (concat "posts/" entry) (org-publish-find-title entry project)))))
+
+(defun t-home-sitemap ()
+  (interactive)
+  (let* ((project (assoc "articles" org-publish-project-alist))
+	 (root (expand-file-name
+		(file-name-as-directory
+		 (org-publish-property :base-directory project))))
+	 (sitemap-filename (expand-file-name "index.org" root)))
+    (let ((files (remove sitemap-filename
+			 (org-publish-get-base-files project))))
+      (setq files (seq-take (reverse files) 10))
+      (insert "* Recent [[./posts/index.org][Posts]]\n"
+	      (org-list-to-org
+	       (t-sitemap-files-to-lisp files project 't-home-sitemap-format))))))
+
+
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (("t-" . "yynt-"))

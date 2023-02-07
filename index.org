@@ -1,93 +1,53 @@
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style_gongzhitaao.css" />
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/kagamine_rin.ico">
+#+OPTIONS: toc:nil
+#+OPTIONS: ^:{}
+#+OPTIONS: num:nil
+
+# html5
+#+HTML_DOCTYPE: html5
+#+HTML_CONTAINER: section
+#+OPTIONS: html5-fancy:t
 #+OPTIONS: html-style:nil
-#+OPTIONS: toc:nil num:nil ^:nil
-#+TITLE: Blog Home Page
-#+DATE: [2021-08-03 Tue 00:16]
+#+OPTIONS: html-preamble:nil
+#+OPTIONS: html-postamble:nil
 
-| [[./lispbooks/index.html][lispbooks]] |
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
 
-* 目录：
+# ROBOTO
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
 
-#+BEGIN_SRC elisp :exports results :wrap raw
-    (require 'cl-lib)
-    (setq org-html-preamble nil)
-    (defun yy-out-blogs ()
-      (let ((dirs (directory-files "./posts")))
-	(delete "." dirs)
-	(delete ".." dirs)
-	(cl-loop
-	 for i in (reverse (cdr dirs))
-	 concat (format "- [[%s][%s]]\n"
-			(concat "./posts/" i "/index.html")
-			i))))
-    (yy-out-blogs)
-#+END_SRC
+#+TITLE: Home :: include-yy
 
-#+RESULTS:
-#+begin_raw
-- [[./posts/2023-01-12-怎么弄个自己的blog-怎么感觉方向弄错了捏/index.html][2023-01-12-怎么弄个自己的blog-怎么感觉方向弄错了捏]]
-- [[./posts/2022-12-19-怎么弄个自己的blog-安装和使用数据库/index.html][2022-12-19-怎么弄个自己的blog-安装和使用数据库]]
-- [[./posts/2022-12-15-翻译-Why-LSP/index.html][2022-12-15-翻译-Why-LSP]]
-- [[./posts/2022-12-11-翻译-Introduction-to-Databases/index.html][2022-12-11-翻译-Introduction-to-Databases]]
-- [[./posts/2022-12-06-怎么弄个自己的blog-安装和使用http服务器/index.html][2022-12-06-怎么弄个自己的blog-安装和使用http服务器]]
-- [[./posts/2022-11-27-用rescript写个神经网络helloworld/index.html][2022-11-27-用rescript写个神经网络helloworld]]
-- [[./posts/2022-10-11-怎么弄个自己的blog/index.html][2022-10-11-怎么弄个自己的blog]]
-- [[./posts/2022-10-07-23-用elisp玩brainfuck-I/index.html][2022-10-07-23-用elisp玩brainfuck-I]]
-- [[./posts/2022-09-09-22-emacs的symbol类型及其实现/index.html][2022-09-09-22-emacs的symbol类型及其实现]]
-- [[./posts/2022-08-31-21-在emacs中使用模板之skeleton-tempo-autoinsert的使用介绍/index.html][2022-08-31-21-在emacs中使用模板之skeleton-tempo-autoinsert的使用介绍]]
-- [[./posts/2022-08-03-20-使用org-mode管理浏览器书签/index.html][2022-08-03-20-使用org-mode管理浏览器书签]]
-- [[./posts/2022-07-04-我的大学四年的一个总结/index.html][2022-07-04-我的大学四年的一个总结]]
-- [[./posts/2022-06-26-19-关于backquote理解的一个汇总与总结/index.html][2022-06-26-19-关于backquote理解的一个汇总与总结]]
-- [[./posts/2022-03-17-18-buffer管理和ibuffer的介绍与使用/index.html][2022-03-17-18-buffer管理和ibuffer的介绍与使用]]
-- [[./posts/2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach/index.html][2022-02-22-17-setf之CL的five-gangs与elisp的high-order-approach]]
-- [[./posts/2022-02-01-16-emacs的abbrev使用介绍/index.html][2022-02-01-16-emacs的abbrev使用介绍]]
-- [[./posts/2022-01-24-15-emacs的hashtable与多值返回/index.html][2022-01-24-15-emacs的hashtable与多值返回]]
-- [[./posts/2021-12-01-FFT小记/index.html][2021-12-01-FFT小记]]
-- [[./posts/2021-10-25-14-蝴蝶效应与emacs动画/index.html][2021-10-25-14-蝴蝶效应与emacs动画]]
-- [[./posts/2021-10-04-13-emacs中的list函数/index.html][2021-10-04-13-emacs中的list函数]]
-- [[./posts/2021-09-24-12-emacs的byte-compilation/index.html][2021-09-24-12-emacs的byte-compilation]]
-- [[./posts/2021-09-04-11-emacs的macro/index.html][2021-09-04-11-emacs的macro]]
-- [[./posts/2021-08-20-10-decorator-pattern-decorator-advice-and-emacs-advice/index.html][2021-08-20-10-decorator-pattern-decorator-advice-and-emacs-advice]]
-- [[./posts/2021-07-29-9-使用emacs作为app启动器/index.html][2021-07-29-9-使用emacs作为app启动器]]
-- [[./posts/2021-07-04-8-bug-debugging-and-debugger-and-also-edebug/index.html][2021-07-04-8-bug-debugging-and-debugger-and-also-edebug]]
-- [[./posts/2021-06-18-7-emacs的customization/index.html][2021-06-18-7-emacs的customization]]
-- [[./posts/2021-06-11-6-什么是dsl和作为dsl的cl-loop/index.html][2021-06-11-6-什么是dsl和作为dsl的cl-loop]]
-- [[./posts/2021-05-28-5-emacs的cl扩展/index.html][2021-05-28-5-emacs的cl扩展]]
-- [[./posts/2021-04-17-4-关于作用域的一个小结/index.html][2021-04-17-4-关于作用域的一个小结]]
-- [[./posts/2021-04-07-3-unwind-protect的unwind是什么意思/index.html][2021-04-07-3-unwind-protect的unwind是什么意思]]
-- [[./posts/2021-03-27-2-借学习thunk之机看看delay-evaluation/index.html][2021-03-27-2-借学习thunk之机看看delay-evaluation]]
-- [[./posts/2021-03-22-1-由(λ(x)(x x))看elisp与scheme之区别/index.html][2021-03-22-1-由(λ(x)(x x))看elisp与scheme之区别]]
-- [[./posts/2021-03-21-0-我的从0开始的emacs配置/index.html][2021-03-21-0-我的从0开始的emacs配置]]
-- [[./posts/2021-02-28-Win32编程基础之按钮控件/index.html][2021-02-28-Win32编程基础之按钮控件]]
-- [[./posts/2021-01-25-C的字符串有哪些问题/index.html][2021-01-25-C的字符串有哪些问题]]
-- [[./posts/2021-01-01-怎么写gitignore/index.html][2021-01-01-怎么写gitignore]]
-- [[./posts/2020-10-04-现在我所能看到的自动化专业/index.html][2020-10-04-现在我所能看到的自动化专业]]
-- [[./posts/2020-09-14-我所认识的编程与计算机/index.html][2020-09-14-我所认识的编程与计算机]]
-- [[./posts/2020-09-09-Scheme的syntax-rules/index.html][2020-09-09-Scheme的syntax-rules]]
-- [[./posts/2020-08-11-Scheme的callcc/index.html][2020-08-11-Scheme的callcc]]
-- [[./posts/2020-07-17-Win32编程基础之资源/index.html][2020-07-17-Win32编程基础之资源]]
-- [[./posts/2020-07-14-Win32编程基础之滚动条/index.html][2020-07-14-Win32编程基础之滚动条]]
-- [[./posts/2020-07-14-Win32编程基础之控件/index.html][2020-07-14-Win32编程基础之控件]]
-- [[./posts/2020-07-13-Win32编程基础之键盘输入/index.html][2020-07-13-Win32编程基础之键盘输入]]
-- [[./posts/2020-07-11-Win32编程基础之鼠标输入/index.html][2020-07-11-Win32编程基础之鼠标输入]]
-- [[./posts/2020-07-09-Windows窗口与消息：钩子/index.html][2020-07-09-Windows窗口与消息：钩子]]
-- [[./posts/2020-07-01-Windows窗口与消息：窗口属性/index.html][2020-07-01-Windows窗口与消息：窗口属性]]
-- [[./posts/2020-06-26-Windows窗口与消息：计时器/index.html][2020-06-26-Windows窗口与消息：计时器]]
-- [[./posts/2020-06-25-Windows窗口与消息：消息与消息队列/index.html][2020-06-25-Windows窗口与消息：消息与消息队列]]
-- [[./posts/2020-06-24-WIndows窗口与消息：窗口过程/index.html][2020-06-24-WIndows窗口与消息：窗口过程]]
-- [[./posts/2020-06-22-Windows窗口与消息：窗口类/index.html][2020-06-22-Windows窗口与消息：窗口类]]
-- [[./posts/2020-06-17-Windows的控制台和控制台应用/index.html][2020-06-17-Windows的控制台和控制台应用]]
-- [[./posts/2020-06-15-写个C库-part5/index.html][2020-06-15-写个C库-part5]]
-- [[./posts/2020-06-14-写个C库-part4/index.html][2020-06-14-写个C库-part4]]
-- [[./posts/2020-06-03-写个C库-part3/index.html][2020-06-03-写个C库-part3]]
-- [[./posts/2020-05-31-写个C库-part2/index.html][2020-05-31-写个C库-part2]]
-- [[./posts/2020-05-18-写个C库-part1/index.html][2020-05-18-写个C库-part1]]
-- [[./posts/2020-05-06-什么是base64编码/index.html][2020-05-06-什么是base64编码]]
-- [[./posts/2020-04-15-有关动态链接库的知识/index.html][2020-04-15-有关动态链接库的知识]]
-- [[./posts/2020-03-29-傅里叶级数与傅里叶变换/index.html][2020-03-29-傅里叶级数与傅里叶变换]]
-- [[./posts/2020-03-19-常见线性常微分方程的解法/index.html][2020-03-19-常见线性常微分方程的解法]]
-- [[./posts/2020-03-05-布尔函数的表示与化简/index.html][2020-03-05-布尔函数的表示与化简]]
-- [[./posts/2020-03-02-C风格字符串缺陷及改进/index.html][2020-03-02-C风格字符串缺陷及改进]]
-- [[./posts/2019-03-18-1div(chx)^n积分的一般形式/index.html][2019-03-18-1div(chx)^n积分的一般形式]]
-#+end_raw
+#+ATTR_HTML: :class top-down-img :id cirno
+[[./img/cirno.jpg]]
+
+#+BEGIN_EXPORT html
+<script>
+let cirno = document.getElementById("cirno")
+let flag = true;
+
+cirno.onclick = () => {
+    if (flag) {
+	cirno.src = "./img/cirno.gif"
+	flag = false
+    } else {
+	cirno.src = "./img/cirno.jpg"
+	flag = true
+    }
+}
+</script>
+#+END_EXPORT
+
+* Recent [[./posts/index.org][Posts]]
+- [2023-02-05 Sun]  [[file:posts/2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
+- [2023-01-30 Mon]  [[file:posts/2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
+- [2023-01-26 Thu]  [[file:posts/2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
+- [2023-01-22 Sun]  [[file:posts/2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
+- [2023-01-17 Tue]  [[file:posts/2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
+- [2023-01-15 Sun]  [[file:posts/2023-01-15-make-me-a-blog-from-htmll-to-blog/index.html][怎么弄个自己的 blog —— 从 HTML 到博客]]
+- [2023-01-12 Thu]  [[file:posts/2023-01-12-make-me-a-blog-wrong-way/index.org][怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏]]
+- [2022-12-19 Mon]  [[file:posts/2022-12-19-make-me-a-blog-install-database/index.org][怎么弄个自己的博客 —— 安装和使用数据库]]
+- [2022-12-15 Thu]  [[file:posts/2022-12-15-tr-why-lsp/index.org][【翻译】Why LSP?]]
+- [2022-12-11 Sun]  [[file:posts/2022-12-11-tr-introduction-to-databases/index.org][【翻译】Introduction to Databases]]

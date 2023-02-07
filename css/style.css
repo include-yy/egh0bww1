@@ -19,6 +19,7 @@ body {
     position: sticky;
     float: right;
     top: 0px;
+    flex-direction: row-reverse;
 }
 
 #home-and-up a {
@@ -310,6 +311,7 @@ footer {
 .timestamp{
     color:#bebebe;
     font-size:90%;
+    font-family: monospace;
 }
 
 p.verse{
