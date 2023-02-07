@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: 在 emacs 中使用模板之 skeleton tempo 和 autoinsert 的使用介绍
 #+DATE: [2022-02-02 Wed 15:54]
 

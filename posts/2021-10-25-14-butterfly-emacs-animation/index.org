@@ -16,7 +16,7 @@
 
 从 emacs-china 的[[https://emacs-china.org/t/real-programmers-use-butterfly/15599][这个帖子]]我了解到了 emacs 还提供了 butterfly 这个奇怪又有趣的命令，它是针对下面的 xkcd 漫画[fn::https://xkcd.com/378/]的：
 
-| [[./real_programmers.png]] |
+[[./real_programmers.png]]
 
 这里对图中的文字做一点简单的翻译：
 

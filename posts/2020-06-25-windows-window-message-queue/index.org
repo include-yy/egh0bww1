@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: windows
+#+FILETAGS: windows
 #+TITLE: Windows窗口与消息：消息与消息队列
 #+DATE: [2020-06-25 Thu]
 

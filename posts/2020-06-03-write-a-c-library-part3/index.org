@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: c
+#+FILETAGS: c
 #+TITLE: 写个C库-part3
 #+DATE: [2020-06-03 Wed]
 

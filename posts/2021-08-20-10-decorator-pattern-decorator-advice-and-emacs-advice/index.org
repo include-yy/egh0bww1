@@ -865,8 +865,6 @@ remove-function 的函数原型是 =(remove-function place function)= ，它将 
 
 我在下面的 advice-* 系列函数中会对上面的几个位置关键字进行演示。
 
-
-
 这里我们来看一看 depth 对 advice 的影响。对于 :before advice，在最外（depth 最小）意味着它会首先运行，在任何其他 advice 之前；在最里层（depth 最大）则意味着它在原函数执行前最后执行。类似地，对于 :after advice，在最里层意味着它在原函数执行后首先执行，在最外层意味着在它在所有 advice 执行后运行。对于 :override 最内层意味着它只会 override 原函数，在最外层意味着它会 override 所有里层的 :override advice。
 
 ** nadvice 的 advice 系列函数

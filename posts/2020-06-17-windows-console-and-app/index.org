@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: windows
+#+FILETAGS: windows
 #+TITLE: Windows的控制台和控制台应用
 #+DATE: [2020-06-17 Wed]
 

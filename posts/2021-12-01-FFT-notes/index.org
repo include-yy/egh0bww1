@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: math
+#+FILETAGS: math
 #+TITLE: FFT 小记
 #+DATE: [2021-11-30 Tue 13:36]
 

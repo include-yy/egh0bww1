@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: 我的从 0 开始的 emacs 配置
 #+DATE: [2021-03-21 Sun]
 

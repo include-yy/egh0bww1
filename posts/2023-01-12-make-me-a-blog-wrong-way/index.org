@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: blog
+#+FILETAGS: blog
 #+TITLE: 怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏
 #+DATE: [2023-01-12 Thu 22:57]
 

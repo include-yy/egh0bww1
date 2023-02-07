@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: c
+#+FILETAGS: c
 #+TITLE: C 的字符串有哪些问题
 #+DATE: [2021-01-25 Mon]
 

@@ -1,7 +1,7 @@
 #+SETUPFILE: ../../setup.org
+#+FILETAGS: blog
 #+TITLE: 怎么弄个自己的 blog
 #+DATE: [2022-10-10 Mon 23:55]
-#+TAGS: essay
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/83290347][file:0.jpg]]

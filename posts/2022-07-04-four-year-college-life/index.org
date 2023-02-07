@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: gossip
+#+FILETAGS: gossip
 #+TITLE: 我的大学四年的一个总结
 #+DATE: [2022-06-09 Thu 09:36]
 

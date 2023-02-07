@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: org-mode 导出宏：org-macro
 #+DATE: [2023-01-15 Sun 22:57]
 

@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs org-mode
+#+FILETAGS: emacs org_mode
 #+TITLE: ox-html 浅析与 ox-publish 使用介绍
 #+DATE: [2023-01-23 16:02]
 

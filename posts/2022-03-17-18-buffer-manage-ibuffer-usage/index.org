@@ -40,7 +40,7 @@
 
 通过调用 =C-x C-b= （ =list-buffer= ），emacs 会为我们弹出一个叫做 =*Buffer List*= 的 buffer 菜单，菜单中的每一行会显示各 buffer 的名字，大小和 major mode。下面是效果图：
 
-| [[./1.PNG]] |
+[[./1.PNG]]
 
 在这个 buffer 内，我们可以执行一些 buffer 的管理操作，我会在下一节进行简单的介绍。
 
@@ -86,7 +86,7 @@ emacs 中对这类操作的用词是 /kill buffers/ ，但直译为杀死 buffer
 
 还有一件事，如果不同目录下的文件有相同的名字，emacs 会采取一些办法来区分这两个 buffer。默认的办法是在 buffer 名字前面加上后缀，比如我在 foo 和 bar 目录下都有 index.txt 文件，那 emacs 会将它们显示为 =index.txt<foo>= 和 =index.txt<bar>= 。如果目录更加复杂，那么 emacs 也会使用更长的后缀以达到区分的效果。
 
-| [[./2.PNG]] |
+[[./2.PNG]]
 
 我们可以通过一些变量来控制 emacs 的同名 buffer 修饰规则。 =uniquify-buffer-name-style= 共有 5 个选项，它们对应的显示如下：
 
@@ -194,11 +194,11 @@ emacs 中对这类操作的用词是 /kill buffers/ ，但直译为杀死 buffer
 
 正如上面所说，相比于 =list-buffers= ， =bs-show= 提供了可自定义的一些选项，快捷键和 =buffer-menu= 有些区别（下面会提到）。它的配置主要通过 =bs-customize= 来进行。界面如下：（考虑到我也用不上这东西，这里我就简单讲讲了）
 
-| [[./3.PNG]] |
+[[./3.PNG]]
 
 它有一个控制外观的 subgroup =Bs Appearance= ：
 
-| [[./4.PNG]] |
+[[./4.PNG]]
 
 
 ** 打开 buffer
@@ -384,7 +384,7 @@ ibuffer 相当于 buffer-menu 的超级强化版，除了 buffer-menu 的一些�
 
 进行分组后，不同种类的 buffer 就在不同的组中了，具体效果差不多是这样。没有分组的 buffer 就位于 [default] 分组中：
 
-| [[./5.PNG]] |
+[[./5.PNG]]
 
 
 ** 对 buffer 进行排序

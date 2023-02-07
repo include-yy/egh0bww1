@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: 使用 org-mode 管理浏览器书签
 #+DATE: [2022-07-23 Sat 11:28]
 

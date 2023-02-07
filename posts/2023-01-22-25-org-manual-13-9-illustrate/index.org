@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: blog
+#+FILETAGS: emacs org_mode
 #+TITLE: The Org Manual 13.9 全解
 #+DATE: [2023-01-15 Sun 16:45]
 

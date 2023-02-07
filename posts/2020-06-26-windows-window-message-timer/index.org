@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: windows
+#+FILETAGS: windows
 #+TITLE: Windows窗口与消息：计时器
 #+DATE: [2020-06-26 Fri]
 

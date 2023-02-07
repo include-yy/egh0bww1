@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: 用 elisp 玩 brainfuck Ⅰ
 #+DATE: [2022-09-14 Wed 15:10]
 

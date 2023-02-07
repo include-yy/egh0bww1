@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: rescript
+#+FILETAGS: rescript
 #+TITLE: 用 ReScript 写个神经网络 hello world
 #+DATE: [2022-11-11 Fri 21:06]
 

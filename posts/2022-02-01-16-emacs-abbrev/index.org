@@ -1,5 +1,5 @@
 #+SETUPFILE: ../../setup.org
-#+TAGS: emacs
+#+FILETAGS: emacs
 #+TITLE: emacs 的 abbrev 使用介绍
 #+DATE: [2022-01-31 Mon 10:59]
 
