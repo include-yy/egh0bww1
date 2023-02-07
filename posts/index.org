@@ -31,7 +31,7 @@
 - [2023-01-26 Thu]  [[file:2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
 - [2023-01-22 Sun]  [[file:2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
 - [2023-01-17 Tue]  [[file:2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
-- [2023-01-15 Sun]  [[file:2023-01-15-make-me-a-blog-from-htmll-to-blog/index.html][怎么弄个自己的 blog —— 从 HTML 到博客]]
+- [2023-01-15 Sun]  [[file:2023-01-15-make-me-a-blog-from-html-to-blog/index.html][怎么弄个自己的 blog —— 从 HTML 到博客]]
 - [2023-01-12 Thu]  [[file:2023-01-12-make-me-a-blog-wrong-way/index.org][怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏]]
 - [2022-12-19 Mon]  [[file:2022-12-19-make-me-a-blog-install-database/index.org][怎么弄个自己的博客 —— 安装和使用数据库]]
 - [2022-12-15 Thu]  [[file:2022-12-15-tr-why-lsp/index.org][【翻译】Why LSP?]]

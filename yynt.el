@@ -43,7 +43,7 @@
 (t-setq org-publish-project-alist
 	`(("resources"
 	   :base-directory ,(expand-file-name "posts")
-	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|css\\|el\\|py\\|c"
+	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|css\\|el\\|py\\|c\\|ico\\|js"
 	   :publishing-directory ,(expand-file-name "blog-build/posts")
 	   :publishing-function org-publish-attachment
 	   :recursive t)
@@ -519,7 +519,7 @@ INFO is a plist holding contextual information.  See
 (defun t-sitemap-format (entry project)
   (let ((time (substring entry 0 10)))
     (if (string= (file-name-extension entry) "htm")
-	(let ((name (string-replace "htm" "html" entry))
+	(let ((name (string-replace ".htm" ".html" entry))
 	      (title (t-sitemap-find-html-title entry project)))
 	  (format "[%s] [[file:%s][%s]]"
 		  time name title))
