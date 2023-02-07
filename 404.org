@@ -1,0 +1,46 @@
+#+OPTIONS: toc:nil
+#+OPTIONS: ^:{}
+#+OPTIONS: num:nil
+
+# html5
+#+HTML_DOCTYPE: html5
+#+HTML_CONTAINER: section
+#+OPTIONS: html5-fancy:t
+#+OPTIONS: html-style:nil
+#+OPTIONS: html-preamble:nil
+#+OPTIONS: html-postamble:nil
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
+
+# ROBOTO
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+
+#+TITLE: 404
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/95304253][file:img/404.jpg]]
+
+还是看看远处的 Y combinator 吧家人们
+
+#+BEGIN_SRC scheme
+  (define (Y f)
+    ((lambda (x)
+       (lambda (n) ((f (x x)) n)))
+     (lambda (x)
+       (lambda (n) ((f (x x)) n)))))
+
+  (define (Y f)
+    ((lambda (u)
+       (u (lambda (x)
+	    (lambda (n) ((f (u x)) n)))))
+     (call/cc (call/cc (lambda (x) x)))))
+
+  (define (Y f)
+    ((lambda (u)
+       (u (lambda (x)
+	    (lambda (n) ((f (u x)) n)))))
+     (call/cc call/cc)))
+#+END_SRC
