@@ -10,8 +10,8 @@
 #+OPTIONS: html-preamble:nil
 #+OPTIONS: html-postamble:nil
 
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://egh0bww1.com/css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="https://egh0bww1.com/img/rin.ico">
 
 # ROBOTO
 #+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,7 @@
 #+TITLE: 404
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/95304253][file:img/404.jpg]]
+[[https://www.pixiv.net/artworks/95304253][https://egh0bww1.com/img/404.jpg]]
 
 还是看看远处的 Y combinator 吧家人们
 

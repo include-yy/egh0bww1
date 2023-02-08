@@ -1,6 +1,6 @@
 #+SETUPFILE: ../../setup.org
 #+FILETAGS: windows
-#+TITLE: Win32变成基础之控件
+#+TITLE: Win32编程基础之控件
 #+DATE: [2020-07-14 Tue]
 
 #+ATTR_HTML: :class top-down-img
