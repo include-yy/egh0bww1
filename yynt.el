@@ -43,7 +43,7 @@
 (t-setq org-publish-project-alist
 	`(("resources"
 	   :base-directory ,(expand-file-name "posts")
-	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|css\\|el\\|py\\|c\\|ico\\|js"
+	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|svg\\|css\\|el\\|py\\|c\\|ico\\|js"
 	   :publishing-directory ,(expand-file-name "blog-build/posts")
 	   :publishing-function org-publish-attachment
 	   :recursive t)
