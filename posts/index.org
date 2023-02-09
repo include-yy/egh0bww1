@@ -74,7 +74,7 @@
 - [2020-08-11 Tue]  [[file:2020-08-11-scheme-callcc/index.org][Scheme 的 call/cc]]
 - [2020-07-17 Fri]  [[file:2020-07-17-win32-basic-resource/index.org][Win32编程基础之资源]]
 - [2020-07-14 Tue]  [[file:2020-07-14-win32-basic-scroll-bar/index.org][Win32编程基础之滚动条]]
-- [2020-07-14 Tue]  [[file:2020-07-14-win32-basic-controls/index.org][Win32变成基础之控件]]
+- [2020-07-14 Tue]  [[file:2020-07-14-win32-basic-controls/index.org][Win32编程基础之控件]]
 - [2020-07-13 Mon]  [[file:2020-07-13-win32-basic-keyboard-input/index.org][Win32编程基础之键盘输入]]
 - [2020-07-11 Sat]  [[file:2020-07-11-win32-basic-mouse-input/index.org][Win32编程基础之鼠标输入]]
 - [2020-07-09 Thu]  [[file:2020-07-09-windows-window-message-hook/index.org][Windows窗口与消息：钩子]]
