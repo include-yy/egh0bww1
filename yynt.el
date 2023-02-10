@@ -564,7 +564,62 @@ INFO is a plist holding contextual information.  See
 	      (org-list-to-org
 	       (t-sitemap-files-to-lisp files project 't-home-sitemap-format))))))
 
+(defun t-|org-publish-get-project-from-filename (filename &optional up)
+  "Return a project that FILENAME belongs to.
+When UP is non-nil, return a meta-project (i.e., with a :components part)
+publishing FILENAME."
+  (let* ((filename (expand-file-name filename))
+	 (project
+	  (cl-some
+	   (lambda (p)
+	     ;; Ignore meta-projects.
+	     (unless (org-publish-property :components p)
+	       (let ((base (expand-file-name
+			    (org-publish-property :base-directory p))))
+		 (cond
+		  ;; Check if FILENAME is explicitly included in one
+		  ;; project.
+		  ((cl-some (lambda (f) (file-equal-p f filename))
+			    (mapcar (lambda (f) (expand-file-name f base))
+				    (org-publish-property :include p)))
+		   p)
+		  ;; Exclude file names matching :exclude property.
+		  ((let ((exclude-re (org-publish-property :exclude p)))
+		     (and exclude-re
+			  (string-match-p exclude-re
+					  (file-relative-name filename base))))
+		   nil)
+		  ;; Check :extension.  Handle special `any'
+		  ;; extension.
+		  ((let ((extension (org-publish-property :base-extension p)))
+		     (not (or (eq extension 'any)
+			      (string-match-p (or extension "org")
+					      (file-name-extension filename)))))
+		   nil)
+		  ;; Check if FILENAME belong to project's base
+		  ;; directory, or some of its sub-directories
+		  ;; if :recursive in non-nil.
+		  ((member filename (org-publish-get-base-files p)) p)
+		  (t nil)))))
+	   org-publish-project-alist)))
+    (cond
+     ((not project) nil)
+     ((not up) project)
+     ;; When optional argument UP is non-nil, return the top-most
+     ;; meta-project effectively publishing FILENAME.
+     (t
+      (letrec ((find-parent-project
+		(lambda (project)
+		  (or (cl-some
+		       (lambda (p)
+			 (and (member (car project)
+				      (org-publish-property :components p))
+			      (funcall find-parent-project p)))
+		       org-publish-project-alist)
+		      project))))
+	(funcall find-parent-project project))))))
 
+(t-adv org-publish-get-project-from-filename :override t-|org-publish-get-project-from-filename)
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (("t-" . "yynt-"))
