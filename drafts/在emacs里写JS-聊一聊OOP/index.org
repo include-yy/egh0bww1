@@ -1,8 +1,11 @@
 #+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs js
+
 #+TITLE: 在 emacs 里写 JS —— 对 JS 的简单介绍
-#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly90d2l0dGVyLmNvbS9DaWxvUmFua28vc3RhdHVzLzE0MDE3MDA0NDI2MTkzNTEwNDU=.jpg" alt="load failed"></div>@@
 #+DATE: [2022-10-19 Wed 15:28]
-#+TAGS: emacs js
+
+#+ATTR_HTML: :class top-down-img
+[[https://twitter.com/CiloRanko/status/1401700442619351045][file:0.jpg]]
 
 在简单介绍 JS 的 OOP 之前咱还是介绍下啥是 OOP 先，毕竟我没怎么写过面向对象的代码。你大可认为写这篇文章的时候我是个 OOP 白痴，然后跳过下一节中的大放厥词。我写这段的目的是给 *自己* 找一个说得过去的 OOP 认识。
 
@@ -12,7 +15,9 @@
 
 最后声明一下，由于个人原因，我对于 OO 的态度并不怎么正面，所以下面内容整体可能对 OO 呈负面态度，当然我会尽量保证引用内容的准确性并给出来源。如果文中内容令你不快，可跳至下一节或 =Alt+F4= 或右划，或者给出你的观点。
 
-** OOP 简史
+{{{toc}}}
+
+* OOP 简史
 
 OOP 的全称是 Object Oriented Programming，即面向对象编程，也叫物件导向程式设计，强调将程序看作不同对象的调用交互过程。按我的理解，将程序看作对象的交互就是要在对象与对象之间划分出边界来，让每个对象负责好它自己的那一部分，这有点像社会中的人，只负责自己的吃喝拉撒。所以 *封装* 就是 OOP 的一大特点，作为对象的你把握好三寄吧原则就好：你寄吧谁啊，我寄吧谁啊，他寄吧谁啊。既然有了边界，那么两对象之间也需要交流机制，通过某种标准的方式来进行交互，这在 OOP 中被称为 *消息* 。 *封装* 与 *消息* 就是我对 OOP 的认识了，至于封装继承多态抽象啥的去他的吧。就这么看的话，咱写 OOP 的代码并不需要一门声称支持 OOP 的语言，下面我们用闭包来捏个计数器对象玩玩：
 

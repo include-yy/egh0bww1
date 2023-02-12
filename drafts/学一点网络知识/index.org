@@ -1,9 +1,11 @@
 #+SETUPFILE: ../../setup.org
+#+FILETAGS: network
+
 #+TITLE: 学一点网络知识
-#+TITLE: @@html:<div class="yyheadimg"><img src="./aHR0cHM6Ly93d3cucGl4aXYubmV0L2FydHdvcmtzLzgyMDA2NzQ3.png" alt="load failed"></div>@@
 #+DATE: [2022-12-19 Mon 02:47]
-#+TAGS: blog
-#+OPTIONS: toc:3
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/82006747][file:0.png]]
 
 原本我准备在介绍完数据库后介绍 PHP，然后结束掉 LAMP 的搭建，但在此之前我们还是先学一些网络知识，不然 PHP 感觉没法讲了。我原本准备在介绍 HTTP 服务器时顺便说一下网络，试了一下发现内容太多了，正好都放在这篇文章里。就搭博客这个目的来说，我们只需要学习 HTTP 协议的简单知识即可，不需要关注应用层以下的东西，但光是会用又感觉对网络的认知很模糊，还是顺便介绍一下吧。
 
@@ -19,6 +21,8 @@
 - 《数据通信与网络 第四版》 —— Behrouz A. Forouzan, Sophia Chung Fegan
 
 需要引用书中内容时，我会分别将它们简称为：《自顶向下》，《谢希仁》，《杨风暴》，《第四版》。几乎所有的教材都采用了总分式结构，在开头的一章或两章介绍网络的总体结构，在后续章节中介绍网络中不同层的细节，本系列也采用这种结构。
+
+{{{toc}}}
 
 * 我们需要多少（网络）知识
 
