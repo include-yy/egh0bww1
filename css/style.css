@@ -434,3 +434,11 @@ kbd{
     background-color:#eee;
     line-height:1
 }
+
+aside {
+    border: 2px solid rgba(200,200,200,0.4);
+    border-radius: 5px;
+    padding: 1em;
+    margin-bottom: 3em;
+    color: rgba(0,0,0,0.4)
+}
