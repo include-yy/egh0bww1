@@ -604,10 +604,17 @@ P.S
 
 
 [fn:1] 《数学——确定性的丧失》
+
 [fn:2] 也有观点认为函数式编程语言之所以没有广泛流行起来是因为一些实际的商业因素
+
 [fn:3] Douglas R.Hofstadter 的著作《Godel, Escher, Bach: An Eternal Golden Braid》（《哥德尔、艾舍尔、巴赫——集异璧之大成》）就是围绕这一思想写出的一本奇书。非常建议一读
+
 [fn:4] 《数学——确定性的丧失》
+
 [fn:5] 虽然我觉得那个系徽做得太复杂，要表达这一简洁优美的思想其实还能有更好的方式
+
 [fn:6] 关于如何在 lambda calculus 系统里实现“+”操作符以及自然数等等，可参见[[https://blog.csdn.net/g9yuayon/article/details/759778][这里]]，[[https://blog.csdn.net/g9yuayon/article/details/790953][这里]]，和[[https://blog.csdn.net/g9yuayon/article/details/1062514][这里]]
+
 [fn:7] g9 的 blog（负暄琐话）http://blog.csdn.net/g9yuayon/ 上有一系列介绍 lambda calculus 的文章（当然，还有其它好文章:)），非常不错，强烈推荐。最近的两篇就是介绍 Y combinator 的。其中有一篇以 javaScript 语言描述了迭代式逐步抽象出 Y Combinator 的过程
+
 [fn:8] 实际上这只是第一不完备性定理，它还有一个推论，被称为第二不完备性定理，说的是任一个系统 T 内无法证明这个系统本身的一致性。这个定理的证明核心思想如下：我们前面证明第一不完备性定理的时候用的推断其实就表明 Con/T -> G(g) （自然语言描述就是，由系统 T 的无矛盾，可以推出 G(g) 成立），而这个“Con/T -> G(g)”本身又是可以在 T 内表达且证明出来的（具体怎么表达就不再多说了）——只需要用排中律即可。于是我们立即得到，T 里面无法推出 Con/T，因为一旦推出 Con/T 就立即推出 G(g) 从而推出 UnPr(G(g))，这就矛盾了。所以，Con/T 无法在 T 内推出（证明）
