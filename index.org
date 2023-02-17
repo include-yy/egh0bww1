@@ -41,6 +41,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * Recent [[./posts/index.org][Posts]]
+- [2023-02-17 Fri]  [[file:posts/2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
 - [2023-02-05 Sun]  [[file:posts/2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
 - [2023-01-30 Mon]  [[file:posts/2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
 - [2023-01-26 Thu]  [[file:posts/2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]

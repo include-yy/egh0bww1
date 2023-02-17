@@ -26,6 +26,7 @@
 [[https://www.pixiv.net/artworks/104647968][file:0.jpg]]
 
 * 目录
+- [2023-02-17 Fri]  [[file:2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
 - [2023-02-05 Sun]  [[file:2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
 - [2023-01-30 Mon]  [[file:2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
 - [2023-01-26 Thu]  [[file:2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
