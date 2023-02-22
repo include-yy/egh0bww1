@@ -1,0 +1,1123 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs 是如何启动的
+#+DATE: [2023-02-19 Sun 00:57]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/92158159][file:0.jpg]]
+
+原本我准备将这一部分内容放在一篇介绍 emacs 加载机制的文章中，但是写着写着发现这一部分的内容已经足够成为一篇文章了，故单独分出来，以“emacs 是如何启动的”作为题目。
+
+本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍。本文使用的环境如下：
+
+- emacs 28.2 source code
+- emacs 28.2 x86_64 on windows 11
+
+{{{toc}}}
+
+* emacs 的 main 函数
+
+基本上所有的 C 程序的入口点都是 main 函数，这也为我找到 emacs 的初始化步骤提供了思路。通过 =git grep "main ("= ，我们可以发现 emacs 的 main 函数位于 emacs.c 中，从 1188 行到 2360 行。这个函数这么长也是很正常的，毕竟要初始化的东西不会少。
+
+如果你打开了 emacs.c 并来到了 main 函数的定义处，你会发现这个函数的绝大部分工作都是在初始化一些东西，并在 main 函数结尾处进入 =Frecursive_edit= 的死循环：
+
+[[./1.png]]
+
+文档中说到 =normal-top-level= 是 emacs 启动时首先会被调用的函数，但是我在 emacs 源代码中使用 grep 查找这个函数没有找到任何调用，这让我一度非常疑惑。后来我在 main 函数中找到了对 =loadup.el= 的加载过程，它是先通过绑定到 =Vtop_level= 上，再使用 =top_level_1= 进行调用的（我省略了非常多的中间函数调用，你可以顺着 =recursive-edit= 一路找过来）
+
+#+BEGIN_SRC c :summary main 中对 Vtop_level 的处理，以及 top_level 初始化函数
+  // emacs.c line 2307
+  if (!initialized)
+  {
+      char *file;
+      /* Handle -l loadup, args passed by Makefile.  */
+      if (argmatch (argv, argc, "-l", "--load", 3, &file, &skip_args))
+      {
+  #ifdef WINDOWSNT
+	  char file_utf8[MAX_UTF8_PATH];
+
+	  if (filename_from_ansi (file, file_utf8) == 0)
+	  file = file_utf8;
+  #endif
+	  Vtop_level = list2 (Qload, build_unibyte_string (file));
+      }
+      /* Unless next switch is -nl, load "loadup.el" first thing.  */
+      if (! no_loadup)
+      Vtop_level = list2 (Qload, build_string ("loadup.el"));
+      ...;
+  }
+  // keyboard.c line 1139
+  static Lisp_Object
+  top_level_2 (void)
+  {
+    return Feval (Vtop_level, Qnil);
+  }
+
+  static Lisp_Object
+  top_level_1 (Lisp_Object ignore)
+  {
+    /* On entry to the outer level, run the startup file.  */
+    if (!NILP (Vtop_level))
+      internal_condition_case (top_level_2, Qerror, cmd_error);
+    else if (!NILP (Vpurify_flag))
+      message1 ("Bare impure Emacs (standard Lisp code not loaded)");
+    else
+      message1 ("Bare Emacs (standard Lisp code not loaded)");
+    return Qnil;
+  }
+#+END_SRC
+
+这个 =loadup.el= 并不一般，它里面包含了非常多的初始化表达式，其中就包括对 =startup.el= 的载入：
+
+#+BEGIN_SRC elisp
+  ;; loadup.el line 249
+  (let ((max-specpdl-size (max max-specpdl-size 1800)))
+    ;; A particularly demanding file to load; 1600 does not seem to be enough.
+    (load "emacs-lisp/cl-generic"))
+  (load "minibuffer") ;Needs cl-generic (and define-minor-mode).
+  (load "frame")
+  (load "startup")
+  ...
+#+END_SRC
+
+而 =startup.el= 的第一个表达式就是将 =top-level= 设置为 =(normal-top-level)= ，这也正是文档中说到的初始化函数。到了这里我还是很疑惑，因为如果我们将 =Vtop_level= （它对应于 elisp 中的 =top-level= ）设置为 =(load "loadup.el")= （这是对 emacs 指定 =-nl= 后的行为），那么我们调用 =Feval(Vtop_level, Qnil)= 时并不会执行 =(normal-top-level)= 。而且更令我感到疑惑的是，即使我在启动 emacs 的命令行参数中指定了 =-nl= （ =--no-loadup= ），我看到的 emacs 与没有指定参数的 emacs 没有什么区别。
+
+在我百思不得其解时，我注意到了上面截图中奇怪的缩进，凡是缩进了的代码几乎都位于一个 =if (!initialized)= 的条件语句中，如果 =initialized= 为真值，那么我指定 =-nl= 没反应就说得通了。按照这个思路我以 =emacs loadup= 作为关键字找到了一条有用的[[https://emacs.stackexchange.com/questions/16516/is-loadup-el-hard-coded-such-that-nl-aka-no-loadup-is-futile][链接]]，通过这里面的内容我发现 emacs 的安装过程比我想象的要复杂。
+
+简单来说，emacs 有一个叫做 dump 的功能，它可以将当前执行中的 emacs 中的一些内容存储下来，并在下一次 emacs 启动时直接使用，这样可以节省时间和保存一些默认的内容，安装完成后的 emacs 都应该有这样一个默认的 dump 文件。emacs 的启动并不是从零开始，而是从某个 dump 开始，这样一来 top-level 的值就是 =(normal-top-level)= ， =loadup.el= 应该类似于安装过程中的手脚架。在我的 emacs 中，这个 dump 文件位于 =libexec\emacs\28.2\x86_64-w64-mingw32= 中，名字叫 =emacs.pdmp= 。如果你对 emacs 的安装过程感兴趣，可以参考[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Building-Emacs.html][这里]]。
+
+我观察 emacs 初始化的本意还是找到 =load-path= 的初始化过程，所以这里就 =load-path= 的初始化做一些补充。你可能会好奇 =load-path= 的初始值是什么，答案就是 emacs 的 =lisp= 目录。 =load-path= 的初始化位于 =init_lread= 中，而 =init_lread= 又位于 =lread.c= 中。对于我们日常的启动（指非安装环境且不指定 =EMACSLOADPATH= 环境变量）， =init_lread= 会调用 =load_path_default= 来初始化 =Vload_path= ：
+
+#+BEGIN_SRC c
+  // lread.c line 5058
+  else
+  {
+      Vload_path = load_path_default ();
+
+      /* Check before adding site-lisp directories.
+	 The install should have created them, but they are not
+	 required, so no need to warn if they are absent.
+	 Or we might be running before installation.  */
+      load_path_check (Vload_path);
+
+      /* Add the site-lisp directories at the front.  */
+      if (!will_dump_p () && !no_site_lisp && PATH_SITELOADSEARCH[0] != '\0')
+      {
+	  Lisp_Object sitelisp;
+	  sitelisp = decode_env_path (0, PATH_SITELOADSEARCH, 0);
+	  if (! NILP (sitelisp)) Vload_path = nconc2 (sitelisp, Vload_path);
+      }
+  }
+#+END_SRC
+
+而 =load_path_default= 在日常使用中（指非安装环境）会调用 =lpath = decode_env_path (0, PATH_LOADSEARCH, 0);= 获取最初的路径，这个 =PATH_LOADSEARCH= 是在安装时指定的宏定义，指定了 =lisp= 目录的路径。这也就是说在 =noraml-top-level= 调用之前 =load-path= 的值就是指向 =lisp= 目录的路径。
+
+当然在上面的代码中我们也注意到除了 =load_path_default= 外下面还有添加 =sitelisp= 路径的条件语句，这个 =sitelisp= 是用于放置系统上所有用户可用的代码库的目录。 =PATH_SITELOADSEARCH= 也是编译时通过宏定义指定的字符串。如果我们没有指定 =-nsl= （ =--no-site-lisp= ），emacs 在载入时会将 =sitelisp= 目录添加到 =load-path= 中。
+
+以下是文档中对 =load-path= 的说明：
+
+#+BEGIN_QUOTE
+When Emacs starts up, it sets up the value of load-path in several steps.
+First, it initializes load-path using default locations set when Emacs was
+compiled. Normally, this is a directory something like
+
+"/usr/local/share/emacs/version/lisp"
+
+These directories contain the standard Lisp files that come with Emacs.
+If Emacs cannot find them, it will not start correctly.
+
+Unless you start Emacs with the --no-site-lisp option, it then adds two more
+site-lisp directories to the front of load-path. These are intended for locally
+installed Lisp files, and are normally of the form:
+
+"/usr/local/share/emacs/version/site-lisp"
+
+and
+
+"/usr/local/share/emacs/site-lisp"
+
+[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Library-Search.html][Library Search (GNU Emacs Lisp Reference Manual)]]
+#+END_QUOTE
+
+和我从代码中得到的结论对的上。（草，怎么一开始没有注意到文档呢）
+
+main 函数中对一些简单的命令行参数做了处理，不过大多数参数的处理还是在 =normal-top-level= 中完成的。下面，我们从 startup.el 中的 =normal-top-level= 函数开始，来详细地了解一下 emacs 是如何启动的。
+
+* emacs 的启动过程
+
+文档对 emacs 的启动过程有非常详细的描述，这里我对它做一点简单的翻译，并给出一些额外的说明。当 Emacs 启动时，它会执行以下操作：
+
+** 将子目录添加到 =load-path=
+
+emacs 将子目录添加到 =load-path= 中，这是通过运行运行 =load-path= 列表中各个目录中的名为 =subdirs.el= 中的文件来完成的。一般来说这个文件的作用就是将子目录添加到 =load-path= 中，这些子目录中的 =subdirs.el= 也会被扫描。一般 =subdirs.el= 会在 Emacs 安装时自动生成。
+
+实际上在这一步之前， =normal-top-level= 还会做一些和 native-comp 相关的初始化，由于重点不在这里我就直接跳过了，我们来看看实现读取 =subdirs.el= 的代码：
+
+#+BEGIN_SRC elisp
+  (let ((tail load-path)
+	(lispdir (expand-file-name "../lisp" data-directory))
+	dir)
+    (while tail
+      (setq dir (car tail))
+      (let ((default-directory dir))
+	(load (expand-file-name "subdirs.el") t t t))
+      ;; Do not scan standard directories that won't contain a leim-list.el.
+      ;; https://lists.gnu.org/r/emacs-devel/2009-10/msg00502.html
+      ;; (Except the preloaded one in lisp/leim.)
+      (or (string-prefix-p lispdir dir)
+	  (let ((default-directory dir))
+	    (load (expand-file-name "leim-list.el") t t t)))
+      ;; We don't use a dolist loop and we put this "setq-cdr" command at
+      ;; the end, because the subdirs.el files may add elements to the end
+      ;; of load-path and we want to take it into account.
+      (setq tail (cdr tail))))
+#+END_SRC
+
+可见 =normal-top-level= 会对 =load-path= 中的每一个目录读取其中的 =subdirs.el= 来达到获取子目录的目的，你可能会好奇 =subdirs.el= 是如何将子目录添加到 =load-path= 中的，我们可以参考一下 =lisp= 目录中的 =subdirs.el= 文件：
+
+#+BEGIN_SRC elisp
+;; In load-path, after this directory should come  -*- lexical-binding: t -*-
+;; certain of its subdirectories.  Here we specify them.
+(normal-top-level-add-to-load-path '("vc" "url" "textmodes" "progmodes" "play" "org" "nxml" "net" "mh-e" "mail" "leim" "language" "international" "image" "gnus" "eshell" "erc" "emulation" "emacs-lisp" "cedet" "calendar" "calc"  "obsolete"))
+;; Local Variables:
+;; version-control: never
+;; no-byte-compile: t
+;; no-update-autoloads: t
+;; End:
+#+END_SRC
+
+这个文件中调用了 =normal-top-level-add-to-load-path= ，通过将新添加的路径放在表的后面而不是前面， =normal-top-level-add-to-load-path= 配合 =normal-top-level= 实现了递归载入 =subdirs.el= ，读者有兴趣可以去 =startup.el= 里读一读这个函数的实现。
+
+这一节开头处代码的下半部分是 emacs 启动的第二步，即初始化 emacs 的输入法。根据文档描述，它会载入所有位于 =load-path= 目录中的 =leim-list.el= 文件。不过它会跳过包含 emacs 标准库的目录，而只使用我们自己创建的文件，这一点可以从 =or= 的使用中看出来。标准库中的 =leim-list.el= 已经编译到 emacs 里去了。
+
+** 初始化前时间点设定，编码设定和命令行解析
+
+这一小节的标题是文档描述 emacs 启动的三四五步。在第三步中，emacs 会将变量 =before-init-time= 设置为 =current-time= 函数的返回值。同时它也会将 =after-init-time= 设为 =nil= ，这向 Lisp 程序表示现在 emacs 正在初始化。这是 =command-line= 函数中首先执行的表达式， =normal-top-level= 在调用 =(command-line)= 时与上一节的代码之间有很长的关于编码处理的代码，文档中没有进行说明，这里我们也跳过：
+
+#+BEGIN_SRC elisp
+  ;; startup.el line 1060 func command-line
+  (setq before-init-time (current-time)
+	after-init-time nil
+	command-line-default-directory default-directory)
+#+END_SRC
+
+第四步是设置语言环境和终端的编码系统，它需要一些环境变量。不过根据源代码来看，这一步就是我们在第三步跳过的代码，它位于 =normal-top-level= 在调用 =command-line= 之前的位置，从 startup.el 的 608 行开始，到第 700 行左右结束。也许文档中的第三第四步应该换一下。
+
+第五步就是命令行参数的一些解析过程了，它位于 =command-line= 函数中。这一部分大概从 1134 行开始，我截取一些我比较感兴趣的部分：
+
+#+BEGIN_SRC elisp
+  (cond
+   ;; The --display arg is handled partly in C, partly in Lisp.
+   ;; When it shows up here, we just put it back to be handled
+   ;; by `command-line-1'.
+   ...
+   ((member argi '("-Q" "-quick"))
+    (setq init-file-user nil
+	  site-run-file nil
+	  inhibit-x-resources t)
+    ;; Stop it showing up in emacs -Q's customize-rogue.
+    (put 'site-run-file 'standard-value '(nil)))
+   ((member argi '("-q" "-no-init-file"))
+    (setq init-file-user nil))
+   ((equal argi "-no-site-file")
+    (setq site-run-file nil)
+    (put 'site-run-file 'standard-value '(nil)))
+   ((equal argi "-debug-init")
+    (setq init-file-debug t))
+   ...
+   ;; Push the popped arg back on the list of arguments.
+   (t
+    (push argi args)
+    (setq done t)))
+#+END_SRC
+
+接下来执行的是文档中的第 12 步，即对位于 =custom-delayed-init-variables= 中的变量进行重初始化。这样做的目的是将一些预加载的用户选项放到运行时再决定，而不是由构建时的值确定：
+
+#+BEGIN_SRC elisp
+  ;; Re-evaluate predefined variables whose initial value depends on
+  ;; the runtime context.
+  (when (listp custom-delayed-init-variables)
+    (mapc #'custom-reevaluate-setting
+	  ;; Initialize them in the same order they were loaded, in
+	  ;; case there are dependencies between them.
+	  (reverse custom-delayed-init-variables)))
+  (setq custom-delayed-init-variables t)
+#+END_SRC
+
+这样看来文档中的第 12 步应该在第 5 步的后面，也就是基础命令行参数解析的后面，文档可能有些过时。
+
+** 加载 early-init.el
+
+在基础的命令行参数被解析后，emacs 会尝试加载 =early-init.el= ，不过如果我们指定了 =-q=, =-Q= 或 =--batch= ，emasc 就不会加载它。如果我们指定了 =-u= ，emacs 会在用户目录查找这个文件。而不是 init 目录（也就是 .emacs.d）。
+
+#+BEGIN_SRC elisp
+  ;; Load the early init file, if found.
+  (startup--load-user-init-file
+   (lambda ()
+     (expand-file-name
+      ;; We use an explicit .el extension here to force
+      ;; startup--load-user-init-file to set user-init-file to "early-init.el",
+      ;; with the .el extension, if the file doesn't exist, not just
+      ;; "early-init" without an extension, as it does for ".emacs".
+      "early-init.el"
+      startup-init-directory)))
+  (setq early-init-file user-init-file)
+#+END_SRC
+
+从 =early-init.el= 这个名字我们就能看出这个文件中的内容加载的非常早，根据文档的描述，我们可以添加影响包初始化的代码，比如设置 =package-enable-at-startup=, =package-load-list= 等。文档不建议我们将一般的配置放到这个文件中，因为 =early-init.el= 的加载发生在 GUI 初始化之前，这样一来和 GUI 相关的设定可能不能很好的工作。一般的 init 文件会在 GUI 初始化后进行加载。
+
+如果我们想要在 =early-init.el= 中进行 GUI 相关设定，我们可以添加一些函数到 =window-setup-hook= 或 =tty-setup-hook= 中。
+
+** package 初始化
+
+在尝试载入 =early-init.el= 后，emacs 会对 package 进行初始化。 =command-line= 会调用 =package-activate-all= 来激活所有安装的 emacs lisp 包。不过当 =package-enable-at-startup= 为 =nil= 或使用了 =-q=, =-Q=, =--batch= 时 emacs 不会这样做，如果我们想要在这种情况下进行初始化，我们需要显式调用 =package-activate-all= 。以下是 package 初始化的代码：
+
+#+BEGIN_SRC elisp
+  ;; If any package directory exists, initialize the package system.
+  (and user-init-file
+       package-enable-at-startup
+       (not (bound-and-true-p package--activated))
+       (catch 'package-dir-found
+	 (let ((dirs (cons package-user-dir package-directory-list)))
+	   (dolist (dir dirs)
+	     (when (file-directory-p dir)
+	       (dolist (subdir (directory-files dir))
+		 (when (let ((subdir (expand-file-name subdir dir)))
+			 (and (file-directory-p subdir)
+			      (file-exists-p
+			       (expand-file-name
+				(package--description-file subdir)
+				subdir))))
+		   (throw 'package-dir-found t)))))))
+       (package-activate-all))
+#+END_SRC
+
+** 窗口系统（window system）初始化
+
+如果 emacs 没有以 batch 模式启动，那么 =command-line= 会根据 =initial-window-system= 变量的值对窗口系统进行初始化，对于不同的系统它可以是不同的值，比如我在 Windows 上就是 ='w32= 。负责执行初始化的函数 =window-system-ionitialization= 是个泛型函数（generic function），它在不同系统上的实现是不同的。如果 =initial-window-system= 的值是 /windowsystem/ ，那么它的实现就位于 =term/windowsystem-win.el= 。函数应该在 emacs 安装时就编译到了 emacs 可执行文件中。在我的 emacs 中我只找到了 =w32-win.el= 文件。
+
+在完成窗口系统的初始化后，emacs 会运行 =before-init-hook= ，下面应该就是初始化的正式开始了。
+
+#+BEGIN_SRC elisp
+  (run-hooks 'before-init-hook)
+#+END_SRC
+
+** 创建 graphical frame
+
+在条件合适的情况下（指非 batch 和非 daemon），emacs 会创建 frame（也就是窗口框），这是通过调用 =frame-initialize= 完成的：
+
+#+BEGIN_SRC elisp
+  ;; Under X, create the X frame and delete the terminal frame.
+  (unless (daemonp)
+    (if (or noninteractive emacs-basic-display)
+	(setq menu-bar-mode nil
+	      tab-bar-mode nil
+	      tool-bar-mode nil))
+    (frame-initialize))
+#+END_SRC
+
+=frame-initialzie= 函数调用了 =make-frame= ，而 =make-frame= 又会调用 =window-system-initialization= ，这是个实现依赖于系统的函数。
+
+下一步是对 frame 的 face 进行初始化，并在需要的情况下设置菜单栏和工具栏。如果 graphial frame 被支持，即使当前 frame 不是图形界面的，工具栏仍然会被设置，这是因为随后可能会创建 graphical frame：
+
+#+BEGIN_SRC elisp
+  (when (fboundp 'x-create-frame)
+    ;; Set up the tool-bar (even in tty frames, since Emacs might open a
+    ;; graphical frame later).
+    (unless noninteractive
+      (tool-bar-setup)))
+
+  (unless noninteractive
+    (startup--setup-quote-display)
+    (setq internal--text-quoting-flag t))
+
+  (normal-erase-is-backspace-setup-frame)
+
+  (or (eq initial-window-system 'pc)
+      (tty-register-default-colors))
+#+END_SRC
+
+** 加载 site-start
+
+这是在用户文件载入之前载入的文件，它的作用是对所有 site 相关的内容进行初始化。这是个与 emacs dump 相关的过程，读者感兴趣的话可以看看 startup.el 中它的注释。
+
+#+BEGIN_SRC elisp
+  (if site-run-file
+      ;; Sites should not disable the startup screen.
+      ;; Only individuals should disable the startup screen.
+      (let ((inhibit-startup-screen inhibit-startup-screen))
+	(load site-run-file t t)))
+#+END_SRC
+
+如果我们指定了 =-Q= 或 =--no-site-file= ， =site-start.el= 不会被加载。
+
+** 加载用户文件
+
+经过前面的一些初始化，我们总算是到了和用户关系最大的初始化步骤：加载用户的配置。如果我们指定了 =-Q=, =-q= 或 =--batch= ，emacs 不会加载用户配置。如果我们通过 =-u= 指定了用户，那么 emacs 会加载对应用户目录下的配置。
+
+以下是用户文件加载的实现代码，通过代码我们可以看到配置文件的顺序：
+
+#+BEGIN_SRC elisp
+    ;; Load that user's init file, or the default one, or none.
+    (startup--load-user-init-file
+     (lambda ()
+       (cond
+	((eq startup-init-directory xdg-dir) nil)
+        ((eq system-type 'ms-dos)
+         (concat "~" init-file-user "/_emacs"))
+        ((not (eq system-type 'windows-nt))
+         (concat "~" init-file-user "/.emacs"))
+        ;; Else deal with the Windows situation.
+        ((directory-files "~" nil "\\`\\.emacs\\(\\.elc?\\)?\\'")
+         ;; Prefer .emacs on Windows.
+         "~/.emacs")
+        ((directory-files "~" nil "\\`_emacs\\(\\.elc?\\)?\\'")
+         ;; Also support _emacs for compatibility, but warn about it.
+         (push `(initialization
+                 ,(format-message
+                   "`_emacs' init file is deprecated, please use `.emacs'"))
+               delayed-warnings-list)
+         "~/_emacs")
+        (t ;; But default to .emacs if _emacs does not exist.
+         "~/.emacs")))
+     (lambda ()
+       (expand-file-name
+        "init.el"
+        startup-init-directory))
+     t)
+#+END_SRC
+
+可见 =.emacs= 的优先级比 =.emacs.d/init.el= 要高。
+
+如果 =inhibit-default-init= 为空且 =startup--load-user-init-file= 的第三参数为 =t= ，emacs 会加载 =default.el= ，不过我们首先要有这个文件。它应该是保底的配置文件。
+
+在用户文件加载完毕后，emacs 会根据 =abbrev-file-name= 加载用户的 abbrev。如果指定了 =--batch= 则不会加载 =abbrev= 。
+
+#+BEGIN_SRC elisp
+  ;; If the user has a file of abbrevs, read it (unless -batch).
+  (when (and (not noninteractive)
+	     (file-exists-p abbrev-file-name)
+	     (file-readable-p abbrev-file-name))
+    (quietly-read-abbrev-file abbrev-file-name))
+
+  ;; If the abbrevs came entirely from the init file or the
+  ;; abbrevs file, they do not need saving.
+  (setq abbrevs-changed nil)
+#+END_SRC
+
+在加载 abbrev 后，emacs 还会处理一下邮箱地址和 face，这里我就不列出代码了，代码中的吐槽很有意思：
+
+#+BEGIN_SRC elisp
+  ;; Check that user-mail-address has not been set by hand.
+  ;; Yes, this is ugly, but slightly less so than leaving
+  ;; user-mail-address uninitialized during init file processing.
+  ;; Perhaps we should make :set-after do something like this?
+  ;; Ie, extend it to also mean (re)initialize-after.  See etc/TODO.
+#+END_SRC
+
+接下来， =after-init-time= 被设置为 =(current-time)= 的值，这也就表示初始化阶段的结束，通过与 =before-init-time= 配合我们可以知道用户文件的加载用了多少时间。
+
+#+BEGIN_SRC elisp
+  (setq after-init-time (current-time))
+  ;; Display any accumulated warnings after all functions in
+  ;; `after-init-hook' like `desktop-read' have finalized possible
+  ;; changes in the window configuration.
+  (run-hooks 'after-init-hook 'delayed-warnings-hook)
+#+END_SRC
+
+通过将 =before-init-time= 和 =after-init-time= 相减，我可以知道我的配置初始化用时：
+
+#+BEGIN_SRC elisp
+  (time-to-seconds
+   (time-subtract after-init-time before-init-time))
+  => 12.2837
+#+END_SRC
+
+对 =after-init-hook= 的执行也意味着初始化的结束。
+
+** 剩余命令行参数的处理
+
+在 =after-init-hook= 执行后，如果 =*scratch*= 依然存在且 major-mode 为 Fundamental mode，emacs 会根据 =initial-major-mode= 设置它的 major-mode：
+
+#+BEGIN_SRC elisp
+  ;; If *scratch* exists and init file didn't change its mode, initialize it.
+  (if (get-buffer "*scratch*")
+      (with-current-buffer "*scratch*"
+	(if (eq major-mode 'fundamental-mode)
+	    (funcall initial-major-mode))))
+#+END_SRC
+
+如果 emacs 是以文本终端形式启动的，那么 emacs 会加载终端相关的库，并执行 =tty-setup-hook= 。如果指定了 =--batch= 或 =term-file-prefix= 为 =nil= 则不会加载：
+
+#+BEGIN_SRC elisp
+  ;; Load library for our terminal type.
+  ;; User init file can set term-file-prefix to nil to prevent this.
+  (unless (or noninteractive
+	      initial-window-system
+	      (daemonp))
+    (tty-run-terminal-initialization (selected-frame) nil t))
+#+END_SRC
+
+接下来 emacs 会在 echo area（也就是 emacs 界面的最下面那一条）显示初始化消息，我们可以在配置中指定 =inhibit-startup-echo-area-message= 为非空值来关闭它。这个功能的实现者是 =display-startup-echo-area-message= 函数，它被 =command-line-1= 调用， =command-line-1= 的作用是处理上面没有处理的命令行参数。如果没有指明 =command-line-1= 的结束，下面的动作都是在 =command-line-1= 中完成的。
+
+在调用 =display-startup-echo-area-message= 后， =command-line-1= 开始了对未处理命令行参数的处理，大概从 2363 行到 2614 行。
+
+在处理完成后，如果 emacs 使用 =--batch= ，那么 emacs 会直接结束：
+
+#+BEGIN_SRC elisp
+  ;; In unusual circumstances, the execution of Lisp code due
+  ;; to command-line options can cause the last visible frame
+  ;; to be deleted.  In this case, kill emacs to avoid an
+  ;; abort later.
+  (unless (frame-live-p (selected-frame)) (kill-emacs nil)))))))
+#+END_SRC
+
+接下来是非 batch mode 的情况，也就是继续运行。如果 =initial-buffer-choice= 为 t， =command-line-1= 会确保 =*scratch*= 的存在：
+
+#+BEGIN_SRC elisp
+  (when (eq initial-buffer-choice t)
+    ;; When `initial-buffer-choice' equals t make sure that *scratch*
+    ;; exists.
+    (startup--get-buffer-create-scratch))
+#+END_SRC
+
+如果 =*scratch*= 没有内容， =command-line-1= 会使用 =(substitute-command-keys initial-scratch-message)= 插入一些内容：
+
+#+BEGIN_SRC elisp
+  ;; If *scratch* exists and is empty, insert initial-scratch-message.
+  ;; Do this before switching to *scratch* below to handle bug#9605.
+  (and initial-scratch-message
+       (get-buffer "*scratch*")
+       (with-current-buffer "*scratch*"
+	 (when (zerop (buffer-size))
+	   (insert (substitute-command-keys initial-scratch-message))
+	   (set-buffer-modified-p nil))))
+#+END_SRC
+
+接下来是对 =initial-buffer-choice= 的处理，它的具体用处可以参考 =startup.el= 中的注释。如果它是个字符串，emacs 会访问该字符串对应的文件或者目录；如果它是个函数，emacs 会调用该函数并选中它返回的 buffer。
+
+接着， =command-line-1= 会在满足情况的条件下执行 =emacs-startup-hook= ，接着执行 =frame-notice-user-settings= ，然后执行 =window-setup-hook= 。最后， =command-line-1= 会调用 =display-startup-screen= 显示欢迎界面，不过这需要 =inhibit-startup-screen= 和 =initial-buffer-choice= 均为空值。
+
+在完成上面这些动作后，我们回到了 =command-line= 。
+
+** 最后的处理
+
+如果 =load-path= 包含 =.emacs.d= 的话，emacs 会提出警告，具体原因可以参考 startup.el 中的注释，具体位置是 1470 行，和 gnus 有关。
+
+如果使用了 daemon，那么 =command-line= 会调用 =(server-start)= 来启动 emacs server。接着，如果我们使用了 X window System， =command-line= 还会调用 =emacs-session-restore= 。这在 windows 不会执行。接着 =command-line= 结束执行，我们回到了 =normal-top-level= 。
+
+=normal-top-level= 会进行一些兜底工作，如果在 =command-line-1= 中没有执行 =emacs-setup-hook= 和 =window-setup-hook= 的话，它们会在 =normal-top-level= 中被处理。
+
+以上，我们就完成了对 emacs 启动过程的简单介绍，这个过程可能会随着 emacs 的不断变化而变化，所以如果出现了新版本的 emacs，请参考最新的代码和文档进行了解。我这里介绍的顺序与 emacs 28.2 的文档不一定能对的上，不过和源代码是匹配的。下面如果我提到了 emacs 初始化的步骤，那还是参考文档中的步骤。
+
+我们用一张图总结一下 emacs 在 batch mode 和正常模式中的启动步骤吧：
+
+[[./2.png]]
+
+当然图中省略了一些步骤，不过主要的步骤我都列出来了。
+
+* emacs 的命令行参数
+
+既然都介绍了 emacs 的启动过程了，不如顺带了解一下各命令行参数的具体作用。通过 =emacs --help= 我们可以获得 emacs 的一些命令行参数：
+
+#+BEGIN_SRC text :summary emacs --help
+emacs --help
+
+Usage: emacs [OPTION-OR-FILENAME]...
+
+Run Emacs, the extensible, customizable, self-documenting real-time
+display editor.  The recommended way to start Emacs for normal editing
+is with no options at all.
+
+Run M-x info RET m emacs RET m emacs invocation RET inside Emacs to
+read the main documentation for these command-line arguments.
+
+Initialization options:
+
+--batch                     do not do interactive display; implies -q
+--chdir DIR                 change to directory DIR
+--daemon, --bg-daemon[=NAME] start a (named) server in the background
+--fg-daemon[=NAME]          start a (named) server in the foreground
+--debug-init                enable Emacs Lisp debugger for init file
+--display, -d DISPLAY       use X server DISPLAY
+--module-assertions         assert behavior of dynamic modules
+--dump-file FILE            read dumped state from FILE
+--no-build-details          do not add build details such as time stamps
+--no-desktop                do not load a saved desktop
+--no-init-file, -q          load neither ~/.emacs nor default.el
+--no-loadup, -nl            do not load loadup.el into bare Emacs
+--no-site-file              do not load site-start.el
+--no-x-resources            do not load X resources
+--no-site-lisp, -nsl        do not add site-lisp directories to load-path
+--no-splash                 do not display a splash screen on startup
+--no-window-system, -nw     do not communicate with X, ignoring $DISPLAY
+--quick, -Q                 equivalent to:
+                              -q --no-site-file --no-site-lisp --no-splash
+                              --no-x-resources
+--script FILE               run FILE as an Emacs Lisp script
+--terminal, -t DEVICE       use DEVICE for terminal I/O
+--user, -u USER             load ~USER/.emacs instead of your own
+
+Action options:
+
+FILE                    visit FILE
++LINE                   go to line LINE in next FILE
++LINE:COLUMN            go to line LINE, column COLUMN, in next FILE
+--directory, -L DIR     prepend DIR to load-path (with :DIR, append DIR)
+--eval EXPR             evaluate Emacs Lisp expression EXPR
+--execute EXPR          evaluate Emacs Lisp expression EXPR
+--file FILE             visit FILE
+--find-file FILE        visit FILE
+--funcall, -f FUNC      call Emacs Lisp function FUNC with no arguments
+--insert FILE           insert contents of FILE into current buffer
+--kill                  exit without asking for confirmation
+--load, -l FILE         load Emacs Lisp FILE using the load function
+--visit FILE            visit FILE
+
+Display options:
+
+--background-color, -bg COLOR   window background color
+--basic-display, -D             disable many display features;
+                                  used for debugging Emacs
+--border-color, -bd COLOR       main border color
+--border-width, -bw WIDTH       width of main border
+--color, --color=MODE           override color mode for character terminals;
+                                  MODE defaults to `auto', and
+                                  can also be `never', `always',
+                                  or a mode name like `ansi8'
+--cursor-color, -cr COLOR       color of the Emacs cursor indicating point
+--font, -fn FONT                default font; must be fixed-width
+--foreground-color, -fg COLOR   window foreground color
+--fullheight, -fh               make the first frame high as the screen
+--fullscreen, -fs               make the first frame fullscreen
+--fullwidth, -fw                make the first frame wide as the screen
+--maximized, -mm                make the first frame maximized
+--geometry, -g GEOMETRY         window geometry
+--no-bitmap-icon, -nbi          do not use picture of gnu for Emacs icon
+--iconic                        start Emacs in iconified state
+--internal-border, -ib WIDTH    width between text and main border
+--line-spacing, -lsp PIXELS     additional space to put between lines
+--mouse-color, -ms COLOR        mouse cursor color in Emacs window
+--name NAME                     title for initial Emacs frame
+--no-blinking-cursor, -nbc      disable blinking cursor
+--reverse-video, -r, -rv        switch foreground and background
+--title, -T TITLE               title for initial Emacs frame
+--vertical-scroll-bars, -vb     enable vertical scroll bars
+--xrm XRESOURCES                set additional X resources
+--parent-id XID                 set parent window
+--help                          display this help and exit
+--version                       output version information and exit
+
+You can generally also specify long option names with a single -; for
+example, -batch as well as --batch.  You can use any unambiguous
+abbreviation for a --option.
+
+Various environment variables and window system resources also affect
+the operation of Emacs.  See the main documentation.
+
+Report bugs to bug-gnu-emacs@gnu.org.  First, please see the Bugs
+section of the Emacs manual or the file BUGS.
+#+END_SRC
+
+下面我们一条一条的介绍，这里我主要参考了 Emacs Manual 的 Appendix C。
+
+需要说明的是，emacs 在处理命令行参数时会对它们进行排序，这样可以保证不出现一些奇怪的效果。假如我们按原顺序的话，如果在最前面指定了 =--kill= ，那么 emacs 什么都不做就退出了。我们可以在 =emacs.c= 中找到参数顺序表，它的名字是 =standard_args= 。这个结构数组中的优先级数值越高说明优先级越高。我会在下面引用一些优先级相关信息。
+
+** 初始化参数
+
+初始化参数的优先级都很高。
+
+- =--batch= ，不显示交互界面，同时也包含 =-q= ，即不载入用户文件
+
+  如果我们只是带上 =--batch= 参数，那么执行 =emacs --batch= 等于什么也不做，只是把 emacs 启动了一下：
+
+  #+BEGIN_SRC text
+    emacs --batch
+    => nothing
+  #+END_SRC
+
+  一般来说， =--batch= 与 =-l=, =-f= 或 =--eval= 联用，用来从 shell 或 makefile 执行一些 elisp 程序。在 batch 模式下，emacs 不会显示被编辑的文本，输出到 echo area 的函数现在会输出到标准输出（stdout）或标准错误（stderr）。比如 =prin1=, =print= 会输出到 stdout，而 =message= 和 =error= 会输出到 stderr。从 minibuffer 接受输入的函数现在从终端的标准输入流（stdin）接受输入。
+
+  在处理完所有的命令行参数后，emacs 会立刻终止运行。batch 模式下的运行错误会被打印，我们可以设置 =backtrace-on-error-noninteractive= 为 =nil= 来关闭这个行为。
+
+  =--batch= 的优先级很高，它的优先值为 100。
+
+- =--chdir DIR= ，切换目录至 =DIR=
+
+  #+BEGIN_SRC text
+    emacs --batch --chdir "C:" --eval "(pwd)"
+    =>
+    Directory c:/
+  #+END_SRC
+
+  这个参数在 main 函数中被处理，至于它的作用，文档是这样说的：
+
+  #+BEGIN_QUOTE
+  Change to directory before doing anything else. This is mainly used by session management
+  in X so that Emacs starts in the same directory as it stopped. This makes desktop saving
+  and restoring easier.
+
+  [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Initial-Options.html][Initial Options (GNU Emacs Manual)]]
+  #+END_QUOTE
+
+  优先值为 130。
+
+- =--daemon= ，将 emacs 作为守护进程（daemon）启动，其余选项还有 =--daemon[=name]=, =--bg-daemon[=name]= 和 =--fg-daemon[=name]=
+
+  若指定该选项，在 emacs 启动后会开启 emacs server 且不打开 frame。随后用户可以通过 =emacsclient= 来连接到 emacs 并进行编辑操作。如果我们为 =--daemon= 指定了名字的话，在调用 =emacsclient= 时我们需要通过 =--socket-name= 指定我们想要连接的 daemon。 =--bg-daemon= （也就是 =--daemon= ）和 =--fg-daemon= 的区别是前者会断开与终端的联系并在后台执行，后者占据终端。
+
+  我会在后面的章节详细介绍 daemon 和 emacs server。
+
+  优先值为 99。
+
+- =--debug-init= ，对用户的 init 文件开启 debugger
+
+  这对于寻找配置中的 bug 很有用，debugger 会显示详细的调用信息和错误信息
+
+- =--display, -d DISPLAY= ，使用 X server =DISPLAY= ，对 Windows 来说没什么用
+
+  具体用法可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Display-X.html][Display X]]。
+
+- =--module-assertions= ，开启动态模块检查
+
+  文档中对这个选项的描述是：在处理动态加载模块时开启昂贵的正确性检查，这一般用于模块作者想要验证模块达到了 API 的要求。如果我们指定了这个选项，emacs 会在模块相关的断言被触发时 abort。
+
+  和 =--chdir= 类似，这个选项也是在 main 中被处理了，它会通过 =init_module_assertions= 被处理。
+
+- =--dump-file FILE= ，加载 dump 文件 =FILE=
+
+  默认情况下，安装好的 emacs 从它的目录中读取名为 =emacs.pdmp= 的 dump 文件；变量 =exe-directory= 的值是这个文件的路径。如果我们将这个文件改名或移到了其他地方，我们可以通过指定这个选项加载它。
+
+  同样由 main 函数处理。若指定了这个选项，那么 =Vsystem_name= 会初始化为 =Qnil= 。
+
+- =--no-build-details= ，忽略 emacs 可执行文件中的构建细节，如系统名和构建时间
+
+  这不是一般使用中会用到的选项，它会让一些命令，比如 =system-name= ，返回 nil。这个选项在 main 函数中被处理。
+
+- =--no-desktop= ，不加载保存的桌面
+
+- =--no-init-file, -q= ，不加载 =~/.emacs= 或 =default.el=
+
+- =--no-loadup, -nl= ，不对裸 emacs 加载 =loadup.el=
+
+- =--no-site-file= ，不加载 =site-start.el=
+
+- =--no-x-resources= ，不加载 X 资源
+
+  文档中说我们可以在用户配置中指定 =inhibit-x-resources= 来达到相同的效果。
+
+  需要注意的是，这里的 X 资源在不同系统上有不同对应物，Linux 上是 X resource，Windows 上是注册表，而 NS 上是 NS defaults。
+
+- =--no-site-lisp= ，不添加 site-lisp 目录到 =load-path= 中
+
+- =--no-splash= ，启动时不显示默认的 startup 界面
+
+  文档中说我们可以设置 =inhibit-startup-screen= 为非空值来达到相同的效果。
+
+- =--no-window-system= ，不使用窗口系统，也就是命令行启动
+
+- =--quick, -Q= ，等于 =-q --no-site-file --no-site-lisp --no-splash --no-x-resources=
+
+- =--script FILE= ，将 =FILE= 作为 elisp 脚本执行，使用 batch 模式运行 emacs
+
+- =--terminal, -t DEVICE= ，使用 =DEVICE= 作为终端的 I/O，这个选项也意味着 =--no-window-system=
+
+- =--user, -u USER= ，加载 =~USER/.emacs= 而不是当前用户的文件
+
+  这个选项在 Windows 上没有效果。
+
+** 动作参数
+
+动作参数的优先级都很低，它们的优先值差不多都是 0，这也就意味着在参数排序过程中它们的相对位置是不会发生变化的。
+
+- =FILE= ，访问文件
+
+  我们可以在 =FILE= 的前面加上 =+LINE= 或 =+LINE:COLUMN= 来精准定位到行和列。
+
+- =--directory, -L DIR= ，将 =DIR= 添加到 =load-path= 最前面
+
+  如果我们使用了多个 =-L= 选项，那么 emacs 会保持这些路径在命令行中的相对位置，比如 =-L /foo -L /bar= 最后得到 =("/foo" "/bar")= 的 =load-path= 。如果 =DIR= 使用 =:= 开头，那么 emacs 会移除 =:= 并将路径 append 到 =load-path= 尾部。在 Windows 上需要使用 =;= （也就是 =path-parameter= ）而不是 =:= 。
+
+  根据上一节的图， =-L= 的处理位于用户文件之后。在“处理剩余命令行参数”的方框中。
+
+  和 =-l= 一个优先级。我们可以在 =-l= 之前指定 =-L= 来为 =-l= 提供 =load-path= 。
+
+- =--eval EXPR= ，对 elisp 表达式 EXPR 求值
+
+- =--execute= ，同 =--eval=
+
+- =--file FILE= ，访问文件 =FILE=
+
+- =--find-file FILE= ，同 =--file=
+
+- =--funcall, -f FUNC= ，无参调用函数 =FUNC=
+
+  如果 =FUNC= 是一个命令的话（指 =interactive= function），它会通过 =interactive= 获得参数（也就是通过 =command-execute= 进行调用）：
+
+  #+BEGIN_SRC elisp
+    ((member argi '("-f"	; what the manual claims
+		    "-funcall"
+		    "-e"))  ; what the source used to say
+     (setq inhibit-startup-screen t)
+     (setq tem (intern (or argval (pop command-line-args-left))))
+     (if (commandp tem)
+	 (command-execute tem)
+       (funcall tem)))
+  #+END_SRC
+
+- =--insert FILE= ，将 =FILE= 中的内容插入到当前 buffer
+
+  通常是插入到 =*scratch*= buffer 中，不过如果在该选项之前的参数指定了访问的文件，或者进行了 buffer 切换，那可能会插入到另一 buffer。这个选项的效果和 =M-x insert-file= 一致。
+
+  #+BEGIN_SRC elisp
+    ((equal argi "-insert")
+     (setq inhibit-startup-screen t)
+     (setq tem (or argval (pop command-line-args-left)))
+     (or (stringp tem)
+	 (error "File name omitted from `-insert' option"))
+     (insert-file-contents (command-line-normalize-file-name tem)))
+  #+END_SRC
+
+- =--kill= ，在不询问的情况下退出 emacs
+
+  在执行完一些命令后，如果指定了该选项，那么 emacs 会立即停止运行。
+
+  优先级极低，是最后一个执行的命令行参数，优先值为 -10。
+
+- =--load, -l FILE= ，使用 =load= 加载 elisp 文件
+
+  如果 =FILE= 不是绝对路径，emacs 首先会在当前目录下寻找，接着在 =load-path= 中寻找。
+
+  我们在 main 函数中也可以看到对 =--load= 的处理，不过那应该是安装阶段，对于我们正常使用来说，load 是在 =normal-top-level= 调用过程中被处理的：（实际上是在 =command-line-1= 中）
+
+  #+BEGIN_SRC elisp
+    ((member argi '("-l" "-load"))
+     (let* ((file (command-line-normalize-file-name
+		   (or argval (pop command-line-args-left))))
+	    ;; Take file from default dir if it exists there;
+	    ;; otherwise let `load' search for it.
+	    (file-ex (file-truename (expand-file-name file))))
+       (when (file-regular-p file-ex)
+	 (setq file file-ex))
+       (load file nil t)))
+  #+END_SRC
+
+  =-l= 的处理位于 =-L= 之后，这也意味着我们可以通过 =-L= 指定我们想 =-l= 的文件的 =load-path= 。
+
+- =--visit FILE= ，同 =--file=
+
+** 显示参数
+
+这一组的优先级比较低，优先值大多为 10。
+
+- =--background-color, -bg COLOR= ，指定窗口的背景色
+
+  纯色有点刺眼... =emasc -bg red -Q= 或 =emacs -bg #FF0000 -Q= 看上去很丑，用 =#D8E7F5= 试试：
+
+  | [[./3.png]] | [[./4.png]] |
+
+  在 emacs 中有很多的命名颜色，可以通过 =list-colors-display= 进行观察：
+
+  [[./5.png]]
+
+  需要说明的是，这个参数会只会覆盖默认的 face，如果用户指定了主题，那么这个选项不会对最终初始化产生影响。
+
+- =--basic-display, -D= ，禁用很多显示特性，一般用于调试
+
+  这个选项会禁用菜单栏，工具栏和滚动条，关闭 =font-lock-mode= 和光标闪烁。
+
+- =--border-color, -bd COLOR= ，边框的颜色
+
+- =--border-width, -bw WIDTH= ，边框的宽度
+
+  在 win11 上， =-bd= 和 =-bw= 似乎没有作用。
+
+- =--color, --color=MODE= ，覆盖字符终端的颜色模式，默认值为 =auto= ，它可以是 =never=, =always= 或 mode 名
+
+  由于我不常在终端中使用 emacs，这里就没有测试这个选项。
+
+- =--cursor-color, -cr color= ，emacs 光标的颜色
+
+  黄色的光标： =emacs -cr yellow -Q=
+
+  [[./7.png]]
+
+- =--font, -fn FONT= ，指定默认字体，必须是等宽字体
+
+- =--foreground-color, -fg COLOR= 前景颜色
+
+  看看纯白色的字： =emacs -fg white -Q=
+
+  [[./6.png]]
+
+- =--fullheight, -fh= ，让第一个 frame 和屏幕一样高
+
+- =--fullscreen, -fs= ，让第一个 frame 全屏
+
+- =--fullwidth, -fw= ，让第一个 frame 全宽
+
+- =--maximized, -mm= ，让第一个 frame 最大化
+
+- =--geometry, -g GEOMERTY= ，指定窗口的几何参数，也就是宽度高度和位置信息
+
+  参考文档，这个选项的用法为 =-g widthxheight[{+-}xoffset{+-}yoffset]]= ，我们使用 =-g 40x20= 尝试一下：
+
+  [[./9.png]]
+
+  需要注意的是，这里的长度单位是字符的宽度和高度，我大概也明白为什么 font 只能指定等宽字体了。
+
+  offset 是相对于 screen 左上的偏移量，这里我就不展示了（还得截桌面）。如果我们不指定 offset，窗口会在一般窗口的初始化位置显示。这个选项的具体用法可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Window-Size-X.html][Window Size X]]。
+
+- =--no-bitmap-icon, -nbi= ，禁用 emacs icon
+
+  win11 上似乎没有什么用。
+
+- =--iconic= ，在 iconified 状态下启动 emacs
+
+  以这种方式启动 emacs 时，在 Win11 中 emacs 并不显示 frame，需要我们先最大化任务栏的 emacs 图标才行。
+
+- =--internal-border, -ib WIDTH= ，内边框宽度
+
+  内边框是 frame 到 text area 的距离，比如 =emacs -ib 200 -Q= ：
+
+  [[./10.png]]
+
+- =--line-spacing, -lsp PIXELS= ，指定额外行间距，以像素为单位
+
+  =emasc -lsp 200 -Q=
+
+  [[./12.png]]
+
+  你没看错，黑色的是光标。
+
+- =mouse-color, -ms COLOR= ，指定 emacs 窗口中的鼠标颜色
+
+  经过尝试，在 Win11 上这个选项似乎没有效果。
+
+- =--name= ，emacs 初始 frame 的标题
+
+  =emacs --name Hello_world=
+
+  [[./11.png]]
+
+- =--no-blinking-cursor, -nbc= ，禁用光标闪烁
+
+- =--reverse-video, -r, -rv= ，交换前景和背景色
+
+  效果很怪异... =emacs -r -Q= 也许可以作为简单的暗色模式：
+
+  [[./8.png]]
+
+- =--title, -T TITLE= ，同 =--name= ，但是对所有 frame 都适用，而不止是初始 frame
+
+- =--vertical-scroll-bars, -vb= ，启用垂直滚动条
+
+- =--xrm XRESOUCES= ，添加额外的 X 资源
+
+- =--parent-id XID= ，指定父窗口 id
+
+  文档中说是给开发者用的。
+
+- =--help= ，显示帮助信息并直接退出 emacs
+
+- =--version= ，打印 emacs 版本信息并退出
+
+** 用户自定义命令行参数
+
+我最初了解到可以自定义命令行参数还是在 [[https://github.com/plexus/chemacs][chemacs]] 这个插件中，当然随着 emacs 的版本变化现在也出现了 [[https://github.com/plexus/chemacs2][chemacs2]]。这个插件的作用是让用户能够方便地切换不同的配置。这里我们首先介绍一下 emacs 是如何处理用户命令行参数的，然后在之后的小节中简单介绍一下 chemacs 和 chemacs2 的实现，来作为使用例。
+
+我没有找到用户自定义参数的优先级，不过既然 emacs.c 中的 =sort_args= 中没有强调这一点，那它的值应该默认为 0 了。
+
+我们可以通过 =command-switch-alist= 来定义命令行选项，以及该选项对应的处理函数。默认情况下它是空的，但是我们可以添加我们想要的元素。 =command-switch-alist= 中的元素格式为 =(option . handler-function)= ，其中 =option= 是选项名， =handler-function= 是对应的处理函数，它接受一个参数，参数值是选项名字符串。
+
+如果我们要指定 =option= ，那么我们应该在名字前面加上 =-= 再放入 =command-switch-alist= 中， =command-line-1= 随后会为我们再加上一个 =-= 来得到选项的长形式：
+
+#+BEGIN_SRC elisp
+  ;; This includes our standard options' long versions
+  ;; and long versions of what's on command-switch-alist.
+  (longopts
+   (append '("--funcall" "--load" "--insert" "--kill"
+	     "--directory" "--eval" "--execute" "--no-splash"
+	     "--find-file" "--visit" "--file" "--no-desktop")
+	   (mapcar (lambda (elt) (concat "-" (car elt)))
+		   command-switch-alist)))
+#+END_SRC
+
+我们可以通过 =early-init.el=, =.emacs= 或 =init.el= 中的代码来初始化 =command-switch-alist= 。使用如下代码：
+
+#+BEGIN_SRC elisp
+(setq command-switch-alist
+      '(("-yy" . (lambda (name)
+		   (let ((num (string-to-number (car command-line-args-left))))
+		     (setq yy-num (+ num 1)))))))
+#+END_SRC
+
+当我在启动 emacs 并指定 =-yy 10= 或 =--yy 10= 时，当 emacs 启动完成后，我可以找到一个叫做 =yy-num= 的变量，它的值为 11。这里的 =(car command-line-args-left)= 作用是提取这个选项的参数字符串，之所以要这样做是因为：
+
+#+BEGIN_SRC elisp
+  ((setq tem (assoc argi command-switch-alist))
+		       (if argval
+			   (let ((command-line-args-left
+				  (cons argval command-line-args-left)))
+			     (funcall (cdr tem) argi))
+			 (funcall (cdr tem) argi)))
+#+END_SRC
+
+可见在调用某个 =command-switch-alist= 时， =command-line-args-left= 的 car 就是参数字符串。
+
+文档中说通过 =command-switch-alist= 指定的选项不能使用 =--name=value= 形式的参数，如果我们在命令行中指定了这样的参数，那除非 =command-switch-alist= 中有 =-name=value= 的选项，否则不会匹配。如果我们想要使用 === ，我们需要使用 =command-line-functions= 这个钩子。
+
+文档是这样说的，但是我发现这样是可以的，对于上面的那个 =-yy= 选项，如果你使用了 =--yy=10= 也是可行的。也许文档过时了。
+
+=command-line-functions= 是命令行参数处理的最后一步，也就是兜底的。当无法识别命令行选项时，这个钩子中的函数就会被顺序调用，直到某个函数返回非 =nil= 值为止。钩子函数没有参数，它们通过 =argi= 获取命令行选项，通过 =command-line-args-left= 获取选项对应参数。如果某个钩子函数处理了 =argi= ，那么它应该返回非空值说明这个参数被处理了。如果它还处理了其他的命令行参数，它可以将它们从 =command-line-args-left= 中删除。
+
+如果所有的钩子函数都返回 =nil= ，那么命令行参数会被视为要访问的文件，比如 =emasc 1.c= 会访问 =1.c= 。
+
+同样，这里的文档我也感觉过时了，现在由于 =--name=value= 提前被解析导致钩子函数反倒读不到 =value= 了， =command-switch-alist= 现在可以完成所有的工作了。
+
+下面是一个使用 =command-line-functions= 的例子：
+
+#+BEGIN_SRC elisp
+(add-hook 'command-line-functions
+	  (lambda ()
+	    (if (string= argi "--yycl")
+		(progn (setq yycl 10)
+		       t)
+	      nil)))
+#+END_SRC
+
+如果我们指定了 =--yycl= ，在进入 emacs 后你能找到值为 10 的变量 =yycl= 。
+
+我们可以验证一下用户自定义选项的优先值是否为 0：
+
+#+BEGIN_SRC text
+  emacs --eval "(setq command-switch-alist '(("""-yy""" . (lambda (name) (let ((num (string-to-number (car command-line-args-left)))) (setq yy-num (+ num 1)))))))" -yy 10 -Q
+#+END_SRC
+
+在打开的 emacs 观察 =yy-num= 的值，我们可以看到它的值为 11，这应该能说明用户选项的优先级别就是 0。（上面的代码是在 cmd 中执行的，如果你使用 bash 可能需要其他的转义，cmd 中的 ="""= 是对 ="= 的转义）
+
+* 什么是 emacs daemon
+
+在说 emacs daemon 之前我们先说说什么是 daemon，对于像我一样活在 Windows 上的同学这个词可能有些陌生。
+
+#+BEGIN_QUOTE
+在一个多任务的电脑操作系统中，守护进程（英语：daemon，/ˈdiːmən/或/ˈdeɪmən/）是一种在后台执行，而不由用户直接交互控制的电脑程序。此类程序会被以进程的形式初始化。守护进程程序的名称通常以字母 d 结尾，以指明这个进程实际是守护进程，并与普通的电脑程序区分开来。例如，syslogd 就是指管理系统日志的守护进程，sshd 是接收传入 SSH 连接的守护进程。
+
+“守护进程”这个概念由麻省理工学院 MAC 项目的程序员发明。费南多·柯巴托于 1963 年在 MAC 项目任务。根据他的说法，他的团队最早采用 daemon 这个概念，其灵感来源于麦克斯韦妖——一种物理学和热力学中虚构的介质，能帮助排列分子。他对此表示：“我们别出心裁地开始使用 daemon 这个词来描述后台进程，它们不知疲倦地处理系统中的杂务。”Unix 系统继承了这个术语。作为一种在后台起作用的超自然存在，麦克斯韦妖与古希腊神话中的代蒙一致。
+
+许多人将“daemon”与“demon”这两个词等同，借此暗示UNIX与阴间的某种邪恶联系。这是一种极坏的误解。“Daemon“事实上是“demon“另一种早得多的写法；daemon 并无善或恶的倾向，相反，它定义一个人的质量或性格。古希腊的“个人代蒙”概念类似于现代的“守护神”概念——快乐即是得到友好灵魂帮助或保护的状态。通常地，UNIX系统看起来充斥着守护神和恶鬼。
+
+[[https://zh.wikipedia.org/zh-cn/%E5%AE%88%E6%8A%A4%E8%BF%9B%E7%A8%8B][守护进程 —— 维基百科]]
+#+END_QUOTE
+
+我比较熟悉的 daemon 有 systemd，httpd 和 ftpd。一句话概括的话，daemon 就是运行在后台不直接与用户交互的程序，和 Windows 中的系统服务有些类似。
+
+既然叫做 daemon，那么 emacs daemon 也具有 daemon 的一些特征，比如后台执行。我们在本文的第二节介绍了普通启动和 daemon 启动的区别，daemon 不会打开 frame，但是会启动 emacs server，随后我们可以通过 emacsclient 来与 daemon 连接，从而进行编辑操作。
+
+daemon 的初始化是在 =command-line= 的末尾进行的：
+
+#+BEGIN_SRC elisp
+  ;; In daemon mode, start the server to allow clients to connect.
+  ;; This is done after loading the user's init file and after
+  ;; processing all command line arguments to allow e.g. `server-name'
+  ;; to be changed before the server starts.
+  (let ((dn (daemonp)))
+    (when dn
+      (when (stringp dn) (setq server-name dn))
+      (server-start)
+      (if server-process
+	  (daemon-initialized)
+	(if (stringp dn)
+	    (message
+	     "Unable to start daemon: Emacs server named %S already running"
+	     server-name)
+	  (message "Unable to start the daemon.\nAnother instance of Emacs is running the server, either as daemon or interactively.\nYou can use emacsclient to connect to that Emacs process."))
+	(kill-emacs 1))))
+#+END_SRC
+
+根据代码我们可知，如果另一 emacs 实例运行了 emacs server，那么当前实例就不能以 daemon 启动。
+
+启动 daemon 时我们可以为它指定一个名字，这样就可以指定多个 daemon 了，但是这样做之后我们在调用 emacsclient 时也需要指定 =--socket-name= 为对应 daemon 的名字。
+
+=--daemon= 参数的处理从 main 函数就开始了，emacs 会根据参数的不同判断启动后台 daemon 还是前台 daemon：
+
+#+BEGIN_SRC c
+  if (argmatch (argv, argc, "-fg-daemon", "--fg-daemon", 10, NULL, &skip_args)
+      || argmatch (argv, argc, "-fg-daemon", "--fg-daemon", 10, &dname_arg, &skip_args))
+    {
+      daemon_type = 1;           /* foreground */
+    }
+  else if (argmatch (argv, argc, "-daemon", "--daemon", 5, NULL, &skip_args)
+      || argmatch (argv, argc, "-daemon", "--daemon", 5, &dname_arg, &skip_args)
+      || argmatch (argv, argc, "-bg-daemon", "--bg-daemon", 10, NULL, &skip_args)
+      || argmatch (argv, argc, "-bg-daemon", "--bg-daemon", 10, &dname_arg, &skip_args))
+    {
+      daemon_type = 2;          /* background */
+    }
+#+END_SRC
+
+下面我们介绍一下 emacs server 和 emacsclient，前者是服务端，后者是客户端。
+
+* emacs server/client
+
+emacs server 的实现位于 server.el 中，总行数大概是 1600 行。不过我们不用太关心它的实现，知道怎么用就行了。我们可以通过 daemon 启动一个 emacs server，也可以通过调用 =server-start= 来在当前 emacs 中启动 server。如果我们想要关闭 server，我们可以调用 =server-force-delete= 。知道这两条就差不多了，我只用过这两个函数。
+
+在 Linux 上 server 可以通过 Unix socket 通信，但是 Windows 不支持 local socket，这种情况下 server 会使用 TCP socket。
+
+我们可以通过 emacsclient 与 server 交互，最简单的方式是 =emacsclient file= ，其中 =file= 是文件名。这条命令会连接到一个 server，并让 emacs 在某一个已存在的 frame 中访问文件。如果当前不存在 frame，那么 emacs 会在你使用 emacsclient 时创建一个。如果当前不存在运行的 server， emacsclient 会报错并退出。
+
+在结束编辑后，我们可以通过 =C-x #= （server-edit）表示完成编辑。这将会保存文件并向 emacsclient 发送已完成的消息，让 emacsclient 结束运行。如果我们想放弃编辑，我们可以使用 =server-edit-abort= 命令。这会向 emasclient 发送消息让它以异常状态码结束运行，并且不会保存 buffer。
+
+当我们通过 =C-x #= 结束编辑时，这个 buffer 会被 kill，除非在 server 创建这个 buffer 前它已经存在了。如果我们指定 =server-kill-new-buffers= 为 =nil= 可以修改这个行为，此时仅在文件名与 =server-temp-file-regexp= 正则匹配时才会 kill buffer。这通常被用来区分一些临时文件。
+
+关于 emacsclient 的命令行参数可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/emacsclient-Options.html][emacsclient Options]]，这里我只提一个 =-n= （ ==--no-wait= ），它会让 emacsclient 在向 server 请求后立刻停止，而不是等待 server 完成对 buffer 的编辑。即使我们按下了 =C-x #= ，buffer 也不会消失。我之所以注意到这个选项是因为我在使用 =org-protocol= 的过程中发现在创建 7 到 8 个 protocol request 后就无法创建新的了，除非重启 server。也许是 Windows 上的 server 连接数量有限制吧，在加上 =-n= 选项后连接不会持续到编辑结束，也就没有这个问题了。在通过 emacsclient 打开文件后光标一直打转也应该和没有指定这个选项有关。
+
+通过任务管理器，我们可以看到通过 emacsclient 打开文件时的客户端进程：
+
+[[./13.png]]
+
+* 一些有用的插件和代码
+
+这里介绍一些和 emacs 启动相关的插件和代码，这包括 =startup.el= 中的一些 helper-function，[[https://github.com/plexus/chemacs2][chemacs]] 和 [[https://github.com/dholm/benchmark-init-el][benchmark-init-el]]。
+
+** startup.el 中的辅助函数
+
+在管理自己安装的包时，你也许会烦恼要添加这么多的 =(add-to-list 'load-path ...)= 到自己的 .emacs 文件中。如果我们将所有包中的 el 文件都放到一个文件夹里，然后在把文件夹路径放入 =load-path= 问题就解决了，但是这样需要自己一个一个放置，非常麻烦。
+
+我在 lazycat 的配置中看到了这样一种写法，直接通过 =normal-top-level-add-subdirs-to-load-path= 将当前目录以及所有的子目录递归加入 =load-path= ，这样只需要添加如下代码到 .emacs 中就可以初始化所有包的路径了：
+
+#+BEGIN_SRC elisp
+(defun add-subdirs-to-load-path (dir)
+  "Recursive add directories to `load-path'."
+  (let ((default-directory (file-name-as-directory dir)))
+    (add-to-list 'load-path dir)
+    (normal-top-level-add-subdirs-to-load-path)))
+;; yy-emacs-dir is my package dir
+(add-subdirs-to-load-path (expand-file-name yy-emacs-dir))
+#+END_SRC
+
+但是这样也会引入一些不必要的目录到 =load-path= 中，我现在还在纠结是否在我之后的配置中还这样做。
+
+** chemacs
+
+在了解 emacs 的启动步骤之前我天真地以为可以通过 =-l= 或 =-L= 来指定用户配置，现在看来还是想得太简单了。chemacs 为我们提供了一种方便切换不同配置的方法。具体细节可以参考它的 readme。
+
+我本想在这里简单分析一下 chemacs 的实现方式，但是 chemacs 的 readme 中也提到 emacs 29 引入了 =--init-directory= 选项，可用于选择用户的配置目录。看来切换用户配置的需求也是有呼声的。
+
+** benchmark-init-el
+
+这个包实现了配置载入时间的可视化，我们只需要根据 Readme 中的配置装好这个包就能检查自己的配置启动用时了。在 emacs 启动完毕后，我们可以调用 =benchmark-init/show-durations-tree= 或 =benchmark-init/show-durations-tabulated= 来观察各个包的加载用时，比如我在我的 emacs 中运行前一命令可以得到如下结果：
+
+[[./14.png]]
+
+通过观察时间，你可以找出最耗时的步骤，从而找到优化启动时间的方向。
+
+* 后记
+
+整篇文章写下来，最费时间的居然是找 =normal-top-level= 在哪里被调用，我至少花了几个小时在 grep 上。不过通过这整个过程我也对 emacs 的启动过程有了一定的了解，希望我画的图有助于你对 emacs 启动步骤的理解。
+
+正如文章开头所说，本文是从“对 emacs 加载机制的介绍”中分出来的，我也没想到能写上这么多。不出意外的话下一篇文章应该是对 =load= 的实现分析以及 emacs 加载机制的介绍了。
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/23822730][file:-1.jpg]]

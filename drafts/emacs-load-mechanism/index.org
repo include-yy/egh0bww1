@@ -28,7 +28,7 @@ Get Work Done instead of debating about these issues.
 
 {{{toc}}}
 
-* emacs 的启动过程
+
 
 * emacs 的 load 函数
 
