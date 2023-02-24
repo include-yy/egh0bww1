@@ -7,9 +7,9 @@
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/38412472][file:0.jpg]]
 
-在整完博客后，我猛然发现自己的 emacs 已经成为了一坨静静放在角落的旧物，我甚至都懒得动它。从最开始的单 .emacs 到有目录组织的 init.el，虽然层次感更强了，但在没有专门编写管理插件的情况下要修改配置还得一个一个打开分散的文件，大概这就是让我丧失折腾动力的原因。随着 use-package 加入 emacs 29，也许现在是时候重新拾起单文件配置的思想了。
+在整完博客后，我猛然发现自己的 emacs 已经成为了一坨静静放在角落的旧物，我甚至都懒得动它。从最开始的单 .emacs 到有目录组织的 init.el，虽然层次感更强了，但在没有专门编写管理插件的情况下要修改配置还得一个一个打开分散的文件，大概这就是让我丧失折腾动力的原因。随着 use-package 加入 emacs 29，也许现在是时候重新拾起单文件配置的思想了。那么我还是先从 emacs 最基本的加载机制开始吧。
 
-本文（及可能的后续文章）是对 elisp manual 16, 41.1 和 emasc manual 49.4 的讲解和分析，以及对一些流行配置方案的介绍和个人评价。我只会分析我感兴趣的配置，对于某些 emacs “发行版”（比如 spacemacs，doom）我选择直接放弃（笑）。
+本文（及可能的后续文章）是对 elisp manual 16 和 emasc manual 49.4 的讲解和分析，以及对一些流行配置的介绍和个人评价。和本文相关的话题还有 emacs 的包管理，之后我也会对一些流行的方案进行介绍。
 
 本文使用的环境为 emacs 28.2 x86_64 on windows 11。
 
@@ -27,8 +27,6 @@ Get Work Done instead of debating about these issues.
 #+END_QUOTE
 
 {{{toc}}}
-
-
 
 * emacs 的 load 函数
 

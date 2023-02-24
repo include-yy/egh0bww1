@@ -22,8 +22,29 @@
 
 #+TITLE: include-yy :: blog
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/104647968][file:0.jpg]]
+#+ATTR_HTML: :class top-down-img :id cirno
+#+CAPTION: https://www.pixiv.net/artworks/104647968
+[[./light.jpg]]
+
+#+BEGIN_EXPORT html
+<script>
+let cirno = document.getElementById("cirno")
+let flag = 0;
+
+cirno.onclick = () => {
+    if (flag == 0) {
+	cirno.src = "./dark.jpg"
+	flag = 1
+    } else if (flag == 1) {
+	cirno.src = "./0.jpg"
+	flag = 2
+    } else {
+        cirno.src = "./light.jpg"
+        flag = 0
+    }
+}
+</script>
+#+END_EXPORT
 
 * 目录
 - [2023-02-23 Thu]  [[file:2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
