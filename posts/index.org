@@ -47,6 +47,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * 目录
+- [2023-03-04 Sat]  [[file:2023-03-04-30-emacs-load-mechanism/index.org][emacs 的加载机制]]
 - [2023-02-23 Thu]  [[file:2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
 - [2023-02-17 Fri]  [[file:2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
 - [2023-02-05 Sun]  [[file:2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
