@@ -1,0 +1,484 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 如何保存 emacs 当前状态供下次打开时恢复
+#+DATE: [2023-03-04 Sat 16:42]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/97628041][file:0.jpg]]
+
+通过使用 emacs 的 =desktop-save-mode= ，一旦我们保存了当前的 /desktop/ ，我们就可以重新载入它来恢复到保存时的状态，这些状态包括 buffer 本身以及它们的 major mode，光标位置等。一直以来我用这个包用的挺舒服，自己写几个小函数就可以做到打开 emacs 就回到上次关闭 emacs 时的状态。可惜这个功能在 Windows 上性能不是很好，我的启动时间有很大一部分花在了恢复 desktop 上。也许我有必要摸索一下其他的方式，我可能不需要恢复这么多东西，只要 buffer 和光标位置就够了。
+
+本文介绍了 emacs 中一些和 buffer 保存 *相关* 的包，并在文章的最后给出我最终的选择。本文使用的 emacs 为 28.2。
+
+（先说结论：Windows 上的 emasc I/O 太拉跨了导致无从下手改进，以及前三节与文章主题关系不是很大）
+
+{{{toc}}}
+
+* recentf
+
+我一直以来也没怎么用过 =recentf= 这个 emacs 内置的功能，估计之后也不会怎么用，这里就简单介绍一下用法吧。
+
+我们可以在配置中加上 =(recentf-mode 1)= ，这样 emacs 启动时会开启 recentf 功能，然后向一些 hook 中添加函数来记录最近打开和关闭的 buffer，对用户来说常用的命令可能就是这几个：
+
+- =recentf-open-files= ，打开一个对话框来显示最近打开的文件
+  [[./1.png]]
+- =recentf-edit-list= ，对文件列表进行编辑
+  [[./2.png]]
+- =recentf-open-more-files= ，在对话框中显示更多的最近文件
+- =recentf-open-most-recent-file= ，打开时间上最近的最近文件
+- =recentf-save-list= ，保存 =recentf-list= 到文件中
+- =recentf-load-list= ，加载文件中保存的内容到 =recentf-list= 中
+- =recentf-cleanup= ，移除掉重复的以及被排除的文件
+
+我们可以通过变量来找到 =recentf-mode= 使用的钩子函数，在我的 emacs 中它的值如下：
+
+#+BEGIN_SRC elisp
+  recentf-used-hooks
+  =>
+  ((find-file-hook recentf-track-opened-file)
+   (write-file-functions recentf-track-opened-file)
+   (kill-buffer-hook recentf-track-closed-file)
+   (kill-emacs-hook recentf-save-list))
+#+END_SRC
+
+由此可见 recentf 会在打开文件，写入文件，删除 buffer 和关闭 emacs 时产生动作。前三者是向 =recentf-list= 中添加新的项，而 =recentf-save-list= 是写入已有项到文件中。
+
+由于 =recentf= 只保留了文件而没有保留位置，而且凡是打开过的文件它都会保留，所以这个包对于保留 emacs 的当前 buffer 信息可能帮助不大，对于 =recentf= 的介绍我们就到这里了。更到信息可以参考 [[https://www.emacswiki.org/emacs/RecentFiles][Emacswiki]] 或源代码来学习一些选项的设置。
+
+* bookmark
+
+bookmark 比 recentf 保存的信息更多一点，还包括创建 bookmark 的位置信息，不过 bookmark 没有 =bookmark-mode= 。如果我们想要保存或修改 bookmark 需要手动调用对应的命令，这些命令的使用方法可以参考[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Bookmarks.html][文档]]。这里简单列一下：
+
+- =C-x r m RET= (=bookmark-set=)，设置光标所在的 buffer 为一个 bookmark
+- =C-x r m bookmark RET= ，和上面的命令功能一致，不过输入了 bookmark 的名字
+- =C-x r M= ，类似 =C-x r m= ，不过不会覆盖已有的 bookmark (=bookmark-set-no-overwrite=)
+- =C-x r b= ，跳转到某个 bookmark (=bookmark-jump=)
+- =C-x r l= ，列出所有的 bookmark (=list-bookmarks=)
+- =bookmark-save= ，将当前的所有 bookmark 保存在默认的文件中
+
+emacs 会在你关闭 emacs 时自动保存当前的 bookmark，并在 emacs 启动时自动加载 bookamrk，我们没有必要像 =recentf= 一样加入显式的加载命令（指 =(recentf-mode 1)= ）。我们可以通过设置 =bookmark-save-flag= 为 =1= 来使 bookmark 在设置后自动保存，这样即使 emacs 中途崩溃了 bookmark 也不会丢失。如果设置它为 =nil= 的话，只有在调用 =bookmark-save= 时才会保存。
+
+如果我们设定了某个文件中的某个位置为 bookmark，那么 emacs 会使用一个标记来显示它，就像下图中的橙色小点：
+
+[[./3.png]]
+
+我们可以将 =bookmark-set-fringe-mark= 设为 =nil= 来不显示它。我们可以通过设置 =bookmark-fringe-mark= 来修改样式，在 bookmark.ek 中它的定义如下：
+
+#+BEGIN_SRC elisp
+(define-fringe-bitmap 'bookmark-fringe-mark
+  "\x3c\x7e\xff\xff\xff\xff\x7e\x3c")
+#+END_SRC
+
+我们可以通过设置 =bookmark-use-annotations= 为 =t= 来为我们的 bookmark 添加标注（annotation），当我们通过 =bookmark-jump= 跳转到这个 bookmark 所在位置时，标注信息会在另一个 buffer 中显示。
+
+除了上面被放到键盘映射里的命令，文档中还列出了一些：
+
+- =bookmark-load= ，从某个文件中加载 bookmark
+- =bookamrk-write= ，将当前 bookmark 输出到某个文件
+- =bookmark-delete= ，删除某个 bookmark
+- =bookmark-insert-location= ，在 bookmark 所指的 buffer 中插入该文件的名字（文件绝对路径）
+- =bookmark-insert= ，将某个 bookmark 所指文件中的内容插入到当前 buffer
+
+如果读者对 bookmark 的存储格式感兴趣可以去自己的 =.emacs.d= 目录中的 =bookmark= 文件看看其中的内容，或者是阅读 =bookmark-alist= 的注释。我只关注文件名和位置信息，这两样在 alist 里都有。
+
+我在自己的配置中写了一个打开配置文件的函数，也许我可以使用 bookmark 替换掉它。要用 bookmark 来保存当前所有的文件 buffer 似乎不是个很好的选择，但 bookmark 的具体实现还是值得借鉴。
+
+* save-place-mode
+
+这个包是我在论坛上的[[https://emacs-china.org/t/topic/23843][偶然发现]]，也是我写这篇文章的直接原因（主要原因是 desktop-save-mode 太慢了）。相比于上前行的 =recentf.el= 和 =bookmark.el= ， =saveplace.el= 只有三百多行，简单易读（笑）。整个包的功能非常简单，只要我们在配置中开启了 =save-place-mode= ，那么 emacs 会对我们打开或关闭的 buffer 记载 buffer 文件路径和光标位置，在我们下一次打开 buffer 时直接跳转到原先的位置。
+
+通过查看源代码，我们容易知道它是通过向某些钩子添加函数来实现记录功能的：
+
+#+BEGIN_SRC elisp
+;;;###autoload
+(define-minor-mode save-place-mode
+  "Non-nil means automatically save place in each file.
+This means when you visit a file, point goes to the last place
+where it was when you previously visited the same file."
+  :global t
+  :group 'save-place
+  (save-place--setup-hooks save-place-mode))
+
+(defun save-place--setup-hooks (add)
+  (cond
+   (add
+    (add-hook 'find-file-hook #'save-place-find-file-hook t)
+    (add-hook 'dired-initial-position-hook #'save-place-dired-hook)
+    (unless noninteractive
+      (add-hook 'kill-emacs-hook #'save-place-kill-emacs-hook))
+    (add-hook 'kill-buffer-hook #'save-place-to-alist))
+   (t
+    ;; We should remove the hooks, but only if save-place-mode
+    ;; is nil everywhere.  Is it worth the trouble, tho?
+    ;; (unless (or (default-value 'save-place-mode)
+    ;;             (cl-some <save-place-local-mode-p> (buffer-list)))
+    ;;   (remove-hook 'find-file-hook #'save-place-find-file-hook)
+    ;;   (remove-hook 'dired-initial-position-hook #'save-place-dired-hook)
+    ;;   (remove-hook 'kill-emacs-hook #'save-place-kill-emacs-hook)
+    ;;   (remove-hook 'kill-buffer-hook #'save-place-to-alist))
+    )))
+#+END_SRC
+
+可见它为 =find-file= ， =kill-buffer= ， =kill-emacs= 和某个 dired 钩子添加了自己的处理函数。其中 =save-place-to-alist= 的功能是将所有 buffer 的 filename 和 point 保存到 =save-place-alist= 中， =save-place-kill-emacs-hook= 这个函数也调用了它。 =save-place-find-file-hook= 的目的是在打开文件时判断文件是否曾经在 save-place 中保存过，若能找到则将光标移动到保存的位置。保存 save-place 信息的文件是自动加载和写入了，不用我们关心。
+
+同样这个实现也值得我借鉴，但是它可能不太适合用来保存当前 emacs 中的 buffer。这是因为它保存的是所有打开过的文件信息，而不是当前的信息。另外写到这里我突然又觉得单纯保存位置信息可能不太够，我们还可以考虑一些其他的信息，比如是否开启了只读模式，是否启用了一些 minor-mode，等等。
+
+* desktop-save-mode
+
+desktop-save-mode 就是我一直在使用的 buffer 保留方式，也许是我的用法过于初级导致了体验不好。在这一节中让我们学习一些有关 desktiop-save-mode 的知识。这个包之所以叫做 desktop，我猜作者可能是把 emacs 当作一个桌面环境了。
+
+我们可以通过 =desktop-save= 命令来保存当前的 desktop，通过 =desktop-read= 来读取保存的 desktop，或是通过在配置文件中加入 =(desktop-save-mode 1)= 来让 emacs 在关闭时进行自动保存，并在打开时自动加载上次保存的 desktop。
+
+注释是这样描述 desktop.el 的作用的：在载入 desktop 模块后， =desktop-kill= 会被添加到 =kill-emacs-query-functions= 这个钩子中，它负责保存 desktop 并在 emacs 关闭时删除锁定的文件；另外一个匿名函数会被添加到 =after-init-hook= 中，它负责在 emacs 启动时加载 desktop。
+
+#+BEGIN_SRC elisp
+  (add-hook
+    'after-init-hook
+    (lambda ()
+      (let ((key "--no-desktop"))
+	(when (member key command-line-args)
+	  (setq command-line-args (delete key command-line-args))
+	  (desktop-save-mode 0)))
+      (when desktop-save-mode
+	(desktop-read)
+	(setq inhibit-startup-screen t))))
+
+  ;; ----------------------------------------------------------------------------
+  (unless noninteractive
+    (add-hook 'kill-emacs-query-functions #'desktop-kill)
+    ;; Certain things should be done even if
+    ;; `kill-emacs-query-functions' are not called.
+    (add-hook 'kill-emacs-hook #'desktop--on-kill))
+#+END_SRC
+
+通过 =M-x desktop-= 再按下 =TAB= ，我们可以找到和 desktop.el 相关的函数，这里我简单罗列一下：
+
+- =desktop-read= ，从保存文件中读取 desktop 并处理
+- =desktop-save= ，将当前 emacs desktop 保存到 desktop 文件中
+- =desktop-clear= ，清空 desktop，也就是关闭当前所有的 buffer，除了一些由 =desktop-clear-preserve-buffers= 正则匹配的 buffer。该函数会清除 =desktop-globals-to-clear= 列表中的变量
+- =desktop-remove= ，删除 desktop 文件
+- =desktop-revert= ，退回到最近加载的 desktop
+- =desktop-change-dir= ，切换到另一个 desktop 目录，然后移除当前的 desktop，再载入该目录中的 desktop
+- =desktop-lazy-abort= ，放弃 desktop 的 lazy loading
+- =desktop-lazy-complete= ，执行 desktop load 直到完成
+- =desktop-save-in-desktop-dir= ，将 desktop 保存到 =desktop-dirname= 中
+
+其中某些函数的帮助文档似乎不太好懂，这就得看接下来的源代码分析了。我们先把 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Saving-Emacs-Sessions.html][Saving Emacs Sessions]] 这个文档念完吧。
+
+desktop-save-mode 还能够保存 window 和 frame 的布局 configuration，它会被存储在 desktop 文件中，在载入 desktop 时会忽略掉用户在配置中的设置。我们可以通过设置 =frameset-filter-alist= 来筛除掉不想保存的 frame 参数，不过如果我们完全不在意 window 和 frame configuration（比如我），那么我们可以设置 =desktop-restore-frames= 为空。
+
+如果我们不想在启动 emacs 时加载保存的 desktop，我们可以给 emacs 传递 =--no-desktop= 命令行参数，这会为当前的 emacs session 关闭 =desktop-save-mode= 。通过 =--no-init-file= 启动 emacs 也不会加载 desktop，因为用户配置被完全忽略了。
+
+在默认情况下，所有保存的 buffer 都会一起被复原，如果 buffer 很多的话就会很慢，我们可以通过设定 =desktop-restore-eager= 为某个数字来限制最大 buffer 复原数，剩下的 buffer 会在 emacs 空闲时载入。
+
+如果我们想要保存 minibuffer 的历史，我们可以使用 =savehist= 库。
+
+在 emacs 运行时，保存 desktop 的文件会被锁定，这样就可以避免文件被其他正在运行的 emacs 进程覆盖。一般在 emacs 退出后就会取消锁定，但是如果 emacs 崩溃了锁定会保持，并在你重启 emacs 询问你使用使用这个锁定的文件。我们可以设定 =desktop-load-locked-desktop= 为 =t= 来无条件加载 desktop 文件。
+
+文档中的一些内容被我忽略了，比如 daemon 相关的处理。除了 Emacs manual 的第 44 节，desktop 似乎是没有什么文档，那么接下来的内容就来自 =desktop.el= 中的注释和代码了。
+
+** desktop.el 的部分源代码
+
+根据注释的内容，desktop 负责保存的内容如下：
+
+#+BEGIN_SRC elisp
+  ;; Save the Desktop, i.e.,
+  ;;	- some global variables
+  ;; 	- the list of buffers with associated files.  For each buffer also
+  ;;		- the major mode
+  ;;		- the default directory
+  ;;		- the point
+  ;;		- the mark & mark-active
+  ;;		- buffer-read-only
+  ;;		- some local variables
+  ;;	- frame and window configuration
+#+END_SRC
+
+这应该是作者最初在创建 desktop.el 时定下的目标，随着版本不断更新也提供了许多新的功能，但是在这段注释中没有体现。还有许多关于功能介绍的注释，这一节中我会介绍一些我感兴趣的功能。
+
+注释中的全局变量指的是某些被 desktop 保存的变量值，我们可以通过变量 =desktop-globals-to-save= 来查看 desktop 使用了哪些全局变量：
+
+#+BEGIN_SRC elisp
+(defcustom desktop-globals-to-save
+  '(desktop-missing-file-warning
+    tags-file-name
+    tags-table-list
+    search-ring
+    regexp-search-ring
+    register-alist
+    file-name-history)
+  "List of global variables saved by `desktop-save'.
+An element may be variable name (a symbol) or a cons cell of the form
+\(VAR . MAX-SIZE), which means to truncate VAR's value to at most
+MAX-SIZE elements (if the value is a list) before saving the value.
+Feature: Saving `kill-ring' implies saving `kill-ring-yank-pointer'."
+  :type '(repeat (restricted-sexp :match-alternatives (symbolp consp)))
+  :group 'desktop)
+#+END_SRC
+
+在调用 =desktop-clear= 时，某些全局变量会从 desktop 中被清除：
+
+#+BEGIN_SRC elisp
+(defcustom desktop-globals-to-clear
+  '(kill-ring
+    kill-ring-yank-pointer
+    search-ring
+    search-ring-yank-pointer
+    regexp-search-ring
+    regexp-search-ring-yank-pointer)
+  "List of global variables that `desktop-clear' will clear.
+An element may be variable name (a symbol) or a cons cell of the form
+\(VAR . FORM).  Symbols are set to nil and for cons cells VAR is set
+to the value obtained by evaluating FORM."
+  :type '(repeat (restricted-sexp :match-alternatives (symbolp consp)))
+  :group 'desktop
+  :version "22.1")
+#+END_SRC
+
+我们可以在 =.emacs.d= 中的 =.emacs.desktop= 文件中找到保存的 desktop，比如下面的某个 org 文件：
+
+#+BEGIN_SRC elisp
+  ;; Buffer section -- buffers listed in same order as in buffer list:
+  (desktop-create-buffer
+   208
+   "c:/Users/26633/OneDrive/yynotes/drafts/emacs-package-management/index.org"
+   "index.org"
+   'org-mode
+   '(subword-mode indent-guide-mode beacon-mode company-mode company-posframe-mode yas-minor-mode)
+   30
+   '(223 nil)
+   nil
+   nil
+   '((buffer-display-time 25602 18449 153709 0) (buffer-file-coding-system . utf-8-dos))
+   '((mark-ring (475 596 596 596 596 596 475 475 355 355 475 475 716 716 716 716))))
+
+  ;; and many items like this
+  ;; ...
+#+END_SRC
+
+这些信息是通过调用 =desktop-buffer-info= 来获得的，具体的实现可以前往 =desktop.el= 查看。从内容上看和本节最初的注释有些出入，不过版本变了有些变化也是正常的：
+
+#+BEGIN_SRC elisp
+  (defun desktop-buffer-info (buffer)
+    "Return information describing BUFFER.
+  This function is not pure, as BUFFER is made current with
+  `set-buffer'.
+
+  Returns a list of all the necessary information to recreate the
+  buffer, which is (in order):
+
+      `uniquify-buffer-base-name';
+      `buffer-file-name';
+      `buffer-name';
+      `major-mode';
+      list of minor-modes,;
+      `point';
+      `mark';
+      `buffer-read-only';
+      auxiliary information given by `desktop-save-buffer';
+      local variables;
+      auxiliary information given by `desktop-var-serdes-funs'."
+    ...)
+#+END_SRC
+
+在调用 =desktop-save= 时，上面的函数会被对每一个 buffer 调用来获取一些 buffer 信息。可见 desktop 是会处理 minor-mode 的，下面的一个选项列出了需要特殊处理的 minor-mode：
+
+#+BEGIN_SRC elisp
+(defcustom desktop-minor-mode-table
+  '((defining-kbd-macro nil)
+    (isearch-mode nil)
+    (vc-mode nil)
+    (vc-dir-mode nil)
+    (erc-track-minor-mode nil)
+    (savehist-mode nil))
+  "Table mapping minor mode variables to minor mode functions.
+Each entry has the form (NAME RESTORE-FUNCTION).
+NAME is the name of the buffer-local variable indicating that the minor
+mode is active.  RESTORE-FUNCTION is the function to activate the minor mode.
+RESTORE-FUNCTION nil means don't try to restore the minor mode.
+Only minor modes for which the name of the buffer-local variable
+and the name of the minor mode function are different have to be added to
+this table.  See also `desktop-minor-mode-handlers'."
+  :type '(alist :key-type (symbol :tag "Minor mode")
+                :value-type (list :tag "Restore function"
+                                  (choice (const nil) function)))
+  :group 'desktop)
+#+END_SRC
+
+一般来说激活一个 minor-mode 时会有对应的 =xxx-mode= 局部变量被设置为 =t= ，如果没有的话那就可以向这个选项中添加表示某 minor-mode 激活的变量和对应的处理函数。当然上面给出的默认值全都是 =nil= ，这就表示 desktop 不保存这些 minor-mode。
+
+原本我想介绍一下 =desktop-save= ， =desktop-read= 和 =desktop-create-buffer= 这三个函数然后结束掉这一节。不过我想来想去真正占用了大量时间的应该是 buffer 的创建过程而不是设置一些全局变量。所以这里我们只简单介绍一下 =desktop-create-buffer= ，这个函数长 120 行左右，它的调用用时可能比我想象的要多。
+
+=desktop-create-buffer= 会在 =desktop-restore-file-buffer= 中调用 =find-file-noselect= 打开文件，这和 =find-file= 的区别是它不会将打开的 buffer 放在当前 windows 中。 =find-file-noselect= 会对 buffer 做一些一般的初始化，比如设置默认 major-mode，运行 =find-file-hook= 等。接着， =desktop-restore-file-buffer= 会调用 =desktop-buffer-major-mode= 来为该 buffer 设置 major-mode，如果这个函数存在的话：
+
+#+BEGIN_SRC elisp
+  (let* ((auto-insert nil) ; Disable auto insertion
+	 (coding-system-for-read
+	  (or coding-system-for-read
+	      (cdr (assq 'buffer-file-coding-system
+			 desktop-buffer-locals))))
+	 (buf (find-file-noselect buffer-filename :nowarn)))
+    (condition-case nil
+	(switch-to-buffer buf)
+      (error (pop-to-buffer buf)))
+    (and (not (eq major-mode desktop-buffer-major-mode))
+	 (functionp desktop-buffer-major-mode)
+	 (funcall desktop-buffer-major-mode))
+    buf)
+#+END_SRC
+
+接着， =desktop-create-buffer= 会为 buffer 一个一个开启 minor-mode：
+
+#+BEGIN_SRC elisp
+  ;; minor modes
+  (cond ((equal '(t) desktop-buffer-minor-modes) ; backwards compatible
+	 (auto-fill-mode 1))
+	((equal '(nil) desktop-buffer-minor-modes) ; backwards compatible
+	 (auto-fill-mode 0))
+	(t
+	 (dolist (minor-mode desktop-buffer-minor-modes)
+	   ;; Give minor mode module a chance to add a handler.
+	   (desktop-load-file minor-mode)
+	   (let ((handler (cdr (assq minor-mode desktop-minor-mode-handlers))))
+	     (if handler
+		 (funcall handler desktop-buffer-locals)
+	       (when (functionp minor-mode)
+		 (funcall minor-mode 1)))))))
+#+END_SRC
+
+随后，光标会回到保存的位置，以及恢复 marker 和 read-only-mode（如果原先开启了只读的话），marker 和 readonly 的代码我没有截：
+
+#+BEGIN_SRC elisp
+  ;; Even though point and mark are non-nil when written by
+  ;; `desktop-save', they may be modified by handlers wanting to set
+  ;; point or mark themselves.
+  (when desktop-buffer-point
+    (goto-char
+     (condition-case err
+	 ;; Evaluate point.  Thus point can be something like
+	 ;; '(search-forward ...
+	 (eval desktop-buffer-point)
+       (error (message "%s" (error-message-string err)) 1))))
+#+END_SRC
+
+再接下来就是恢复 buffer 的局部变量：
+
+#+BEGIN_SRC elisp
+  (dolist (this desktop-buffer-locals)
+    (if (consp this)
+	;; An entry of this form `(symbol . value)'.
+	(progn
+	  (make-local-variable (car this))
+	  (set (car this) (cdr this)))
+      ;; An entry of the form `symbol'.
+      (make-local-variable this)
+      (makunbound this)))
+#+END_SRC
+
+后面就是一些我不关心的处理过程了。光从这些代码来看我似乎不太明白为什么会这么慢，这只是一些正常的初始化操作而已。
+
+最后再说一下 =desktop-lazy-complete= 和 =desktop-lazy-abort= 这两个函数的作用吧，命令中并没有详细解释 lazy loading 是什么，不过看看代码就清楚了：
+
+#+BEGIN_SRC elisp
+  (defun desktop-lazy-complete ()
+    "Run the desktop load to completion."
+    (interactive)
+    (let ((desktop-lazy-verbose t))
+      (while desktop-buffer-args-list
+	(save-window-excursion
+	  (desktop-lazy-create-buffer)))
+      (message "Lazy desktop load complete")))
+
+  (defun desktop-lazy-abort ()
+    "Abort lazy loading of the desktop."
+    (interactive)
+    (when desktop-lazy-timer
+      (cancel-timer desktop-lazy-timer)
+      (setq desktop-lazy-timer nil))
+    (when desktop-buffer-args-list
+      (setq desktop-buffer-args-list nil)
+      (when (called-interactively-p 'interactive)
+	(message "Lazy desktop load aborted"))))
+#+END_SRC
+
+简单来说， =desktop-lazy-complete= 就是加载那些因为 =desktop-restore-eager= 而没有加载的 buffer，而 =desktop-lazy-abort= 则是放弃这些 buffer 的加载。
+
+** 为什么 desktop 这么慢
+
+如果我想要仔细研究这个问题的话，我可以考虑移除掉我所有的 emacs 配置而只使用 desktop-save-mode，然后打开几十个 buffer，使用各种钩子测试不同数量 buffer 和不同 major-mode，minor-mode 下加载 desktop 的时间。但这工作量让我有点懒得做，还是拾人牙慧吧（笑）。由于没有进行实验，这些结论可能并不一定准确。
+
+第一个原因，也可能是最主要的原因，就是 emacs 在 Windows 上的 IO 性能非常差劲。恢复 desktop 的大量时间都用在了打开文件上。虽然我懒得创建最小环境测试用时，不过我可以使用 =save-place-mode= 和 =desktop-save-mode= 做个对比，来看看是文件打开的原因还是 =desktop= 的其他操作比较耗时。由于我的配置不变，两次启动的唯一变量应该就是 buffer 恢复方式。
+
+虽然 =save-place-mode= 不会自动在 emacs 启动时打开所有的 buffer，但是我们可以自己写：
+
+#+BEGIN_SRC elisp
+  (defun my-resotre-save-place ()
+    (setq my-save-place-time (float-time))
+    (dolist (fi save-place-alist)
+      (let ((name (car fi))
+	    (pt (cdr fi)))
+	(find-file name)
+	(goto-char pt)))
+    (setq my-save-place-time (- (float-time) my-save-place-time)))
+#+END_SRC
+
+对于 desktop，我们可以通过为 =desktop-read= 添加 advice：
+
+#+BEGIN_SRC elisp
+  (defun my-desktop-time (fun)
+    (setq my-desktop-read-time (float-time))
+    (funcall fun)
+    (setq my-desktop-read-time (- (float-time) my-desktop-read-time)))
+
+  (advice-add 'desktop-read :around 'my-desktop-time)
+#+END_SRC
+
+在配置文件中添加这些代码后，我们可以通过修改 =.emacs.d= 中 =place= 文件的内容使 buffer 与 desktop 一致，然后分别在使用 =my-restore-save-place= 和 =desktop-save-mode= 的情况下检查两个计时变量的值，总计是 14 个 buffer，在我的 emacs 上可以得到以下结果：
+
+#+BEGIN_SRC elisp
+  my-save-place-time
+  => 3.511557102203369
+
+  ;;another session
+  my-desktop-read-time
+  => 4.69038200378418
+#+END_SRC
+
+（这个对比是非常不严谨的，我没有考虑 desktop 恢复全局变量用时）。
+
+虽说使用 desktop 比单纯地打开文件要慢一秒，但是光是打开文件的时间已经不短了。在 Linux 下 emacs 的文件 I/O 要比 Windows 好不少。
+
+另一个原因我是在 [[https://www.emacswiki.org/emacs/Desktop][Emacswiki]] 中翻到的，某些 global minor mode 可能会有潜在的性能问题。当这些 minor mode 开启时所有的 buffer 中都会开启它，由于 desktop-create-buffer 是对每个 buffer 都开启原先保存的 minor-mode，这样可能会导致出现 o(n^2) 复杂度的出现（打开第一个 buffer 时作用 mode 于 1 个 buffer，打开第二个时作用于 2 个，打开第三个作用于 3 个 ...）。我们可以通过设置上文中提到的 =desktop-minor-mode-table= 来关闭某些 minor-mode。
+
+就从打开这些文件的基本用时来看，desktop 根据不可能在 Windows 上快的起来，更不用说 desktop 做的额外处理了。我在 Emacswiki 上找到了一个叫做 [[https://www.emacswiki.org/emacs/wcy-desktop.el][wcy-desktop]] 的包，但是它的功能太过简陋，我也没有用的兴趣。
+
+* Final choice
+
+看了这么多的库，我发现 desktop 保存的慢的根据原因还是 emacs 在 Windows 上的 I/O 太拉跨了，所以我们再怎么改进，启动的时候还是得卡一卡，我们可以设定 =desktop-restore-eager= 为某个合适的值，但如果 buffer 数量足够的话，到了该卡的时候还是会卡（笑）。以下附上我的 desktop 配置，非常简单：
+
+#+BEGIN_SRC elisp
+  (setq desktop-load-locked-desktop t) ; don't popup dialog ask user, load anyway
+  (setq desktop-restore-frames nil) ; don't restore any frame
+
+  (desktop-save-mode 1)
+#+END_SRC
+
+我们可以通过 =desktop-lazy-idle-delay= 设置空闲判断的时间，默认是 5 秒。
+
+我倒是有一种思路，那就是在启动 emacs 时先根据保存的 desktop 创建一堆空 buffer，然后在切换到对应 buffer 时执行一些初始化操作来恢复到上次的状态，这有点类似 autoload 的思路，也就是需要时再加载。另一种思路是 hack =C-x b= 及其对应的一系列函数，让它们在列出 buffer 的同时还列出保存的 buffer，这样可以在切换 buffer 时再初始化。有一个叫做 =window-selection-change-functions= 的钩子可以在选择窗口时执行一些动作，也许能用得上。
+
+但是，我太懒了，先就这 desktop 过日子吧。
+
+* 后记
+
+在我开始写这篇文章的时候，我希望通过一些配置或自己写个包来解决 desktop 加载慢的问题，后来发现最根本的问题，也就是文件 I/O 似乎解决不了，只能把问题搁着了。如果之后有时间的话，我会尝试我在上面给出的思路。
+
+写完了才发现对其他包的介绍似乎不怎么有必要（笑）。
+
+除了内置的 desktop，还有其他的一些 package 可用，比如 [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]]，读者若感兴趣可以试试，我就不做过多介绍了。
+
+| [[https://www.pixiv.net/artworks/56704239][file:-1.jpg]] | [[https://www.pixiv.net/artworks/35742993][file:-4.jpg]] |
+| [[https://www.pixiv.net/artworks/62992330][file:-6.jpg]] | [[https://www.pixiv.net/artworks/39183606][file:-2.jpg]] |
+| [[https://www.pixiv.net/artworks/103945174][file:-5.jpg]] | [[https://www.pixiv.net/artworks/92968281][file:-3.jpg]] |
+| [[https://www.pixiv.net/artworks/79176328][file:-7.jpg]] | [[https://www.pixiv.net/artworks/98499538][file:-8.jpg]] |

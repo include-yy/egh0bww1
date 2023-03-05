@@ -41,6 +41,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * Recent [[./posts/index.org][Posts]]
+- [2023-03-05 Sun]  [[file:posts/2023-03-05-31-emacs-restore-buffers/index.org][如何保存 emacs 当前状态供下次打开时恢复]]
 - [2023-03-04 Sat]  [[file:posts/2023-03-04-30-emacs-load-mechanism/index.org][emacs 的加载机制]]
 - [2023-02-23 Thu]  [[file:posts/2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
 - [2023-02-17 Fri]  [[file:posts/2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
