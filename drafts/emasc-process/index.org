@@ -1,0 +1,13 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 在 emacs 中使用进程
+#+DATE: [2023-03-13 Mon 07:39]
+
+本文是对 elisp manual 的第 39 章的学习笔记，对其中的各个函数功能和实际作用进行了简单的介绍，特别是网络相关的功能。
+
+本文使用的 emacs 为 emasc 28.2 x86_64 on Windows 10。
+
+* 如何创建进程
+
+

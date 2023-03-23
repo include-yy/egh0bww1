@@ -53,6 +53,18 @@
 	   :publishing-directory ,(expand-file-name "blog-build/posts")
 	   :publishing-function t-publish-org-htm
 	   :recursive t)
+	  ("republish"
+	   :base-directory ,(expand-file-name "republish")
+	   :base-extension "org"
+	   :publishing-directory ,(expand-file-name "blog-build/republish")
+	   :publishing-function org-html-publish-to-html
+	   :recursive t)
+	  ("re-resources"
+	   :base-directory ,(expand-file-name "republish")
+	   :base-extension "jpg\\|jpeg\\|gif\\|png\\|JPG\\|JPEG\\|GIF\\|PNG\\|svg\\|css\\|el\\|py\\|c\\|ico\\|js"
+	   :publishing-directory ,(expand-file-name "blog-build/republish")
+	   :publishing-function org-publish-attachment
+	   :recursive t)
 	  ("js"
 	   :base-directory ,(expand-file-name "js")
 	   :base-extension "js"

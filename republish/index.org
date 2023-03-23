@@ -1,0 +1,49 @@
+#+OPTIONS: toc:nil
+#+OPTIONS: ^:{}
+#+OPTIONS: num:nil
+
+# html5
+#+HTML_DOCTYPE: html5
+#+HTML_CONTAINER: section
+#+OPTIONS: html5-fancy:t
+#+OPTIONS: html-style:nil
+#+OPTIONS: html-preamble:nil
+#+OPTIONS: html-postamble:nil
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+#+HTML_LINK_UP:./index.html
+#+HTML_LINK_HOME:../index.html
+
+# ROBOTO
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+
+#+TITLE: include-yy :: republish
+
+
+#+ATTR_HTML: :class top-down-img :id lily
+[[./0.jpg]]
+
+#+BEGIN_EXPORT html
+<script>
+let lily = document.getElementById("lily")
+let flag = 0;
+
+lily.onclick = () => {
+    if (flag == 0) {
+	lily.src = "./1.jpg"
+	flag = 1
+    } else {
+        lily.src = "./0.jpg"
+        flag = 0
+    }
+}
+</script>
+#+END_EXPORT
+
+* 目录
+
+- [2023-03-23] [[file:2023-03-23-implementing-remote-procedure-calls/index.org][Implementing Remote Procedure Call]]
+- [2023-02-14] [[file:2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][康托尔、哥德尔、图灵——永恒的金色对角线]]

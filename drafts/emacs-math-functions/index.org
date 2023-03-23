@@ -1,0 +1,275 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs 中的数字和相关函数
+#+DATE: [2023-03-06 Mon 16:30]
+
+elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数，但是内容比较分散在不同的小节中了。本文的目的是收集一下 emacs 中的一些数字函数（位运算不知道算不算），方便写代码时查找。本文顺带也简单介绍一下某些函数的实现，希望有助于理解某些细节。
+
+本文使用的 emacs 为 28.2 x86_64 on windows 10。
+
+{{{toc}}}
+
+* emacs 中的数字
+
+虽然文档中写到 emacs 支持整数和浮点数两种数字类型，但实际上应该是三种：定长整数（fixnum），大整数（bignum）和浮点数（float）。emacs 于 27 中引入了大整数，这是使用 gmp 实现的。
+
+- =frexp=
+- =ldexp=
+- =copysign=
+- =float=
+
+* 一些常量
+
+- =most-positive-fixnum=
+- =most-negative-fixnum=
+- =integer-width=
+- =infinity=
+- =not-a-number=
+- =float-e=
+- =float-pi=
+
+* 数字与字符串的转换
+
+- =number-to-string=
+- =string-to-number=
+
+* 类型判断函数
+
+- =bignump= ，判断对象是否为大整数
+
+  #+BEGIN_SRC elisp
+    (bignump (expt 2 61)) => t
+    (bignump (1- (expt 2 61))) => nil
+    (bignump 1.1) => nil
+  #+END_SRC
+
+- =fixnump= ，判断对象是否为定点数
+
+  #+BEGIN_SRC elisp
+    (fixnump 0) => t
+    (fixnump (expt 2 61)) => nil
+    (fixnump (1- (expt 2 61))) => t
+    (fixnump 0.0) => nil
+  #+END_SRC
+
+- =floatp= ，判断对象是否为浮点数
+
+  #+BEGIN_SRC elisp
+    (floatp 0.0) => t
+    (floatp 0) => nil
+  #+END_SRC
+
+- =integerp= ，判断对象是否为整数
+
+  #+BEGIN_SRC elisp
+    (integerp 0) => t
+    (integerp (expt 2 64)) => t
+    (integerp (expt 2 128)) => t
+    (integerp 0.0) => nil
+  #+END_SRC
+
+- =numberp= ，判断对象是否为数字
+
+  #+BEGIN_SRC elisp
+    (numberp 0.0) => t
+    (numberp 1) => t
+    (numberp (expt 2 1000)) => t
+    (numberp 'hello) => nil
+  #+END_SRC
+
+- =natnump= ，判断对象是否为自然数
+
+  #+BEGIN_SRC elisp
+    (natnump 0) => t
+    (natnump -1) => nil
+    (natnump 114514) => t
+    (natnump (expt 2 90)) => t
+  #+END_SRC
+
+- =zerop= ，判断对象是否为整数 0
+
+  #+BEGIN_SRC elisp
+    (zerop 0) => t
+    (zerop 1) => nil
+    (zerop 0.0) => t
+    (zerop 'hello) => error
+  #+END_SRC
+
+- =isnan=
+
+
+* 数值比较函数
+
+- ~(= number-or-marker &rest number-or-markers)~ ，判断所有参数是否相等
+
+  #+BEGIN_SRC elisp
+    (= 1 1) => t
+    (= 1 1 2) => nil
+    (= 1.0 1) => t
+  #+END_SRC
+
+- =eql value1 value2= ， =eq= 的强化版，可用于比较两个浮点数
+
+  #+BEGIN_SRC elisp
+    (eql 1 1.0) => nil
+    (eql 1.0 1.0) => t
+    (eq 1.0 1.0) => nil
+  #+END_SRC
+
+- =/== ，判断两个数字是否不相等
+
+- =<= ，判断左边的数字是否比右边小
+
+  #+BEGIN_SRC elisp
+    (< 1 2 3) => t
+    (< 1 2) => t
+    (< 1 3 2) => nil
+  #+END_SRC
+
+- =<== ，判断左边数字是否小于等于右边数字
+
+- =>= ，判断左边数字是否大于右边数字
+
+- =>== ，判断左边数字是否大于等于右边数字
+
+- =max=
+
+- =min=
+
+* 取整函数
+
+- =truncate num &optional divisor= ，返回趋 0 截断的数：
+
+  #+BEGIN_SRC elisp
+    (truncate 1.2) => 1
+    (truncate 1.6) => 1
+    (truncate -1.2) => -1
+    (truncate -1.6) => -1
+    (truncate 8 3) => 2 ;; 8 / 3 = 2.6667 => 2
+  #+END_SRC
+
+- =floor num &optional divisor= ，下取整
+
+  #+BEGIN_SRC elisp
+    (floor 1.4) => 1
+    (floor 0.9) => 0
+    (floor -.1) => -1
+    (floor -1.0) => -1
+  #+END_SRC
+
+- =ceiling num &optional divisor= ，上取整
+
+  #+BEGIN_SRC elisp
+    (ceiling 1.1) => 2
+    (ceiling -.9) => 0
+  #+END_SRC
+
+- =round number &optional divisor= ，四舍五入
+
+  #+BEGIN_SRC elisp
+    (round 0.51) => 1
+    (round 0.50) => 0
+    (round 0.499) => 0
+    (round -0.1) => 0
+    (round -.6) => -1
+  #+END_SRC
+
+对于上面的每一个函数，在函数名前面加上 =f= 可以得到浮点数版本，也就是返回值为浮点数而不是整数，但是在 === 意义下相等：
+
+#+BEGIN_SRC elisp
+  (= (floor 1.5) (ffloor 1.5)) => t
+  (= (ceiling 1.5) (fceiling 1.5)) => t
+  (= (ftruncate 1.5) (truncate 1.5)) => t
+  (= (fround 1.5) (round 1.5)) => t
+
+  (ffloor 1.5) => 1.0
+#+END_SRC
+
+* 算术函数
+
+- =1+= 和 =1-= ，将数字加一或减一
+
+- =+= 和 =-= ，加法和减法运算
+
+  #+BEGIN_SRC elisp
+    (+) => 0
+    (+ 1) => 1
+    (+ 1 2) => 3
+    (+ 1 2 3) => 6
+
+    (-) => 0
+    (- 1) => -1
+    (- 1 2) => -1
+    (- 1 2 3) => -4
+  #+END_SRC
+
+- =*= 和 =/= ，乘法和除法运算
+
+  #+BEGIN_SRC elisp
+    (*) => 1
+    (* 1 2) => 2
+    (* 1 2 3) => 6
+
+    (/ 0.5) => 2.0
+    (/ 2) => 0
+    (/ 5 2) => 2
+    (/ 5.0 2) => 2.5
+    (/ 5 2.0) => 2.5
+  #+END_SRC
+
+- =%= 和 =mod= ，取余运算， =mod= 会使结果与除数符号一致
+
+  #+BEGIN_SRC elisp
+    (% 5 2) => 1
+    (% 8 3) => 2
+    (% -9 4) => -1
+    (% -9 -4) => -1
+    (% 9 -4) => 1
+    (mod -9 4) => 3
+  #+END_SRC
+
+  两者的区别在于 =mod= 使用 =floor= 而不是 =/= 来得到整除结果：
+
+  #+BEGIN_SRC elisp
+    (+ (% dividend divisor)
+       (* (/ dividend divisor) divisor))
+
+    (+ (mod dividend divisor)
+       (* (floor dividend divisor) divisor))
+  #+END_SRC
+
+- =abs=
+
+* 初等函数
+
+- =sin= ， =cos= ， =tan= 三角函数
+
+- =asin= ， =acos= ， =atan= ，反三角函数
+
+- =exp= ， =expt= 指数函数
+
+- =log= ， =logb= 对数函数
+
+- =sqrt= 平方根函数
+
+* 位运算函数
+
+- =ash= ，算数位移
+
+- =lsh= ，逻辑位移
+
+- =logand= ，逻辑与
+
+- =logior= ，逻辑或
+
+- =logxor= ，逻辑异或
+
+- =lognot= ，逻辑非
+
+- =logcount= ，对正数返回二进制表达中 1 的个数，对负数返回二进制表达中 0 的个数
+
+
+* 随机数函数
+
+- =random=

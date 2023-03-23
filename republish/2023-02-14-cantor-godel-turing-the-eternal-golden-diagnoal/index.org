@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../../setup_re.org
 
-#+AUTHOR: （转载和整理）原作者：刘未鹏
+#+AUTHOR: 刘未鹏
 #+TITLE: 康托尔、哥德尔、图灵——永恒的金色对角线
 #+DATE: [2006-10-15 Sun]
 

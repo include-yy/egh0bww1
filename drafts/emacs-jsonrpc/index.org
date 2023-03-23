@@ -1,0 +1,254 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 如何使用 emacs 内置的 jsonrpc
+#+DATE: [2023-03-09 Thu 17:04]
+
+受 eaf 和 lsp-bridge 等使用了 RPC 功能的包的影响，我对使用 RPC 调用外部程序有了一定的兴趣。随着 emacs 29 即将发布正式版，我了解到 eglot 这个 LSP 实现在 29 中加入到了 emacs 中。这个包使用了 jsonrpc.el，它很早就中加入了 emacs（eglot 和 jsonrpc 是同一作者）。那不如就从 jsonrpc.el 来入门一下如何 RPC。
+
+可惜的是我没能搜索到多少使用 jsonrpc.el 的教程，官方文档也只是介绍性的内容。那只能自己参考一些使用了 jsonrpc 的包研究研究基本用法了。本文假设读者对什么是 RPC 有最基本的了解，如果读者不熟悉 jsonrpc，可简单翻阅[[https://wiki.geekdream.com/Specification/json-rpc_2.0.html][规范文档]]，内容非常简单。关于通用的 RPC 知识可以参考这份 IBM 的[[https://www.ibm.com/docs/zh/aix/7.3?topic=concepts-remote-procedure-call][文档]]，这里附图一张：
+
+#+CAPTION: IBM AIX RPC 文档
+[[https://www.ibm.com/docs/zh/ssw_aix_73/commprogramming/A12C0bb01.jpg][file:1.jpg]]
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 10
+- Python 3.11.0
+
+{{{toc}}}
+
+* 创建 jsonrpc-connection 对象
+
+jsonrpc.el 中定义了 =jsonrpc-connection= 类，它被用来管理 RPC。如果你已经简单读过 jsonrpc 规范，你应该很容易明白其中的各成员分别起什么作用：
+
+- =name= ，连接的名字
+- =-request-dispatcher= ，过程分派器，负责根据名字处理 RPC 请求
+- =-notification-dispathcer= ，通知分派器，根据名字处理 RPC 通知
+- =last-error= ，上一次错误
+- =-request-continuiation= ，存储请求 ID 等信息的哈希表
+- =-events-buffer= ，打印 RPC 事件的 buffer
+- =-events-buffer-scrollback-size= ，buffer 的大小，默认为 =nil= ，即不限制大小
+- =-deferred-actions= ，存储延迟 request 信息的哈希表，后文解释
+- =-next-request-id= ，存储用于下一个 reuqest 的 id
+
+通过调用 =make-instance= 或直接使用 =jsonrpc-connection= ，我们可以创建一个该类的对象：
+
+#+BEGIN_SRC elisp
+  (make-instance 'jsonrpc-connection
+		 :name "YY")
+  ;; or
+  (jsonrpc-connection
+   :name "YY")
+#+END_SRC
+
+这个类并没有多少内涵，整个 jsonrpc 的实际功能实现者是继承于 =jsonrpc-connection= 的 =jsonrpc-process-connection= ，发送消息和接受消息均和它有关。这一节的剩下部分我们简单说下仅和 =jsonrpc-connection= 相关的部分。
+
+通过 =jsonrpc-events-buffer= 这个函数我们可以获取某个连接的 =events-buffer= ，如果不存在的话它会创建一个，这也就说明这个成员不需要我们负责初始化。
+
+我们可以使用 =jsonrpc-forget-pending-continuations= 来移除所有正在等待的 RPC 调用，这个函数的具体作用就是清空成员 =-request-continuation= 的哈希表。
+
+=jsonrpc-connection-receive= 函数用于处理来自另一端的请求，并输出 log 消息到 events-buffer。请求分为三种情况：远程请求，远程响应和远程通知。这个函数的层次很高，它处理的是消息而不是字符串。虽说这里我们还没有涉及到序列化反序列化之类的操作，不过我们可以用虚拟请求观察一下这个函数的行为。
+
+首先是对来自客户端的调用请求，这里由于我们目前还没有实现发送功能，只能先 advice 掉 =jsonrpc--reply= 了：
+
+#+BEGIN_SRC elisp
+  (setq a (jsonrpc-connection
+	   :name "YY1"
+	   :request-dispatcher
+	   (lambda (_con method args)
+	     (if (eq method '+)
+		 (apply '+ args)
+	       (signal 'jsonrpc-error
+		       '((jsonrpc-error-message . "Sorry, not allowed")
+			 (jsonrpc-error-code . -32601)))))))
+
+  (setq yyres nil)
+
+  (cl-defun yy-jrpc--reply (connection
+			    id
+			    &key
+			    (result nil result-supplied-p)
+			    (error nil error-supplied-p))
+    "Reply to CONNECTION's request ID with RESULT or ERROR."
+    (push `(:id ,id
+		,@(and result-supplied-p `(:result ,result))
+		,@(and error-supplied-p `(:error ,error)))
+	  yyres))
+
+  (advice-add 'jsonrpc--reply :override 'yy-jrpc--reply)
+  ;;(advice-remove 'jsonrpc--reply 'yy-jrpc--reply)
+
+  (jsonrpc-connection-receive
+   a
+   '(:method "+" :id 114514 :params (1 2 3)))
+
+  yyres => ((:result 6 :id 114514))
+#+END_SRC
+
+接着是处理来自另一端的通知：
+
+#+BEGIN_SRC elisp
+  (setq b (jsonrpc-connection
+	   :name "YY2"
+	   :notification-dispatcher
+	   (lambda (_con method args)
+	     (if (eq method 'hello)
+		 (message "Hello world\n\n")
+	       (signal 'json-error
+		       '((jsonrpc-error-message . "Sorry . method not found")
+			 (jsonrpc-error-code . -32601)))))))
+
+  (jsonrpc-connection-receive
+   b
+   '(:method "hello"))
+  ;; output Hello world
+#+END_SRC
+
+最后是接受另一端的返回数据，这里涉及到一些自动生成的回调函数，同样，我会在之后介绍这样做的原因，现在看看效果就行了：
+
+#+BEGIN_SRC elisp
+(setq c (jsonrpc-connection
+	 :name "YY3"))
+
+(puthash 114514
+	 (list (lambda (v) (print v)) nil nil)
+	 (jsonrpc--request-continuations c))
+
+(gethash 114514 (jsonrpc--request-continuations c))
+=> ((lambda (v) (print v)) nil nil)
+
+(jsonrpc-connection-receive
+ c
+ '(:result 191981 :id 114514))
+;; print 191981
+(gethash 114514 (jsonrpc--request-continuations c))
+=> nil
+#+END_SRC
+
+最后介绍一下和 =jsonrpc-connection= 类相关联的几个泛型函数：
+
+- =jsonrpc-connection-send= ，将一条 JSONRPC 消息发送给某个连接
+- =jsonrpc-shutdown= ，关闭 JSONRPC 连接
+- =jsonrpc-running-p= ，判断某个 JSONRPC 连接是否仍在运行
+- =jsonrpc-connection-ready-p= ，判断某个连接是否准备好了做某事，默认实现总是返回 =t=
+
+* 使用进程实现 RPC 的 jsonrpc-process-connection
+
+有了上面的 jsonrpc-connection，只要我们实现了上面那几个泛型函数我们就可以说是实现了最简单的 jsonrpc，在 jsonrpc.el 中给出的是继承了 =jsonrpc-connection= 的 =jsonrpc-process-connection= ，我们可以通过创建 emacs 子进程来使用它提供的一些功能。
+
+我们先从 =jsonrpc-connection-send= 的实现说起，它是其他发送请求函数的基础。它有两个作用，一是将数据使用 json 库序列化，并添加一些头信息：
+
+#+BEGIN_SRC elisp
+  (let* ( (message `(:jsonrpc "2.0" ,@args))
+	  (json (jsonrpc--json-encode message))
+	  (headers
+	   `(("Content-Length" . ,(format "%d" (string-bytes json)))
+	     ;; ("Content-Type" . "application/vscode-jsonrpc; charset=utf-8")
+	     )))
+    ...)
+#+END_SRC
+
+接着， =jsonrpc-connection-send= 调用 =process-send-string= ，将数据字符串发送给另外一个进程：
+
+#+BEGIN_SRC elisp
+  (process-send-string
+   (jsonrpc--process connection)
+   (cl-loop for (header . value) in headers
+	    concat (concat header ": " value "\r\n") into header-section
+	    finally return (format "%s\r\n%s" header-section json)))
+#+END_SRC
+
+jsonrpc 不会为我们创建进程，需要我们指定想要与之通信的进程，这里我使用 python 的 =input= 函数读入 jsonrpc 发送过来的信息并输出，下面是 Python 代码：
+
+#+BEGIN_SRC python
+  #send.py
+  while True:
+      a = input()
+      print (a)
+#+END_SRC
+
+下面是创建 Python 进程和 =jsonrpc-process-connection= 对象的代码，在调用 =jsonrpc-process-connection= 时它会调用 =initialize-instance= 来对这个对象进行复杂的初始化，这里我们直接跳过了。
+
+#+BEGIN_SRC elisp
+  (setq pyp (start-process "yypy" nil "python" "send.py"))
+
+  (setq d (jsonrpc-process-connection
+	   :name "d"
+	   :process pyp))
+
+  (jsonrpc-connection-send d :id 1 :method 'add)
+
+  ;; when finished, use this:
+  (kill-process (get-process "yypy"))
+#+END_SRC
+
+我们可以在 =_*d output*= （这里的下划线表示一个空格）这个 buffer 中找到 Python 进程的输出，多运行几次 send 代码，这个 buffer 的内容为：
+
+[[./2.png]]
+
+看上去似乎并不完全是消息头加上 JSON 内容，这大概是由中途的一些换行引起的，毕竟 Python 的 =input= 需要换行才能完成读取。打开这个 buffer 可能得费点劲，参考 [[https://www.emacswiki.org/emacs/InvisibleBuffers][Invisible Buffers]] ，我们可以使用 =C-x b C-q SPC *d output*= 打开它。
+
+由于只是发送消息不需要返回值，notify （jsonrpc 的通知功能）的实现非常简单，直接调用 =jsonrpc-connection-send= 即可：
+
+#+BEGIN_SRC elisp
+(cl-defun jsonrpc-notify (connection method params)
+  "Notify CONNECTION of something, don't expect a reply."
+  (jsonrpc-connection-send connection
+                           :method method
+                           :params params))
+#+END_SRC
+
+接下来就是一般 RPC request 的实现， emacs 的 jsonrpc 为我们提供了同步和异步函数，它们分别是 =jsonrpc-request= 和 =jsonrpc-async-request= ，它们都在内部调用了 =jsonrpc--async-request-1= ，所以我们先从它开始说起。这里我要分两条路来说明它的功能，一是没有使用 =deferred= 参数，二是使用了 =deferred= 参数，关于 =deferred= 我还是留到下一节算了，这里只介绍基本功能稍微方便一点。
+
+如果不使用 =deferred= ，整个函数的功能就非常简单，就是为当前 request 创建 id，使用 =jsonrpc-connection-send= 向远端（endpoint）发送请求，然后将该 request 添加到 =jsonrpc--request-continuations= 这个哈希表中。这里我们简单介绍一下这个哈希表中键值对的结构，以下是 =jsonrpc-async-request= 中的部分代码：
+
+#+BEGIN_SRC elisp
+  ;; Really send it
+  ;;
+  (jsonrpc-connection-send connection
+			   :id id
+			   :method method
+			   :params params)
+  (puthash id
+	   (list (or success-fn
+		     (jsonrpc-lambda (&rest _ignored)
+		       (jsonrpc--debug
+			connection (list :message "success ignored"
+					 :id id))))
+		 (or error-fn
+		     (jsonrpc-lambda (&key code message &allow-other-keys)
+		       (jsonrpc--debug
+			connection (list
+				    :message
+				    (format "error ignored, status set (%s)"
+					    message)
+				    :id id :error code))))
+		 (setq timer (funcall make-timer)))
+	   (jsonrpc--request-continuations connection))
+#+END_SRC
+
+可见键值对的键就是 request 的 id，而值包含三个对象，分别是 =success-fn= ， =error-fn= 和 =timer= 。根据名字不难猜到 =success-fn= 就是成功时调用的函数， =error-fn= 就是出错时调用的函数。剩下的 timer 被用来判断这个 RPC request 是否超时：
+
+#+BEGIN_SRC elisp
+  ;; in a let-like binding form
+  (make-timer
+   (lambda ( )
+     (when timeout
+       (run-with-timer
+	timeout nil
+	(lambda ()
+	  (remhash id (jsonrpc--request-continuations connection))
+	  (remhash (list deferred buf)
+		   (jsonrpc--deferred-actions connection))
+	  (if timeout-fn (funcall timeout-fn)
+	    (jsonrpc--debug
+	     connection `(:timed-out ,method :id ,id
+				     :params ,params))))))))
+#+END_SRC
+
+这里的 =make-timer= 的值就是它下面的 lambda 函数，可见它的作用是创建一个计时器，当时间用完时计时器会从 =-request-continuation= 中移除掉这个 request 对象，这也就表示 RPC 调用失败了。
+
+=jsonrpc--async-request-1= 的作用就是向远端发送请求然后返回由 id 和 timer 组成的表，它并不负责处理远端的返回值或者说说响应。下面让我们看看 =jsonrpc-request= 这个同步函数是如何处理 RPC 调用的响应的。
+
+

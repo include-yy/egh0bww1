@@ -1,0 +1,254 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs-python RPC 的 emasc 端框架 -- python-bridge
+#+DATE: [2023-03-08 Wed 21:13]
+
+如果你经常上 emacs-china 的话那你绝对听说过 lsp-bridge 和 eaf，前者（也许）是现在 emacs 中最好的 lsp 实现，后者是一个 emacs 中的应用框架，可以使用 PyQt 为 emacs 开发应用。这两个插件的作者是 [[https://github.com/manateelazycat][manateelazycat]]。我曾在 Windows 上使用过 eaf，但安装起来比 Linux 上还是费劲很多，遂放弃；由于我没有重量级的编程需求，我暂时也太用过 LSP 相关技术，也就没有用过 lsp-bridge。
+
+今天上论坛的时候看到了这个帖子：[[https://emacs-china.org/t/python-elisp/23871/][Python 和 Elisp 协同编程框架]]，lazycat 将 eaf 和 lsp-bridge 中公用的一个模块拆分了出来成为了一个独立的用于 emacs 与 Python 通信的包。之前我尝试阅读过 eaf 代码，但是不太懂 PyQt 也没坚持下去。现在有了这个比较精简的包，也是时候学一学了。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 10
+- Python 3.11.0
+- [[https://github.com/tkf/python-epc][python-epc]]
+
+{{{toc}}}
+
+* 什么是 RPC
+
+RPC 即 Remote Procedure Call，翻译过来就是远程过程调用。以下内容参考自维基百科：
+
+#+BEGIN_QUOTE
+远程过程调用（英语：Remote Procedure Call，RPC）是一个计算机通信协议。该协议允许运行于一台计算机的程序调用另一个地址空间（通常为一个开放网络的一台计算机）的子程序，而程序员就像调用本地程序一样，无需额外地为这个交互作用编程（无需关注细节）。RPC是一种服务器-客户端（Client/Server）模式，经典实现是一个通过发送请求-接受回应进行信息交互的系统。
+
+[[https://zh.wikipedia.org/zh-cn/%E9%81%A0%E7%A8%8B%E9%81%8E%E7%A8%8B%E8%AA%BF%E7%94%A8][远程过程调用 —— 维基百科]]
+#+END_QUOTE
+
+简单来说的话 RPC 协议是一种应用层协议，可用于进程间的通信。如果你简单了解过 LSP，你就知道它采用了一种叫做 [[https://www.jsonrpc.org/specification][jsonrpc]] 的 RPC 协议。Python 内置了一个叫做 [[https://docs.python.org/3/library/xmlrpc.html][xmlrpc]] 的库，通过它可使用基于 HTTP 和 XML 的 RPC 方法。如果你拿 RPC 这个关键词搜索过，你也应该知道一些比较有名 RPC 框架，比如 Google 的 [[https://grpc.io/][grpc]]。
+
+以 Python 为例，参考文档我们可以通过下面的代码实现客户端进程和服务端进程之间的通信：
+
+#+BEGIN_SRC python
+  # https://docs.python.org/3/library/xmlrpc.server.html
+  # server code
+
+  from xmlrpc.server import SimpleXMLRPCServer
+  from xmlrpc.server import SimpleXMLRPCRequestHandler
+
+  # Restrict to a particular path.
+  class RequestHandler(SimpleXMLRPCRequestHandler):
+      rpc_paths = ('/RPC2',)
+
+  # Create server
+  with SimpleXMLRPCServer(('localhost', 8000),
+			  requestHandler=RequestHandler) as server:
+      server.register_introspection_functions()
+
+      # Register pow() function; this will use the value of
+      # pow.__name__ as the name, which is just 'pow'.
+      server.register_function(pow)
+
+      # Register a function under a different name
+      def adder_function(x, y):
+	  return x + y
+      server.register_function(adder_function, 'add')
+
+      # Register an instance; all the methods of the instance are
+      # published as XML-RPC methods (in this case, just 'mul').
+      class MyFuncs:
+	  def mul(self, x, y):
+	      return x * y
+
+      server.register_instance(MyFuncs())
+
+      # Run the server's main loop
+      server.serve_forever()
+
+  # client code
+  import xmlrpc.client
+
+  s = xmlrpc.client.ServerProxy('http://localhost:8000')
+  print(s.pow(2,3))  # Returns 2**3 = 8
+  print(s.add(2,3))  # Returns 5
+  print(s.mul(5,2))  # Returns 5*2 = 10
+
+  # Print list of available methods
+  print(s.system.listMethods())
+#+END_SRC
+
+（也许需要调整缩进）。
+
+你可以创建两个文件将上面的代码分别放入叫做 =server.py= 和 =client.py= 的文件中，然后 =python server.py= 启动 server 后再 =python client.py= 启动 client。如果没有问题的话应该可以得到如下结果：
+
+[[./1.png]]
+
+关于 RPC 详细原理的介绍，读者可以参考网上的其他文章，这方面的内容已经有很多了，我不认为我有必要再重复一遍。
+
+* python-epc —— 基于 xmlrpc 的 Python-Emacs RPC stack
+
+#+BEGIN_QUOTE
+EPC is an RPC stack for Emacs Lisp and Python-EPC is its server side and client side implementation in Python. Using Python-EPC, you can easily call Emacs Lisp functions from Python and Python functions from Emacs. For example, you can use Python GUI module to build widgets for Emacs (see examples/gtk/server.py for example).
+
+Python-EPC is tested against Python 2.6, 2.7, 3.2 and 3.3.
+#+END_QUOTE
+
+根据 Readme 中的信息来看，EPC 在 Python 端同时实现了客户端和服务端，我们可以使用它和同样实现了客户端服务端的 Emacs 进行 *双向通信* 。我原先想着借鉴 EPC 来自己弄个 RPC 实现出来，后来发现既然已经有成熟代码了还折腾啥呢（笑）。我们不需要知道这样的通信是怎么实现了，只要能用就行了。
+
+[[https://github.com/kiwanami/emacs-epc][emacs-epc]] 是个 emacs 端的 EPC 实现，使用它我们可以和使用 EPC 的 Python 进程进行通信。这个包的整个文档是非常详细的，我也没有必要搬运一些东西到我的文章中。这里我就不对 emacs-epc 做详细介绍了，下面我们要使用的 emacs 端实现是 python-bridge 而不是它。由于它实现了客户端和服务端，所以我们可以使用两个 Python 进程通过 EPC 进行通信，以此来简单说明这个包的用法。
+
+通过使用 =epc.server.EPCServer= ，我们可以创建一个 EPC Server，最简单的使用方法是 =server = EPCServer(('localhost', 0))= 。这个函数的第一参数是 server 的地址，这个 tuple 的第一个元素是 server ip，第二个是 server 的端口，端口为 0 表示随机分配端口。在创建 server 后，我们可以使用 =print_port= 方法显示 server 使用的端口，使用 =serve_forever= 方法开始服务，不过在开始服务之前我们可以注册一些服务函数，这是通过 =register_function= 来实现的。以下是文档中给出的简单 server 例子：
+
+#+BEGIN_SRC python
+  from epc.server import EPCServer
+
+  server = EPCServer(('localhost', 0))
+
+  @server.register_function
+  def echo(*a):
+      return a
+
+  server.print_port()
+
+  server.serve_forever()
+#+END_SRC
+
+除了 =register_function= 外我们还可以使用 =register_instance= 注册一些可供客户端使用的实例，这和上面的 xmlrpc 中的例子应该是类似的，这里就不用代码介绍了。
+
+我们可以使用 =epc.client.EPCClient= 来创建 EPC 客户端，并通过 =connet= 方法连接服务端，通过 =call= 或 =call_sync= 调用服务端提供的服务。对于上面的服务端代码，我们可以这样调用 =echo= ：
+
+#+BEGIN_SRC python
+  from epc.client import EPCClient
+
+  client = EPCClient()
+  client.connect(('localhost', 9999)) # 这里的端口号要使用服务端程序输出的 port
+  a = client.call_sync('echo', [1, 2, 3])
+  print (a)
+  client.close()
+#+END_SRC
+
+不出意外的话上面的代码会输出 =[1, 2, 3]= ，这也就表示成功进行了调用。除了使用 =connect= 方法连接 server 外，我们也可以使用 =EPCClient= 一步到位： =client = EPCClient(('localhost', 9999))= 。在服务端完成任务后，它可以通过 =close= 方法关闭连接。
+
+以上就完成了对 EPC 的基础用法的介绍，大部分内容我都是直接从文档中摘过来的。
+
+* python-bridge —— 一个 emacs 端的 EPC 实现
+
+老实说如果我想要详细介绍 EPC 的话我应该先从 emacs-epc 开始说起，它应该是最初和 python-epc 配合的套件。不过既然我不用那也没什么好说的，这里先根据它的文档介绍一些背景知识，再开始对 python-bridge 的介绍吧。
+
+RPC 的一个重要步骤就是序列化和反序列化，所谓序列化就是将语言中的对象转换成字符串表达，反序列化就是将字符串还原为一个对象。根据 emacs-epc 中的文档描述，对象序列化使用的是 S-表达式：
+
+#+BEGIN_QUOTE
+Since the Emacs interpreter is often slower than other interpreters or VMs, we should choose a format so that Emacs can deal faster. In addition, S-expression has good expression power as well as JSON does. So, the EPC stack uses S-expression, though we need more work for writing S-expression serializers on the peer side. (In the future, we may use JSON when Emacs can read/write JSON in native library...)
+
+Simple list structure and some primitive types can be transferred. Complicated objects, such as buffer objects, can not be serialized. The EPC stack doesn't provide transparent remote object service, that is ORB.
+#+END_QUOTE
+
+EPC 能序列化的对象包括 =nil=, =symbol=, =number=, =string=, =list= ，以及由 =list= 组成的复杂对象。从文档来看 EPC 协议是基于 slime 包中的 SWANK 协议。我们可以按照 EPC 协议自己在其他语言中实现 EPC 框架，不过就像上面说的那样，既然有了成熟实现，这样做估计仅有学习价值，而且有更加简单的东西方便我们学习。下面我们正式开始介绍 python-bridge。
+
+虽然目前这个包还没有 Readme 和文档，不过根据函数名我们就能摸个八九不离十。由于 eaf 和 lsp-bridge 的广泛使用，我不认为这个包会存在什么质量问题。目前这个包存在以下文件：
+
+- =python_bridge.py= ，应该是对 =EPC= 的一些包装
+- =utils.py= ，一些功能函数
+- =python-bridge.el= ， =python-bridge= 的一些用户函数
+- =python-bridge-epc= ，EPC 的主要实现，应该是直接使用 emacs-epc 中的大部分代码，不过修改了函数名
+
+下面，我将这个包分为两个部分进行介绍，分别是 Python 部分和 elisp 部分。
+
+** Python 部分
+
+整个 =python_bridge.py= 就是一个类： =MindWave= ，在我们创建它的对象时，它会创建一个 EPC server 和 EPC client：
+
+#+BEGIN_SRC python
+  # Init EPC client port.
+  init_epc_client(int(args[0]))
+
+  # Build EPC server.
+  self.server = ThreadingEPCServer(('localhost', 0), log_traceback=True)
+
+  # init_epc_clinet's implementation
+  def init_epc_client(emacs_server_port):
+      global epc_client
+
+      if epc_client is None:
+	  try:
+	      epc_client = EPCClient(("localhost", emacs_server_port), log_traceback=True)
+	  except ConnectionRefusedError:
+	      import traceback
+	      logger.error(traceback.format_exc())
+#+END_SRC
+
+接着， =__init__= 调用 =register_instance= 将自身注册（看注释是为了让 emasc 侧也能调用实例函数），并创建子线程执行 =serve_forever= ，随后创建事件队列线程和消息队列线程：
+
+#+BEGIN_SRC python
+  self.server.register_instance(self)  # register instance functions let elisp side call
+  # Start EPC server with sub-thread, avoid block Qt main loop.
+  self.server_thread = threading.Thread(target=self.server.serve_forever)
+  self.server_thread.start()
+
+  # All Emacs request running in event_loop.
+  self.event_queue = queue.Queue()
+  self.event_loop = threading.Thread(target=self.event_dispatcher)
+  self.event_loop.start()
+
+  # All LSP server response running in message_thread.
+  self.message_queue = queue.Queue()
+  self.message_thread = threading.Thread(target=self.message_dispatcher)
+  self.message_thread.start()
+#+END_SRC
+
+随后， =__init__= 中会调用 =eval_in_emacs= 来完成 emacs 侧中的初始化：
+
+#+BEGIN_SRC python
+  # Pass epc port and webengine codec information to Emacs when first start python-bridge.
+  eval_in_emacs('python-bridge--first-start', self.server.server_address[1])
+
+  # eval_in_emacs's Implementation
+  def eval_in_emacs(method_name, *args):
+      args = [sexpdata.Symbol(method_name)] + list(map(handle_arg_types, args))    # type: ignore
+      sexp = sexpdata.dumps(args)
+
+      logger.debug("Eval in Emacs: %s", sexp)
+      # Call eval-in-emacs elisp function.
+      epc_client.call("eval-in-emacs", [sexp])    # type: ignore
+#+END_SRC
+
+=event_dispatcher= 和 =message_dispatcher= 是两个处理消息的函数，目前我不是很清楚它们的作用，这可能需要对 emacs 侧代码的理解。
+
+就目前我看到的来说， =MindWave= 创建了一个 EPC server 和一个 EPC client，并完成了一些初始化工作，我们应该可以在此基础上实现我们想要的功能。
+
+** Elisp 部分
+
+这里我只关注部分用户接口代码，太过深入的实现就不分析了。
+
+=python-bridge-start-process= 会在 emacs 侧和 python 侧创建 EPC 进程，它会使用 =python_bridge.py= 创建 Python 侧的 EPC 进程，不过它首先会创建 emacs 端的 EPC server，这是通过 =python-bridge--start-epc-server= 来完成的，而这个函数又会调用 =python-bridge-epc-server-start= 来执行实际步骤。在这个过程中 =python-bridge= 会注册一些基本的函数：
+
+#+BEGIN_SRC elisp
+  (lambda (mngr)
+    (let ((mngr mngr))
+      (python-bridge-epc-define-method mngr 'eval-in-emacs 'python-bridge--eval-in-emacs-func)
+      (python-bridge-epc-define-method mngr 'get-emacs-var 'python-bridge--get-emacs-var-func)
+      (python-bridge-epc-define-method mngr 'get-emacs-vars 'python-bridge--get-emacs-vars-func)
+      (python-bridge-epc-define-method mngr 'get-user-emacs-directory 'python-bridge--user-emacs-directory)
+      ))
+#+END_SRC
+
+- =eval-in-emacs= ，对表达式进行求值
+- =get-emacs-var= ，获取变量的值
+- =get-emacs-vars= ，获取一系列变量的值
+- =get-user-emacs-directory= ，获取 emacs 用户目录
+
+我们可以在 Python 端使用这些函数来获取 emacs 中的一些信息，或者是对 elisp 表达式进行求值。
+
+在 emacs 端创建 EPC server 后， =python-bridge-start-process= 会调用 =start-process= 创建 Python 侧的 EPC server：
+
+#+BEGIN_SRC elisp
+  ;; Start python process.
+  (let ((process-connection-type t))
+    (setq python-bridge-internal-process
+	  (apply 'start-process
+		 python-bridge-name python-bridge-name
+		 python-bridge-internal-process-prog python-bridge-internal-process-args)))
+#+END_SRC
+
+在调用 =python-bridge-start-process= 后，我们就在当前 emacs 和某一创建的 python EPC 进程间建立了联系，这也是 =python-bridge.el= 这个文件的几乎全部功能了。
