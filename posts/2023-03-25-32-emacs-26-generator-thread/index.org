@@ -1,0 +1,201 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: Emacs 26 Brings Generators and Threads
+#+DATE: [2023-03-24 Fri 21:42]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/76724761][file:0.jpg]]
+
+#+BEGIN_aside
+本文作者为 Chris Wellons，最初于 2018 年 5 月 31 日发布在 [[https://nullprogram.com/tags/emacs/][nullprogram]] 上，于 2020 年 1 月 30 日由 lujun9972 在他的博客中发布了[[http://blog.lujun9972.win/emacs-document/blog/2018/06/22/emacs-26-%E5%BC%95%E5%85%A5%E7%9A%84%E7%94%9F%E6%88%90%E5%99%A8%E5%92%8C%E7%BA%BF%E7%A8%8B/index.html][翻译]]。
+
+很大程度上本文可以看作对 lujun9972 翻译的转载，不过我修改了一些词语使之更加通顺。通过阅读本文，读者应该能简单了解一些 emacs 中的 generator 使用知识。
+#+END_aside
+
+最近 Emacs 26.1 [[https://lists.gnu.org/archive/html/emacs-devel/2018-05/msg00765.html][发布]]了。正如你所期待的那样，它会有很多新功能。作为一名 Emacs Lisp [[https://nullprogram.com/tags/emacs/][爱好者]]，对我来说最有趣的两个新特性是[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Generators.html][生成器]]（iter）和[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Threads.html][原生线程]]（thread）。
+
+更正：生成器实际上是在 Emacs 25.1（2016 年 9 月）中引入的，而不是 Emacs 26.1。哎！
+
+更新：[[https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual][ThreadSanitizer(TSan)]] 表明 Emacs 的线程实现存在许多数据争用（data race），这也使得它[[https://hboehm.info/boehm-hotpar11.pdf][完全地不可信]]。在这一问题修复之前， *任何人都不应该在任何目的下使用 Emacs 线程* ，在编译时线程应该被禁用。
+
+{{{toc}}}
+
+* 生成器
+
+生成器是一项很酷的语言特性，它以很小的实现成本提供了强大的功能。它们类似于受约束的协程，但与协程不同的是，它们通常完全建立在 first-class 函数（例如闭包）之上。 这意味着不需要额外的运行时支持就可以将生成器添加到语言中。唯一复杂的是对编译器的修改。尽管生成器与普通函数看起来很相似，但它们的编译方式并不相同。
+
+对于 Lisp 家族的生成器，包括 Emacs Lisp，最酷的地方在于编译器部分可以完全用宏来实现。编译器本身不需要修改，这使得生成器可以只是一个库，而不是语言的一部分。这正是 Emacs Lisp（ =emacs-lisp/generator.el= ）中实现生成器的方式。
+
+那么什么是生成器呢？它是一个返回迭代器对象的函数。当一个迭代器对象被调用时（如 =iter-next= ），它会对生成器的 body 求值。每个迭代器都是独立的。迭代器的与众不同(且有用)之处在于，求值过程可以在 body 中间被暂停并返回一个值，同时保存迭代器的所有内部状态。通常情况下在函数中间暂停是不可能的，这就是需要特殊的编辑器支持的原因。
+
+Emacs Lisp 生成器似乎最接近 [[https://wiki.python.org/moin/Generators][Python 生成器]]的模式，不过它和 [[https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators][JavaScript 生成器]]也有一些相似之处。它最像 Python 的地方是使用信号（signal）进行流控制（flow control） --- 我个人[[http://wiki.c2.com/?DontUseExceptionsForFlowControl][不太感冒]]（另外 参见[[https://stackoverflow.com/questions/7799610/exceptions-signaling-end-of-iterator-why-is-it-bad-in-java-and-normal-in-pyth][这里]]）。当 Python 生成器运行完毕时会抛出一个 =StopItertion= 异常。在 Emacs Lisp 中则是一个 =end-of-sequence= signal。信号是 /out-of-band/ （指不会与一般的值混淆）的，这就避免了依赖特殊的 /in-band/ 值来传达迭代结束的问题。
+
+相比之下，JavaScript 的解决方案是返回一个包含实际 yield 值的“富”（rich）对象。这个对象有一个 =done= 字段，用来表示迭代是否已经完成。这避免了在流控制中使用异常，但是调用者必须自己解开这个富对象。
+
+幸运的是，流控制问题通常不会暴露在 Emacs Lisp 代码中。大多数情况下使用 =iter-do= 宏或（我的首选）新的 =cl-loop= 关键字 =iter-by= 就行了。
+
+为了说明生成器是如何工作的，这里有一个非常简单的迭代器，它可以迭代一个列表：
+
+#+BEGIN_SRC elisp
+  (iter-defun walk (list)
+    (while list
+      (iter-yield (pop list))))
+#+END_SRC
+
+下面是它可能的用法：
+
+#+BEGIN_SRC elisp
+(setf i (walk '(:a :b :c)))
+
+(iter-next i)  ; => :a
+(iter-next i)  ; => :b
+(iter-next i)  ; => :c
+(iter-next i)  ; error: iter-end-of-sequence
+#+END_SRC
+
+迭代器对象本身是不透明的，你不应该依赖于其结构的任何实现细节。话虽如此，我坚信我们应该了解事物背后的原理，这样我们才能以最有效的方式使用它们。任何程序都不应该依赖迭代器对象内部的细节来保证正确性，但是一个编写良好的程序应该以[[https://nullprogram.com/blog/2017/01/30/][最符合它们的预期实现]]的方式来使用它们。
+
+在当前实现中，迭代器对象是闭包，而 =iter-next= 使用自己的内部协议调用这个闭包。它要求闭包返回下一个值（ =:next= 操作），而 =iter-close= 要求闭包清理自身（ =:close= 操作）。
+
+由于生成器实际是闭包，所以 Emacs Lisp 生成器的另一个很酷的地方是迭代器对象通常是[[https://nullprogram.com/blog/2013/12/30/][可读]]的。也就是说，你可以使用 =print= 将它们序列化，然后使用 =read= （即使在不同的 Emacs 实例中）使它们恢复正常。它们独立于原始的生成器函数而存在。但若迭代器对象中捕获的某个值是不可读的（例如 buffer），这就不可行了。
+
+暂停是如何实现的？Emacs 26 的另一个令人兴奋的新特性是引入了一个[[https://github.com/emacs-mirror/emacs/blob/master/etc/NEWS.26#L1239][跳转表操作码]]（jump table opcode） =switch= 。我过去曾感叹过，如果 Emacs 的字节码支持跳转表，那么大型的 =cond= 和 =cl-case= 表达式的效率会高得多。它将 O(n) 的比较序列转换为 O(1) 查找和跳转。它为生成器的实现提供了完美基础，因为它可以用来[[https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html][直接跳转]]到暂停求值的位置。
+
+但是，生成器目前没有使用跳转表。生成器库在新的 =switch= 操作码之前就已经存在了，而且由于没有 =switch= 操作码，它的作者 Daniel Colascione 采用了当时最好的选择。 =yield= 之间的代码块被打包成单独的闭包。这些闭包相互连接（有点像 图 中的节点）创建出了一种状态机。为了获得下一个值，迭代器对象会调用表示下一个状态的闭包。
+
+我对上面的 =walk= 生成器进行了手动宏展开，得到了和 =iter-defun= 展开结果类似的代码：
+
+#+BEGIN_SRC elisp
+  (defun walk (list)
+    (let (state)
+      (cl-flet* ((state-2 ()
+		   (signal 'iter-end-of-sequence nil))
+		 (state-1 ()
+		   (prog1 (pop list)
+		     (when (null list)
+		       (setf state #'state-2))))
+		 (state-0 ()
+		   (if (null list)
+		       (state-2)
+		     (setf state #'state-1)
+		     (state-1))))
+	(setf state #'state-0)
+	(lambda ()
+	  (funcall state)))))
+#+END_SRC
+
+这省略了我提到的协议，并且它也没有 =yield= 结果（传递给迭代器的值）。实际的扩展要比这个复杂得多，也没有优化的这么好，希望我手搓的生成器足够说明问题。在没有协议的情况下，这个迭代器使用 =funcall= 而不是 =iter-next= 来步进。
+
+变量 =state= 记录了迭代器当前在生成器 body 中“暂停”的位置。因此，恢复迭代器只是调用代表这种状态的闭包。每个状态闭包都可以更新 =state= 以指向生成器 body 的新部分。最终状态显然是 =state-2= 。请注意状态转换是如何围绕分支发生的。
+
+上面我说到生成器可以作为 Emacs Lisp 的一个库来实现。不幸的是，这里有个漏洞： =unwind-protect= 。在 =unwind-protect= 中进行 =yield= 是无效的。与 =throw-catch= 不同，Emacs Lisp 中不存在机制来捕获 =unwinding= 堆栈，以便之后可以重新启动。状态闭包需要返回并经过 =unwind-protect= 的拦截。
+
+一个跳转表版本的生成器可能是这样的。我这里使用了 =cl-labels= ，因为它允许递归。
+
+#+BEGIN_SRC elisp
+  (defun walk (list)
+    (let ((state 0))
+      (cl-labels
+	  ((closure ()
+	     (cl-case state
+	       (0 (if (null list)
+		      (setf state 2)
+		    (setf state 1))
+		  (closure))
+	       (1 (prog1 (pop list)
+		    (when (null list)
+		      (setf state 2))))
+	       (2 (signal 'iter-end-of-sequence nil)))))
+	#'closure)))
+#+END_SRC
+
+当在 Emacs 26 上进行字节编译时，该 =cl-case= 被转换成一个跳转表。这种 “switch” 形式更接近于用其他语言实现生成器的方式。
+
+同一个环境中的迭代器对象之间可以共享状态(当然，也可以通过相同的全局变量来共享状态)。
+
+#+begin_src emacs-lisp
+  (setf foo
+	(let ((list '(:a :b :c)))
+	  (list
+	   (funcall
+	    (iter-lambda ()
+	      (while list
+		(iter-yield (pop list)))))
+	   (funcall
+	    (iter-lambda ()
+	      (while list
+		(iter-yield (pop list))))))))
+
+  (iter-next (nth 0 foo))  ; => :a
+  (iter-next (nth 1 foo))  ; => :b
+  (iter-next (nth 0 foo))  ; => :c
+#+end_src
+
+这么多年来，一直有一种非常粗糙的方法来“暂停”一个函数并允许其他函数运行： =accept-process-output= 。它只能在进程的上下文环境中工作，但是已经足以让我在 5 年前在它的基础上构建[[https://nullprogram.com/blog/2013/01/14/][原语]]了。与这个旧的进程函数不同，现在的生成器不会阻塞线程，包括用户界面，这一点非常重要。
+
+* 线程
+
+Emacs 26 还为我们带来了线程，这些线程的使用方法非常固定。它不过是 pthreads 的一个子集：共享内存线程、递归互斥和条件变量。线程接口跟 pthreads 一样，还没法自然地集成到 Emacs Lisp 生态中。
+
+这也只是将线程引入 Emacs Lisp 的第一步。现在有一个全局解释器锁（GIL）使得线程一次只能协同地运行一个。与生成器一样，它受 Python 的影响也很明显。理论上讲，将来这个解释器锁将被移除，为实际的并发性让路。
+
+这也是我认为与 JavaScript 形成对比的地方，JavaScript 最初也是设计为单线程的。底层线程原语没有被公开——尽管主要是因为 JavaScript 通常运行在沙箱中，找不到安全的方式来暴露这些原语。 相反，它提供了 [[https://nullprogram.com/blog/2013/01/26/][web worker API]]，在更高的层次上提供了并发性，并提供了一个高效的线程协调接口。
+
+就 Emacs Lisp 来说，我更喜欢更安全、更类似 JavaScript 这样的方法。低级的 pthreads 很容易通过死锁（无法通过 C-g 脱离）摧毁 Emacs。在我这几天研究新的线程 API 的过程中，我已经不得不重启 Emacs 很多次了。而 Emacs Lisp 中的 bug 通常要宽松的多。
+
+一个被设计得很好的重要细节是，动态绑定是 thread-local 的。这对正确的行为非常必要的。也是创建线程本地存储（TLS）的一种简单方法：在线程的入口函数中动态绑定变量。
+
+#+BEGIN_SRC elisp
+  ;;; -*- lexical-binding: t; -*-
+
+  (defvar foo-counter-tls)
+  (defvar foo-path-tls)
+
+  (defun foo-make-thread (path)
+    (make-thread
+     (lambda ()
+       (let ((foo-counter-tls 0)
+	     (foo-name-tls path))
+	 ...))))
+#+END_SRC
+
+然而， =cl-letf= 的“绑定” *不是 thread-local 的* ，这使得这个原本[[https://nullprogram.com/blog/2017/10/27/][非常有用的宏]]在线程中非常危险。这是感觉新线程 API 受限制的一个原因。
+
+
+** 构建基于线程的生成器
+
+在我的 [[https://nullprogram.com/blog/2017/06/21/][Make Flet Great Again]] 这篇文章中，我展示了向 C 中添加协程支持的几种不同方法，其中一种是为每个协程生成线程，然后使用信号量（semaphores）进行协调。使用 Emacs 中的新线程 API 也可以做完全相同的事情。
+
+由于生成器其实是一种受限形式的协程，这意味着线程提供了另一种非常不同的生成器实现方法。线程 API 不提供信号量，但是条件变量（condition varibles）可以代替它们。要在生成器中间“暂停”，只需让它等待一个条件变量即可。
+
+所以，很自然的，我想看看否能完成这项工作。我称之为 线程迭代器 或 thriter。它的 API 与 =iter= 非常相似：
+
+*https://github.com/skeeto/thriter*
+
+这只是一个概念证明，所以不要使用这个库做任何实际上的事情。这些基于线程的生成器比 =iter= 生成器慢 5 倍左右，而且它要重得多，每个迭代器对象都需要一整个线程。这使得及时 =thriter-close= 变得更加重要。但另一方面，这些生成器在 =unwind-protect= 中也能正常 =yield= 。
+
+本文原本打算深入探讨这些线程迭代器的工作细节，但是 thriter 比我预期的要复杂得多，特别是在我研究实现 =iter= 相关特性的时候。
+
+它的要点是， =next/yield= 事务的每一端都有自己的条件变量，但是共享同一个互斥锁（mutex）。线程之间通过迭代器对象上的插槽传递值。当前没有运行的一方等待另一方释放条件变量，然后释放方又等待该条件变量来获取结果。这类似于[[https://nullprogram.com/blog/2017/02/14/][Emacs 动态模块中的异步请求]]。
+
+我没有使用信号而是根据 JavaScript 生成器模型来构建生成器。 迭代器返回一个 cons cell。其中 car 表示是否继续，cdr 为 =yield= 的值。为了尽早结束迭代器（通过 =thritter-close= 或 garbage collection）， =thread-signal= 实际上是用来“取消”线程并将其从条件变量中去掉。
+
+由于线程不会(也不应该)被垃圾回收，因此线程迭代器运行失败通常会导致内存泄漏，因为线程一直卡在那里[[https://www.youtube.com/watch?v=AK3PWHxoT_E][等待一个永远不会到来的下一步操作指令]]。为了解决这个问题，有一个 =finalizer= 以线程不可见的方式附加到迭代器对象上。一个丢失的迭代器最终会被 gc 清理掉，但是，与 =finalizer= 一样，这只是最后的手段（[[https://utcc.utoronto.ca/~cks/space/blog/programming/GoFinalizersStopLeaks][only a last resort]]）。
+
+** 线程的未来
+
+这个线程迭代器项目是我最初使用 Emacs Lisp 线程的一个小实验，类似于我[[https://nullprogram.com/blog/2016/11/05/][使用动态模块将操纵杆连接到 Emacs 上]]。虽然我不指望当前的线程 API 会消失，但它的原始形式并不适合普遍使用。Emacs Lisp 程序中的错误永远不应该导致 Emacs 宕机并需要重新启动。除了线程之外，少数打破这一规则的情况是很容易避免的（而且一眼就能让人看出有很危险的事情正在发生）。动态模块必然是危险的，但并发不一定如此。
+
+真正需要的是一个安全的、高级的 API，能够干净地隔离线程。也许这个高级 API 最终将构建在低级线程 API 的基础上。
+
+* 译后记
+
+严格来说这篇文章并不是我翻译的，我只是对 lujun9972 的译文进行了一些修改，这里的译后记权当我对这篇文章的感想吧。
+
+我对多线程编程并没有什么了解，在 Elisp Manual 中看到 thread 后我还以为是那种可以在多个核上跑的多线程，后来看了一些资料和讨论才知道 Emacs 中的这个线程过于原始了......我不太指望 emacs 中出现那种可以并行的多线程，实在不行就多开几个 emacs 玩多进程并行吧（笑）。
+
+接下来我可能会分析一下 emacs 中 generator 的实现。
+
+| [[https://www.pixiv.net/artworks/52424495][file:-2.jpg]] | [[https://www.pixiv.net/artworks/81703594][file:-1.jpg]] |
+| [[https://www.pixiv.net/artworks/54962252][file:-4.jpg]] | [[https://www.pixiv.net/artworks/87979074][file:-3.jpg]] |
