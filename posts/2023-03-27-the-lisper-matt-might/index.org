@@ -1,0 +1,85 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: blog
+
+#+TITLE: The Lisper -- Matt Might
+#+DATE: [2023-03-26]
+
+说起来，我写这篇文章的动机还真够曲折的，首先我想要了解 emacs 与其他进程间通信的方式，然后看了看 RPC 相关的论文，然后就 emacs 为什么没有线程搜索了一些资料，然后重新看了一遍进程线程协程，然后想着总结一下很久前挖的 generator 的坑，想着读懂 emacs 中的 generator 实现，然后开始搜索 CPS，接着看到了 Matt Might 的博客：[[https://matt.might.net/articles/cps-conversion/][How to compile with continuations]]。
+
+我已经实现了一个非常简单的 CPS transformer，但我不知道下一步该怎么做了：
+
+#+BEGIN_SRC elisp
+  (setq lexical-binding t)
+  (defun mycps2 (ls)
+    (pcase ls
+      (`(lambda ,x ,y)
+       `(lambda (k) (k (lambda ,x ,(mycps2 y)))))
+      (`(,appop ,apped)
+       `(lambda (k) (,(mycps2 appop)
+		     (lambda (fun)
+		       (,(mycps2 apped)
+			(lambda (arg)
+			  ((fun arg) k)))))))
+      (sym `(lambda (k) (k ,sym)))))
+#+END_SRC
+
+这时候我已经有些头昏脑胀了，这文章也不是很容易看懂。无意间我通过文章点进了博客[[https://matt.might.net/][主页]]，让我意外的是博主居然在医学方面有所研究，这段自我介绍似乎让我有些熟悉：
+
+#+BEGIN_QUOTE
+I'm a computer scientist that became passionate about precision medicine in a quest to diagnose [[https://bertrand.might.net/][my son bertrand]].
+
+Finding he was the first case of a novel genetic disorder, I pivoted to finding treatments.
+
+I've ended up applying and generalizing much of what I learned from him to help others, and helping patients facing complex medical challenges has become my life's mission.
+#+END_QUOTE
+
+我超，这不是那个因为儿子患罕见病而使用人工智能寻找解决方法的人吗？这人居然还是写 Lisp 的？generator 什么的先丢一边吧（笑）。
+
+本文的目的是简单阅读一下 Matt Might 写的一些文章留个记号，方便之后阅读。
+
+顺便致敬一下。
+
+* The illustrated guide to a Ph.D.
+
+如果读者对博主的儿子经历感兴趣的话可以前往这个个人网站查看，使用 Matt Might 作为搜索关键字应该也能找到一些报导，由于这不是本文的重点，我就不详细介绍了。这是 Matt Might 的博客页面：
+
+- https://matt.might.net/articles/
+
+在这个页面中列出了不少的文章，不过因为使用了多重 tag 有很多重复，这些文章其实并不多（现在 2023-03-27 只有 142 篇），它们按时间排序列出在页面的末尾，我主要选择编程相关的 tag 看一看。
+
+我相信你一定看过这篇[[https://matt.might.net/articles/phd-school-in-pictures/][文章]]中的图片：
+
+[[./1.png]]
+
+[[./2.png]]
+
+[[./3.png]]
+
+* JavaScript
+
+- [[https://matt.might.net/articles/implementation-of-recursive-fixed-point-y-combinator-in-javascript-for-memoization/][Fixed-point combinators in JavaScript: Memoizing recursive functions]]，简单介绍了如何在 JS 中使用 Y combinator。
+- [[https://matt.might.net/articles/implementation-of-non-terminating-program-in-javascript-without-loops-iteration-recursion/][Non-termination without loops, iteration or recursion: Omega in Javascript]]，在 JS 中使用自应用函数（ω）来实现死循环，而不需要迭代或递归
+- [[https://matt.might.net/articles/learning-javascript-in-small-bites/][JavaScript in small bites, Part 1]], [[https://matt.might.net/articles/learning-javascript-in-small-bites-part-2/][Part2]], [[https://matt.might.net/articles/learning-javascript-in-small-bites-part-3/][Part3]], [[https://matt.might.net/articles/learning-javascript-in-small-bites-part-4/][Part4]]，似乎是一系列简单的 JS 教程
+- *[[https://matt.might.net/articles/by-example-continuation-passing-style/][By example: Continuation-passing style in JavaScript]]* ，一些在 JS 中使用 CPS 的例子
+- [[https://matt.might.net/articles/javascript-warts/][Avoiding and exploiting JavaScript's warts]]，一些 JS 代码建议
+- [[https://matt.might.net/articles/js-church/][Church encodings, the U combinator and the Y combinator in JavaScript]]，在 JS 中使用 lambda 演算构建一些编程语言 primitive，貌似是每个 Lisper 都干过的事（笑）
+
+* 编译技术
+
+这些文章是从 Parsing, Continuations 和 Compilation 三个 tag 中摘出来的，我本人没有学过多少相关知识，只是知道几个名词而已，这里就随便列一点：
+
+- [[https://matt.might.net/articles/grammars-bnf-ebnf/][The lanugage of languages]]，BNF 教程
+- [[https://matt.might.net/articles/parsing-regex-with-recursive-descent/][Parsing regular expressions with recursive descent]]，递归下降法解析正则表达式
+- *[[https://matt.might.net/articles/cps-conversion/][How to compile with continuations]]* ，从标题来看似乎是如何编译代码使之带有 continuation，目前我还没有看完，总之与 CPS 有关
+- [[https://matt.might.net/articles/programming-with-continuations--exceptions-backtracking-search-threads-generators-coroutines/][Continuations by example: Exceptions, time-traveling search, generators, threads, and coroutines]]，使用 continuation 编程的一些例子
+- [[https://matt.might.net/articles/desugaring-scheme/][Tree transformations: Desugaring Scheme]]，对 Scheme 表达式去糖
+- [[https://matt.might.net/articles/closure-conversion/][Closure conversions: How to compile lambda]]，如何实现闭包
+- [[https://matt.might.net/articles/a-normalization/][A-Normalization: Why and How]]，ANF（A-normal form）变换的实现
+- [[https://matt.might.net/articles/compiling-up-to-lambda-calculus/][Compiling to lambda-calculus: Turtles all the way down]]，将代码编译为 lambda 演算表示，同样估计每个 Lisper 都（想）干过
+- [[https://matt.might.net/articles/implementing-a-programming-language/][7 lines of code, 3 minutes: Implement a programming language from scratch]]，教你实现一个简单的玩具语言
+
+* 后记
+
+本文在内容上没什么好说的，只是不想看 CPS 顺便给自己留个文章索引而已。希望列出的一些文章能对你有所帮助。
+
+上面列出的十几篇只是 Matt Might 一百多篇文章的一小部分而已，读者若对编程语言相关的知识感兴趣的话，可以去作者的博客看看。

@@ -11,3 +11,14 @@
 * 如何创建进程
 
 
+https://alexanderell.is/posts/rpc-from-scratch/
+https://particular.net/blog/rpc-vs-messaging-which-is-faster
+https://www.emacswiki.org/emacs/NoThreading
+https://www.reddit.com/r/emacs/comments/zuhpl3/when_exactly_can_async_process_output_actually/
+https://gist.github.com/jdtsmith/0c35675ec33be1402fab60fe6cbd4d0c
+https://www.reddit.com/r/emacs/comments/zuhpl3/comment/j1na3ud/?context=3
+https://wikemacs.org/wiki/Concurrency
+https://www.jianshu.com/p/75aa9732c570
+https://emacs.stackexchange.com/questions/18953/print-process-output-line-by-line
+https://news.ycombinator.com/item?id=31559818
+https://andreyorst.gitlab.io/posts/2023-02-01-ad-hoc-async-in-emacs-lisp-via-generators/
