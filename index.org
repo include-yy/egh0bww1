@@ -41,6 +41,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * Recent [[./posts/index.org][Posts]]
+- [2023-04-02 Sun]  [[file:posts/2023-04-02-33-emacs-generator/index.org][emacs generator 使用及其实现介绍]]
 - [2023-03-27 Mon]  [[file:posts/2023-03-27-the-lisper-matt-might/index.org][The Lisper -- Matt Might]]
 - [2023-03-25 Sat]  [[file:posts/2023-03-25-32-emacs-26-generator-thread/index.org][Emacs 26 Brings Generators and Threads]]
 - [2023-03-05 Sun]  [[file:posts/2023-03-05-31-emacs-restore-buffers/index.org][如何保存 emacs 当前状态供下次打开时恢复]]
