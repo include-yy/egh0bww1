@@ -4,13 +4,48 @@
     <link>https://egh0bww1.com</link>
     <title>include-yy :: blog</title>
     <description>The last ten articles I write</description>
-    <pubDate>2023-04-02 12:30</pubDate>
+    <pubDate>2023-04-02 15:29</pubDate>
     <item>
       <title>emacs generator 使用及其实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-04-02-33-emacs-generator</link>
       <category>emacs</category>
       <description>本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法</description>
       <pubDate>2023-04-02</pubDate>
+    </item>
+    <item>
+      <title>The Lisper -- Matt Might</title>
+      <link>https://egh0bww1.com/posts/2023-03-27-the-lisper-matt-might</link>
+      <category>emacs</category>
+      <description>本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客</description>
+      <pubDate>2023-03-27</pubDate>
+    </item>
+    <item>
+      <title>Emacs 26 Brings Generators and Threads</title>
+      <link>https://egh0bww1.com/posts/2023-03-25-32-emacs-26-generator-thread</link>
+      <category>emacs</category>
+      <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成。</description>
+      <pubdate>2023-03-25</pubdate>
+    </item>
+    <item>
+      <title>如何保存 emacs 当前状态供下次打开时恢复</title>
+      <link>https://egh0bww1.com/posts/2023-03-05-31-emacs-restore-buffers</link>
+      <category>emacs</category>
+      <description>本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法</description>
+      <pubDate>2023-03-05</pubDate>
+    </item>
+    <item>
+      <title>emacs 的加载机制</title>
+      <link>https://egh0bww1.com/posts/2023-03-04-30-emacs-load-mechanism</link>
+      <category>emacs</category>
+      <description>本文是对 elisp manual 16 的讲解和分析，较为完整地介绍了一些加载机制的使用和原理</description>
+      <pubDate>2023-03-04</pubDate>
+    </item>
+    <item>
+      <title>emacs 是如何启动的</title>
+      <link>https://egh0bww1.com/posts/2023-02-23-29-how-emacs-startup</link>
+      <category>emacs</category>
+      <description>本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍。</description>
+      <pubDate>2023-02-23</pubDate>
     </item>
   </channel>
 </rss>
