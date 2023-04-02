@@ -63,3 +63,7 @@ cirno.onclick = () => {
 
 - [2023-03-23] [[file:republish/2023-03-23-implementing-remote-procedure-calls/index.org][Implementing Remote Procedure Call]]
 - [2023-02-14] [[file:republish/2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][康托尔、哥德尔、图灵——永恒的金色对角线]]
+
+* [[file:rss.xml][RSS]]
+
+https://egh0bww1.com/rss.xml

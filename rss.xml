@@ -1,0 +1,16 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <atom:link href="https://egh0bww1.com/rss.xml" rel="self" type="application/rss+xml"/>
+    <link>https://egh0bww1.com</link>
+    <title>include-yy :: blog</title>
+    <description>The last ten articles I write</description>
+    <pubDate>2023-04-02 12:30</pubDate>
+    <item>
+      <title>emacs generator 使用及其实现介绍</title>
+      <link>https://egh0bww1.com/posts/2023-04-02-33-emacs-generator</link>
+      <category>emacs</category>
+      <description>本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法</description>
+      <pubDate>2023-04-02</pubDate>
+    </item>
+  </channel>
+</rss>

@@ -86,8 +86,13 @@
 	   :publishing-directory ,(expand-file-name "blog-build")
 	   :publishing-function org-html-publish-to-html
 	   :exclude "README\\|setup")
+	  ("rss"
+	   :base-directory ,default-directory
+	   :base-extension "xml"
+	   :publishing-directory ,(expand-file-name "blog-build")
+	   :publishing-function org-publish-attachment)
 	  ("yynt"
-	   :components ("resources" "articles" "js" "css" "img" "homepage"))))
+	   :components ("resources" "articles" "republish" "re-resources" "js" "css" "img" "homepage" "rss"))))
 
 (defun t-imgattr ()
   (interactive)
