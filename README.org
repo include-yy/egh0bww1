@@ -1,11 +1,3 @@
-* Recent Posts
-
-- [[./posts/2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
-- [[./posts/2023-01-30-27-semantic-element-and-org-html5-export][语义元素与 org 的 html5 导出]]
-- [[./posts/2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
-- [[./posts/2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
-- [[./posts/2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
-- [[./posts/2023-01-12-make-me-a-blog-wrong-way/index.org][怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏]]
 
 * 关于博客的说明
 
@@ -14,3 +6,5 @@
 博客使用 CC-BY-SA 4.0，如果有精力可以遵守一下这个协议，比较懒的话我也不会怎么样，feel free to do what you want（笑）。
 
 如果您有任何问题，欢迎通过 issue 与我交流。
+
+RSS： https://egh0bww1.com/rss.xml
