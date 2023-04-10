@@ -1,0 +1,26 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 怎么弄个自己的博客 -- 添加 RSS 支持
+#+DATE: [2023-04-02 Sun 15:19]
+
+#+BEGIN_COMMENT
+
+#+END_COMMENT
+
+本文的目的是学习如何通过手写 XML 文件为博客提供 RSS 支持，当然本文也会介绍一些工具，但是主要内容还是叫你怎么写符合标准的 RSS XML 文件。
+
+* 什么是 RSS
+
+通过查看[[https://zh.wikipedia.org/zh-cn/RSS][维基百科]]，RSS 这个缩写似乎指向了三个东西：
+
+- Really Simple Syndication（简易信息聚合）
+- RDP (Resource Description Framework) Site Summary（资源描述框架站点摘要）
+- Rich Site Summary
+
+RSS 的原意应该是资源描述框架站点摘要，不过从 RSS 缩写又变更为了简易信息聚合。RSS 是一种消息来源格式规范，用来聚合多个网站更新的内容并自动通知网站的订阅者，可将新闻标题、摘要（Feed）、内容按用户的要求推送给用户。使用 RSS 后，网站订阅者无需手动查看网站是否有新的内容。
+
+维基百科提供了四份 RSS 标准的链接，分别是 [[https://www.rssboard.org/rss-0-9-0][0.90]]，[[https://www.rssboard.org/rss-0-9-1-netscape][0.91]]，[[https://web.resource.org/rss/1.0/][1.0]] 和 [[https://www.rssboard.org/rss-specification][2.0]]。但这些东西似乎都已经很老了，RSS 2.0 标准的发布时间是 2009 年 3 月 30 日，此后就再也没有更新过。目前最新的选择是 ATOM 标准，它基于 RSS 2.0 并进行了一些改进，下图可以说明这些标准之间的关系：
+
+#+CAPTION: https://medifund.jp/seo/rss-atom/
+[[./1.png]]

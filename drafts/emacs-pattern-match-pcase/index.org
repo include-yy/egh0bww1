@@ -1,0 +1,475 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 在 emacs 中使用模式匹配 —— pcase 的使用与实现介绍
+#+DATE: [2023-04-03 Mon 15:24]
+
+本着写完所有 elisp manual 这个目的，在介绍完 generator 后那自然就是模式匹配了。本文根据文档简单介绍了 pcase 宏的用法，并简单介绍了其实现方式。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 10
+- Python 3.11.0 on Windows 10
+- Racket 8.8 x86_64 win32 cs
+
+* 什么是模式匹配
+
+我还记得刚开始学 Haskell 时写过的 length 函数：
+
+#+BEGIN_SRC haskell
+  mylen :: [a] -> Integer
+
+  mylen [] = 0
+  mylen (x:xs) = 1 + mylen(xs)
+
+  a = mylen [1, 2, 3]
+
+  main = do
+    print (a)
+#+END_SRC
+
+虽然直到现在我都还卡在《趣学 Haskell》的 monad 部分而从来没有写过实际可用的 Haskell 程序，但 Haskell 的 pattern matching 应该就是我的模式匹配启蒙了。维基百科对模式匹配的定义如下：
+
+#+BEGIN_QUOTE
+In computer science, pattern matching is the act of checking a given sequence of tokens for the presence of the constituents of some pattern. In contrast to pattern recognition, the match usually has to be exact: "either it will or will not be a match." The patterns generally have the form of either sequences or tree structures. Uses of pattern matching include outputting the locations (if any) of a pattern within a token sequence, to output some component of the matched pattern, and to substitute the matching pattern with some other token sequence.
+
+[[https://en.wikipedia.org/wiki/Pattern_matching][Pattern matching -- Wikipedia]]
+#+END_QUOTE
+
+从作用上来说，模式匹配允许我们判断某个序列中是否有我们想要的模式，如果有的话还可以方便地提取其中的内容。听上去这和正则表达式还挺像的，要我说实际也没什么区别，正则匹配就是一种模式匹配，不过更一般的模式匹配允许我们匹配各种各样的数据结构而不限于字符串。
+
+考虑到 Python 的流行性，这里还是先用它做例子。Python 在 3.10（2021-10-04） 中引入了 =match= 语句，可以进行结构化模式匹配，这允许从复杂的数据类型中提取信息，根据文档来看， =match= 语法如下：
+
+#+BEGIN_SRC python
+  match subject:
+      case <pattern_1>:
+	  <action_1>
+      case <pattern_2>:
+	  <action_2>
+      case <pattern_3>:
+	  <action_3>
+      case _:
+	  <action_wildcard>
+#+END_SRC
+
+首先 =match= 会对 =subject= 求值，然后从上倒下依次比对 =subject= 和各 =pattern= ，如果某一 =<pattern>= 匹配成功，那么就会执行对应的 =action= 。如果没有找到匹配的 =pattern= ，那么 =_= 会匹配任意表达式。如果 =match= 中不存在 =_= 且没有匹配项，整个语句等于什么也不做（no-op）。
+
+读者可以看看 [[https://peps.python.org/pep-0636/][PEP 636]] 和 [[https://peps.python.org/pep-0634/][PEP 634]] 来学习一些用法，这里我简单说下它支持的功能，并给出一些简单的例子：
+
+匹配简单值：
+
+#+BEGIN_SRC python
+  match 1:
+      case 2:
+	  print("123")
+      case 1 | 3 | 5:
+	  print("456")
+      case _:
+	  print("789")
+  => "456"
+#+END_SRC
+
+匹配列表和元组：
+
+#+BEGIN_SRC python
+  match (1, 2, 3):
+       case (1, x, 3):
+	       x
+       case _:
+	       print('non')
+  => 2
+#+END_SRC
+
+添加 =if= 表达式：
+
+#+BEGIN_SRC python
+  match (1, 2, 3):
+       case (x, y, _) if x + y == 3:
+	      x + y
+  => 3
+#+END_SRC
+
+创建绑定：
+
+#+BEGIN_SRC python
+  match [1, 2]:
+       case (x as x1, y as x2):
+	       x1 + x2
+  => 3
+#+END_SRC
+
+上面的内容大致能够看作对 Python 模式匹配的简单介绍，至少是让没有接触过的人简单入个门。下面让我们开始对 elisp PM 的介绍。读者如果有兴趣的话可以看看 Racket Match 的[[https://docs.racket-lang.org/reference/match.html][文档]]。下文中出现的一些例子部分参考了这份文档。
+
+* PM in elisp: pcase
+
+elisp 的 pcase 宏与 Racket 的 match 非常相似，所以如果读者对 pcase 的某些用法不太熟悉的话可以去读 Racket 文档。以下是对 pcase 各匹配功能的介绍，我会尽力覆盖所有的特性，也许可以看作对官方文档的一个补充。根据文档的说法， =pcase= 对 =cond= 和 =cl-case= 进行了取长补短。 =pcase= 的原型如下：
+
+#+BEGIN_SRC elisp
+(pcase expression &rest clauses)
+#+END_SRC
+
+其中的每一条 =clause= 的形式都是 =(pattern body-forms ...)= ，下面我们介绍一下 =pcase= 中可用的 =pattern= 。以下称被匹配的表达式为 =expval= 。
+
+** basic patterns
+
+*** =_= (下划线)
+
+匹配任意值，且不会创建绑定：
+
+#+BEGIN_SRC elisp
+  (pcase '(1 2 3) (`(1 ,_ ,_) 'ok))
+  => ok
+
+  (pcase '(1 2 3)
+    (`(1 ,a ,a) 'ok)
+    (_ 'no))
+  => no
+
+  (pcase '(1 2 2) (`(1 ,a ,a) 'ok))
+  => ok
+#+END_SRC
+
+*** 常量值
+
+对于常量值，我们可以直接加上 =quote= 来进行匹配，特别地对于 keyword, integer 和 string 我们可以直接使用它们来进行匹配。常量的相等判定使用的是 =equal= ：
+
+#+BEGIN_SRC elisp
+  (pcase '1 (1 t))
+  (pcase 1 ('1 t))
+  (pcase "abc" ("abc" t))
+  (pcase :hello (:hello t))
+  (pcase 'a ('a t))
+  (pcase '(1 2 3) ('(1 2 3) t))
+  (pcase [1 2 3] ('[1 2 3] t))
+  ;; all return t
+#+END_SRC
+
+*** 符号
+
+符号（指不带 ='= 的 symbol）会匹配任意 =expval= 并创建绑定，这样以来就可以在随后的代码中使用这个变量。
+
+#+BEGIN_SRC elisp
+  (pcase '(1 2 3) (a a))
+  => (1 2 3)
+
+  (pcase '(1 (x y z) 1)
+    (`(,a ,b ,a) `(,a ,b))
+    (`(,a ,b ,c) `(,c ,b ,a)))
+  => (1 (x y z))
+
+  (pcase '(1 2)
+    ((and a (guard (equal a '(1 2)))) 3))
+  => 3
+#+END_SRC
+
+文档建议我们不要使用 =t= ，它在过去的用法与 =_= 一样，但现在已经被废弃了；以及不要使用 =nil= ，使用它会引发错误。同样的道理，由于 keyword 的 value cell 是指向自己的常量，我们也不应该使用 keyword：
+
+#+BEGIN_SRC elisp
+  (pcase 1 (t 1))
+  => 1
+  (pcase 1 (nil 1))
+  => Debugger entered--Lisp error: (error "Unknown pattern ‘nil’")
+  (pcase 1 (:a :a))
+  => nil
+#+END_SRC
+
+*** pred
+
+使用 =pred= 允许我们使用一个谓词判断表达式是否满足我们的要求，比如：
+
+#+BEGIN_SRC elisp
+  (pcase 1 ((pred numberp) 2))
+  => 2
+#+END_SRC
+
+只不过 =pred= 并不仅仅支持函数名，实际上它支持三种形式，分别是函数名，lambda 函数和偏应用表达式，对第三种情况 =pcase= 处理的值将作为最后一个参数，而且不能是 lambda 表达式：
+
+#+BEGIN_SRC elisp
+  (pcase 1 ((pred (lambda (x) (= x 1))) 3))
+  => 3
+
+  (pcase 1 ((pred (< 0)) 4))
+  => 4
+#+END_SRC
+
+*** app
+
+=app= 模式的完整形式为 =(app fun pattern)= ，它会使用 =fun= 应用于 =expval= ，它与 =pred= 的不同之处在于它使用 =pattern= 匹配函数调用返回值，而不是判断函数返回值是否为真。 =app= 的 =fun= 要求与 =pred= 一致：
+
+#+BEGIN_SRC elisp
+  (pcase 1
+    ((app numberp 't) 2))
+  => 2
+  (pcase 1
+    ((app (< 0) 't) 3))
+  => 3
+  (pcase 1
+    ((app (lambda (n) (list n)) '(1)) 4))
+  => 4
+#+END_SRC
+
+*** guard
+
+=guard= 完整形式为 =(guard boolean-expression)= ，它通过表达式是否为真判断是否选择该分支：
+
+#+BEGIN_SRC elisp
+  (pcase 1
+    ((guard t) 2))
+  => 2
+
+  (pcase 1
+    ((and a (guard (= a 1))) 3))
+  => 3
+#+END_SRC
+
+*** let
+
+我们可以使用 =let= 字句匹配 =expval= ，这似乎可看作对 =pcase= 的一种嵌套。 =let= 的完整形式为 =(let pattern expr)= ：
+
+#+BEGIN_SRC elisp
+  (pcase 1
+    ((and a (let b (1- a))) b))
+  => 0
+#+END_SRC
+
+*** and 和 or
+
+通过使用 =and= 和 =or= ，我们可以串联多个子 =pattern= ， =and= 或 =or= 的语义和一般的 =or= 或 =and= 类似，都是短路求值。
+
+需要注意的是 =and= 可以不含 =pattern= ，仅有 =(and)= 表示直接匹配，而 =or= 至少要有一个 =pattern= ，否则 =(or)= 直接匹配失败，所以 =pcase= 直接禁用了这种写法：
+
+#+BEGIN_SRC elisp
+  (pcase 1
+    ((and a (pred (= 1)) (app (lambda (n) (= n 1)) t) (let b a)) b))
+  => 1
+
+  (pcase 1 ((and) 2))
+  => 2
+
+  (pcase 1
+    ((or (pred (= 2)) b (guard (= b 1))) 3))
+  => 3
+
+  (pcase 1 ((or) 4))
+  => Debugger entered--Lisp error: (error "Please avoid it")
+#+END_SRC
+
+如果某个符号在这样的序列模式（ =seqpat= ）中出现了多次，那么第二个及随后的符号不会进行绑定，而是表示第一个符号的绑定。文档中给出了如下的代码来说明：
+
+#+BEGIN_SRC elisp
+  (defun grok (object)
+    (pcase object
+      ((and (pred consp)        ; seqpat A
+	    (app car st)        ; first mention: st
+	    (app cdr st))       ; second mention: st
+       (list 'eq st))
+      ((and (pred consp)        ; seqpat B
+	    (app car s1)        ; first mention: s1
+	    (app cdr s2))       ; first mention: s2
+       (list 'not-eq s1 s2))))
+
+  (let ((s "yow!"))
+    (grok (cons s s)))
+  ⇒ (eq "yow!")
+  (grok (cons "yo!" "yo!"))
+  ⇒ (not-eq "yo!" "yo!")
+  (grok '(4 2))
+  ⇒ (not-eq 4 (2))
+
+  (grok '((1) . (1)))
+  ⇒ (not-eq (1) (1))
+  (grok '(4.0 . 4.0))
+  ⇒ (eq 4.0)
+  (grok '(#1=(1) . #1#))
+  ⇒ (eq (1))
+#+END_SRC
+
+通过上面的代码我们可知相同符号的判等使用的是 =eql= 而不是 =equal= 。
+
+此外，文档建议我们不要对作为 =pattern= 的符号进行副作用操作，这样做是未定义行为，可能会带来意想不到的后果。至于会带来什么后果只能分析实现了。
+
+** 扩展 pcase
+
+根据文档的说法，我们可以使用 =pcase-defmacro= 来定义新的可用于 =pcase= 的关键字，它会将 =[DOC]= 中的内容添加到 =pcase= 的文档字符串中：
+
+#+BEGIN_SRC elisp
+(pcase-defmacro NAME ARGS [DOC] &rest BODY...)
+#+END_SRC
+
+我们可以使用它创建展开为使用基础关键字的表达式的宏。以下是文档中给出的简单例子：
+
+#+BEGIN_SRC elisp
+  (pcase-defmacro less-than (n)
+    "Matches if EXPVAL is a number less than N."
+    `(pred (> ,n)))
+
+  (pcase-defmacro integer-less-than (n)
+    "Matches if EXPVAL is an integer less than N."
+    `(and (pred integerp)
+	  (less-than ,n)))
+#+END_SRC
+
+通过比较 pcase.el 中的 =pcase= 文档字符串与 =C-h f= 获取的字串，你可以发现 =C-h f= 中的内容更多一些，这是其他模块使用了 =pcase-defmacro= 向其中添加了新内容的原因。
+
+下面作为例子，我们使用 =pcase-defmacro= 实现一下 Racket =match= 中的 =list= 关键字，以及配套的 =...=, =..k=, =___= 和 =__k= ，下面是使用例：
+
+#+BEGIN_SRC scheme
+  (match '(1 2 3)
+	 [(list 1 2 3)])
+  => 1
+  (match '(1 2 3)
+	 [(list a b c) (list b a c)])
+  => '(2 1 3)
+  (match '(1 2 3)
+	 [(list a ..2 _) a])
+  => '(1 2)
+  (match '(1 2 3)
+	 [(list a __2 b) (list a b)])
+  => '((1 2) 3)
+  (match '(1 1 1)
+	 [(list 1 ...) 1])
+  => 1
+#+END_SRC
+
+简单来说， =...= 和 =___= 表示的都是匹配零个或多个， =..k= 和 =__k= 表示至少匹配 =k= 个， =..0= 和 =__0= 等价于 =...= 和 =___= ，这些关键字必须跟在 =pattern= 的后面。
+
+#+BEGIN_SRC elisp
+
+#+END_SRC
+
+** 一些标准扩展
+
+*** cl-type
+
+可以使用 =(cl-type TYPE)= 来匹配某个类型，在内部 =pcase= 会使用 =cl-typep= 来判断是否为该类型。这里简单介绍一下 =cl-type= 支持的用法。
+
+我们可以直接使用某种类型对应的符号， =cl-type= 会在 =cl-deftype-handler= 和 =cl-deftype-satisfies= 中查找这些类型对应的判断谓词。其中 =cl-deftype-handler= 来自用户调用 =cl-deftype= 创建的类型， =cl-deftype-satisfies= 来自预定义的表：
+
+#+BEGIN_SRC elisp
+(pcase-dolist (`(,type . ,pred)
+               ;; Mostly kept in alphabetical order.
+               '((array		. arrayp)
+                 (atom		. atom)
+                 (base-char	. characterp)
+                 (bignum	. bignump)
+                 (boolean	. booleanp)
+                 (bool-vector	. bool-vector-p)
+                 (buffer	. bufferp)
+                 (character	. natnump)
+                 (char-table	. char-table-p)
+                 (command	. commandp)
+                 (hash-table	. hash-table-p)
+                 (cons		. consp)
+                 (fixnum	. fixnump)
+                 (float		. floatp)
+                 (function	. functionp)
+                 (integer	. integerp)
+                 (keyword	. keywordp)
+                 (list		. listp)
+                 (number	. numberp)
+                 (null		. null)
+                 (real		. numberp)
+                 (sequence	. sequencep)
+                 (string	. stringp)
+                 (symbol	. symbolp)
+                 (vector	. vectorp)
+                 ;; FIXME: Do we really want to consider this a type?
+                 (integer-or-marker . integer-or-marker-p)
+                 ))
+  (put type 'cl-deftype-satisfies pred))
+#+END_SRC
+
+如果没有在这两张表中找到对应的类型，那么 =cl-typep= 会尝试在类型符号的后面加上 =p= 或 =-p= 来寻找对应的谓词，负责查找的函数是 =cl--macroexp-fboundp= 。
+
+#+BEGIN_SRC elisp
+  (cl-typep [1] 'vector) => t
+  (cl-typep nil 'null) => t
+  (cl-typep 1.1 'float) => t
+#+END_SRC
+
+如果添加 =p= 或 =-p= 的谓词都没有找到，那就会查找类型符号对应的同名谓词，这也就是说我们可以直接使用类型谓词对应的符号：
+
+#+BEGIN_SRC elisp
+  (cl-typep 1 'numberp) => t
+  (cl-typep t 'booleanp) => t
+#+END_SRC
+
+=t= 和 =nil= 比较特殊，前者表示匹配所有类型，后者表示什么也不匹配：
+
+#+BEGIN_SRC elisp
+(cl-typep 1 t) => t
+(cl-typep 1 nil) => nil
+#+END_SRC
+
+对于整数（integer），浮点数（float），实数（real）和数字（number），我们可以指定数值范围。如果我们使用了 =*= 就表示不使用下限或上限，我们可以使用 =()= 包裹数字来表示使用小于/大于而不是小于等于/大于等于：
+
+#+BEGIN_SRC elisp
+  (cl-typep 1 'number) => t
+  (cl-typep 2 'real) => t
+  (cl-typep 3 'integer) => t
+  (cl-typep 4 'float) => nil
+
+  (cl-typep 1 '(integer 0 1)) => t
+  (cl-typep 1 '(integer 0 (1))) => nil
+  (cl-typep 0 '(integer 0 1)) => t
+  (cl-typep 0 '(integer (0) 1)) => nil
+  (cl-typep 114514 '(integer * 114514)) => t
+  (cl-typep 2 '(integer 0 *)) => t
+#+END_SRC
+
+
+我们可以使用 =not= 来对类型取反，即判断某个值是否不属于该类型：
+
+#+BEGIN_SRC elisp
+  (cl-typep 1 '(not number)) => nil
+  (cl-typep -1 '(not (number 0 1))) => t
+  (cl-typep 1 '(not (number 0 (1)))) => t ;; 0 <= x < 1 --> x < 0 or x >= 1
+#+END_SRC
+
+我们可以使用 =and= 和 =or= 并列多个判断：
+
+#+BEGIN_SRC elisp
+  (cl-typep 1 '(and (number * 2) (number 0 *))) => t
+  (cl-typep -1 '(or (number * 1) (number 2 *))) => t
+#+END_SRC
+
+我们可以使用 =eql= 判断某个值是否与另一值相等，使用 =member= 判断值是否属于某表，使用 =satisfies= 判断某值是否满足某个谓词：
+
+#+BEGIN_SRC elisp
+  (cl-typep 1 '(eql 1)) => t
+  (cl-typep 2 '(member 1 2 3)) => t
+  (cl-typep 3 '(satisfies numberp)) => t
+#+END_SRC
+
+说了这么多，这里给出一个在 =pcase= 中使用 =cl-type= 的简单例子（够简单的）：
+
+#+BEGIN_SRC elisp
+  (pcase 1
+    ((cl-type (integer (0) 1)) 1))
+  => 1
+#+END_SRC
+
+*** rx
+
+我们可以使用 =(rx rx-expr ...)= 来使用正则匹配字符串，这会用到 =rx= 这个宏来生成正则表达式：
+
+#+BEGIN_SRC elisp
+  (rx "/*"                          ; Initial /*
+      (zero-or-more
+       (or (not (any "*"))          ;  Either non-*,
+	   (seq "*"                 ;  or * followed by
+		(not (any "/")))))  ;  non-/
+      (one-or-more "*")             ; At least one star,
+      "/")
+  => "/\\*\\(?:[^*]\\|\\*[^/]\\)*\\*+/"
+#+END_SRC
+
+由于我对 =rx= 不怎么熟，这里就简单展示一下算了：
+
+#+BEGIN_SRC elisp
+  (pcase "include-yy"
+    ((rx "include-yy") 1))
+  => 1
+#+END_SRC
+
+根据文档说明，除了可用的 =rx= 语法， =pcase= 中的 =rx= 还添加了 =(let ref rx-expr ...)= 和 =(backref ref)= 两种额外结构。熟悉 =rx= 的读者可以研究研究，因为不熟这里我就不介绍了。
