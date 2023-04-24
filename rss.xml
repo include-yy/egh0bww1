@@ -6,6 +6,13 @@
     <description>The last ten articles I write</description>
     <pubDate>2023-04-02 15:29</pubDate>
     <item>
+      <title>调用 url-retrieve 时出现的 multibyte text 错误</title>
+      <link>https://egh0bww1.com/posts/2023-04-24-34-emacs-url-retrieve-multibyte-error</link>
+      <category>emacs</category>
+      <description>本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议</description>
+      <pubDate>2023-04-24</pubDate>
+    </item>
+    <item>
       <title>emacs generator 使用及其实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-04-02-33-emacs-generator</link>
       <category>emacs</category>

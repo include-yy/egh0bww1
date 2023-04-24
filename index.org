@@ -41,6 +41,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * Recent [[./posts/index.org][Posts]]
+- [2023-04-24 Mon]  [[file:posts/2023-04-24-34-emacs-url-retrieve-multibyte-error/index.org][调用 url-retrieve 时出现的 multibyte text 错误]]
 - [2023-04-02 Sun]  [[file:posts/2023-04-02-33-emacs-generator/index.org][emacs generator 使用及其实现介绍]]
 - [2023-03-27 Mon]  [[file:posts/2023-03-27-the-lisper-matt-might/index.org][The Lisper -- Matt Might]]
 - [2023-03-25 Sat]  [[file:posts/2023-03-25-32-emacs-26-generator-thread/index.org][Emacs 26 Brings Generators and Threads]]

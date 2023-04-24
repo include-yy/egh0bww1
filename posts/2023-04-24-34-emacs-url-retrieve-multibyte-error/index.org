@@ -1,0 +1,208 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 调用 url-retrieve 时出现的 multibyte text 错误
+#+DATE: [2023-04-24 16:34]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/107485378][file:0.jpg]]
+
+通过使用 emacs 自带的 url.el，我们可以使用简单的网络功能。在通过 =url-retrieve= 函数发送 HTTP 请求时，我的 emacs 中出现了如下错误：
+
+#+BEGIN_SRC elisp
+  (let* ((url-request-extra-headers
+	  `(("Cookie" . ,(get-my-cookie))))
+	 (url-request-method "POST")
+	 (url-request-data (encode-coding-string "some data" 'utf-8))
+	 (buf (url-retrieve-synchronously "some url" nil t)))
+    ...)
+  =>
+  Debugger entered--Lisp error: (error "Multibyte text in HTTP request: POST ...
+#+END_SRC
+
+在发起请求时，我对我的数据使用了 UTF-8 编码，按理来说应该全是字节数据才对。这个报错困扰了我一下午，最后我在[[https://emacs-china.org/t/url-el-multibyte-text-in-http-request/9336][这个帖子]]中找到了问题所在，原来是我的 =get-my-cookie= 返回了 multibyte string，将其修改为如下代码即可正常返回结果：
+
+#+BEGIN_SRC elisp
+  (let* ((url-request-extra-headers
+	  `(("Cookie" . ,(string-as-unibyte (get-my-cookie)))))
+	 (url-request-method "POST")
+	 (url-request-data (encode-coding-string "some data" 'utf-8))
+	 (buf (url-retrieve-synchronously "some url" nil t)))
+    ...)
+#+END_SRC
+
+本文的目的是记录一下这个坑（一般谁会想到是 Header 的问题啊），也许我会在下一篇文章中简单介绍一下 emacs 中的字符串。
+
+本文使用的环境如下：
+
+- GNU Emacs 30.0.50 (build 1, x86_64-w64-mingw32) of 2023-04-06
+
+{{{toc}}}
+
+* 源码分析
+
+通过一级一级的查找，我们可以找到出现错误的位置，由于我出使用的是 HTTP 的 POST 方式，这里顺着一直找就行：
+
+#+BEGIN_SRC elisp
+  url-retrieve-synchronously --> url-retrieve --> url-retrieve-internal -->
+  url-proxy --> url-http --> url-http-create-request -->
+  ;; Bug#23750
+  (unless (= (string-bytes request)
+	     (length request))
+    (error "Multibyte text in HTTP request: %s" request))
+#+END_SRC
+
+从 =url-retrieve-synchronously= 到 =url-http-create-request= ，我们找到了触发 error 的代码，可见在 HTTP 报文字符串中字符数（ =length= ）与字节数（ =string-bytes= ）不等时就会触发。
+
+HTTP 报文由请求头，HTTP 头部字段， =\r\n= 和可选的主体数据组成，我在发起请求时已经对主体数据进行了 UTF-8 编码，对头部字段也使用 =url-encode-url= 编码为合法的 url 字符串，那么问题只可能出现在头部字段上了。
+
+想要避免这个问题很简单，那就是对报文内容全部采用 =unibyte= 而不是两种字符串混杂，我就是这样做让代码正常工作的，但是这并不能找到出现这个问题的根本原因。下面我们还是做一些分析，以及使用实际的例子说明一下情况。
+
+* 问题分析
+
+下面，我随便找了个可以进行 POST 的测试网站，比如[[https://webhook.site/][这个]]，然后开始发送 POST 请求。以下是测试用函数：
+
+#+BEGIN_SRC elisp
+(defun my-test-post (url header-alist content)
+  (let ((url-request-method "POST")
+	(url-request-data (encode-coding-string content 'utf-8))
+	(url-request-extra-headers header-alist))
+    (switch-to-buffer
+     (url-retrieve-synchronously url))))
+#+END_SRC
+
+将网站上可用的 url 填入函数调用中我们就可以开始测试了，首先是无 Header 测试：
+
+#+BEGIN_SRC elisp
+  (setq a "https://webhook.site/284dfcfc-a86a-4033-93a4-8b4cdd08fb98")
+  (my-test-post a nil "Hello")
+  => Normal HTTP 200
+  (my-test-post a nil "你好")
+  => Normal HTTP 200
+#+END_SRC
+
+以下是响应报文和网站显示的内容：
+
+[[./1.png]]
+
+[[./2.png]]
+
+可见这次请求是没有问题的，现在让我们添加一些头部字段：
+
+#+BEGIN_SRC text
+  (my-test-post a '(("Cookie" . "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G")) "World")
+  =>
+  HTTP/1.1 200 OK
+  Server: nginx
+  Content-Type: text/plain; charset=UTF-8
+  Transfer-Encoding: chunked
+  Vary: Accept-Encoding
+  X-Request-Id: 3bbb9152-6f43-40f4-a4a6-a21606c86165
+  X-Token-Id: 284dfcfc-a86a-4033-93a4-8b4cdd08fb98
+  Cache-Control: no-cache, private
+  Date: Mon, 24 Apr 2023 10:14:17 GMT
+#+END_SRC
+
+可见可以正常得到响应报文，这里我就不贴网站上的结果了。但是，当我们将 Cookie 的字符串变为 multibyte string 时，然后在报文主体中加入 UTF-8 编码的 Unicode 字符时，代码会报错：
+
+#+BEGIN_SRC elisp
+  (multibyte-string-p "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G") => nil
+  (multibyte-string-p (string-as-multibyte "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G")) => t
+  (length "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G") => 38
+  (length (string-as-multibyte "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G")) => 38
+
+  (multibyte-string-p (encode-coding-string "我" 'utf-8)) => nil ;; means unibyte
+
+  (my-test-post a '(("Cookie" . "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G")) "我")
+  => Normal HTTP 200
+
+  (my-test-post a `(("Cookie" . ,(string-as-multibyte "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G"))) "我")
+  => Debugger entered--Lisp error: (error "Multibyte text in HTTP request: POST /284dfcfc-a86...")
+
+  (my-test-post a `(("Cookie" . ,(string-as-multibyte "%B9F%22%AD%2A%83%CB3%D0%8E%AF%8Bwi%C3G"))) "大好き")
+  => Debugger entered--Lisp error: (error "Multibyte text in HTTP request: POST /284dfcfc-a86...")
+#+END_SRC
+
+这也就是说当头部字段为 multibyte 且报文主体为 UTF-8 编码后的 unibyte 时就会出现 multibyte 错误，即头部字段字符串与主体字符串不统一时会出现报错。那么这样的问题是如何产生的呢？
+
+* multibyte 与 unibyte 的合并问题
+
+在上面出现问题的例子中，头部字段为 multibyte，主体为 unibyte，而将它们组合在一起的是一个巨大的 =concat= 调用：
+
+#+BEGIN_SRC elisp
+  ;; url-http.el lien 329
+  (concat
+   ;; The request
+   (or url-http-method "GET") " "
+   (url-http--encode-string
+    (if (and using-proxy
+	     ;; Bug#35969.
+	     (not (equal "https" (url-type url-http-target-url))))
+	(let ((url (copy-sequence url-http-target-url)))
+	  (setf (url-host url) (puny-encode-domain (url-host url)))
+	  (url-recreate-url url))
+      real-fname))
+   " HTTP/" url-http-version "\r\n"
+   ...)
+#+END_SRC
+
+也就是说我们可以将问题缩小至 multibyte string 与 unibyte string 的 concat 合并问题，根据这一点我编写了如下测试代码：
+
+#+BEGIN_SRC elisp
+  (setq a (concat "a" (encode-coding-string "我" 'utf-8))) => "a\346\210\221"
+  (length a) => 4
+  (string-bytes a) => 4
+
+  (setq b (concat (string-as-multibyte "a") (encode-coding-string "我" 'utf-8))) => "a\346\210\221"
+  (length b) => 4
+  (string-bytes b) => 7 ;;???
+
+  (multibyte-string-p b) => t
+  (multibyte-string-p a) => nil
+  (string= a b) => nil
+  (string= a (string-as-unibyte b)) => t
+#+END_SRC
+
+这是一个很有意思的结果，unibyte 和 unibyte 字符串合并得到的是 unibyte 字符串，而 multibyte 和 unibyte 字符串合并得到 multibyte 字符串。那么这“凭空出现”的 3 字节是如何出现的呢？
+
+通过查看 =concat= 的源代码，我发现了问题所在：
+
+#+BEGIN_SRC c
+  if (dest_multibyte && some_unibyte)
+      {
+	/* Non-ASCII characters in unibyte strings take two bytes when
+	   converted to multibyte -- count them and adjust the total.  */
+	for (ptrdiff_t i = 0; i < nargs; i++)
+	  {
+	    Lisp_Object arg = args[i];
+	    if (STRINGP (arg) && !STRING_MULTIBYTE (arg))
+	      {
+		ptrdiff_t bytes = SCHARS (arg);
+		const unsigned char *s = SDATA (arg);
+		ptrdiff_t nonascii = 0;
+		for (ptrdiff_t j = 0; j < bytes; j++)
+		  nonascii += s[j] >> 7;
+		if (STRING_BYTES_BOUND - result_len_byte < nonascii)
+		  string_overflow ();
+		result_len_byte += nonascii;
+	      }
+	  }
+      }
+#+END_SRC
+
+因为 unibyte 中的字符可以从 0~255，所以位于 127~255 之前的字符可以使用一个字节来表示，而在 unicode 中这些字符必须使用二字节，比如：
+
+#+BEGIN_SRC elisp
+  (unibyte-string 255) => "\377"
+  (string-bytes (unibyte-string 255)) => 1
+  (string-bytes "エ") => 3
+  (string-bytes (concat "エ" (unibyte-string 255))) => 5 ;; not 4
+#+END_SRC
+
+这样一来我们就明白了为什么 =concat= 在处理 unibyte 字符串时会出现字符数与字节数不等的原因，我们在为 HTTP 请求添加字符串时一定要注意将字符串转化为 unibyte 后再作为参数。
+
+* 后记
+
+原先在遇到问题时我还以为这是个 bug，稍稍了解后才发现是对 emacs 中的字符串理解不够深入，哈。有时间的话，我会写一篇文章介绍一下 emacs 中的字符串。
+
+[[https://www.pixiv.net/artworks/50149567][file:-1.jpg]]
