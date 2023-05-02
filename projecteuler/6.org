@@ -1,0 +1,64 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 6
+#+DATE: [2019-02-20 Web 02:56]
+
+* Problem
+
+*[[https://projecteuler.net/problem=6][Sum square difference]]*
+
+The sum of the squares of the first ten natural numbers is,
+
+\[1^2+2^2+...+10^2=385\]
+
+The square of the sum of the first ten natural numbers is,
+
+\[(1+2+...+10)^2=55^2=3025\]
+
+Hence the difference between the sum of the squares of the first ten natural numbers and the square of the sum is \(3025-385=2640\).
+
+Find the difference between the sum of the squares of the first one hundred natural numbers and the square of the sum.
+
+*平方和与和平方之差*
+
+前十个自然数的平方的和是
+
+\[1^2+2^2+...+10^2=385\]
+
+前十个自然数的和的平方是
+
+\[(1+2+...+10)^2=55^2=3025\]
+
+因此，前十个自然数的平方和与和平方之差是 \(3025-385=2640\) 。
+
+求前一百个自然数的平方的与和平方之差。
+
+* Solution
+
+这一题非常简单，分别算好平方和与和平方然后相减即可：
+
+#+BEGIN_SRC elisp
+  (defun eu6-sum-of-s (n)
+    (let* ((ls (number-sequence 1 n)))
+      (cl-reduce '+ (mapcar (lambda (x) (* x x)) ls))))
+
+  (defun eu6-squ-of-s (n)
+    (expt (cl-reduce '+ (number-sequence 1 n)) 2))
+
+  (- (eu6-squ-of-s 100)
+     (eu6-sum-of-s 100))
+  ;; 25164150
+#+END_SRC
+
+当然，我们可以推导其数学公式，然后直接算出来：
+
+\[\sum_{i=1}^{n}i^2 = \frac{n(n+1)(2n+1)}{6}\]
+
+\[(\sum_{i=1}^{n}i)^2 = \frac{n^2(n+1)^2}{4}\]
+
+#+BEGIN_SRC elisp
+  (let ((n 100))
+    (- (/ (* n n (1+ n) (1+ n)) 4)
+       (/ (* n (1+ n) (1+ (* n 2))) 6)))
+#+END_SRC

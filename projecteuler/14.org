@@ -1,0 +1,101 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 14
+#+DATE: [2019-05-21 Tue 11:34]
+
+* Problem
+
+*[[https://projecteuler.net/problem=14][Longest Collatz sequence]]*
+
+The following iterative sequence is defined for the set of positive integers:
+
+#+BEGIN_CENTER
+n → n/2 (n is even)
+
+n → 3n + 1 (n is odd)
+#+END_CENTER
+
+Using the rule above and starting with 13, we generate the following sequence:
+
+#+BEGIN_CENTER
+13 → 40 → 20 → 10 → 5 → 16 → 8 → 4 → 2 → 1
+#+END_CENTER
+
+It can be seen that this sequence (starting at 13 and finishing at 1) contains 10 terms. Although it has not been proved yet (Collatz Problem), it is thought that all starting numbers finish at 1.
+
+Which starting number, under one million, produces the longest chain?
+
+*NOTE*: Once the chain starts the terms are allowed to go above one million.
+
+*最长考拉兹序列*
+
+考虑如下定义在正整数集上的迭代规则：
+
+#+BEGIN_CENTER
+n → n/2 (n 为偶数)
+
+n → 3n + 1 (n 为奇数)
+#+END_CENTER
+
+从 13 开始，可以迭代生成如下的序列：
+
+#+BEGIN_CENTER
+13 → 40 → 20 → 10 → 5 → 16 → 8 → 4 → 2 → 1
+#+END_CENTER
+
+可以看出这个序列（从 13 开始到 1 结束）共有 10 项。尽管还未被证明，但普遍认为，从任何数开始最终都能抵达
+并结束（这被称为“考拉兹猜想”）。
+
+在小于一百万的数中，从哪个数开始迭代生成的序列最长？
+
+注： 在迭代过程中允许出现超过一百万的项。
+
+* Solution
+
+最简单的思路就是直接算：
+
+#+BEGIN_SRC elisp
+  (defun eu14-c (n)
+    (named-let f ((n n) (cnt 1))
+      (cond
+       ((= n 1) cnt)
+       (t (cond
+	   ((zerop (% n 2)) (f (/ n 2) (1+ cnt)))
+	   (t (f (1+ (* n 3)) (1+ cnt))))))))
+
+  (named-let f ((i 1) (id 1) (val 0))
+    (cond
+     ((> i 1000000) (cons id val))
+     (t (let ((v (eu14-c i)))
+	  (if (> v val)
+	      (f (1+ i) i v)
+	    (f (1+ i) id val))))))
+  ;; (837799 . 525)
+  ;;146.9761528968811s
+#+END_SRC
+
+不过对于 elisp 来说这需要几分钟...当然优化方式也是很容易想出来的，我们进行了非常多的重复计算，而且易知 =c(2*n) = c(n) + 1= 以及 =c(2n+1) = c((6n+4)/2) + 2= 。我们可以写出如下代码：
+
+#+BEGIN_SRC elisp
+  (defun eu14-c2 (n tbl)
+    (if-let ((g (gethash n tbl)))
+	g
+      (cond
+       ((= n 1) 1)
+       (t (cond
+	   ((zerop (% n 2)) (puthash n (1+ (eu14-c2 (/ n 2) tbl)) tbl))
+	   (t (puthash n (+ 2 (eu14-c2 (/ (1+ (* n 3)) 2) tbl)) tbl)))))))
+
+  (setq a (make-hash-table :size 10000))
+  (my-time
+   (named-let f ((i 1) (id 1) (val 0))
+     (cond
+      ((> i 1000000) (cons id val))
+      (t (let ((v (eu14-c2 i a)))
+	   (if (> v val)
+	       (f (1+ i) i v)
+	     (f (1+ i) id val))))))
+   )
+  ;;4.995504140853882s
+#+END_SRC

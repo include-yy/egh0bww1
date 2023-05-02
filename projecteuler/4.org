@@ -1,0 +1,83 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 4
+#+DATE: [2019-02-20 Web 02:36]
+
+* Problem
+
+*[[https://projecteuler.net/problem=4][Largest palindrome product]]*
+
+A palindromic number reads the same both ways. The largest palindrome made from the product of two 2-digit numbers is 9009 = 91 × 99.
+
+Find the largest palindrome made from the product of two 3-digit numbers.
+
+*最大回文乘积*
+
+回文数是指从前往后读和从后往前读都一样的数。由两个 2 位数相乘得到的回文数中，最大的是 9009 = 91 * 99。
+
+求最大的由两个 3 位数相乘得到的回文数。
+
+* Solution
+
+首先我们需要一个判定数字是否为回文数的函数：
+
+#+BEGIN_SRC elisp
+(defun eu4-pap (num)
+  (let* ((str (number-to-string num))
+	 (len (length str)))
+    (named-let f ((i 0) (j (1- len)))
+      (cond
+       ((>= i j) t)
+       ((= (aref str i) (aref str j))
+	(f (1+ i) (1- j)))
+       (t nil)))))
+#+END_SRC
+
+最直接的思路就是从 100 到 999 遍历找到最大的回文数：
+
+#+BEGIN_SRC elisp
+(let ((big 0))
+  (cl-loop for i from 100 to 999
+	   do (cl-loop for j from 100 to 999
+		       do (if (eu4-pap (* i j))
+			      (if (> (* i j) big) (setq big (* i j))))))
+  big)
+;; 906609
+#+END_SRC
+
+当然这种方法很蠢，存在许多重复，我们可以让内层循环从外层循环值开始，这样能快一倍。考虑到我们要找的是最大数字，我们也应该从大到小循环而不是从小到大（不过这里我没有改）：
+
+#+BEGIN_SRC elisp
+ (let ((big 0))
+   (cl-loop for i from 100 to 999
+	    do (cl-loop for j from i to 999
+			do (if (eu4-pap (* i j))
+			       (if (> (* i j) big) (setq big (* i j))))))
+   big))
+#+END_SRC
+
+另一种完全不同的思路是从数学出发。考虑到 3 位数相乘的最小值是 =10000= ，最大值是 =998001= ，而最小 6 位回文数是 =111111= ，所以我们可以只考虑六位回文数。由于它是回文数，我们可以列出如下式子：
+
+#+BEGIN_SRC text
+  P = 100000x + 10000y + 1000z + 100z + 10y + x
+    = 100001x + 10010y + 1100z
+    = 11(9091x + 910y + 100z)
+#+END_SRC
+
+这也就是说该回文数是 11 的倍数，因此两个 3 位数中至少有一个是 11 的倍数。根据这个规律，我们可以写出如下代码：
+
+#+BEGIN_SRC elisp
+  ;; very fast
+  (let ((big 0))
+    (cl-loop for i from 999 downto 100
+	     do (let ((b (if (zerop (% i 11)) 999 990))
+		      (d (if (zerop (% i 11)) 1   11)))
+		  (cl-loop for j from b downto i by d
+			   do (progn
+				(when (< (* i j) big) (cl-return))
+				(when (eu4-pap (* i j))
+				  (when (> (* i j) big)
+				    (setq big (* i j)))))))
+	     finally return big))
+#+END_SRC

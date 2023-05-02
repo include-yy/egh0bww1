@@ -1,0 +1,560 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs 的 named-let 使用和实现介绍
+#+DATE: [2023-04-30 Sun 11:40]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/96322989][file:0.jpg]]
+
+在重温 projecteuler 的[[https://projecteuler.net/problem=9][第 9 题]]时，我翻了翻自己之前用 Scheme 实现的代码：
+
+#+BEGIN_SRC scheme
+  (let pro ([i 1])
+       (let f ([j i])
+	    (let* ((k (- 1000 i j))
+		   (cmp (- (+ (* i i) (* j j)) (* k k))))
+	      (cond
+	       ((< cmp 0) (f (+ j 1)))
+	       ((= cmp 0) (* i j k))
+	       ((> cmp 0) (pro (+ i 1)))))))
+#+END_SRC
+
+上面这段代码的意思是寻找满足 a+b+c=1000 且 a^{2}+b^{2}=c^{2} 的 abc 的乘积，你可以随便在网上找个 Scheme 解释器然后运行，它的结果为 31875000。最近我打算用 elisp 把之前做过的题目重做一遍，考虑到 emacs 在 28 中也引入了类似 Scheme 的具名 let binding，我写出了如下代码：
+
+#+BEGIN_SRC elisp
+(named-let f ((a 1))
+  (named-let g ((b a))
+    (let* ((c (- 1000 a b))
+           (res (- (+ (* a a) (* b b)) (* c c))))
+      (cond ((< res 0) (g (1+ b)))
+            ((= res 0) (* a b c))
+            ((> res 0) (f (1+ a)))))))
+#+END_SRC
+
+运行后 emacs 会报错并提示你超出最大调用层数：
+
+#+BEGIN_SRC elisp
+Debugger entered--Lisp error: (error "Lisp nesting exceeds ‘max-lisp-eval-depth’")
+...
+#+END_SRC
+
+要想让上面的代码正常运行我们只需要这样修改：
+
+#+BEGIN_SRC elisp
+  (named-let f ((a 1))
+    (if-let ((res
+	      (named-let g ((b a))
+		(let* ((c (- 1000 a b))
+		       (res (- (+ (* a a) (* b b)) (* c c))))
+		  (cond ((< res 0) (g (1+ b)))
+			((= res 0) (* a b c))
+			((> res 0) nil))))))
+	res
+      (f (1+ a))))
+#+END_SRC
+
+通过这个超出最大调用层数的错误以及做出的相应修改，相信聪明的你应该明白了出现问题的原因以及 emacs 中的 named-let 的局限性。如果你不明白或者对详细分析感兴趣，欢迎继续阅读。
+
+本文的目的是向读者介绍 named-let 的用法和实现原理，同时解释上面代码出现错误的原因。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 11
+
+{{{toc}}}
+
+* 什么是 named-let
+
+在 elisp 中，我们有多种方式来表达循环，比如 =while=, =dotimes=, =dolist=, =cl-do=, =cl-do*=, =cl-loop=, =cl-tagbody= 。如果我们想要进行递归的话我们可以使用 =defun=, =letrec= 或 =cl-labels= 。比起更加命令式的 elisp，在 Scheme 中我们倾向使用（尾）递归来表达循环或者说迭代，使用 named let 能很方便地做到这一点。The Scheme Programming Language 的第三章说明了什么是 named let：
+
+#+BEGIN_QUOTE
+When a recursive procedure is called in only one place outside the procedure, as in the example above, it is
+often clearer to use a named let expression. Named let expressions take the following form.
+
+=(let name ((var expr) ...) body1 body2 ...)=
+
+Named let is similar to unnamed let in that it binds the variables =var ...= to the values of =expr ...=
+within the body =body1 body2...=. As with unnamed let, the variables are visible only within the body
+and not within =expr ...=. In addition, the variable =name= is bound within the body to a procedure that may
+be called to recur; the arguments to the procedure become the new values for the variables =var ...=
+#+END_QUOTE
+
+相比于普通的 let，named let 允许我们给整个表达式一个名字来在 body 中继续被调用以实现递归。比如使用如下定义的 =length= 函数：
+
+#+BEGIN_SRC scheme
+  (define my-length
+    (lambda (x)
+      (let f ((x x) (len 0))
+	(cond
+	 ((null? x) len)
+	 (else
+	  (f (cdr x) (+ len 1)))))))
+#+END_SRC
+
+由于 Scheme 中的尾调用优化，上面的代码是不会爆栈的。我们可以在 elisp 中试试相似的代码：
+
+#+BEGIN_SRC elisp
+  (defun my-length (ls)
+    (named-let f ((x ls) (len 0))
+      (cond
+       ((null x) len)
+       (t (f (cdr x) (1+ len))))))
+
+  (my-length (make-list 10000 -1))
+  ;; 10000
+#+END_SRC
+
+在我的 emacs 中 =max-lisp-eval-depth= 的值为 1600，如果上面的代码以递归方式求值应该会出现类似文首的错误，但是它却能正确得出结果。由于 elisp 中没有尾调用优化，很明显 =named-let= 做了一些额外的工作。下面让我们看看 =named-let= 的尾递归优化是如何实现的。
+
+* named-let 的实现
+
+下面是 =named-let= 的实现代码：
+
+#+BEGIN_SRC elisp
+  (defmacro named-let (name bindings &rest body)
+    "Looping construct taken from Scheme.
+  Like `let', bind variables in BINDINGS and then evaluate BODY,
+  but with the twist that BODY can evaluate itself recursively by
+  calling NAME, where the arguments passed to NAME are used
+  as the new values of the bound variables in the recursive invocation."
+    (declare (indent 2) (debug (symbolp (&rest (symbolp form)) body)))
+    (require 'cl-lib)
+    (let ((fargs (mapcar (lambda (b) (if (consp b) (car b) b)) bindings))
+	  (aargs (mapcar (lambda (b) (if (consp b) (cadr b))) bindings)))
+      ;; According to the Scheme semantics of named let, `name' is not in scope
+      ;; while evaluating the expressions in `bindings', and for this reason, the
+      ;; "initial" function call below needs to be outside of the `cl-labels'.
+      ;; When the "self-tco" eliminates all recursive calls, the `cl-labels'
+      ;; expands to a lambda which the byte-compiler then combines with the
+      ;; funcall to make a `let' so we end up with a plain `while' loop and no
+      ;; remaining `lambda' at all.
+      `(funcall
+	(cl-labels ((,name ,fargs . ,body)) #',name)
+	. ,aargs)))
+#+END_SRC
+
+可见它只是对参数做了一点处理就把任务交给 =cl-labels= 了，研究 =cl-labels= 才是本文的重点：
+
+#+BEGIN_SRC elisp :summary code of cl-labels
+(defmacro cl-labels (bindings &rest body)
+  "Make local (recursive) function definitions.
++BINDINGS is a list of definitions of the form (FUNC ARGLIST BODY...) where
+FUNC is the function name, ARGLIST its arguments, and BODY the
+forms of the function body.  FUNC is defined in any BODY, as well
+as FORM, so you can write recursive and mutually recursive
+function definitions.  See info node `(cl) Function Bindings' for
+details.
+
+\(fn ((FUNC ARGLIST BODY...) ...) FORM...)"
+  (declare (indent 1) (debug cl-flet))
+  (let ((binds ()) (newenv macroexpand-all-environment))
+    (dolist (binding bindings)
+      (let ((var (make-symbol (format "--cl-%s--" (car binding)))))
+	(push (cons var (cdr binding)) binds)
+	(push (cons (car binding)
+                    (lambda (&rest args)
+                      (if (eq (car args) cl--labels-magic)
+                          (list cl--labels-magic var)
+                        (cl-list* 'funcall var args))))
+              newenv)))
+    ;; Don't override lexical-let's macro-expander.
+    (unless (assq 'function newenv)
+      (push (cons 'function #'cl--labels-convert) newenv))
+    ;; Perform self-tail call elimination.
+    (setq binds (mapcar
+                 (lambda (bind)
+                   (pcase-let*
+                       ((`(,var ,sargs . ,sbody) bind)
+                        (`(function (lambda ,fargs . ,ebody))
+                         (macroexpand-all `(cl-function (lambda ,sargs . ,sbody))
+                                          newenv))
+                        (`(,ofargs . ,obody)
+                         (cl--self-tco var fargs ebody)))
+                     `(,var (function (lambda ,ofargs . ,obody)))))
+                 (nreverse binds)))
+    `(letrec ,binds
+       . ,(macroexp-unprogn
+           (macroexpand-all
+            (macroexp-progn body)
+            newenv)))))
+#+END_SRC
+
+如果我们想要完全理解这个函数的作用，我们最好能够知道它具体做了什么，下面我将这个函数切成下面几个小函数来看看每一步的行为：
+
+#+BEGIN_SRC elisp
+  (defun my-labels-1 (bindings)
+    (let ((binds ()) (newenv macroexpand-all-environment))
+      (dolist (binding bindings)
+	(let ((var (make-symbol (format "--cl-%s--" (car binding)))))
+	  (push (cons var (cdr binding)) binds)
+	  (push (cons (car binding)
+		      (lambda (&rest args)
+			(if (eq (car args) cl--labels-magic)
+			    (list cl--labels-magic var)
+			  (cl-list* 'funcall var args))))
+		newenv)))
+      ;; Don't override lexical-let's macro-expander.
+      (unless (assq 'function newenv)
+	(push (cons 'function #'cl--labels-convert) newenv))
+      (list binds newenv)))
+#+END_SRC
+
+=cl-labels= 做的第一件事就是为函数名创建新的名字并添加到 =binds= 列表中，然后添加和函数名对应的宏到 =newenv= 列表中，它的作用是 *接下来* 将函数调用转化为 =funcall= 形式。我们可以简单检查一下经过处理后的结果：
+
+#+BEGIN_SRC elisp
+  (my-labels-1
+   '((a (x y) (+ x y))
+     (b (x) (1+ x))))
+
+  (((--cl-b-- (x) (1+ x))
+    (--cl-a-- (x y) (+ x y)))
+   ((function . cl--labels-convert)
+    (b lambda (&rest args)
+       (if (eq (car args) cl--labels-magic)
+	   (list cl--labels-magic var)
+	 (cons 'funcall (cons var args))))
+    (a lambda (&rest args)
+       (if (eq (car args) cl--labels-magic)
+	   (list cl--labels-magic var)
+	 (cons 'funcall (cons var args))))))
+#+END_SRC
+
+（这里为了输出结果简洁起见，我在动态作用域下定义 =my-labels-1= 然后再调用，如果在静态作用域下会出现一些额外的 closure 字段。上面的输出结果不是正确的，毕竟没有捕获 =var= 变量，但是演示起来比较清楚。读者感兴趣的话可以试试看静态作用域下的输出结果。）
+
+注意 =newenv= 中添加的宏都做了什么变换：它们添加了参数判定，如果参数为 =cl--labels-magic= 的话会返回 =(cl--labels-magic var)= 而不是 =(funcall ...)= ，我会在下面解释这样做的原因。
+
+除了普通的函数名外，上面那段 =unless= 代码对 =function= 这个名字做了特殊处理，如果在 =newenv= 中没有找到 =function= ，那么 =newenv= 中会被添加 =(function . cl--labels-convert)= ：
+
+#+BEGIN_SRC elisp
+  ;; Don't override lexical-let's macro-expander.
+  (unless (assq 'function newenv)
+    (push (cons 'function #'cl--labels-convert) newenv))
+#+END_SRC
+
+这段代码的目的应该是为函数定义中出现的 =#'name= （这里的 =name= 是 =cl-labels= 中的 binding name）做一些特殊的处理，注释内容是 /;; Don't override lexical-let's macro-expander./ 。我们需要一些具体的例子来展示 =cl--labels-convert= 的作用，下面让我们定义第二个小函数：
+
+#+BEGIN_SRC elisp
+  (defun my-labels-2 (binds newenv)
+    (setq binds (mapcar
+		 (lambda (bind)
+		   (pcase-let*
+		       ((`(,var ,sargs . ,sbody) bind)
+			(g (macroexpand-all `(cl-function (lambda ,sargs . ,sbody))
+					    newenv)))
+		     g))
+		 (nreverse binds)))
+    binds)
+
+  (defun my-labels-12 (bindings)
+    (apply 'my-labels-2 (my-labels-1 bindings)))
+#+END_SRC
+
+因为能够体现 =cl--labels-convert= 的就是 =macroexpand-all= 那一行，所以我们单独把它提出来看看具体的输出结果：
+
+#+BEGIN_SRC elisp
+  (my-labels-12
+   '((f (x sum)
+	(cond ((= x 0) sum)
+	      (t (f (1- x) (+ sum 1)))))))
+  =>
+  (#'(lambda (x sum)
+       (cond ((= x 0) sum)
+	     (t (funcall --cl-f-- (1- x) (+ sum 1))))))
+
+  (my-labels-12
+   '((f (x)
+	(mapcar #'f '(1 2 3)))))
+  =>
+  (#'(lambda (x) (mapcar --cl-f-- '(1 2 3))))
+
+  (my-labels-12
+   '((f (x)
+	(mapcar #'1+ '(1 2 3)))))
+  =>
+  (#'(lambda (x) (mapcar #'1+ '(1 2 3))))
+#+END_SRC
+
+就结果来看，函数内的 =cl-label= binding name  =#'name= 被变换为了 =new-name= ，根据注释内容来看这是为了避免 =#'= 的错误处理，读者若有兴趣可以看看 =cl--labels-convert= ，这里我简单放放代码：
+
+#+BEGIN_SRC elisp :summary code of cl--labels-convert
+  (defun cl--labels-convert (f)
+    "Special macro-expander to rename (function F) references in `cl-labels'."
+    (cond
+     ;; ¡¡Big Ugly Hack!! We can't use a compiler-macro because those are checked
+     ;; *after* handling `function', but we want to stop macroexpansion from
+     ;; being applied infinitely, so we use a cache to return the exact `form'
+     ;; being expanded even though we don't receive it.
+     ((eq f (car cl--labels-convert-cache)) (cdr cl--labels-convert-cache))
+     (t
+      (let* ((found (assq f macroexpand-all-environment))
+	     (replacement (and found
+			       (ignore-errors
+				 (funcall (cdr found) cl--labels-magic)))))
+	(if (and replacement (eq cl--labels-magic (car replacement)))
+	    (nth 1 replacement)
+	  (let ((res `(function ,f)))
+	    (setq cl--labels-convert-cache (cons f res))
+	    res))))))
+#+END_SRC
+
+注意到注释开头的 /¡¡Big Ugly Hack!!/ 了吗（笑）。总的来说这个向 =newenv= 中添加 =(function . cl--labels-convert= 的作用就是正确处理在 =cl-labels= 中定义的函数名被作为函数参数（即 =#'name= ）使用的情况。这也是为什么 =newenv= 中的函数要加上 =cl--labels-magic= 参数检查。
+
+不过话又说回来，如果我们在 binding 部分使用了名为 =function= 的函数，那么就不会有这个处理。也许我们不应该在 =cl-labels= 中使用这个关键字作为函数。
+
+接下来的内容就是尾调用优化 =cl--self-tco= 了，在完成 tco 后， =cl-labels= 会返回完整形式：
+
+#+BEGIN_SRC elisp
+  (setq binds (mapcar
+	       (lambda (bind)
+		 (pcase-let*
+		     ((`(,var ,sargs . ,sbody) bind)
+		      (`(function (lambda ,fargs . ,ebody))
+		       (macroexpand-all `(cl-function (lambda ,sargs . ,sbody))
+					newenv))
+		      (`(,ofargs . ,obody)
+		       (cl--self-tco var fargs ebody)))
+		   `(,var (function (lambda ,ofargs . ,obody)))))
+	       (nreverse binds)))
+
+  `(letrec ,binds
+     . ,(macroexp-unprogn
+	 (macroexpand-all
+	  (macroexp-progn body)
+	  newenv)))
+#+END_SRC
+
+最后的 =letrec= 中的 =macroexpand-all= 的作用相信不用我过多解释了。由于 =cl--self-tco= 稍微有些长，这里贴全部代码也不是很方便，我只能说它的作用是进行比较有限的尾调用优化。对 =cl--self-tco= 的分析我们留到最后一节。下面我们简单看看一个 =cl-labels= 的展开例子：
+
+#+BEGIN_SRC elisp
+  (setq print-gensym t)
+  (macroexpand-all
+   '(cl-labels
+	((f (x sum)
+	    (cond
+	     ((= x 0) sum)
+	     (t (f (1- x) (1+ sum))))))
+      (f 10 0)))
+  =>
+  (let* ((#:--cl-f--
+	  #'(lambda (#:x #:sum)
+	      (let (#:retval)
+		(while (let ((x #:x) (sum #:sum))
+			 (cond ((= x 0) (progn (setq #:retval sum) nil))
+			       (t (progn (setq #:x (1- x) #:sum (1+ sum)) :recurse)))))
+		#:retval))))
+    (funcall #:--cl-f-- 10 0))
+#+END_SRC
+
+这里必须要设置 =print-gensym= 为 t，否则打印结果中看不出内部变量和外部变量的区别。
+
+* 为什么嵌套 named-let 会失效
+
+由于 Scheme 是自动 tco 的，所以文章开头出现的代码可以正常运行而不会爆栈。即使 emacs 中实现了 named-let，它也只是受限的 named let：它只会对自身尾调用做优化，而不会优化其他调用。这一点也在 =cl--self-tco= 的注释中说明了：
+
+#+BEGIN_SRC elisp
+  (defun cl--self-tco (var fargs body)
+    ;; This tries to "optimize" tail calls for the specific case
+    ;; of recursive self-calls by replacing them with a `while' loop.
+    ;; It is quite far from a general tail-call optimization, since it doesn't
+    ;; even handle mutually recursive functions.
+  ...)
+#+END_SRC
+
+虽说 =named-let= 没有实现完整的 tco，对于简单的循环，使用它可能会比 =cl-do= 或 =cl-loop= 稍微简洁一些（也许吧）：
+
+#+BEGIN_SRC elisp
+  (defun my-len1 (ls)
+    (named-let f ((x ls) (sum 0))
+      (if (null x) sum
+	(f (cdr x) (1+ sum)))))
+
+  (defun my-len2 (ls)
+    (cl-do ((x ls (cdr x))
+	    (sum 0 (1+ sum)))
+	((null x) sum)))
+
+  (defun my-len3 (ls)
+    (cl-loop for a in ls
+	     count 1))
+
+  (= (my-len1 '(1 2 3))
+     (my-len2 '(4 5 6))
+     (my-len3 '(7 8 9)))
+  ;; t
+#+END_SRC
+
+对于有 Scheme 经验的人来说 =named-let= 可能会很亲切，至于实际中使用哪种方法比较好就仁者见仁智者见智吧（笑）。
+
+* 在 elisp 中做 tco
+
+下面我们正式开始学习如何在 elisp 中进行尾调用优化，简单来说就是学习一下 =cl--self-tco= 的实现。 =cl--self-tco= 长约 100 行，完整内容如下：
+
+#+BEGIN_SRC elisp :summary code of cl--self-tco
+  (defun cl--self-tco (var fargs body)
+    ;; This tries to "optimize" tail calls for the specific case
+    ;; of recursive self-calls by replacing them with a `while' loop.
+    ;; It is quite far from a general tail-call optimization, since it doesn't
+    ;; even handle mutually recursive functions.
+    (letrec
+	((done nil) ;; Non-nil if some TCO happened.
+	 ;; This var always holds the value nil until (just before) we
+	 ;; exit the loop.
+	 (retvar (make-symbol "retval"))
+	 (ofargs (mapcar (lambda (s) (if (memq s cl--lambda-list-keywords) s
+				  (make-symbol (symbol-name s))))
+			 fargs))
+	 (opt-exps (lambda (exps) ;; `exps' is in tail position!
+		     (append (butlast exps)
+			     (list (funcall opt (car (last exps)))))))
+	 (opt
+	  (lambda (exp) ;; `exp' is in tail position!
+	    (pcase exp
+	      ;; FIXME: Optimize `apply'?
+	      (`(funcall ,(pred (eq var)) . ,aargs)
+	       ;; This is a self-recursive call in tail position.
+	       (let ((sets nil)
+		     (fargs ofargs))
+		 (while fargs
+		   (pcase (pop fargs)
+		     ('&rest
+		      (push (pop fargs) sets)
+		      (push `(list . ,aargs) sets)
+		      ;; (cl-assert (null fargs))
+		      )
+		     ('&optional nil)
+		     (farg
+		      (push farg sets)
+		      (push (pop aargs) sets))))
+		 (setq done t)
+		 `(progn (setq . ,(nreverse sets))
+			 :recurse)))
+	      (`(progn . ,exps) `(progn . ,(funcall opt-exps exps)))
+	      (`(if ,cond ,then . ,else)
+	       `(if ,cond ,(funcall opt then) . ,(funcall opt-exps else)))
+	      (`(and  . ,exps) `(and . ,(funcall opt-exps exps)))
+	      (`(or ,arg) (funcall opt arg))
+	      (`(or ,arg . ,args)
+	       (let ((val (make-symbol "val")))
+		 `(let ((,val ,arg))
+		    (if ,val ,(funcall opt val) ,(funcall opt `(or . ,args))))))
+	      (`(cond . ,conds)
+	       (let ((cs '()))
+		 (while conds
+		   (pcase (pop conds)
+		     (`(,exp)
+		      (push (if conds
+				;; This returns the value of `exp' but it's
+				;; only in tail position if it's the
+				;; last condition.
+				;; Note: This may set the var before we
+				;; actually exit the loop, but luckily it's
+				;; only the case if we set the var to nil,
+				;; so it does preserve the invariant that
+				;; the var is nil until we exit the loop.
+				`((setq ,retvar ,exp) nil)
+			      `(,(funcall opt exp)))
+			    cs))
+		     (exps
+		      (push (funcall opt-exps exps) cs))))
+		 ;; No need to set `retvar' to return nil.
+		 `(cond . ,(nreverse cs))))
+	      ((and `(,(or 'let 'let*) ,bindings . ,exps)
+		    (guard
+		     ;; Note: it's OK for this `let' to shadow any
+		     ;; of the formal arguments since we will only
+		     ;; setq the fresh new `ofargs' vars instead ;-)
+		     (let ((shadowings
+			    (mapcar (lambda (b) (if (consp b) (car b) b)) bindings)))
+		       ;; If `var' is shadowed, then it clearly can't be
+		       ;; tail-called any more.
+		       (not (memq var shadowings)))))
+	       `(,(car exp) ,bindings . ,(funcall opt-exps exps)))
+	      ((and `(condition-case ,err-var ,bodyform . ,handlers)
+		    (guard (not (eq err-var var))))
+	       `(condition-case ,err-var
+		    ,(if (assq :success handlers)
+			 bodyform
+		       `(progn (setq ,retvar ,bodyform) nil))
+		  . ,(mapcar (lambda (h)
+			       (cons (car h) (funcall opt-exps (cdr h))))
+			     handlers)))
+	      ('nil nil)  ;No need to set `retvar' to return nil.
+	      (_ `(progn (setq ,retvar ,exp) nil))))))
+
+      (let ((optimized-body (funcall opt-exps body)))
+	(if (not done)
+	    (cons fargs body)
+	  ;; We use two sets of vars: `ofargs' and `fargs' because we need
+	  ;; to be careful that if a closure captures a formal argument
+	  ;; in one iteration, it needs to capture a different binding
+	  ;; then that of other iterations, e.g.
+	  (cons
+	   ofargs
+	   `((let (,retvar)
+	       (while (let ,(delq nil
+				  (cl-mapcar
+				   (lambda (a oa)
+				     (unless (memq a cl--lambda-list-keywords)
+				       (list a oa)))
+				   fargs ofargs))
+			. ,optimized-body))
+	       ,retvar)))))))
+#+END_SRC
+
+在 =letrec= 的 binding forms 中， =opt-exps= 作用的是多个表达式，它对最后一个表达式调用 =opt= 做尾调用优化而不管前几个表达式。 =ofargs= 是处理后的变量名， =done= 是一个标识进行过 tco 的 flag。方便期间我们先从后面的处理过程开始：
+
+#+BEGIN_SRC elisp
+  (let ((optimized-body (funcall opt-exps body)))
+    (if (not done)
+	(cons fargs body)
+      ;; We use two sets of vars: `ofargs' and `fargs' because we need
+      ;; to be careful that if a closure captures a formal argument
+      ;; in one iteration, it needs to capture a different binding
+      ;; then that of other iterations, e.g.
+      (cons
+       ofargs
+       `((let (,retvar)
+	   (while (let ,(delq nil
+			      (cl-mapcar
+			       (lambda (a oa)
+				 (unless (memq a cl--lambda-list-keywords)
+				   (list a oa)))
+			       fargs ofargs))
+		    . ,optimized-body))
+	   ,retvar)))))
+#+END_SRC
+
+可见，如果 =done= 为 nil 则表示没有需要 tco 的地方， =cl--self-tco= 就直接返回原表达式了。如果 =done= 不为 nil，那么整个 body 就成了一个 =while= 表达式。 =while= 的 body 执行的就是经过 tco 变换的函数 body。我们可以看看 =cl--self-tco= 对简单函数的变换：
+
+#+BEGIN_SRC elisp
+  (cl--self-tco 'f '(x sum)
+		'((cond
+		   ((= x 0) sum)
+		   (t (funcall f (1- x) (1+ sum))))))
+  =>
+  ((#:x #:sum)
+   (let (#:retval)
+     (while (let ((x #:x) (sum #:sum))
+	      (cond ((= x 0) (progn (setq #:retval sum) nil))
+		    (t (progn (setq #:x (1- x) #:sum (1+ sum)) :recurse)))))
+     #:retval))
+#+END_SRC
+
+可见尾调用部分都变成了赋值，如果是调用的终止，那么 =retval= 会被赋值为表达式最后的值。
+
+在写到这里之后，我突然发现 =opt= 函数已经没什么好讲的了，读者如果理解了上面的 =f= 变换是如何进行的，那么 =opt= 的代码应该非常容易理解，这里我就不浪费读者的时间了。
+
+* 后记
+
+实际上我一开始的环境并不是 emacs 28.2 而是 30.0.50，刚开始发现错误是我只是以为代码写错了而已，但是当 emacs 开始崩溃时我就有点绷不住了（可能新版本不是很稳定吧，居然被嵌套 =named-let= 弄崩溃了，不过我也不确定是不是这个原因），于是就有了这篇文章，希望能帮助你认识 =named-let= 的用法和一些实现原理，如果以后出现了类似的问题也能很快弄清楚。
+
+如果有时间的话，我可能会详细了解一下整个 cl-lib 的实现方式，里面似乎有很多的黑魔法。嗯，如果有时间的话。
+
+五一快乐。
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/25854793][file:-1.jpg]]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/77780352][file:-2.jpg]]

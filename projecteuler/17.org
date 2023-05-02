@@ -1,0 +1,67 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 17
+#+DATE: [2019-05-21 Tue 14:13]
+
+* Problem
+
+*[[https://projecteuler.net/problem=17][Number letter counts]]*
+
+If the numbers 1 to 5 are written out in words: one, two, three, four, five, then there are 3 + 3 + 5 + 4 + 4 = 19 letters used in total.
+
+If all the numbers from 1 to 1000 (one thousand) inclusive were written out in words, how many letters would be used?
+
+NOTE: Do not count spaces or hyphens. For example, 342 (three hundred and forty-two) contains 23 letters and 115 (one hundred and fifteen) contains 20 letters. The use of "and" when writing out numbers is in compliance with British usage.
+
+*整数英文表达的字母计数*
+
+把 1 到 5 写成英文单词分别是：one、two、three、four、five。这些单词一共用了 3 + 3 + 5 + 4 + 4 = 19 个字母。
+
+如果把 1 到 1000 都写成英文单词，一共要用多少个字母？
+
+注意： 不计入空格和连字符：例如，（three hundred and forty-two）包含 23 个字母，而（one hundred and fifteen）包含 20 个字母。单词“and”的使用方式遵循英式英语的规则。
+
+* Solution
+
+没什么好说的：
+
+#+BEGIN_SRC elisp
+(defvar eu17-1to19
+  ["" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
+   "eleven" "twelve" "thirteen" "fourteen" "fiftten" "sixteen" "seventeen" "eighteen" "nineteen"])
+
+(defvar eu17-20to90by10
+  ["" "" "twenty" "thirty" "forty" "fifty" "sixty" "seventy" "eighty" "ninety"])
+
+(defun eu17-get1to99 (n)
+  (cl-assert (<= 0 n 99))
+  (cond
+   ((= n 0) 0)
+   ((<= 1 n 19) (length (aref eu17-1to19 n)))
+   (t
+    (let ((d0 (% n 10))
+	  (d1 (/ n 10)))
+      (if (= d0 0) (length (aref eu17-20to90by10 d1))
+	(+ (length (aref eu17-1to19 d0))
+	   (length (aref eu17-20to90by10 d1))))))))
+
+(defun eu17-gethundred (n)
+  (+ (length (aref eu17-1to19 n))
+     (length "hundred")))
+
+(named-let f ((i 1) (sum 0))
+  (cond
+   ((= i 1000) (+ sum (length "onethousand")))
+   (t
+    (let ((a (% i 100))
+	  (b (/ i 100)))
+      (let ((h (if (= b 0) 0
+		 (eu17-gethundred b)))
+	    (g (eu17-get1to99 a)))
+	(if (and (not (zerop a))
+		 (not (zerop b)))
+	    (f (1+ i) (+ sum g h 3))
+	  (f (1+ i) (+ sum g h))))))))
+;; 21124
+#+END_SRC

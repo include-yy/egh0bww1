@@ -1,0 +1,28 @@
+# Org
+#+OPTIONS: toc:nil
+#+OPTIONS: ^:{}
+
+#+AUTHOR: include-yy
+
+# html5
+#+HTML_DOCTYPE: html5
+#+HTML_CONTAINER: section
+#+OPTIONS: html5-fancy:t
+#+OPTIONS: html-style:nil
+#+OPTIONS: html-preamble:t
+#+OPTIONS: html-postamble:t
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+#+HTML_LINK_HOME:./index.html
+#+HTML_LINK_UP:../index.html
+
+# ROBOTO
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
+#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+#+HTML_HEAD: <script src="../../js/copycode.js"></script>
+# MACRO
+
+#+MACRO: toc #+TOC: headlines 2
+#+MACRO: q @@html:<q>$1</q>@@

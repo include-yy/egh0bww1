@@ -1,0 +1,29 @@
+#+SETUPFILE: ../setup_eu.org
+
+#+TITLE: include-yy::projecteuler
+#+DATE: [2023-04-27 Thu 01:54]
+
+#+BEGIN_SRC elisp :exports none
+  (defun eu-gen ()
+    (interactive)
+    (let* ((files (directory-files default-directory
+				   nil
+				   "^[0-9]+.org"))
+	   (names (mapcar (lambda (x) (concat "./" x))
+			  files))
+	   (numbers (mapcar (lambda (x) (file-name-base x)) files)))
+      (cl-loop for a in names
+	       for i in numbers
+	       do (insert (format "- [[%s][problem %s]]\n" a i)))))
+#+END_SRC
+
+#+ATTR_HTML: :class top-down-img
+[[./res/ana.jpg]]
+
+- [[./1.org][problem 1]]
+- [[./2.org][problem 2]]
+- [[./3.org][problem 3]]
+- [[./4.org][problem 4]]
+- [[./5.org][problem 5]]
+- [[./6.org][problem 6]]
+- [[./7.org][problem 7]]

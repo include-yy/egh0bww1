@@ -1,0 +1,51 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 1
+#+DATE: [2019-02-20 Web 01:01]
+
+* Problem
+
+*[[https://projecteuler.net/problem=1][Multiples of 3 or 5]]*
+
+If we list all the natural numbers below 10 that are multiples of 3 or 5, we get 3, 5, 6 and 9. The sum of these multiples is 23.
+
+Find the sum of all the multiples of 3 or 5 below 1000.
+
+*3 或 5 的倍数*
+
+在小于 10 的自然数中，3 或 5 的倍数有 3、5、6 和 9，这些数的和是 23。
+
+求小于 1000 的自然数中所有 3 或 5 的倍数之和。
+
+* Solution
+
+最简单的思路就是从 1 遍历到 999，通过取余（ =%= ）判断当前数字是否为 3 或 5 的倍数。当然我们知道 1 和 2 不是 3 或 5 的倍数，我们可以从 3 开始：
+
+#+BEGIN_SRC elisp
+;; emacs 29
+(named-let f ((i 3) (sum 0))
+  (cond
+   ((>= i 1000) sum)
+   ((or (= (% i 3) 0)
+	(= (% i 5) 0))
+    (f (1+ i) (+ sum i)))
+   (t (f (1+ i) sum))))
+;; 233168
+#+END_SRC
+
+当然，容易看出在 999 内的 3 的倍数组成了一个等差数列，5 的倍数同理。我们可以使用等差数列求和分别得到 3 和 5 的倍数数列之和，然后减去同时是 3 和 5 的倍数的数列求和，即 15 倍数的数列求和。
+
+#+BEGIN_SRC elisp
+  ;; fn = an; Sn = n*(a + an)/2
+  ;; An = 3n; Bn = 5n n = 1, 2, 3...
+  ;; n for A is 999/3 = 333, for B is 995/5 = 199
+  ;; Cn = 15n; 990/15 = 66
+  (let ((a3 (/ (* 333 (+ 3 (* 333 3))) 2))
+	(a5 (/ (* 199 (+ 5 (* 199 5))) 2))
+	(a1 (/ (* 66 (+ 15 (* 66 15))) 2)))
+    (+ a3 a5 (- a1)))
+  ;; 233168
+#+END_SRC
+
+当然，我们也可以用打表的方法筛出所有是 3 或 5 倍数的数，然后把它们加起来......

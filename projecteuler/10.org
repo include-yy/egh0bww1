@@ -1,0 +1,107 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 10
+#+DATE: [2019-02-20 Web 05:35]
+
+* Problem
+
+*[[https://projecteuler.net/problem=10][Summation of primes]]*
+
+The sum of the primes below 10 is 2 + 3 + 5 + 7 = 17.
+
+Find the sum of all the primes below two million.
+
+*质数求和*
+
+所有小于 10 的质数的和是 2 + 3 + 5 + 7 = 17。
+
+求所有小于两百万的质数的和。
+
+* Solution
+
+我们可以使用在 problem 7 中写过的素数判定函数：
+
+#+BEGIN_SRC elisp
+  (defun eu7-isprime (n)
+    (cond
+     ((<= n 1) nil)
+     ((< n 4) t)
+     ((zerop (% n 2)) nil)
+     ((< n 9) t)
+     ((zerop (% n 3)) nil)
+     (t (let ((bound (floor (sqrt n))))
+	  (named-let f ((i 5))
+	    (cond
+	     ((> i bound) t)
+	     ((zerop (% n i)) nil)
+	     ((zerop (% n (+ i 2))) nil)
+	     (t (f (+ i 6)))))))))
+
+  (named-let f ((n 3) (sum 2))
+    (cond
+     ((>= n 2000000) sum)
+     (t (if (eu7-isprime n)
+	    (f (+ n 2) (+ sum n))
+	  (f (+ n 2) sum)))))
+  ;; 142913828922
+#+END_SRC
+
+对于这个问题来说上面的代码是够用的，但是整个过程的复杂度大概是 O(n^{1.5}) （isprime 函数的复杂度大概是 O(n^{0.5})）。下面我们用埃氏筛实现一下，它的复杂度是 O(nlog(n)log(n)),整个算法的步骤大概是这样：
+
+1. Make a list of all numbers from 2 to N.
+2. Find the next number p not yet crossed out. This is a prime. If it is greater than √N, go to 5.
+3. Cross out all multiples of p which are not yet crossed out.
+4. Go to 2.
+5. The numbers not crossed out are the primes not exceeding N.
+
+#+BEGIN_SRC elisp
+  (defun eu10-sieve-of-Era (n)
+    (let ((limit (floor (sqrt n)))
+	  (vec (make-bool-vector (1+ n) t)))
+      (aset vec 0 nil)
+      (aset vec 1 nil)
+      (cl-loop for i from 4 to n by 2
+	       do (aset vec i nil))
+      (cl-loop for i from 3 to limit by 2
+	       do (when (aref vec i)
+		    (cl-loop for m from (* i i) to n by (* i 2)
+			     do (aset vec m nil))))
+      vec))
+
+  (cl-loop for a across (eu10-sieve-of-Era 2000000)
+	   for i from 0
+	   sum (if a i 0))
+  ;; 142913828922
+#+END_SRC
+
+由于除了 2 以外的所有偶数都不可能是素数，我们完全可以忽略它们而只处理奇数，现在我们建立如下索引的数组：
+
+#+BEGIN_CENTER
+0, 1, 2, 3, 4,...
+
+1, 3, 5, 7, 9,...
+#+END_CENTER
+
+将上面的数字乘二加一，我们就可以得到所有的奇数了。对于给定的范围 N，我们需要的数组大小就是 (N+1)/2。比如对于 1000 或 999，我们需要的奇数就是 500 个（当然如果我们忽略掉 1 的话，那我们就只需要 (N-1)/2 个了，为了让索引与自然数对应，这里我们还是取 (N+1)/2，然后把 1 留个 0）。
+
+现在让我们来考虑索引问题，现在 1 对应于 3，2 对应于 5，假设我们碰到了某个素数，我们要使用它筛掉它的倍数，那么步进值应该取多少？首先假设这个索引是 i，那么对应的数字就是 2×i+1，(2*i+1)^{2}=4×i^{2}+4×i+1，将这个减一除二就可以得到它在数组中的索引：2(i^{2}+i)。在上面的代码中步进值是 2×i，那么这里应该就是 i（全是奇数，不用跳过偶数了），然后替换为 2×i+1，我们就得到了步进值。下面是实现代码：
+
+#+BEGIN_SRC elisp
+  (defun eu10-sieve-of-Era2 (n)
+    (let* ((bound (/ (1+ n) 2))
+	   (vec (make-bool-vector bound t))
+	   (crosslimit (/ (floor (sqrt n)) 2)))
+      (aset vec 0 nil)
+      (cl-loop for i from 1 to crosslimit
+	       do (when (aref vec i)
+		    (cl-loop for j from (* 2 i (1+ i)) to (1- bound) by (1+ (* i 2))
+			     do (aset vec j nil))))
+      vec))
+
+  (cl-loop for a across (eu10-sieve-of-Era2 2000000)
+	   for i from 1
+	   sum (if a (1+ (* i 2)) 0))
+#+END_SRC
+
+理论上这能快一倍，不过实际可能要慢一会儿。

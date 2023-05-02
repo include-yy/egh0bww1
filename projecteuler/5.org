@@ -1,0 +1,107 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 5
+#+DATE: [2019-02-20 Web 02:49]
+
+* Problem
+
+*[[https://projecteuler.net/problem=5][Smallest multiple]]*
+
+2520 is the smallest number that can be divided by each of the numbers from 1 to 10 without any remainder.
+
+What is the smallest positive number that is evenly divisible by all of the numbers from 1 to 20?
+
+*最小公倍数*
+
+2520 是最小的能够被 1 到 10 整除的正数。
+
+最小的能够被 1 到 20 整除的正数是多少？
+
+* Solution
+
+这一题不需要编程，我们完全可以列出 20 内的数字的所有质因数，然后取各因数所需最大个数即可：
+
+#+BEGIN_SRC elisp
+  2: 2
+  3: 3
+  4: 2 2
+  5: 5
+  6: 2 3
+  7: 7
+  8: 2 2 2
+  9: 3 3
+  10: 2 5
+  11: 11
+  12: 2 2 3
+  13: 13
+  14: 2 7
+  15: 3 5
+  16: 2 2 2 2
+  17: 17
+  18: 2 3 3
+  19: 19
+  20: 2 2 5
+
+  2: 4
+  3: 2
+  5: 1
+  7: 1
+  11: 1
+  13: 1
+  17: 1
+  19: 1
+#+END_SRC
+
+结果为： =16*9*5*7*11*13*17*19= ，即 232792560。
+
+当然暴力方法永远是存在的...
+
+#+BEGIN_SRC elisp
+  (defmacro eu5-gen (ls)
+    (let ((res nil)
+	  (x (gensym)))
+      (dolist (a ls)
+	(push `(zerop (% ,x ,a)) res))
+      `(lambda (,x)
+	 ,(cons 'and res))))
+
+  ;;(macroexpand '(eu5-gen (2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)))
+
+  (defun eu5-judge (g1001)
+    (and (zerop (% g1001 20)) (zerop (% g1001 19)) (zerop (% g1001 18))
+	 (zerop (% g1001 17)) (zerop (% g1001 16)) (zerop (% g1001 15))
+	 (zerop (% g1001 14)) (zerop (% g1001 13)) (zerop (% g1001 12))
+	 (zerop (% g1001 11)) (zerop (% g1001 10)) (zerop (% g1001 9))
+	 (zerop (% g1001 8)) (zerop (% g1001 7)) (zerop (% g1001 6))
+	 (zerop (% g1001 5)) (zerop (% g1001 4)) (zerop (% g1001 3)) (zerop (% g1001 2))))
+
+  (named-let f ((i 2))
+    (if (eu5-judge i) i
+      (f (+ i 2))))
+  ;;24.50512719154358s
+#+END_SRC
+
+我们也可以直接使用 elisp 内置的 =LCM= （least common multiple）函数：
+
+#+BEGIN_SRC elisp
+  (apply 'cl-lcm (number-sequence 1 20))
+  ;; 232792560
+#+END_SRC
+
+对于本问题来说手算或者比较简单的 LCM 实现已经足够了，但是当 K 较大时我们需要找到足够高效的算法。一种思路是找到范围内所有数字的质因数分解，然后对每个质数取最大重数（比如 16 有 4 个 2，那么对 20 内的数字，2 的重数就是 4），一种更加聪明的思路是求 =log_p(k)= ，比如 =log_2(20)=4.32= ，我们取下界可以直接得到素数 2 的重数。
+
+#+BEGIN_SRC elisp
+(let ((prime-vec [2 3 5 7 11 13 17 19])
+      (check t)
+      (res 0)
+      (bound (floor (sqrt 20))))
+  (cl-reduce '*
+	     (cl-loop for a across prime-vec
+		      do (setq res 1)
+		      do (if check
+			     (if (< a bound)
+				 (setq res (floor (/ (log k) (log a))))
+			       (setq check nil)))
+		      collect (expt a res))))
+#+END_SRC

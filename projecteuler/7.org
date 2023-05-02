@@ -1,0 +1,72 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 7
+#+DATE: [2019-02-20 Web 03:10]
+
+* Problem
+
+*[[https://projecteuler.net/problem=7][10001st prime]]*
+
+By listing the first six prime numbers: 2, 3, 5, 7, 11, and 13, we can see that the 6th prime is 13.
+
+What is the 10 001st prime number?
+
+
+*第 10001 个质数*
+
+前 6 个质数分别是 2、3、5、7、11 和 13。
+
+第 10001 个质数是多少？
+
+* Solution
+
+不需要编程的方法是查素数表，不过这里我们还是先写出最基础的方法：
+
+#+BEGIN_SRC elisp
+  (defun eu7-primep (n)
+    (cond
+     ((<= n 1) nil)
+     ((= n 2) t)
+     ((= n 3) t)
+     ((zerop (% n 2)) nil)
+     ((zerop (% n 3)) nil)
+     ((zerop (% n 5)) nil)
+     (t (let ((bound (floor (sqrt n))))
+	  (named-let f ((i 3))
+	    (cond
+	     ((> i bound) t)
+	     ((zerop (% n i)) nil)
+	     (t (f (+ i 2)))))))))
+
+  (named-let f ((cnt 3) (i 7))
+    (cond
+     ((= cnt 10001) (- i 2))
+     ((eu7-primep i)
+      (f (1+ cnt) (+ i 2)))
+     (t (f cnt (+ i 2)))))
+  ;; 104743
+#+END_SRC
+
+下面是一个高度优化的判断素数函数：
+
+#+BEGIN_SRC elisp
+  (defun eu7-isprime (n)
+    (cond
+     ((<= n 1) nil)
+     ((< n 4) t)
+     ((zerop (% n 2)) nil)
+     ((< n 9) t)
+     ((zerop (% n 3)) nil)
+     (t (let ((bound (floor (sqrt n))))
+	  (named-let f ((i 5))
+	    (cond
+	     ((> i bound) t)
+	     ((zerop (% n i)) nil)
+	     ((zerop (% n (+ i 2))) nil)
+	     (t (f (+ i 6)))))))))
+#+END_SRC
+
+对于不确定上限的素数判定，这已经是一个非常好的判定函数了，如果上限确定，我们可以使用各种筛法。比如埃氏筛或欧拉筛。也许我会在之后的题目中展示高度优化的筛法实现。
+
+我们当然也可以使用一些理论来确定素数的分布：[[https://mathworld.wolfram.com/PrimeNumberTheorem.html][Prime Number Theorem]]。

@@ -1,0 +1,108 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 9
+#+DATE: [2019-02-20 Web 04:55]
+
+* Problem
+
+*[[https://projecteuler.net/problem=9][Special Pythagorean triplet]]*
+
+A Pythagorean triplet is a set of three natural numbers, a < b < c, for which,
+
+#+BEGIN_CENTER
+a^{2} + b^{2} = c^{2}
+#+END_CENTER
+
+For example, 3^{2} + 4^{2} = 9 + 16 = 25 = 5^{2}.
+
+There exists exactly one Pythagorean triplet for which a + b + c = 1000.
+
+Find the product abc.
+
+*特殊毕达哥拉斯三元组*
+
+毕达哥拉斯三元组由三个自然数 a < b < c 组成，并满足：
+
+#+BEGIN_CENTER
+a^{2} + b^{2} = c^{2}
+#+END_CENTER
+
+例如 3^{2} + 4^{2} = 9 + 16 = 25 = 5^{2}。
+
+有且只有一个毕达哥拉斯三元组满足 a + b + c = 1000。求这个三元组的乘积 abc。
+
+* Solution
+
+由于这个问题的规模很小，a 和 b 之和不可能超过 1000，我们可以直接暴力求取。考虑到 a < b < c，因此 a 必不可能大于 (1000 - 3)/3, b 必不可能大于 (1000 - 1) / 2：
+
+#+BEGIN_SRC elisp
+  ;; bug in emacs 30.0.50
+  (named-let f ((a 1))
+    (named-let g ((b a))
+      (let* ((c (- 1000 a b))
+	     (res (- (+ (* a a) (* b b)) (* c c))))
+	(cond ((< res 0) (g (1+ b)))
+	      ((= res 0) (* a b c))
+	      ((> res 0) (f (1+ a)))))))
+
+  (cl-loop for a from 1
+	   do (let ((res (cl-loop for b from a
+				  do (let* ((c (- 1000 a b))
+					    (res (- (+ (* a a) (* b b)) (* c c))))
+				       (cond ((< res 0))
+					     ((= res 0) (cl-return (* a b c)))
+					     ((> res 0) (cl-return nil)))))))
+		(if res (cl-return res))))
+  ;; 31875000
+#+END_SRC
+
+对于给定的和，上面实现的时间复杂度是 O(n^{2})，我们需要做出改进。
+
+如果 a，b，c 两两互质的话，这样的三元组被称为素毕达哥拉斯三元组，而所有的素毕达哥拉斯三元组可以使用如下式子表示：
+
+#+BEGIN_CENTER
+a=m^{2}-n^{2}, b=2×m×n, c=m^{2}+n^{2} m>n>0, m or n is even, gcd(m,n)=1
+
+a^{2}+b^{2}=m^{4}+n^{4}-2×m^{2}×n^{2}+4×m^{2}×n^{2}
+
+c^{2}=m^{4}+n^{4}+2×m^{2}×n^{2}
+#+END_CENTER
+
+如果 a 大于 b 的话我们可以将其互换。当且仅当 m，n 互质且其中之一为偶数时，得到的三元组是素的。我们可以使用如下公式表达：
+
+#+BEGIN_CENTER
+a=(m^{2}-n^{2})d, b=(2×m×n)d, c=(m^{2}+n^{2})d
+
+a+b+c=2m(m+n)d
+#+END_CENTER
+
+这样一来，问题就变成了寻找一个小于 s/2 的 m，然后找到一个 s/2m 的因数，它需要满足 m < k < 2m 和 gcd(m,k) = 1，接着，我们令 n = k-m，d = s/2mk，然后带入 abc 关于 mn 中的表达式即可：
+
+#+BEGIN_SRC elisp
+  (let* ((s 1000)
+	 (s2 (/ s 2))
+	 (limit (floor (sqrt s2)))
+	 (res nil))
+    (named-let f ((m 3))
+      (cond
+       ((> m limit) res)
+       (t
+	(when (zerop (% s2 m))
+	  (let ((sm (/ s2 m)))
+	    (while (zerop (% sm 2))
+	      (setq sm (/ sm 2)))
+	    (let ((k (if (= (% m 2) 1) (+ m 2) (1+ m))))
+	      (while (and (< k (* m 2)) (<= k sm))
+		(if (and (zerop (% sm k))
+			 (= 1 (cl-gcd k m)))
+		    (let* ((d (/ s2 (* k m)))
+			   (n (- k m))
+			   (a (* d (- (* m m) (* n n))))
+			   (b (* 2 d m n))
+			   (c (* d (+ (* m m) (* n n)))))
+		      (push (list a b c) res)))
+		(cl-incf k 2)))))
+	(f (1+ m))))))
+  ;; ((375 200 425))
+#+END_SRC

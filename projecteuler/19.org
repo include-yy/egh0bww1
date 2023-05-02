@@ -1,0 +1,62 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 19
+#+DATE: [2019-05-21 Tue 14:33]
+
+* Problem
+
+*[[https://projecteuler.net/problem=19][Counting Sundays]]*
+
+You are given the following information, but you may prefer to do some research for yourself.
+
+- 1 Jan 1900 was a Monday.
+- Thirty days has September,
+  April, June and November.
+  All the rest have thirty-one,
+  Saving February alone,
+  Which has twenty-eight, rain or shine.
+  And on leap years, twenty-nine.
+- A leap year occurs on any year evenly divisible by 4, but not on a century unless it is divisible by 400.
+
+How many Sundays fell on the first of the month during the twentieth century (1 Jan 1901 to 31 Dec 2000)?
+
+*周日计数*
+
+下列信息是已知的，当然你也不妨自己再验证一下：
+
+- 1900 年 1 月 1 日是周一。
+- 三十天在九月中，
+  四六十一也相同。
+  剩下都是三十一，
+  除去二月不统一。
+  二十八天平常年，
+  多加一天在闰年。
+- 闰年指的是能够被 4 整除却不能被 100 整除，或者能够被 400 整除的年份。
+
+在二十世纪（1901 年 1 月 1 日到 2000 年 12 月 31 日）中，有多少个月的 1 号是周日？
+
+* Solution
+
+同样，没什么好说的：
+
+#+BEGIN_SRC elisp
+(defun eu19-leap-p (y)
+  (or (and (zerop (% y 4)) (not (zerop (% y 100))))
+      (zerop (% y 400))))
+
+(defvar eu19-month
+  [31 28 31 30 31 30 31 31 30 31 30 31])
+(defvar eu19-leapm
+  [31 29 31 30 31 30 31 31 30 31 30 31])
+
+(named-let f ((year 1901) (day 366) (cnt 0))
+  (cond
+   ((= year 2001) cnt)
+   (t (cl-loop for a across (if (eu19-leap-p year) eu19-leapm eu19-month)
+	       do (if (= (% day 7) 0)
+		      (cl-incf cnt))
+	       do (cl-incf day a))
+      (f (1+ year) day cnt))))
+;; 171
+#+END_SRC

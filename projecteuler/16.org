@@ -1,0 +1,29 @@
+#+SETUPFILE: ../setup_eu.org
+#+FILETAGS: projecteuler
+
+#+TITLE: Problem 16
+#+DATE: [2019-05-21 Tue 12:12]
+
+* Problem
+
+*[[https://projecteuler.net/problem=16][Power digit sum]]*
+
+2^{15} = 32768 and the sum of its digits is 3 + 2 + 7 + 6 + 8 = 26.
+
+What is the sum of the digits of the number 2^{1000}?
+
+*幂的数字和*
+
+2^{15} = 32768，而 32768 的各位数字之和是 3 + 2 + 7 + 6 + 8 = 26。
+
+2^{1000} 的各位数字之和是多少？
+
+* Solution
+
+对支持大数运算的语言来说，这不是什么问题：
+
+#+BEGIN_SRC elisp
+  (- (cl-reduce (lambda (s a) (+ s a -48)) (number-to-string (expt 2 1000))) 48)
+  ;; 1366
+#+END_SRC
+
