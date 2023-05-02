@@ -6,6 +6,13 @@
     <description>The last ten articles I write</description>
     <pubDate>2023-04-02 15:29</pubDate>
     <item>
+      <title>emacs 的 named-let 使用和实现介绍</title>
+      <link>https://egh0bww1.com/posts/2023-05-02-35-emacs-named-let-usage</link>
+      <category>emacs</category>
+      <description>本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式</description>
+      <pubDate>2023-05-02</pubDate>
+    </item>
+    <item>
       <title>调用 url-retrieve 时出现的 multibyte text 错误</title>
       <link>https://egh0bww1.com/posts/2023-04-24-34-emacs-url-retrieve-multibyte-error</link>
       <category>emacs</category>
@@ -31,7 +38,7 @@
       <link>https://egh0bww1.com/posts/2023-03-25-32-emacs-26-generator-thread</link>
       <category>emacs</category>
       <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成。</description>
-      <pubdate>2023-03-25</pubdate>
+      <pubDate>2023-03-25</pubDate>
     </item>
     <item>
       <title>如何保存 emacs 当前状态供下次打开时恢复</title>
