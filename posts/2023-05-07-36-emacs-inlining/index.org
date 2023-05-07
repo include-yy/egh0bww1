@@ -1,0 +1,1522 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 在 emacs 中进行内联
+#+DATE: [2023-05-03 18:13]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/95405505][file:0.jpg]]
+
+说到内联，读者第一时间想到的可能是使用宏，即直接在调用处进行宏展开避免调用开销。但是编写宏或把函数改写为宏需要一些额外的工作，而且宏不能作为回调函数使用（比如用在 =funcall=, =mapcar= 或 =apply= 上）。对此，emacs 提供了一些更好的内联方法，即 =defsubst= 和 =define-inline= 。
+
+本文属于 elisp manual 补完计划的一部分，目的是介绍在 emacs 中进行函数内联的一些方法，并简单分析不同方法的实现方式。为了方便下面的测试，这里先写一个简单的计时程序：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defmacro my-time (&rest body)
+    (let ((ti (gensym)))
+      `(let ((,ti (float-time)))
+	 ,@body
+	 (let ((final-time (float-time)))
+	   (insert (format "\n;;%ss" (- final-time ,ti)))
+	   (message "my-time: %ss" (- final-time ,ti))))))
+  (my-time (dotimes (_ 10000)))
+  ;;0.0006251335144042969s
+#+END_SRC
+
+本文使用的是 emacs 28.2 x86_64 on Windows 11。
+
+{{{toc}}}
+
+* 什么是内联（inlining）
+
+似乎提到 *内联函数* 都是 C/C++ 中才有的概念，使用 =inline function= 作为关键词搜索跳出的[[https://en.wikipedia.org/wiki/Inline_function][维基页面]]就是 C/C++ 中的 inline function。不过好在这个页面给出了一个更一般的概念：内联展开
+
+#+BEGIN_QUOTE
+In computing, inline expansion, or inlining, is a manual or compiler optimization that replaces a function call site with the body of the called function. Inline expansion is similar to macro expansion, but occurs during compilation, without changing the source code (the text), while macro expansion occurs prior to compilation, and results in different text that is then processed by the compiler.
+
+[[https://en.wikipedia.org/wiki/Inline_expansion][Inline expansion - Wikipedia]]
+#+END_QUOTE
+
+引文对宏展开和内联进行了比较，两者效果相似，但宏展开发生在编译前，而内联由编译器负责处理，发生在编译期间。字面意思来看，内联就是将函数调用替换为被调用的函数体，是一种优化手段。内联带来的最 *直观* 的好处就是 *消除了函数调用开销* ，但同时也会 *增大函数的体积* 。
+
+对于很小但是执行非常频繁的函数，内联是非常有效的优化（下面的宏是有问题的，没有考虑参数是待求值表达式的情况，不过对于简单的演示已经够用了）：
+
+#+BEGIN_SRC elisp
+  (defun my-incf (x)
+    (setcar x (1+ (car x))))
+
+  (defmacro my-incf-mac (x)
+    `(setcar ,x (1+ (car ,x))))
+
+  (my-time
+   (let ((x '(1))) (dotimes (_ 10000000) (my-incf x))))
+  ;;1.4230320453643799s
+
+  (my-time
+   (let ((x '(1))) (dotimes (_ 10000000) (my-incf-mac x))))
+  ;;1.1285669803619385s
+#+END_SRC
+
+对于没有宏的语言，我们可以通过复制粘贴来完成手动内联。但一旦在被复制的代码中发现了错误，我们需要对所有粘贴位置进行修改，所以这并不是一个很好的做法：
+
+#+CAPTION: https://en.wikipedia.org/wiki/Copy-and-paste_programming
+[[./1.gif]]
+
+总的来说，内联带来的直接好处如下：
+
+- 对于调用者和被调者而言，消除了函数调用所需的指令
+- 无需通过寄存器传递参数，没有寄存器分配问题
+- 没有引用和解引用的开销
+
+如果函数的调用不是 *极度频繁* ，内联消除调用开销带来的收益是微乎其微的。这里就不得不提内联带来的另一个作用了：内联有助于编译器做进一步的优化。
+
+#+BEGIN_QUOTE
+However, the primary benefit of inline expansion is to allow further optimizations and improved scheduling, due to increasing the size of the function body, as better optimization is possible on larger functions.
+
+Optimizations that cross function boundaries can be done without requiring interprocedural optimization (IPO): once inlining has been performed, additional intraprocedural optimizations ("global optimizations") become possible on the enlarged function body.
+
+The impact of inlining varies by programming language and program, due to different degrees of abstraction. In lower-level imperative languages such as C and Fortran it is typically a 10–20% speed boost, with minor impact on code size, while in more abstract languages it can be significantly more important, due to the number of layers inlining removes, with an extreme example being Self, where one compiler saw improvement factors of 4 to 55 by inlining.
+
+[[https://en.wikipedia.org/wiki/Inline_expansion#Effect_on_performance][Effect on performance -- inlining]]
+#+END_QUOTE
+
+当然了，内联除了带来好处之外也可能会影响性能。代码的内联展开可能会影响指令缓存性能，如果在没有展开时代码的热点（hot section）部分正好能放入某一级缓存（比如 L1）中，但在展开后就放不下了，那么内联展开可能会导致频繁的缓存缺失（cache miss），这对程序的性能是有很大影响的。内联对缓存性能的影响是很复杂的，我也只是从维基百科上摘抄了一小部分，这里就不继续了。
+
+关于内联后有助于编译优化，这里我举一个简单的例子：
+
+#+BEGIN_SRC elisp
+  (defun a (x)
+    (pcase x
+      (1 2)
+      (2 3)
+      (3 4)))
+  (disassemble (byte-compile 'a))
+  ;; byte code:
+  ;; doc:   ...
+  ;; args: (arg1)
+  ;; 0	dup
+  ;; 1	constant  <jump-table-eq (1 1 2 2 3 3)>
+  ;; 2	switch
+  ;; 3	goto	  4
+  ;; 6:1	constant  2
+  ;; 7	return
+  ;; 8:2	constant  3
+  ;; 9	return
+  ;; 10:3	constant  4
+  ;; 11	return
+  ;; 12:4	constant  nil
+  ;; 13	return
+
+  (defun b ()
+    (a 1))
+  (disassemble (byte-compile 'b))
+  ;; byte code:
+  ;; args: nil
+  ;; 0	constant  a
+  ;; 1	constant  1
+  ;; 2	call	  1
+  ;; 3	return
+#+END_SRC
+
+可见 elisp 字节编译器为我们的 =pcase= 生成了一个 =switch= 跳表，如果我们将它内联且传递给函数的参数为常值的话，编译器会尝试做分支消除：
+
+#+BEGIN_SRC elisp
+  (defmacro a1 (x)
+    `(pcase ,x
+       (1 2)
+       (2 3)
+       (3 4)))
+
+  (defun a2 ()
+    (a1 1))
+
+  (disassemble (byte-compile 'a2))
+  ;; byte code:
+  ;; args: nil
+  ;; 0	constant  2
+  ;; 1	return
+#+END_SRC
+
+注意，虽然 =b= 和 =a2= 的汇编语句长度非常相似，但一个是调用函数，而另一个是返回常值。
+
+在这一节的开头我提到内联展开与宏展开非常相似，就像上面的那个例子，我们可以在 elisp 中使用宏来实现某种意义上的内联展开，甚至是在宏展开过程中尝试做一些简单的优化。 仅就内联展开这个目的来看， *使用宏和交给编译器在效果上应该是相同的* （虽说不同语言的编译器不一定都听话就是了）。
+
+在正式开始介绍 elisp 内联之前，我认为有必要对 elisp 中的 *宏展开* 进行一定程度的介绍，因为 elisp 同时提供了基于编译器的内联展开和基于宏（包括普通宏和 compiler macro）的内联展开机制。在下一节中我会简单介绍宏展开相关的一些知识。
+
+我们以 IBM 关于内联的文档结束这一节吧：
+
+#+BEGIN_QUOTE
+问题：函数内联意味着什么，以及它对程序有什么影响？
+
+答案：
+
+内联函数指编译器将函数定义的代码直接复制到调用函数的代码中，而不是在内存中创建一套单独的指令。这就消除了调用链接（call-linkage）的开销，并能暴露出重要的优化机会。使用 =inline= 指示符只是向编译器建议可以进行内联扩展；编译器可以自由地忽略这个建议。
+
+内联的一些影响是：
+
+1. 在大多数情况下，内联会增加程序大小。但在某些情况下，当函数大小小于函数调用代码大小时，内联可以减小程序大小
+2. 在大多数情况下，内联可以通过避免调用开销来改善执行时间，并可能被优化器看光（see-through）（使其透明(non-opaque)）以获得更多的优化机会。然而，如果该函数不被频繁调用，它就不会有明显的运行时间改善
+3. 内联增加了实际耦合（practical coupling），因为它使调用者有可能依赖内联代码的内部实现细节。实际耦合的问题是，当内联的被调用者改变时，你必须重新编译调用者。这会带来构建和开发时间成本
+
+最好在完成程序分析前尽量不要内联。这将有助于确定你是否能从内联中获得任何额外的好处。
+
+[[https://www.ibm.com/support/pages/what-does-it-mean-inline-function-and-how-does-it-affect-program][What does it mean to inline a function and how does it affect a program?]]
+#+END_QUOTE
+
+* 宏孩儿小课堂
+
+这里假设读者已经知道什么是宏，而且有过简单的编写宏的经验。如果没怎么了解过宏，读者可以读一下我之前写的 [[../2021-09-04-11-emacs-macro/index.org][emacs 的 macro]]，这一节的目的是了解一下宏展开的发生时间。
+
+根据[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Compiling-Macros.html][文档]]易知字节编译时宏会一次性完成展开，所有的字节函数都是没有宏成分的，同样地，使用 =load= 载入的代码也进行了 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/How-Programs-Do-Loading.html][eager macro expansion]]。那么，我们在 emacs-lisp-mode 中使用的 =C-x C-e= 又如何呢？使用的 =M-:= 又如何呢？答案是它们都在真正求值之前进行了宏展开：
+
+#+BEGIN_SRC elisp
+  ;; C-x C-e --> eval-last-sexp --> elisp--eval-last-sexp -->
+  (eval (macroexpand-all
+	 (eval-sexp-add-defvars
+	  (elisp--eval-defun-1 (macroexpand (elisp--preceding-sexp)))))
+	lexical-binding)
+
+  ;; M-: --> eval-expression -->
+  (setq result
+	(values--store-value
+	 (eval (let ((lexical-binding t)) (macroexpand-all exp)) t)))
+#+END_SRC
+
+即使我们显式调用 =eval= （指对 =(eval ...)= 表达式进行 =C-x C-e= 操作），我们也是先经过了 =macroexpand-all= 的变换，因此日常在 emacs 界面中求值时，代码在开始执行前就完成了宏展开，不存在运行时宏展开的情况。也就是说我们很难在日常使用中遇到“裸” =eval= 的情况。
+
+那么有没有方法可以让我们在运行时进行宏展开呢？那还真是有的，当我们使用 =eval-buffer= 时，如果 buffer 对应于某个 =.elc= 文件，那么 =eval-buffer= 内部的 =readevalloop= 会直接调用 =eval_sub= 而不是 =readevalloop_eager_expand_eval= ，这样就会在求值过程中进行宏展开。（由于一般的 =.elc= 文件存放的都是编译好的字节对象，所以 emacs 会认为这里不存在没有宏展开的代码。这里我们只是出于实验目的在 =.elc= 中手动编写代码，好孩子不要学）
+
+下面让我们随便创建一个 =a.elc= 文件并写入如下内容：
+
+#+BEGIN_SRC elisp
+  ;; a.elc  -*- lexical-binding: t; -*-
+
+  (my-time
+   (let ((x 1))
+     (while (< x 10000000)
+       (cl-incf x))))
+  ;;7.049331903457642s
+
+  (my-time
+   (let ((x 1))
+     (while (< x 10000000)
+       (setq x (1+ x)))))
+  ;;0.4309110641479492s
+#+END_SRC
+
+在 buffer 中执行 =eval-buffer= 后，你也可以看到上面的数字（考虑到时间因素，我建议你把循环次数减小一点）。这是很能体现运行前宏展开和运行时宏展开的巨大区别的，在前一段例子中我们执行了千万次 =cl-incf= 的宏展开，整个运行时间远远超过了不含宏的表达式。这也是为什么我们使用 =C-x C-e= 或 =M-:= 时 emacs 要进行运行前宏展开。
+
+** compiler macro
+
+因为 =define-inline= 和 =cl-defsubst= 是基于 compiler macro 的，这里我也不得不补充一点前置知识。X3J13 中对 compiler macro 的说明如下：
+
+#+BEGIN_QUOTE
+The purpose of the /compiler macro/ facility is to permit selective source code transformations
+as optimization advice to the /compiler/. When a /compound form/ is being processed (as by the
+compiler), if the /operator/ names a /compiler macro/ then the /compiler macro function/ may be
+invoked on the form, and the resulting expansion recursively processed in preference to performing
+the usual processing on the original /form/ according to its normal interpretation as a /function form/
+or /macro form/.
+
+/Compiler macro/ definitions are strictly global. There is no provision for defining local compiler
+macros in the way that *macrolet* defines local /macros/. Lexical bindings of a function name shadow
+any compiler macro definition associated with the name as well as its global /function/ or /macro/
+definition.
+
+Note that the presence of a compiler macro definition does not affect the values returned by
+functions that access /function/ definitions (e.g., *fboundp*) or macro definitions (e.g., *macroexpand*).
+
+X3J13 3.2.2.1 -- Compiler Macros
+#+END_QUOTE
+
+顾名思义，compiler macro 就是在编译时生效的宏，它对一般的求值过程没有什么影响。根据上面的描述，compiler macro 是严格全局的，局部的此法绑定可能会遮蔽它们。compiler macro 不会影响正常的函数定义和一般宏展开（使用 =macroexpand= ）。
+
+在 X3J13 的 3.2.2.1.3 中描述了 compiler macro 使用场景，从描述来看 compiler macro 已经没啥大用了，编译器完全可以忽略掉定义的 compiler macro：
+
+#+BEGIN_QUOTE
+The presence of a compiler macro definition for a function or macro indicates that it is *desirable*
+for the compiler to use the expansion of the compiler macro instead of the original function form or
+macro form. *However, no language processor (compiler, evaluator, or other code walker) is ever required
+to actually invoke compiler macro functions, or to make use of the resulting expansion if it does invoke a compiler macro function*.
+#+END_QUOTE
+
+引文后面的对编译器行为的描述也大多使用了 /might/ ，在 CL 中，compiler macro 应该已经是个[[https://emacs-china.org/t/elisp-compiler-macro/10552/15][过时又没用的东西]]了。
+
+但是我们现在面对的是 elisp 而不是 CL，elisp 中的某些东西还是很依赖 compiler macro 的。让我们从如何在 elisp 中定义 compiler macro 开始吧，由于 =cl-define-compiler-macro= 的注释有些长这里我就只放函数体了：
+
+#+BEGIN_SRC elisp
+;;;###autoload
+(defmacro cl-define-compiler-macro (func args &rest body)
+  (declare (debug cl-defmacro) (indent 2))
+  (let ((p args) (res nil))
+    (while (consp p) (push (pop p) res))
+    (setq args (nconc (nreverse res) (and p (list '&rest p)))))
+  ;; FIXME: The code in bytecomp mishandles top-level expressions that define
+  ;; uninterned functions.  E.g. it would generate code like:
+  ;;    (defalias '#1=#:foo--cmacro #[514 ...])
+  ;;    (put 'foo 'compiler-macro '#:foo--cmacro)
+  ;; So we circumvent this by using an interned name.
+  (let ((fname (intern (concat (symbol-name func) "--cmacro"))))
+    `(eval-and-compile
+       ;; Name the compiler-macro function, so that `symbol-file' can find it.
+       (cl-defun ,fname ,(if (memq '&whole args) (delq '&whole args)
+                           (cons '_cl-whole-arg args))
+         ,@body)
+       (put ',func 'compiler-macro #',fname))))
+#+END_SRC
+
+从内容上看，我们可以忽略掉前面的参数列表处理，直接来到下面的 =let= 部分。首先 =let= 创建了 compiler macro 的名字 ={func}--cmacro= ，然后使用 =cl-defun= 创建名为它的函数，最后将 =compiler-macro= 字段添加到 ={func}= 的 plist 中。我们可以使用下面的例子试试它的行为：
+
+#+BEGIN_SRC elisp
+  ;; author: cireu(emacs-china)
+  ;; link  : https://emacs-china.org/t/elisp-compiler-macro/10552
+  (cl-define-compiler-macro my-list* (&rest args)
+    (let* ((rargs (nreverse args))
+	   (head (pop rargs))
+	   (result head))
+      (dolist (arg rargs)
+	(setq result `(cons ,arg ,result)))
+      result))
+
+  (symbol-function 'my-list*) => nil
+
+  (symbol-function 'my-list*--cmacro)
+  =>
+  (closure (t) (_cl-whole-arg &rest args) "
+
+  (fn CL-WHOLE-ARG &rest ARGS)"
+	   (cl-block my-list*--cmacro
+	     (let* ((rargs (nreverse args))
+		    (head (pop rargs))
+		    (result head))
+	       (dolist (arg rargs)
+		 (setq result `(cons ,arg ,result)))
+	       result)))
+
+  (get 'my-list* 'compiler-macro)
+  => my-list*--cmacro
+#+END_SRC
+
+在定义好 compiler macro 后，我们可以使用 =cl-compiler-macroexpand= 将其展开：
+
+#+BEGIN_SRC elisp
+  (cl-compiler-macroexpand '(my-list* 1 2 3))
+  => (cons 1 (cons 2 3))
+
+  (macroexpand '(my-list* 1 2 3))
+  => (mylist* 1 2 3)
+
+  (macroexpand-all '(my-list* 1 2 3))
+  => (cons 1 (cons 2 3))
+#+END_SRC
+
+正如 X3J13 所说， =macroexpand= 对 compiler macro 不起作用，不过 =macroexpand-all= 对所有的宏一视同仁，都会展开，这也就是说在 elisp 中 compiler macro 并不仅在编译时才起作用，结合上面我们看到的在求值时的各种宏展开，compiler macro 在一般求值时也会起作用。我们可以使用如下例子测试一下 =load= 时的 eager macro expansion：
+
+#+BEGIN_SRC elisp
+  ;; b.el
+  (defun my-list2 (x y z)
+    (my-list* x y z))
+#+END_SRC
+
+创建 =b.el= 并执行 =load-file= 后，我们可以使用如下代码检查 =my-list2= 的函数：
+
+#+BEGIN_SRC elisp
+  (symbol-function 'my-list2)
+  => (lambda (x y z) (cons x (cons y z)))
+#+END_SRC
+
+可见 eager macro expansion 也会处理 compiler macro。也许我可以这样断言： *一般情况下* ，在 elisp 中 compiler macro 和一般宏享有相同的地位。
+
+需要说明的是，CL 标准指出 compiler macro 也要处理 =(funcall name ...)= 的情况：
+
+#+BEGIN_QUOTE
+The form passed to the compiler macro function can either be a list whose car is the function
+name, or a list whose car is funcall and whose cadr is a list (function name);
+
+X3J13 3.2.2.1.1 -- Purpose of Compiler Macros
+#+END_QUOTE
+
+但是在 elisp 中求值时不会这样做，求值时 compiler macro 就是一般的宏。只有在编译时编译器会帮我们将 =funcall= 或 =apply= 变成普通调用形式，这样就可以对 =funcall= 内联：
+
+#+BEGIN_SRC elisp
+  (cl-compiler-macroexpand '(funcall 'my-list* 1 2 3))
+  => (funcall 'my-list* 1 2 3)
+
+  (disassemble (byte-compile '(funcall #'my-list* 1 2 3)))
+  ;; byte code:
+  ;; args: nil
+  ;; 0	constant  1
+  ;; 1	constant  2
+  ;; 2	constant  3
+  ;; 3	cons
+  ;; 4	cons
+  ;; 5	return
+#+END_SRC
+
+我们可以考虑同时定义函数和它对应的 compiler macro，这样用于不管是何种方式调用，代码都能工作，不过这样就得写两份代码了，而且还可能因为实现不当导致直接调用和 =funcall= 调用行为不一致。 =define-inline= 为我们解决了这个问题，且听后文讲解。
+
+最后让我们介绍一下 =(declare (compiler-macro ...))= ，使用它我们可以直接在 =defun= 中定义与函数对应的 compiler macro：
+
+#+BEGIN_SRC elisp
+  (defun my-list*-2 (&rest args)
+    (declare (compiler-macro
+	      (lambda (_form)
+		(let* ((rargs (nreverse args))
+		       (head (pop rargs))
+		       (result head))
+		  (dolist (arg rargs)
+		    (setq result `(cons ,arg ,result)))
+		  result))))
+    (let* ((rargs (reverse args))
+	   (result (car rargs)))
+      (dolist (arg (cdr rargs))
+	(push arg result))
+      result))
+
+  (funcall 'my-list*-2 1 2 3) => (1 2 . 3)
+  (my-list*-2 1 2 3) => (1 2 . 3)
+
+  (get 'my-list*-2 'compiler-macro)
+  => my-list*-2--anon-cmacro
+  ;; different from cl-define-compiler-macro
+
+  (symbol-function 'my-list*-2--anon-cmacro)
+  =>
+  (lambda (_form &rest args)
+    (let* ((rargs (nreverse args))
+	   (head (pop rargs))
+	   (result head))
+      (dolist (arg rargs)
+	(setq result `(cons ,arg ,result)))
+      result))
+  ;; no docstring, also different from cl's style
+#+END_SRC
+
+** compiler macro 与 gv
+
+/如果读者对 gv 机制不了解或不感兴趣可以跳过这一节/
+
+在很久之前的一篇文章中，我介绍了如何在 elisp 中使用 generailzied variable：[[../2022-02-22-17-setf-CL-five-gangs-elisp-high-order-approach/index.org][setf 之 CL 的 five gangs 与 elisp 的 high-order approach]]。文中我提到 =gv-get= 会依次尝试 symbol 的 gv-expander plist 字段、宏展开、compiler macro 展开和 function indirection 来寻找匹配的 setter 函数。我们可以通过定义 compiler macro 来帮助 setf 找到对应的 setter：
+
+#+BEGIN_SRC elisp
+  ;; author: cireu
+  ;; link  : https://emacs-china.org/t/elisp-compiler-macro/10552
+
+  (defun my-aref (arr idx)
+    (aref arr idx))
+
+  (macroexpand-all '(setf (my-aref a 1) 3))
+  =>
+  (let* ((v a)) (\(setf\ my-aref\) 3 v 1))
+  ;; \(setf\ my-aref\) is a whole symbol
+
+  (defun my-aref-2 (arr idx)
+    (declare (compiler-macro
+	      (lambda (_)
+		`(aref ,arr ,idx))))
+    (aref arr idx))
+
+  (macroexpand-all '(setf (my-aref-2 a 1) 3))
+  => (let* ((v a)) (aset v 1 3))
+
+  ;; gv's approach
+  (gv-define-setter my-aref (val arr idx)
+    `(aset ,arr ,idx ,val))
+
+  (macroexpand-all '(setf (my-aref a 1) 3))
+  => (let* ((v a)) (aset v 1 3))
+#+END_SRC
+
+* defsubst -- the compiler approach
+
+=defsubst= 使用的就是 emacs 中两种内联机制之一：编译时内联。bytecomp.el 中的注释对它是这样描述的：
+
+#+BEGIN_SRC elisp
+;; New Features:
+;;
+;;  o	The form `defsubst' is just like `defun', except that the function
+;;	generated will be open-coded in compiled code which uses it.  This
+;;	means that no function call will be generated, it will simply be
+;;	spliced in.  Lisp functions calls are very slow, so this can be a
+;;	big win.
+;;
+;;	You can generally accomplish the same thing with `defmacro', but in
+;;	that case, the defined procedure can't be used as an argument to
+;;	mapcar, etc.
+#+END_SRC
+
+它的代码如下：
+
+#+BEGIN_SRC elisp
+(defmacro defsubst (name arglist &rest body)
+  "Define an inline function.  The syntax is just like that of `defun'.
+
+\(fn NAME ARGLIST &optional DOCSTRING DECL &rest BODY)"
+  (declare (debug defun) (doc-string 3))
+  (or (memq (get name 'byte-optimizer)
+	    '(nil byte-compile-inline-expand))
+      (error "`%s' is a primitive" name))
+  `(prog1
+       (defun ,name ,arglist ,@body)
+     (eval-and-compile
+       ;; Never native-compile defsubsts as we need the byte
+       ;; definition in `byte-compile-unfold-bcf' to perform the
+       ;; inlining (Bug#42664, Bug#43280, Bug#44209).
+       ,(byte-run--set-speed name nil -1)
+       (put ',name 'byte-optimizer 'byte-compile-inline-expand))))
+#+END_SRC
+
+可见 =defsubst= 没有用到 compiler macro，它只是通过 =defun= 完成了函数定义，然后添加 =(byte-optimizer byte-compile-inline-expand)= 到函数名符号的 plist 中。至于 =,(byte-run--set-speed name nil -1)= 我们不用太关心，因为本文不涉及 native-compile。
+
+如果我们不进行字节编译， =defsubst= 创建的函数的行为和 =defun= 一致，但在进行字节编译时，使用 =defsubst= 定义的函数的调用会被内联，这样就消除了函数调用的开销。下面的例子可以说明这一点：
+
+#+BEGIN_SRC elisp
+  (defsubst my-add-1 (x) (1+ x))
+  (defun my-add1-2 (x) (1+ x))
+
+  (defun f1 (N)
+    (named-let f ((i 1))
+      (cond ((= i N))
+	    (t (my-add-1 i) (f (1+ i))))))
+
+  (defun f2 (N)
+    (named-let f ((i 1))
+      (cond ((= i N))
+	    (t (my-add1-2 i) (f (1+ i))))))
+
+  (byte-compile 'f1)
+  (byte-compile 'f2)
+
+  ;;(disassemble 'f1)
+  ;;(disassemble 'f2)
+
+  (my-time (f1 10000000))
+  ;;0.34966516494750977s
+
+  (my-time (f2 10000000))
+  ;;0.5358359813690186s
+#+END_SRC
+
+在极其频繁的简单调用中函数调用开销还是可见的，使用 =defsubst= 相比普通的 =defun= 确实具有优势。不过文档也指出了使用 =defsubst= 的缺点：相比普通的 =defun= 不够灵活，如果修改了 =defsubst= 中的代码则需要重新编译使用它的函数。文档是这样说的： /inline functions do not behave well with respect to debugging, tracing, and advising. Since ease of debugging and the flexibility of redefining functions are important features of Emacs/ 。
+
+内联函数的另一个缺点是它会增大代码的体积，一般而言小函数更能够从内联中获益，所以尽量不要内联较大的函数。文档指出我们应尽量不使用将函数内联，除非代码运行速度是关键问题且确定该问题是由 =defun= 导致的。
+
+我们也可以使用宏来消除调用开销，但将函数改成宏需要额外的工作，比如注意参数的求值次数等等，而且宏也不可能用于 =apply=, =mapcar= 等情况中。将普通函数变为可内联函数只需将 =defun= 改为 =defsubst= 。
+
+** 内联的实现
+
+我们可以顺着 =byte-compile= 一路找下去，直到找到负责处理内联的函数：
+
+#+BEGIN_SRC text
+  byte-compile --> byte-compile-top-level --> byte-optimize-one-form --> byte-optimize-form
+#+END_SRC
+
+在 =byte-optimize-form= 中，函数名 plist 的 =byte-optimizer= 会被提取出来，并将该函数作用于代码：
+
+#+BEGIN_SRC elisp
+  ;; byte-opt.el byte-optimize-form line 652
+  ;; If a form-specific optimizer is available, run it and start over
+  ;; until a fixpoint has been reached.
+  (and (consp form)
+       (symbolp (car form))
+       (let ((opt (function-get (car form) 'byte-optimizer)))
+	 (and opt
+	      (let ((old form)
+		    (new (funcall opt form)))
+		(byte-compile-log "  %s\t==>\t%s" old new)
+		(setq form new)
+		(not (eq new old))))))
+#+END_SRC
+
+在 =defsubst= 的代码中我们可以看到 =byte-optimizer= 对应的是 =byte-compile-inline-expand= ，让让我们看看内联是如何展开的。这里我选取了 =byte-compile-inline-expand= 真正干活的分支，然后删除了全部的注释：
+
+#+BEGIN_SRC elisp
+  ((or `(lambda . ,_) `(closure . ,_))
+   (if (eq fn localfn)
+       (macroexp--unfold-lambda `(,fn ,@(cdr form)))
+     (let ((byte-optimize--lexvars nil)
+	   (byte-compile-warnings nil))
+       (byte-compile name))
+     (let ((bc (symbol-function name)))
+       (byte-compile--check-arity-bytecode form bc)
+       `(,bc ,@(cdr form)))))
+#+END_SRC
+
+=(eq fn localfn)= 判断函数是否对当前编译环境可见，也就是判断函数名是否位于当前的 =byte-compile-function-environment= 中：
+
+#+BEGIN_SRC elisp
+  (let* ((name (car form))
+         (localfn (cdr (assq name byte-compile-function-environment)))
+	 (fn (or localfn (symbol-function name))))
+#+END_SRC
+
+一般来说，只有在编译文件时 =byte-compile-function-environment= 才会不为空，所以调用 =byte-compile= 时我们会执行 =else= 分支，也就是对 =defsubst= 函数先进行编译，然后在调用内联函数的位置插入对字节函数的调用。如果我们使用的是 =byte-compile-file= ，那么我们可能会调用 =macroexp--unfold-lambda= 来将函数调用变为 =let= 表达式直接插入调用位置，下面是对 =macroexp--unfold-lambda= 的演示：
+
+#+BEGIN_SRC elisp
+  (macroexp--unfold-lambda
+   '((lambda (x y) (+ x y)) 1 2))
+  => (let ((x 1) (y 2)) (+ x y))
+#+END_SRC
+
+如果 =byte-compile-inline-expand= 只是将内联函数调用变换为对字节编译函数的调用，那显然没有达到内联的目的，所以字节编译的工作还未完成。在 =byte-compile-top-level= 内执行 =byte-optimize-one-form= 后，我们来到了 =byte-compile-form= ，在其内部发现调用是对字节函数调用时，它会使用 =byte-compile-unfold-bcf= 进行内联优化：
+
+#+BEGIN_SRC elisp
+  ((and (byte-code-function-p (car form))
+	(memq byte-optimize '(t lap)))
+   (byte-compile-unfold-bcf form))
+#+END_SRC
+
+而在 =byte-compile-unfold-bcf= 的内部调用的是 =byte-compile-inline-lapcode= ，应该是它负责将字节函数调用进行内联：
+
+#+BEGIN_SRC elisp
+  (setq lap (byte-decompile-bytecode-1 (aref fun 1) (aref fun 2) t))
+  (byte-compile-inline-lapcode lap (1+ start-depth))
+#+END_SRC
+
+这里的 =lap= 是从字节函数反编译得到的指令序列，下面是个简单的例子：
+
+#+BEGIN_SRC elisp
+  (defun my-add3mul2 (x)
+    (* (+ x 3) 2))
+
+  (byte-compile 'my-add3mul2)
+
+  (setq fun (symbol-function 'my-add3mul2))
+  (setq lap (byte-decompile-bytecode-1 (aref fun 1) (aref fun 2) t))
+  => ((byte-varref x)
+      (byte-constant 3)
+      (byte-plus . 0)
+      (byte-constant 2)
+      (byte-mult . 0)
+      (byte-return . 0))
+#+END_SRC
+
+虽说 =byte-compile-inline-lapcode= 只有六七十行，但以我的能力只能分析到这里了，这里面还涉及到一些额外的 byte compile 知识，也许需要我对整个编译流程有一个基本的了解。以后有机会再看看吧（笑）。
+
+** 一些测试
+
+在翻看源代码时，我注意到了 =byte-compile-unfold-bcf= 中的注释：
+
+#+BEGIN_SRC elisp
+    ;; optimized switch bytecode makes it impossible to guess the correct
+    ;; `byte-compile-depth', which can result in incorrect inlined code.
+    ;; therefore, we do not inline code that uses the `byte-switch'
+    ;; instruction.
+#+END_SRC
+
+这段注释的意思是，汇编中的 =switch= 跳表可能会导致错误，所以不对跳表进行优化。所谓的跳表是在 [[https://github.com/emacs-mirror/emacs/blob/master/etc/NEWS.26][26]] 中引入的一种优化，可以将多分支转换为快速的跳表：
+
+#+BEGIN_SRC text
+Certain cond/pcase/cl-case forms are now compiled using a faster jump
+table implementation.  This uses a new bytecode op 'switch', which
+isn't compatible with previous Emacs versions.  This functionality can
+be disabled by setting 'byte-compile-cond-use-jump-table' to nil.
+#+END_SRC
+
+至于是不是这样，我们可以使用如下代码做个测试：
+
+#+BEGIN_SRC elisp
+  (defsubst my-jump (x)
+    (pcase x
+      (1 2)
+      (2 3)))
+
+  (disassemble (byte-compile '(my-jump 1)))
+#+END_SRC
+
+下面是输出结果：
+
+#+BEGIN_SRC text
+byte code:
+  args: nil
+0	constant  <compiled-function>
+      args: (x)
+    0	    varref    x
+    1	    constant  <jump-table-eq (1 1 2 2)>
+    2	    switch
+    3	    goto      3
+    6:1	    constant  2
+    7	    return
+    8:2	    constant  3
+    9	    return
+    10:3    constant  nil
+    11	    return
+
+1	constant  1
+2	call	  1
+3	return
+#+END_SRC
+
+可以看到，虽然函数已经成为了字节编译函数，反编译得到的最后三行还是一个调用过程。这说明现在 elisp 的编译器还不能很好处理 =switch= 指令。我们把 =byte-compile-cond-use-jump-table= 设为 nil 再试一次：
+
+#+BEGIN_SRC elisp
+  (defsubst my-jump (x)
+    (pcase x
+      (1 2)
+      (2 3)))
+
+  (let ((byte-compile-cond-use-jump-table nil))
+    (disassemble (byte-compile '(my-jump 1))))
+
+  ;; byte code:
+  ;; args: nil
+  ;; 0	constant  1
+  ;; 1	dup
+  ;; 2	varbind	  x
+  ;; 3	constant  1
+  ;; 4	eq
+  ;; 5	goto-if-nil 1
+  ;; 8	constant  2
+  ;; 9	goto	  2
+  ;; 12:1	varref	  x
+  ;; 13	constant  2
+  ;; 14	eq
+  ;; 15	goto-if-nil-else-pop 2
+  ;; 18	constant  3
+  ;; 19:2	unbind	  1
+  ;; 20	return
+#+END_SRC
+
+可见虽然现在没有了跳表，但是确实是内联的。
+
+另外需要说明的是，与 C/C++ 那样由编译器决定哪些函数需要内联不同，在 elisp 中似乎没有限制内联代码的大小。某个函数是否内联完全由我们用户说了算，读者可以找几个大函数试试内联的结果，这里我就不演示了。我们可以挑战一下内联的极限，或者说字节编译的极限（建议使用 =emacs -Q= 再开一个 emacs）：
+
+#+BEGIN_SRC elisp
+  (defun my-addn (n)
+    (let ((ls nil))
+      (dotimes (_ n)
+	(push '(setcar x (1+ (car x))) ls))
+      ls))
+
+  (defmacro my-makefun (name n)
+    (let ((ls (my-addn n)))
+      `(defsubst ,name (x)
+	 ,@ls)))
+
+  (defun my-makeprogn (exp n)
+    (cons 'progn (cl-loop for i below n
+			  collect exp)))
+
+  (disassemble (byte-compile (my-makeprogn '(my-add1000 x) 500)))
+#+END_SRC
+
+在我的机器上，上面的表达式执行了 158.4 秒，得到了一个巨大无比的反汇编结果（大约 600 万条指令）：
+
+[[./2.png]]
+
+需要注意的是上面的执行时间包括了反汇编时间，不过也足以说明整个字节编译结果的巨大了。如果我把规模再扩大一些也许可以达到我的机器的内存限制。
+
+* cl-defsubst -- the (bad) compiler macro approach
+
+老实说看到这个名字时我还以为 =defsubst= 是从 CL 学过来的，但是我翻遍了 X3J13 都没有找到... 我只能认为它是个 CL 风格的 =defsubst= 了。 =cl-defsubst= 位于 cl-macs.el 中，比 =defsubst= 的定义稍微复杂一点：
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defmacro cl-defsubst (name args &rest body)
+    "Define NAME as a function.
+  Like `defun', except the function is automatically declared `inline' and
+  the arguments are immutable.
+  ARGLIST allows full Common Lisp conventions, and BODY is implicitly
+  surrounded by (cl-block NAME ...).
+  The function's arguments should be treated as immutable.
+
+  \(fn NAME ARGLIST [DOCSTRING] BODY...)"
+    (declare (debug cl-defun) (indent 2))
+    (let* ((argns (cl--arglist-args args))
+	   (real-args (if (eq '&cl-defs (car args)) (cddr args) args))
+	   (p argns)
+	   ;; (pbody (cons 'progn body))
+	   )
+      (while (and p (eq (cl--expr-contains real-args (car p)) 1)) (pop p))
+      `(progn
+	 ,(if p nil   ; give up if defaults refer to earlier args
+	    `(cl-define-compiler-macro ,name
+	       ,(if (memq '&key args)
+		    `(&whole cl-whole &cl-quote ,@args)
+		  (cons '&cl-quote args))
+	       ,(format "compiler-macro for inlining `%s'." name)
+	       (cl--defsubst-expand
+		',argns '(cl-block ,name ,@(cdr (macroexp-parse-body body)))
+		;; We used to pass `simple' as
+		;; (not (or unsafe (cl-expr-access-order pbody argns)))
+		;; But this is much too simplistic since it
+		;; does not pay attention to the argvs (and
+		;; cl-expr-access-order itself is also too naive).
+		nil
+		,(and (memq '&key args) 'cl-whole) nil ,@argns)))
+	 (cl-defun ,name ,args ,@body))))
+#+END_SRC
+
+根据文档的说法， =cl-defsubst= 与 =defsubst= 类似，但是使用了不同的方法来实现内联，即通过 compiler macro，这样对于所有版本的 emacs 都将是可用的，而且某些内联展开可能效率更高。此外， =cl-defsubst= 允许使用 CL 风格的参数关键字。关于“ =cl-defsubst= 能在所有版本可用”这一点，我只能猜测某个版本之前的 emacs 未对经由 =defsubst= 定义的函数的调用在字节编译时进行内联优化。现在（指 emacs 28）这应该已经无关紧要了。
+
+从实现上来看， =defsubst= 和 =cl-defsubst= 都对原函数进行了定义，它们的不同之处在于对编译相关的处理， =cl-defsubst= 使用了 compiler macro：
+
+#+BEGIN_SRC elisp
+  `(cl-define-compiler-macro ,name
+       ,(if (memq '&key args)
+	    `(&whole cl-whole &cl-quote ,@args)
+	  (cons '&cl-quote args))
+     ,(format "compiler-macro for inlining `%s'." name)
+     (cl--defsubst-expand
+      ',argns '(cl-block ,name ,@(cdr (macroexp-parse-body body)))
+      ;; We used to pass `simple' as
+      ;; (not (or unsafe (cl-expr-access-order pbody argns)))
+      ;; But this is much too simplistic since it
+      ;; does not pay attention to the argvs (and
+      ;; cl-expr-access-order itself is also too naive).
+      nil
+      ,(and (memq '&key args) 'cl-whole) nil ,@argns))
+#+END_SRC
+
+上面这段代码调用了 =cl-define-compiler-macro= 来创建 compiler macro，不过真正核心的部分还是在 =cl--defsubst-expand= ：
+
+#+BEGIN_SRC elisp
+(defun cl--defsubst-expand (argns body simple whole _unsafe &rest argvs)
+  (if (and whole (not (cl--safe-expr-p (cons 'progn argvs)))) whole
+    (if (cl--simple-exprs-p argvs) (setq simple t))
+    (let* ((substs ())
+           (lets (delq nil
+                       (cl-mapcar (lambda (argn argv)
+                                    (if (or simple (macroexp-const-p argv))
+                                        (progn (push (cons argn argv) substs)
+                                               nil)
+                                      (list argn argv)))
+                                  argns argvs))))
+      ;; FIXME: `sublis/subst' will happily substitute the symbol
+      ;; `argn' in places where it's not used as a reference
+      ;; to a variable.
+      ;; FIXME: `sublis/subst' will happily copy `argv' to a different
+      ;; scope, leading to name capture.
+      (setq body (cond ((null substs) body)
+                       ((null (cdr substs))
+                        (cl-subst (cdar substs) (caar substs) body))
+                       (t (cl--sublis substs body))))
+      (if lets `(let ,lets ,body) body))))
+#+END_SRC
+
+简单来说， =cl--defsubst-expand= 的作用就是消除调用，比如 =(f a)= 可以变成 =(1+ a)= （假设这里的 =f= 是 =(λ (x) (1+ x))= ），这样 =cl-defsubst= 就实现了内联。说起来轻巧，在具体的实现上 =cl--defsubst-expand= 还是值得分析一下的。
+
+首先， =cl--defsubst-expand= 会使用 =cl--simple-exprs-p= 判断所有的参数表达式是否为简单表达式，若是则设置 =simple= 为 t。在接下来的 =lets= 中，如果 =simple= 为真，那么所有参数会被添加到 =subst= 中，若 =simple= 为假且某个参数表达式不是常值的话，它会被添加到 =lets= 中。在最后的 =body= 设定中， =lets= 中的参数会以 =let= 出现在最后的表达式中，而 =substs= 中的参数会直接在函数体中替换：
+
+#+BEGIN_SRC elisp
+  (cl--defsubst-expand
+   '(a b c)
+   '(+ a b c)
+   nil nil nil
+   1 2 3)
+  => (+ 1 2 3)
+
+  (cl--defsubst-expand
+   '(a b)
+   '(let ((a a))
+      (+ a b))
+   nil nil nil
+   '(setq a 1) 99)
+  => (let ((a (setq a 1))) (let ((a a)) (+ a 99)))
+#+END_SRC
+
+相比 =defsubst= 中使用的 =macroexp--unfold-lambda= ， =cl--defsubst-expand= 似乎更加智能一些。不过也正像它的注释中指出的那样，这个实现是有 bug 的：
+
+#+BEGIN_SRC elisp
+  (cl--defsubst-expand
+   '(a b c)
+   '(let ((a a)
+	  (b b)
+	  (c c))
+      (+ a b c))
+   nil nil nil
+   1 2 3)
+  => (let ((1 1) (2 2) (3 3)) (+ 1 2 3))
+  ;; wtf?
+
+  (defvar global-a 20)
+  (defun my-eval (b)
+    (+ b global-a))
+
+  (cl--defsubst-expand
+   '(c)
+   '(let ((global-a 1))
+      c)
+   nil nil nil
+   '(1+ global-a))
+  => (let ((global-a 1)) (1+ global-a)) => 2
+  ;; lol
+
+  ;; from inline.el
+  (cl-defsubst my-test1 (x) (let ((y 5)) (+ x y)))
+  (macroexpand-all '(my-test1 y))
+  => (let ((y 5)) (+ y y))
+#+END_SRC
+
+就上面的例子来看，我们绝不应该在任何地方使用 =cl-defsubst= ，除非这种无脑替换被修复了或者你想体验一下不知所云的 debug 过程。因为这个原因，我们没有必要编写使用 =cl-defsubst= 的例子了，这一节就到这里吧，希望我永远不会看到使用 =cl-defsubst= 的代码。
+
+* define-inline -- the final solution?
+
+上面我们介绍了各种内联方法，普通的宏，compiler macro，defsubst， +cl-defsubst+ 。使用宏的优点是完全可控，缺点是不能将宏作为回调函数；使用编译内联的优点是完全交给编译器负责（不用处理和宏相关的问题），缺点也是完全交给编译器负责（不知道优化情况）。如果既想要函数的优点，又想要宏的优点，那我们两个都写不就行了？这也就是 =define-inline= 的思路，我们只需按照 =define-inline= 的规则编写代码，它会为我们 *同时* 生成函数和 compiler macro，这就避免了函数和宏可能不一致的问题。
+
+根据文档的说法，相比于 =defsubst= 或 =defmacro= ， =define-inline= 具有如下优点：
+
+- 可以传递给 =mapcar= （也就是可以作为回调函数）
+- 效率更高（毕竟手动内联，可以人肉优化）
+- 可用于 gv 中的 place（因为是 compiler macro）
+- 相比于 =cl-defsubst= 输出结果可预测性更强
+
+  =define-inline= 作者对 =cl-defsubst= 的评价是： /it only works by accident/
+
+在介绍实现之前，我们先用几个例子介绍一下基础用法。
+
+** 如何使用 define-inline
+
+=define-inline= 的语法与 =defun= 完全一致，文档中列出了一些仅可在 =define-inline= body 内使用的宏：
+
+- =inline-quote= ，类似 =`= ，但内部不能使用 =,@=
+- =inline-letevals= ，类似 =let= ，可以确保参数只求值一次
+- =inline-const-p= ，判断表达式是否为常值
+- =inline-const-val= ，返回表达式的值
+- =inlin-error= ，类似 =error= ，引发一个错误
+
+编写 =define-inline= 代码和宏非常像：
+
+#+BEGIN_SRC elisp
+  (define-inline my-add2-i (x)
+    (inline-quote (+ ,x 2)))
+  (defmacro my-add2-m (x)
+    `(+ ,x 2))
+
+  (macroexpand-all '(my-add2-i 1)) => (+ 1 2)
+  (macroexpand-all '(my-add2-m 1)) => (+ 1 2)
+
+  (funcall 'my-add2-i 1) => 3
+  (funcall 'my-add2-m 1) =>
+  Debugger entered--Lisp error: (invalid-function my-add2-m)
+#+END_SRC
+
+与 =let= 不同的是，当 =inline-letvals= 的 binding 部分为 =var= （而不是 =(var val)= ）时，对该变量求值的值会绑定到该变量上，这样就保证了求值只会进行一次，比如文档中给出的这个例子：
+
+#+BEGIN_SRC elisp
+  (define-inline myaccessor (obj)
+    (inline-letevals (obj)
+      (inline-quote (if (foo-p ,obj) (aref (cdr ,obj) 3) (aref ,obj 2)))))
+
+  (symbol-function 'myaccessor)
+  => (lambda (obj) (if (foo-p obj) (aref (cdr obj) 3) (aref obj 2)))
+
+  (symbol-function 'myaccessor--inliner)
+  => (lambda (inline--form obj)
+       (ignore inline--form)
+       (catch 'inline--just-use
+	 (let* ((exp obj)
+		(obj (if (macroexp-copyable-p exp) exp
+		       (make-symbol "obj")))
+		(body (list 'if (list 'foo-p obj)
+			    (list 'aref (list 'cdr obj) 3)
+			    (list 'aref obj 2))))
+	   (if (eq obj exp) body
+	     (macroexp-let* (list (list obj exp)) body)))))
+
+  (macroexpand-all '(myaccessor a))
+  => (if (foo-p a) (aref (cdr a) 3) (aref a 2))
+#+END_SRC
+
+** define-inline 的实现
+
+整个 inline.el 只有不到三百行，所以分析起来应该不怎么费事。首先，inline.el 将一些宏标记为只能在 =define-inline= 中使用，它们具体的实现是另外的函数或宏，比如 =inline-quote= ：
+
+#+BEGIN_SRC elisp
+  (defmacro inline-quote (_exp)
+    "Similar to backquote, but quotes code and only accepts , and not ,@."
+    (declare (debug (backquote-form)))
+    (error "inline-quote can only be used within define-inline"))
+#+END_SRC
+
+享受此待遇的包括：
+
+- =inline-quote=
+- =inline-const-p=
+- =inline-const-val=
+- =inline-error=
+- =inline--leteval=
+- =inline--letlisteval=
+
+接下来就是主体 =define-inline= 的定义，由于代码太长了这里就不放全文了，只放一下主体部分：
+
+#+BEGIN_SRC elisp
+  (progn
+     (defun ,name ,args
+       ,@doc
+       (declare (compiler-macro ,cm-name) ,@(cdr declares))
+       ,(macroexpand-all bodyexp
+			 `((inline-quote . inline--dont-quote)
+			   ;; (inline-\` . inline--dont-quote)
+			   (inline--leteval . inline--dont-leteval)
+			   (inline--letlisteval . inline--dont-letlisteval)
+			   (inline-const-p . inline--alwaysconst-p)
+			   (inline-const-val . inline--alwaysconst-val)
+			   (inline-error . inline--error)
+			   ,@macroexpand-all-environment)))
+     :autoload-end
+     (eval-and-compile
+       (defun ,cm-name ,(cons 'inline--form args)
+	 (ignore inline--form)     ;In case it's not used!
+	 (catch 'inline--just-use
+	   ,(macroexpand-all
+	     bodyexp
+	     `((inline-quote . inline--do-quote)
+	       ;; (inline-\` . inline--do-quote)
+	       (inline--leteval . inline--do-leteval)
+	       (inline--letlisteval
+		. inline--do-letlisteval)
+	       (inline-const-p . inline--testconst-p)
+	       (inline-const-val . inline--getconst-val)
+	       (inline-error . inline--warning)
+	       ,@macroexpand-all-environment))))))))
+#+END_SRC
+
+可见它在宏展开过程中对函数和 compiler macro 采取了不同的策略，对于函数 =defun= 的宏展开，它采用了一系列的 =dont= 和 =always= 函数，用来将 =bodyexp= 变为普通的函数体；对于 compiler macro，它采用了一系列的 =do= 函数，来将 =bodyexp= 变为宏体。下面我们分两部分来进行讲解。
+
+*** 由 define-inline 到函数
+
+执行 =inline-quote= 向函数变换和向宏变换的函数分别是 =inline--dont-quote= 和 =inline--do-quote= ，前者定义如下：
+
+#+BEGIN_SRC elisp
+  (defun inline--dont-quote (exp)
+    (pcase exp
+      (`(,'\, ,e) e)
+      (`'(,'\, ,e) e)
+      (`#'(,'\, ,e) e)
+      ((pred consp)
+       (let ((args ()))
+	 (while (and (consp exp) (not (eq '\, (car exp))))
+	   (push (inline--dont-quote (pop exp)) args))
+	 (setq args (nreverse args))
+	 (if (null exp)
+	     args
+	   `(apply #',(car args) ,@(cdr args) ,(inline--dont-quote exp)))))
+      (_ exp)))
+#+END_SRC
+
+这个 =pcase= 用的挺刁钻的，至少我是想不到还能这么用，我们可以使用下面的代码简单观察一下行为：
+
+#+BEGIN_SRC elisp
+  (inline--dont-quote ',1) => 1
+  (inline--dont-quote '',1) => 1
+  (inline--dont-quote '#',e) => e
+
+  (macroexpand '`,a) => a
+  (macroexpand '`',a) => (list 'quote a)
+  (macroexpand '`#',a) => (list 'function a)
+#+END_SRC
+
+我在对应的位置补上了 =backquote= 对应的行为，可见第二条和第三条中 =backquote= 与 =inline--dont-quote= 不匹配，这意味着 =',x=, =,x= 和 =#',x= 在函数变换过程中具有相同的语义。至于作者为什么要这样做可能得往后看了。
+
+上面的三条调用针对是 =pcase= 的前三条分支，可见 =,= 包含的表达式都被“解开”成为了普通的表达式。
+
+接下来是对 =leteval= 的处理：
+
+#+BEGIN_SRC elisp
+  (defun inline--dont-leteval (var-exp &rest body)
+    (if (symbolp var-exp)
+	(macroexp-progn body)
+      `(let (,var-exp) ,@body)))
+#+END_SRC
+
+我们真正在 =define-inline= 中使用的是 =inline-letevals= ，这个宏会展开为 =inline--leteval= 和 =inline--letlisteval= ，所以我们只看 =inline--dont-leteval= 也行。 =inline--dont-leteval= 会将只有符号的情况展开为简单的表达式，将类似 =let= 的 binding 展开为 =let= 表达式：
+
+#+BEGIN_SRC elisp
+  (inline--dont-leteval 'a
+			'(+ a 1))
+  => (+ a 1)
+
+  (inline--dont-leteval '(a 1)
+			'(+ a 1))
+  => (let ((a 1)) (+ a 1))
+#+END_SRC
+
+似乎到这里我还没有介绍 =inline--letlisteval= 的作用，不过我们还是先往后讲吧，这是处理 =inline--letlisteval= 的函数：（简单来说就是什么也没干...）
+
+#+BEGIN_SRC elisp
+(defun inline--dont-letlisteval (_listvar &rest body)
+  (macroexp-progn body))
+#+END_SRC
+
+最后是 =inline-const-p=, =inline-const-val= 和 =inline-error= 的处理，对于函数来说也是非常简单，就是简单的返回真和替换：
+
+#+BEGIN_SRC elisp
+  (defun inline--alwaysconst-p (_exp)
+    t)
+  (defun inline--alwaysconst-val (exp)
+    exp)
+  (defun inline--error (&rest args)
+    `(error ,@args))
+#+END_SRC
+
+最后，让我们从 =define-inline= 中摘取函数变换部分做个小函数：
+
+#+BEGIN_SRC elisp
+  (defun my-define-inline-function (name args &rest body)
+    (declare (indent defun))
+    (let ((bodyexp (macroexp-progn body)))
+      `(defun ,name ,args
+	 ,(macroexpand-all bodyexp
+			   '((inline-quote . inline--dont-quote)
+			     (inline--leteval . inline--dont-leteval)
+			     (inline--letlisteval . inline--dont-letlisteval)
+			     (inline-const-p . inline--alwaysconst-p)
+			     (inline-const-val . inline--alwaysconst-val)
+			     (inline-error . inline--error))))))
+#+END_SRC
+
+然后试一试变换的效果：
+
+#+BEGIN_SRC elisp
+  (my-define-inline-function 'a '(b c)
+    '(inline-quote (+ ,b ,c)))
+  => (defun a (b c) (+ b c))
+
+  (my-define-inline-function 'a '(b c)
+    '(inline-quote (+ ',b ',c)))
+  => (defun a (b c) (+ b c))
+
+  (my-define-inline-function 'b-cl-isqrt '(x)
+    '(inline-letevals (x)
+       (inline-quote (if (and (integerp ,x) (> ,x 0))
+			 (let ((g (ash 2 (/ (logb ,x) 2)))
+			       g2)
+			   (while (< (setq g2 (/ (+ g (/ ,x g)) 2)) g)
+			     (setq g g2))
+			   g)
+		       (if (eq ,x 0) 0 (signal 'arith-error nil))))))
+  =>
+  (defun b-cl-isqrt (x)
+    (if (and (integerp x) (> x 0))
+	(let ((g (ash 2 (/ (logb x) 2)))
+	      g2)
+	  (while (< (setq g2 (/ (+ g (/ x g)) 2)) g)
+	    (setq g g2))
+	  g)
+      (if (eq x 0) 0 (signal 'arith-error nil))))
+#+END_SRC
+
+*** 由 define-inline 到 compiler macro
+
+与生成函数的 =dont= 系列函数对应，在宏变换中实现 =inline-quote= 的是 =inline--do-quote= ：
+
+#+BEGIN_SRC elisp
+(defun inline--do-quote (exp)
+  (pcase exp
+    (`(,'\, ,e) e)                      ;Eval `e' now *and* later.
+    (`'(,'\, ,e) `(list 'quote ,e))     ;Only eval `e' now, not later.
+    (`#'(,'\, ,e) `(list 'function ,e)) ;Only eval `e' now, not later.
+    ((pred consp)
+     (let ((args ()))
+       (while (and (consp exp) (not (eq '\, (car exp))))
+         (push (inline--do-quote (pop exp)) args))
+       (setq args (nreverse args))
+       (if exp
+           `(backquote-list* ,@args ,(inline--do-quote exp))
+         `(list ,@args))))
+    (_ (macroexp-quote exp))))
+#+END_SRC
+
+从结构上来看 =inline--do-quote= 与 =inline--dont-quote= 非常相似，它们的不同体现在对简单表达式的处理上：
+
+#+BEGIN_SRC elisp
+  (inline--do-quote ',x) => x
+  (inline--do-quote '',x) => (list 'quote x)
+  (inline--do-quote '#',x) => (list 'function x)
+
+  (macroexpand '`,a) => a
+  (macroexpand '`',a) => (list 'quote a)
+  (macroexpand '`#',a) => (list 'function a)
+#+END_SRC
+
+这里的宏展开和 =backquote= 是对的上的，而且你应该也注意到了 =pcase= 中的注释：
+
+[[./3.png]]
+
+注释指出，使用 =',e= 或 =#',e= 意味着我们只对 =e= 进行一次求值，那么这意味着什么呢？也许我们需要先明确 =define-inline= 到底是个什么东西。 =define-inline= 并不仅仅是宏，它还是二阶宏（笑），因为我们根据 =define-inline= 展开得到 compiler macro 后，调用 compiler macro 还会有一次展开， =define-inline= 对于宏来说一共有两次展开和一次执行过程。
+
+对于宏来说，宏中的数据将在它的展开结果中成为可执行的代码，因此这里的“一次求值”发生在 *compiler macro* 的展开阶段，并将在最后的运行时成为一个常量：
+
+#+BEGIN_SRC elisp
+  (define-inline my-test-one ()
+    (inline-quote ',(+ 1 2)))
+
+  (symbol-function 'my-test-one--inliner)
+  => (closure (t) (inline--form)
+	      (ignore inline--form)
+	      (catch 'inline--just-use (list 'quote (+ 1 2))))
+
+  (macroexpand-all '(my-test-one))
+  => '3 ;; caution, not 3
+#+END_SRC
+
+这也就是为什么在 =inline--dont-quote= 中对三种情况都是一种处理方式，因为函数没用宏这么弯弯绕绕，没有第二次展开过程，所有的运算都在运行时完成：
+
+#+BEGIN_SRC elisp
+  (symbol-function 'my-test-one)
+  => (closure (t) nil (+ 1 2))
+#+END_SRC
+
+在对 =leteval= 系列变换的处理上，宏比函数稍微复杂些：
+
+#+BEGIN_SRC elisp
+  (defun inline--do-leteval (var-exp &rest body)
+    `(macroexp-let2 ,(if (symbolp var-exp) #'macroexp-copyable-p #'ignore)
+	 ,(or (car-safe var-exp) var-exp)
+	 ,(or (car (cdr-safe var-exp)) var-exp)
+       ,@body))
+
+  (defun inline--do-letlisteval (listvar &rest body)
+    (let ((bsym (make-symbol "bindings")))
+      `(let* ((,bsym ())
+	      (,listvar (mapcar (lambda (e)
+				  (if (macroexp-copyable-p e) e
+				    (let ((v (gensym "v")))
+				      (push (list v e) ,bsym)
+				      v)))
+				,listvar)))
+	 (macroexp-let* (nreverse ,bsym)
+			,(macroexp-progn body)))))
+#+END_SRC
+
+同样，关于 =letlisteval= 的作用我们放到后面再讲，先看看 =inline--do-leteval= 的行为。对于 =(inline-leteval ((var val)) ...)= 的形式，它的变换和普通的 =let= 没什么区别，对于 =(inline-leteval (var) ...)= ，它会尝试通过 =macroexp-let2= 进行化简：
+
+#+BEGIN_SRC elisp
+  (inline--do-leteval 'a '`(+ ,a 1))
+  => (macroexp-let2 macroexp-copyable-p a a `(+ ,a 1))
+
+  (inline--do-leteval '(a 1) '`(+ ,a 1))
+  => (macroexp-let2 ignore a 1 `(+ ,a 1))
+  => (let* ((a 1)) (+ a 1))
+#+END_SRC
+
+最后是 =inline-const-p= 和 =inline-const-val= 两个宏在宏转换中的实现：
+
+#+BEGIN_SRC elisp
+(defun inline--testconst-p (exp)
+  (macroexp-let2 macroexp-copyable-p exp exp
+    `(or (macroexp-const-p ,exp)
+         (eq (car-safe ,exp) 'function))))
+
+(defun inline--getconst-val (exp)
+  (macroexp-let2 macroexp-copyable-p exp exp
+    `(cond
+      ((not ,(inline--testconst-p exp))
+       (throw 'inline--just-use inline--form))
+      ((consp ,exp) (cadr ,exp))
+      (t ,exp))))
+#+END_SRC
+
+相比于函数中永远返回 t 的 =inline--alwaysconst-p= 和等价于单位函数的 =inline--alwaysconst-val= ， =inline--test-const-p= 和 =inline--getconst-val= 的处理更有意思。对于在 =inline--getconst-val= 中不满足 =inline--testconst-p= 的 =exp= ，它将会直接通过 =throw= 将 *函数调用表达式* 作为 =compiler-macro= 的结果：
+
+#+BEGIN_SRC elisp
+  (define-inline my-test-two ()
+    (inline-quote ,(inline-const-val 'a)))
+
+  (symbol-function 'my-test-two--inliner)
+  (closure (t) (inline--form)
+	   (ignore inline--form)
+	   (catch 'inline--just-use
+	     (cond ((not (or (macroexp-const-p 'a) (eq (car-safe 'a) 'function)))
+		    (throw 'inline--just-use inline--form))
+		   ((consp 'a) (car (cdr 'a)))
+		   (t 'a))))
+
+  ;; because (inline-const-val 'a) returns nil, we get:
+  (macroexpand-all '(my-test-two))
+  => (my-test-two)
+
+  (my-test-two) => a
+
+  ;; since (inline-quote ,x) => x
+  ;; in function we get just 'a
+  (symbol-function 'my-test-two)
+  => (closure (t) nil 'a)
+#+END_SRC
+
+很明显 =inline-const-val= 应该是要用于函数/宏的参数的，因为在展开时 =inline-const-val= 不会对参数 *表达式* 求值，下面这样对参数使用 =inlin-const-val= 是没有问题的，它只会判定表达式是否是常值：
+
+#+BEGIN_SRC elisp
+  (define-inline my-test-three (x)
+    (inline-quote ,(inline-const-val x)))
+
+  (symbol-function 'my-test-three)
+  => (closure (t) (x) x)
+
+  (symbol-function 'my-test-three--inliner)
+  =>
+  (closure (t) (inline--form x)
+	   (ignore inline--form)
+	   (catch 'inline--just-use
+	     (cond ((not (or (macroexp-const-p x) (eq (car-safe x) 'function)))
+		    (throw 'inline--just-use inline--form))
+		   ((consp x) (car (cdr x)))
+		   (t x))))
+
+  (macroexpand-all '(my-test-three 1)) => 1
+  (macroexpand-all '(my-test-three a)) => (my-test-three a)
+  (macroexpand-all '(my-test-three 'a)) => a
+  (macroexpand-all '(my-test-three (+ 1 2))) => (my-test-three (+ 1 2))
+  (macroexpand-all '(my-test-three #'(lambda (x) x))) => #'(lambda (x) x)
+#+END_SRC
+
+除了使用 =funcall= 来明确指定我们要调用的是函数而不是宏外，也许我们可以使用 =inline-const-val= 来判断宏的某个参数是否满足 =inline-const-p= ，从而决定使用宏还是函数。
+
+=inline--error= 没什么好说的，和函数变换时的 =inline--error= 一致。
+
+** 例子
+
+下面让我们看看一些比较复杂的例子，顺便学习一下上面没说的 =inline--letevallist= 的用法。网上关于 =define-inline= 的资料似乎几乎没有，所以我只能从一些已有的宏中找到一些灵感。
+
+由于内联函数本身的特性，我们不应该编写过大的内联函数，所以这里的“比较复杂”指的是完全覆盖 =define-inline= 的所有特性。另外，由于咱们的主要目的是内联，这里我不会玩一些展开时变换的黑魔法。
+
+*** inline-letevals
+
+在上面我们已经提到面对 binding 部分为 =(var)= 和 =((var val)...)= 的情况。现在让我们看看当 binding 为 =var= 时是如何处理的。inline.el 中是这样介绍 =inline--do-letevallist= 的：
+
+#+BEGIN_SRC elisp
+  (defun inline--do-letlisteval (listvar &rest body)
+    ;; Here's a sample situation:
+    ;; (define-inline foo (arg &rest keys)
+    ;;   (inline-letevals (arg . keys)
+    ;;      <check-keys>))
+    ;; I.e. in <check-keys> we need `keys' to contain a list of
+    ;; macroexp-copyable-p expressions.
+    (let ((bsym (make-symbol "bindings")))
+      `(let* ((,bsym ())
+	      (,listvar (mapcar (lambda (e)
+				  (if (macroexp-copyable-p e) e
+				    (let ((v (gensym "v")))
+				      (push (list v e) ,bsym)
+				      v)))
+				,listvar)))
+	 (macroexp-let* (nreverse ,bsym)
+			,(macroexp-progn body)))))
+#+END_SRC
+
+从代码实现和注释来看， =letlisteval= 是为了处理 =&rest= 参数而出现的。可见它将列表中不满足 =macroexp-copyable-p= 的变量放入了 =bsym= 中，并通过 =macroexp-let*= （基本等价于 =let*= ）创建了结果表达式。简单来说，我们可以通过 =inline--do-letlisteval= 将 =&rest= 列表转化为元素全部满足 =macroexp-copyable-p= 的列表。这样就保证所有的 =&rest= 列表中的表达式只会被求值一次。
+
+但是话又说回来，我们似乎很少需要在内联函数中使用 =&rest= 参数，也就很少需要用到 =letlisteval= ，一般内联函数应该是高度确定的。而且我感觉在 =define-inline= 中使用 =&rest= 会非常蹩脚，下面这个函数的作用是对参数列表中的元素计算平方：
+
+#+BEGIN_SRC elisp
+  (defun my-square-1 (&rest ls)
+    (mapcar #'(lambda (x) (* x x)) ls))
+  (my-square-1 1 2 3) => (1 4 9)
+#+END_SRC
+
+在想了两个小时之后，我似乎没有找到能将它改成 =define-inline= 的方法。你可能会想这样改，但是这样得到的是个畸形的函数：
+
+#+BEGIN_SRC elisp
+  (define-inline my-square-2 (&rest ls)
+    (inline-quote
+     (mapcar #'(lambda (x) (* x x)) ,(cons 'list ls))))
+
+  (macroexpand-all '(my-square-2 1 2 (+ 1 2)))
+  => (mapcar #'(lambda (x) (* x x)) (list 1 2 (+ 1 2)))
+
+  (symbol-function 'my-square-2)
+  => (lambda (&rest ls) (mapcar #'(lambda (x) (* x x)) (cons 'list ls)))
+#+END_SRC
+
+要想让 compiler macro 和函数都能获得正常的行为，最终我的思路是通过 =inline-const-p= 判断求值环境，在函数中它恒为 t，在 compiler macro 展开时，它对一般的符号恒为 nil：
+
+#+BEGIN_SRC elisp
+  (define-inline my-square-3 (&rest ls)
+    (inline-quote
+     (mapcar #'(lambda (x) (* x x))
+	     ,(if (inline-const-p '_) ls
+		(cons 'list ls)))))
+#+END_SRC
+
+如果我们要多次使用一个表，也许我们可以使用 =(inline-letevals var ...)= 来保证只对某些参数进行一次求值，但不用它我们也能做到这一点：
+
+#+BEGIN_SRC elisp
+  (define-inline my-square-4 (&rest ls)
+    (inline-letevals ls
+      (inline-quote
+       (apply 'cl-mapcar #'(lambda (x y) (* x y))
+	      ,(if (inline-const-p '_) `(,ls ,ls)
+		 `(list
+		   ,(cons 'list ls)
+		   ,(cons 'list ls)))))))
+
+  (macroexpand-all '(my-square-4 1 2 (+ 1 2)))
+  =>
+  (let* ((v182 (+ 1 2)))
+    (apply 'cl-mapcar #'(lambda (x y) (* x y))
+	   (list (list 1 2 v182) (list 1 2 v182))))
+
+  (define-inline my-square-5 (&rest ls)
+    (inline-quote
+     (apply 'cl-mapcar #'(lambda (x y) (* x y))
+	    ,(if (inline-const-p '_) `(,ls ,ls)
+	       `(let ((myls ,(cons 'list ls)))
+		  `(,myls ,myls))))))
+  (macroexpand-all '(my-square-5 1 2 (+ 1 2)))
+  =>
+  (apply 'cl-mapcar #'(lambda (x y) (* x y))
+	 (let ((myls (list 1 2 (+ 1 2))))
+	   (list myls myls)))
+#+END_SRC
+
+老实说我想不到 =letlisteval= 有什么应用场景，我对 emacs 源代码的 =git grep define-inline= 也是这样告诉我的：
+
+[[./4.png]]
+
+可见其中没有一个 =&rest= ，我在 grep 结果中唯一找到的 =&rest= 还是 =inline--do-letlisteval= 中的注释...
+
+*** 展开时（常数）求值
+
+当我理解了 =define-inline= 关于 =inline-const-val= 的设计后，我想到了根据调用时的参数值进行宏展开的想法（笑，握着锤子看什么都像钉子）。
+
+elisp manual [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Eval-During-Expansion.html][14.5.4]] 建议我们不要在宏展开时对参数求值： */don’t evaluate an argument expression while computing the macro expansion./* 文档建议我们将求值延后到运行时。不过如果某个参数是常数的话，展开时求值是有助于我们做优化的，比如直接确定执行哪些代码：（甚至是展开时完成计算，例子改编自 /let over lambda/ ）
+
+#+BEGIN_SRC elisp
+  (defmacro unit-of-time (value unit)
+    (* value
+       (pcase unit
+	 ('s 1)
+	 ('m 60)
+	 ('h 3600)
+	 ('d 86400))))
+
+  (unit-of-time 2 d) => 172800
+  (unit-of-time 3 h) => 10800
+#+END_SRC
+
+当然了，我们也不一定需要求值，只要用了宏就能玩出很多花样：
+
+#+BEGIN_SRC elisp
+  (defmacro my-avg (&rest args)
+    (let ((len (length args)))
+      `(/ (+ ,@args) ,len)))
+
+  (macroexpand-all '(my-avg 1 2 3))
+  => (/ (+ 1 2 3) 3)
+#+END_SRC
+
+在 =inline-const-val= 的运用上， =cl-typep= 是我见过最好的例子，如果参数 =type= 是某个符号的话，compiler macro 能直接通过 pcase 选择将要执行的分支，这样一来内联的代码将会大大减少。以下是它的部分代码：
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (define-inline cl-typep (val type)
+    (inline-letevals (val)
+      (pcase (inline-const-val type)
+	((and `(,name . ,args) (guard (get name 'cl-deftype-handler)))
+	 (inline-quote
+	  (cl-typep ,val ',(apply (get name 'cl-deftype-handler) args))))
+	(`(,(and name (or 'integer 'float 'real 'number))
+	   . ,(or `(,min ,max) pcase--dontcare))
+	 (inline-quote
+	  (and (cl-typep ,val ',name)
+	       ,(if (memq min '(* nil)) t
+		  (if (consp min)
+		      (inline-quote (> ,val ',(car min)))
+		    (inline-quote (>= ,val ',min))))
+	       ,(if (memq max '(* nil)) t
+		  (if (consp max)
+		      (inline-quote (< ,val ',(car max)))
+		    (inline-quote (<= ,val ',max)))))))
+	(`(not ,type) (inline-quote (not (cl-typep ,val ',type))))
+	...)))
+#+END_SRC
+
+我们可以简单观察一下对 =integer= 的展开结果：
+
+#+BEGIN_SRC elisp
+  (macroexpand-all '(cl-typep 1 'integer))
+  => (integerp 1)
+#+END_SRC
+
+非常简单是吧。在 inline.el 的注释中也说明了创造 =define-inline= 的主要动力来自清理 =cl-typep= ： /The idea originated in an attempt to clean up `cl-typep', whose function definition amounted to (eval (cl--make-type-test EXP TYPE))./
+
+*** 回调函数优化
+
+本质上这也是展开时计算常数，不过我觉得有必要专门拿出来讲讲。
+
+不知你在上面的 =inline-const-val= 测试中注意到这两个例子没有：
+
+#+BEGIN_SRC elisp
+  (define-inline my-test-three (x)
+    (inline-quote ,(inline-const-val x)))
+
+  (macroexpand-all '(my-test-three 'a)) => a
+  (macroexpand-all '(my-test-three #'(lambda (x) x))) => #'(lambda (x) x)
+#+END_SRC
+
+这意味着我们可以将原本作为回调函数的 =define-inline= 做内联优化，比如：
+
+#+BEGIN_SRC elisp
+  (define-inline my-mapcar (fun lst)
+    (pcase (inline-const-val fun)
+      ((and (pred symbolp) f) (inline-quote
+			       (let ((res nil)
+				     (ls ,lst))
+				 (while ls
+				   (push (,f (pop ls)) res))
+				 (nreverse res))))
+      (_ (inline-quote (mapcar ,fun ,lst)))))
+
+  (my-mapcar '1+ '(1 2 3)) => (2 3 4)
+  (my-mapcar (lambda (x) (1+ x)) '(1 2 3)) => (2 3 4)
+#+END_SRC
+
+当然我实现的这个 =my-mapcar= 非常丑陋，只能作为一个小例子。如果 =fun= 也是由 =define-inline= 定义的，那它是可以被内联到 =my-mapcar= 的调用中的：
+
+#+BEGIN_SRC elisp
+  (define-inline my-add1mul2 (x)
+    (inline-quote (* (1+ ,x) 2)))
+
+  (macroexpand-all '(my-mapcar '1+ '(1 2 3)))
+  =>
+  (let ((res nil)
+	(ls '(1 2 3)))
+    (while ls
+      (setq res
+	    (cons (1+ (car-safe (prog1 ls (setq ls (cdr ls))))) res)))
+    (nreverse res))
+
+  (macroexpand-all '(my-mapcar 'my-add1mul2 '(1 2 3)))
+  =>
+  (let ((res nil)
+	(ls '(1 2 3)))
+    (while ls (setq res
+		    (cons (* (1+ (car-safe (prog1 ls (setq ls (cdr ls))))) 2) res)))
+    (nreverse res))
+  ;; successfully inlined
+#+END_SRC
+
+* 后记
+
+在开始写的时候我也没想到能写这么多，内联的内涵比我想象的要丰富。不过这么一折腾也算是加深了我对 emacs 的认识。
+
+在 =define-inline= 一节，我给副标题起的名字是： /the final solution?/ 。 =define-inline= 将函数和 compiler 的定义合二为一，方便我们定义内联。但使用它并不是毫无代价的，可能会在原本的函数中引入不必要的运行时开销。相比 =defsubst= 和 =defmacro= 它当然更好，但要写好这样的 *生成宏* 也需要付出更多的努力，未来会不会出现更好的方法呢？我不知道。
+
+正如 byte-opt.el 的注释所说，我们并不能让猪变成赛马，但是我们可以让它变成更快的猪：
+
+#+BEGIN_SRC elisp
+;; ========================================================================
+;; "No matter how hard you try, you can't make a racehorse out of a pig.
+;; You can, however, make a faster pig."
+;;
+;; Or, to put it another way, the Emacs byte compiler is a VW Bug.  This code
+;; makes it be a VW Bug with fuel injection and a turbocharger...  You're
+;; still not going to make it go faster than 70 mph, but it might be easier
+;; to get it there.
+#+END_SRC
+
+如果我们已经满足于猪的速度，那么各种各样的内联对我们来说是不必要的，如果我们嫌弃猪比不上赛马，那不如直接骑马，想让猪跑的更快必须付出一些代价或头发（笑）。对于在 elisp 中使用内联，我的建议是，除非你找不到更好的方法来提高运行速度了，不然不要用它，因为它们会降低代码的灵活性。
+
+多亏了 cireu 的[[https://emacs-china.org/t/elisp-compiler-macro/10552][帖子]]，我能顺利完成这篇文章。这似乎是除了官方文档和源代码外我唯一能找到的对 emacs inline 进行研究的内容，里面的讲解和介绍对本文的写作过程帮助很大。
+
+最后送上一篇 emacs 发展过程的综述，它是我搜索 =inline= 时的意外收获：
+
+- [[https://dl.acm.org/doi/pdf/10.1145/3386324][Evolution of Emacs Lisp]]
+
+感谢阅读。
+
+| [[https://www.pixiv.net/artworks/98819511][file:-1.jpg]] | [[https://www.pixiv.net/artworks/104509853][file:-2.jpg]] | [[https://www.pixiv.net/artworks/95726642][file:-3.jpg]] |
+| [[https://www.pixiv.net/artworks/98176287][file:-4.jpg]] | [[https://www.pixiv.net/artworks/59648670][file:-5.jpg]] | [[https://www.pixiv.net/artworks/41731839][file:-6.jpg]] |
+| [[https://www.pixiv.net/artworks/86068876][file:-7.jpg]] | [[https://www.pixiv.net/artworks/84132594][file:-8.jpg]] | [[https://www.pixiv.net/artworks/99592247][file:-9.jpg]] |

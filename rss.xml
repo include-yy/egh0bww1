@@ -6,6 +6,13 @@
     <description>The last ten articles I write</description>
     <pubDate>2023-04-02 15:29</pubDate>
     <item>
+      <title>在 emacs 中进行内联</title>
+      <link>https://egh0bww1.com/posts/2023-05-07-36-emacs-inlining</link>
+      <category>emacs</category>
+      <description>本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline</description>
+      <pubDate>2023-05-07</pubDate>
+    </item>
+    <item>
       <title>emacs 的 named-let 使用和实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-05-02-35-emacs-named-let-usage</link>
       <category>emacs</category>
