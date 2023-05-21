@@ -4,7 +4,15 @@
     <link>https://egh0bww1.com</link>
     <title>include-yy :: blog</title>
     <description>The last ten articles I write</description>
-    <pubDate>2023-04-02 15:29</pubDate>
+    <pubDate>2023-05-21 22:34</pubDate>
+    <item>
+      <title>【翻译】Evolution of Emacs Lisp</title>
+      <link>https://egh0bww1.com/posts/2023-05-21-37-tr-evolution-of-emacs-lisp</link>
+      <category>emacs</category>
+      <description>本文是对 Evolution of Emacs Lisp 这篇论文的翻译，这篇文章详细介绍了 Emacs Lisp 语言近 30 年的发展历程</description>
+      <pubDate>2023-05-21</pubDate>
+    </item>
+
     <item>
       <title>在 emacs 中进行内联</title>
       <link>https://egh0bww1.com/posts/2023-05-07-36-emacs-inlining</link>

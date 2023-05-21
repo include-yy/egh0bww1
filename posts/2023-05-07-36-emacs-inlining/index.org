@@ -5,7 +5,7 @@
 #+DATE: [2023-05-03 18:13]
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/95405505][file:0.jpg]]
+[[https://www.pixiv.net/artworks/83963903][file:0.jpg]]
 
 说到内联，读者第一时间想到的可能是使用宏，即直接在调用处进行宏展开避免调用开销。但是编写宏或把函数改写为宏需要一些额外的工作，而且宏不能作为回调函数使用（比如用在 =funcall=, =mapcar= 或 =apply= 上）。对此，emacs 提供了一些更好的内联方法，即 =defsubst= 和 =define-inline= 。
 

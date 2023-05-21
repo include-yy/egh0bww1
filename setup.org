@@ -26,3 +26,4 @@
 
 #+MACRO: toc #+TOC: headlines 2
 #+MACRO: q @@html:<q>$1</q>@@
+#+MACRO: br @@html:<br>@@
