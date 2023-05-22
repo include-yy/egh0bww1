@@ -11,6 +11,8 @@
 - MICHAEL SPERBER, Active Group GmbH, Germany
 
 原文地址：https://dl.acm.org/doi/10.1145/3386324
+
+我根据论文的[[https://github.com/mikesperber/hopl-4-emacs-lisp][源代码]]制作了一份中文翻译 [[./hopl-4-emacs-lisp.pdf][pdf]]（感谢 Ldbeth 的编译），读者也可前往我的 [[https://github.com/include-yy/hopl-4-emacs-lisp][fork]] 自行编译。
 #+END_aside
 
 虽然 Emacs 的支持者们普遍认为它是世界上最伟大的文本编辑器，但它几乎是一个伪装成编辑器的 Lisp machine。事实上，它的主要吸引力之一就是可以通过自带的编程语言进行编程。Emacs Lisp 是一种经典的 Lisp。在这篇文章中，我们介绍了这一语言 30 多年来的发展历史。自 1985 年开始，它的核心一直保持着非常稳定的状态，这在很大程度上是为了保持与许多第三方包的兼容性，这些包提供了大量的扩展。尽管如此，Emacs Lisp 仍在不断地发展。
