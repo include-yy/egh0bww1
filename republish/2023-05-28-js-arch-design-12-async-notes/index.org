@@ -1,0 +1,160 @@
+#+SETUPFILE: ../../setup_re.org
+#+FILETAGS: js
+
+#+TITLE: JS读书心得：《JavaScript框架设计》——第12章 异步处理
+#+AUTHOR: ^_^肥仔John
+#+DATE: [2015-02-21 Sat 22:39]
+
+{{{toc}}}
+
+* 何为异步
+
+执行任务的过程可以被分为发起和执行两个部分。
+
+*同步执行模式* ：任务发起后必须等待直到任务执行完成并返回结果后，才会执行下一个任务。
+
+*异步执行模式* ：任务发起后不等待任务执行完成，而是马上执行下一个任务，当任务执行完成时则会收到通知。
+
+面对IO操作频繁的场景，异步执行模式可在同等的硬件资源条件下提供更大的并发处理能力，也就是更大的吞吐量。
+
+但由于异步执行模式打破人们固有的思维方式，并且任务的发起和任务的执行是分离的，从而提高编程的复杂度。
+
+多线程、多进程均可实现异步模式。
+
+* 从回调地狱说起
+
+相信大家都听过“回调地狱”这一让人蛋疼由难以避免的异步执行模式副作用。示例：
+
+#+BEGIN_SRC js
+  setTimeout(function(){
+      setTimeout(function(){
+	  setTimeout(function(){
+	      setTimeout(function(){
+	      }, 1000)
+	  }, 1000)
+      }, 1000)
+  }, 1000)
+#+END_SRC
+
+由于 JS 是通过异步执行模式来实现多任务并发执行的，因此不可避免地会遇到异步任务连环嵌套的尴尬局面，而回调地狱则是异步任务嵌套的具体表现形式了。
+
+回调地狱不仅造成代码难以维护，并且会加大调试的难度，一言以蔽之——无法避免的蛋疼:(
+
+* 那些舒缓 Callback Hell 的方案
+
+既然回调地狱如此的不优雅但又无法避免，那么有没有一些减轻痛楚的抽象方式来处理回调呢？
+
+在寻找良药之前，我们需要先了解的是形成回调地狱的原因，从局部看则是 *在发起异步任务前必须满足某些前置条件* ，从全局看则是 *异步执行模式下的流程控制* 。其实在同步执行模式当中也存在同样的情况，只不过同步执行模式与我们平常思考的方式一致，因此先满足前置条件再执行同步任务则是顺理成章的事情，也没多大的感觉。但到了异步任务当中则成为突出的问题。想一想，如果异步任务A->异步任务B->异步任务C均以前一个异步任务为前置条件，那么它们的关系其实也就是同步执行，但代码表达上却被迫要使用异步编码模式，这种内在关系与表现形式的差异就造就出著名的回调地狱了。
+
+同步执行模式下的流程控制有 =if...elseif...else= 、 =while= 和 =try...catch..finally= 。而我们的终极目标是采用通过的方式来表达异步执行模式下的流程控制。显然在不改变JS语法的情况下这注定是个伪命题。而我们能做的是不断接近而已。
+
+而 @朴灵 的 [[https://github.com/JacksonTian/eventproxy][EventProxy]] 则是其中一个缓解回调函数之痛的工具库。
+
+EventProxy 作为一个事件系统，通过 after、tail 等事件订阅方法提供带约束的事件触发机制，“约束”对应“前置条件”，因此我们可以利用这种带约束的事件触发机制来作为异步执行模式下的流程控制表达方式。
+
+例如，现在需要在任务 A 和任务 B 成功执行后才能执行任务 C。
+
+#+BEGIN_SRC js
+  /* 同步执行模式 */
+  try{
+    var result4A = execA()
+    var result4B = execB()
+    var result4C = execC()
+  }
+  catch(e){}
+
+  /* 异步执行模式 */
+  // 1. 回调函数方式 —— 出现Callback Hell了！
+  execA(function(){
+    execB(function(){
+      execC()
+    })
+  })
+
+  // 2. EventProxy
+  var ep = EventProxy.create('a', 'b', execC)
+  ep.fail(function $noop$(){})
+  execA(ep.done('a'))
+  execB(ep.done('b'))
+#+END_SRC
+
+可以看到使用 EventProxy 时回调函数的数目并没有减少，但回调地狱却不见了（验证了回调地狱不是由回调函数引起，而是由异步执行模式下的流程控制引起的）
+
+但由于 EventProxy 采用事件机制来做流程控制，而事件机制好处是降低模块的耦合度，但从另一个角度来说会使整个系统结构松散难以看出主干模块，因此通过事件机制实现流程控制必然导致代码结构松散和逻辑离散，不过这可以良好的组织形式来让代码结构更紧密一些。
+
+* 认识 Promise
+
+这里的 Promise 指的是已经被 ES6 纳入囊中的 [[https://promisesaplus.com/][Promises/A+]] 规范及其实现。使用示例：
+
+#+BEGIN_SRC js
+  var p = new Promise(function(resolve, reject){
+    resolve("test")
+  })
+  p
+    .then(function(val){
+      console.log(val)
+      return val + 1
+    }, function(reason){
+    })
+    .then(function(val){
+      console.log(val)
+    }, function(reason){
+    })
+#+END_SRC
+
+我是从 jQuery.Deferred 的 promise 方法那开始知道有 Promise 的存在。但 Promises/A+ 到底描述的一个怎样的机制呢？
+
+** 表象 —— API
+
+Promises/A+ 中规定 Promise 状态为 pending（默认值）、fufilled 或 rejected，其中状态仅能从 pending->fulfilled 或 pending->rejected，并且可通过 then 和 catch 订阅状态变化事件。状态变化事件的回调函数执行结果会影响 Promise 链中下一个 Promise 实例的状态。另外在触发 Promise 状态变化时是可以携带附加信息的，并且该附加信息将沿着 Promise 链被一直传递下去直到被某个 Promise 的事件回调函数接收为止。而且 Promise 还提供 Promise.all 和 Promise.race 两个帮助方法来实现与或的逻辑关系，提供 Promsie.resolve 来将 thenable 对象转换为 Promise 对象。
+
+** 流程控制
+
+通过 Promise 我们可以成功脱离回调地狱。如：
+
+#+BEGIN_SRC js
+  var execAP = Promise.resolve({then:execA})
+  , execBP =  Promise.resolve({then:execB})
+
+  Promise
+    .all(execAP, execBP)
+    .then(execC)
+#+END_SRC
+
+这也是Promise被大家广泛认识的功能。
+
+** 信任机制
+
+由 Labjs 作者编写的《深入理解 Promise 五部曲》从另一个角度对 Promise 进行更深刻的解读。当我们需要通过第三方工具库或接口来控制本地功能模块时，则通过 Promise 建立一套信任机制，确保本地功能模块在可预测的范围内被第三方操控。
+
+而 Proimse 仅作为库开发者的乐高积木，面对普通开发者则需要提供更高层次的抽象。
+
+* 认识 Generator Function
+
+Generator Function 是 ES6 引入的新特性——生成器函数。通过组合 Promise 和 Generator Function 我们就可以实现采用通过的方式来表达异步执行模式下的流程控制了！！！
+
+* 相关笔记
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4135149.html][JS魔法堂：剖析源码理解Promises/A规范]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4139172.html][前端翻译：Promises/A+规范]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4141918.html][JS魔法堂：jsDeferred源码剖析]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4158939.html][JS魔法堂：jQuery.Deferred(jQuery1.5-2.1)源码剖析]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4162646.html][JS魔法堂：mmDeferred源码剖析]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4166267.html][JS魔法堂：ES6新特性——GeneratorFunction介绍]]》
+
+- 《[[https://www.cnblogs.com/fsjohnhuang/p/4293499.html][JS魔法堂: Native Promise Only源码剖析]]》
+
+* iPromise
+
+iPromise 是我边学异步处理边开发的 Promises/A+ 规范的实现，并且内部已实现了对 Generator Function 的支持。经过3次全局重构后现处于 v0.8.2，我觉得现在的代码结构阅读起来比较流畅，并且 API 已固定，预计日后就是打打补丁罢了。欢迎大家 fork 来玩玩 [[https://github.com/fsjohnhuang/iPromise][iPromise@github]]。
+
+* 总结
+
+本文为这段时间我对《JavaScript框架设计》——第12章 异步处理的学习和实践汇总，若有纰漏和不足之处请大家指正、补充，谢谢！
+
+尊重原创，转载请注明来自：http://www.cnblogs.com/fsjohnhuang/p/4296831.html  ^_^肥仔John

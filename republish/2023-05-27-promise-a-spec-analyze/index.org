@@ -1,0 +1,692 @@
+#+SETUPFILE: ../../setup_re.org
+#+FILETAGS: js
+
+#+TITLE: JS魔法堂：剖析源码理解Promises/A规范
+#+AUTHOR: ^_^肥仔John
+#+DATE: [2014-12-02 Tue 15:27]
+
+#+BEGIN_aside
+本文转载自 ^_^肥仔John 的文章，介绍了 JS 中的 Promises/A 规范以及部分实现。
+
+文章地址：https://www.cnblogs.com/fsjohnhuang/p/4135149.html
+#+END_aside
+
+#+MACRO: red @@html:<span style="color:red">$1</span>@@
+
+* 前言
+
+Promises/A 是由 CommonJS 组织制定的异步模式编程规范，有不少库已根据该规范及后来经改进的 Promises/A+ 规范提供了实现，如 [[https://github.com/kriskowal/q][Q]], [[https://github.com/petkaantonov/bluebird][Bluebird]], [[https://github.com/cujojs/when][when]], [[https://github.com/tildeio/rsvp.js/][rsvp.js]], [[https://github.com/RubyLouvre/mmDeferred][mmDeferred]], jQuery.Deffered() 等。
+
+虽然上述实现库均以 Promises/A+ 规范作为实现基准，但由于 Promises/A+ 是对 Promises/A 规范的改进和增强，因此深入学习 Promises/A 规范也是不可缺少的。
+
+本文内容主要根据以下内容进行学习后整理而成，若有纰漏请各位指正，谢谢。
+
+https://www.promisejs.org/
+
+http://wiki.commonjs.org/wiki/Promises/A
+
+* 从痛点出发
+
+js 中最常见的异步编程方式我想应该非回调函数不可了，优点是简单明了。但如果要实现下面的功能——非连续移动的动画效果，那是否还那么简单明了呢？
+
+#+BEGIN_SRC js
+  var left = function(cb){
+      el.style.left = (el.offsetLeft + 200) + 'px';
+      cb && cb();
+  };
+
+  var el = document.getElementById('test');
+  // 臭名远播的“回调地狱(callback hell)”
+  setTimeout(function(){
+      left(function(){
+	  setTimeout(function(){
+	      left(function(){
+		  setTimeout(function(){
+		      left();
+		  },2000);
+	      });
+	  }, 2000);
+      });
+  }, 2000);
+#+END_SRC
+
+傻眼了吧！下面我们看一下使用 Promises/A 规范异步模式的编码方式吧！
+
+#+BEGIN_SRC js
+  var el = document.getElementById('test');
+  // 定义thenable对象
+  var thenable = {then: function(resolve, reject){
+      setTimeout(function(){
+	  el.style.left = (el.offsetLeft + 200) + 'px';
+	  // 触发promise对象链中的下一个状态为pending的promise对象的状态变为fulfilled
+	  resolve && resolve();
+      }, 2000);
+  }};
+  // 将thenable对象封装为promise对象
+  var promise = Promise.resolve(thenable);
+  // 订阅promise对象状态变化时所触发的事件
+  promise
+      .then(function(){
+	  return thenable;
+      })
+      .then(function(){
+	  return thenable;
+      });
+#+END_SRC
+
+也许你有着“我不入地狱谁入地狱”的豪情，但如果现在需求改为循环 10 次执行非连续移动呢？20 次呢？这时我想连地狱的门在哪也难以找到了，但 Promises/A 的方式让我们轻松应对。
+
+#+BEGIN_SRC js
+  var el = document.getElementById('test');
+  var thenable = {then: function(resolve, reject){
+      setTimeout(function(){
+	  el.style.left = (el.offsetLeft + 200) + 'px';
+	  resolve && resolve();
+      }, 2000);
+  }};
+  var promise = Promise.resolve(thenable);
+  var i = 0, count = 10;
+  while (++i < 10){
+      promise = promise.then(function(){
+	  return thenable;
+      });
+  }
+#+END_SRC
+
+* 从感性领悟
+
+也许通过上述代码我们已经了解到 Promise 可以让我们以不同的方式编写异步代码，但也仅仅停留在按形式套代码的层面上而已，只有从感性出发理解Promise的设计思想我想才能更好地掌握。以下内容是读张鑫旭的《[[https://www.zhangxinxu.com/wordpress/2014/02/es6-javascript-promise-%E6%84%9F%E6%80%A7%E8%AE%A4%E7%9F%A5/comment-page-1/][es6-javascript-promise-感性认知]]》和《[[https://www.zhangxinxu.com/wordpress/2011/10/js%E7%AE%97%E6%B3%95%E4%B8%8E%E6%80%9D%E7%BB%B4%E6%96%B9%E5%BC%8F/][js算法与思维方式]]》后的所思所想。
+
+首先举一个生活的例子，看看实际生活的处理逻辑和通过代的处理逻辑有什么出入吧！
+
+例子：下班搭车去接小孩回家。
+
+直觉思维分解上述句子会得出以下任务及顺序：下班->搭车->到幼儿园(小学等)接小孩->(走路)回家。可以看到这种思维方式是 *任务+执行顺序* 的，丝毫没有带 *任务间的时间距离* 。于是同步代码可以写成：
+
+#+BEGIN_SRC js
+  var 下班 = function(){};
+  var 搭车 = function(){};
+  var 接小孩 = function(){};
+  var 回家 = function(){};
+
+  下班();
+  搭车();
+  接小孩();
+  回家();
+#+END_SRC
+
+但实际执行时各任务均有可能因某些原因出现不同程度的延时，如下班时老板突然安排一项新任务（推迟 10 分钟下班），错过班车（下一班要等 10 分钟），小孩正在搞卫生（20 分钟后搞完），回家。真实生活中我们能做的就是干等或做点其他事等到点后再继续之前的流程！但程序中尤其是像 JS 这样单线程程序是“等”不起的，于是出现异步模式：
+
+#+BEGIN_SRC js
+  var 下班 = function(nextTask){};
+  var 搭车 = function(nextTask){};
+  var 接小孩 = function(nextTask){};
+  var 回家 = function(nextTask){};
+
+  下班(function(){
+      setTimeout(function(){
+	  搭车(function(){
+	      setTimeout(function(){
+		  接小孩(function(){
+		      setTimeout(function(){
+			  回家();
+		      },  20*60*1000);
+		  });
+	      },  10*60*1000);
+	  });
+      }, 10*60*1000);
+  };)
+#+END_SRC
+
+当回头再看上面这段代码时，会发现整个流程被任务间的时间距离拉得很远“下班 ------------ 搭车 ------------ 接小孩 ------------ 回家”。回想一下真实生活中我们即使执行每个任务时均需要等待，但整个流程的抽象也只是“下班,等,搭车,等,接小孩,等,回家”。因此回调函数的异步模式与我们的思维模式相距甚远，那么如何做到即告诉程序任务间的时间距离，又从代码结构上淡化这种时间距离感呢？而 Promise 就是其中一种方式了！
+
+从开发者角度（第三人称）来看 Promise 作为任务间的纽带存在，流程被抽象为“下班,promise,搭车,promise,接小孩,promise,回家”，而任务间的时间距离则归并到任务本身而已。从程序执行角度（第一人称）来看 Promise 为一个待定变量，但结果仅有两种——成功和失败，于是仅对待定变量设定两种结果的处理方式即可。
+
+#+BEGIN_SRC js
+  // 任务定义部分
+  var 下班 = function(){};下班.then = function(resovle){
+      setTimeout(function(){
+	  resovle();
+      }, 10*60*1000);
+  };
+  var 搭车 = function(){};
+  搭车.then = function(resovle){
+      setTimeout(function(){
+	  resovle();
+      }, 10*60*1000);
+  };
+  var 接小孩 = function(){};
+  接小孩.then = function(resovle){
+      setTimeout(function(){
+	  resovle();
+      }, 20*60*1000);
+  };
+  var 回家 = function(){};
+
+  // 流程部分
+  var p = new Promise(function(resolve, reject){
+      resolve();
+  });
+  p.then(function(){
+      下班();
+      return 下班;
+  })
+      .then(function(){
+	  搭车();
+	  return 搭车;
+      })
+      .then(function(){
+	  接小孩();
+	  return 接小孩;
+      })
+      .then(function(){
+	  回家();
+      });
+#+END_SRC
+
+看代码结构被拉平了，但代码结构的变化是表象，最根本的是任务间的时间距离被淡化了，当我们想了解工作流程时不会被时间距离分散注意力，当我们想知道各个任务的延时时只需查看任务定义本身即可，这就是关注点分离的一种表现哦！
+
+* Promises/A 的 API 规范
+
+经过上述示例我想大家已经尝到了甜头，并希望掌握这一武器从而逃离回调地狱的折磨了。下面就一起了解 Promise 及其 API 规范吧！
+
+** 有限状态机
+
+Promise（中文：承诺）其实为一个有限状态机，共有三种状态：pending（执行中）、fulfilled（执行成功）和rejected（执行失败）。
+
+其中 pending 为初始状态，fulfilled 和 rejected 为结束状态（结束状态表示 promise 的生命周期已结束）。
+
+状态转换关系为：pending->fulfilled，pending->rejected。
+
+随着状态的转换将触发各种事件（如执行成功事件、执行失败事件等）。
+
+** 构造函数
+
+=Promise({Function} factory/*({Function} resolve, {Function} reject)*/)= ，构造函数存在一个 Function 类型的入参 factory，作为 *唯一一个修改 promise 对象状态的地方* ，其中 factory 函数的入参 resolve 的作用是将 promise 对象的状态从 pending 转换为 fulfilled，而 reject 的作用是将 promise 对象的状态从 pending 转换为 rejected。
+
+入参 =void resolve({Any} val)= ，当 val 为非 thenable 对象和 promise 对象时则会将 val 作为执行成功事件处理函数的入参，若 val 为 thenable 对象时则会执行 thenable.then 方法，若 val 为 Promise 对象时则会将该 Promise 对象添加到 Promise 对象单向链表中。
+
+入参 =void reject({Any} reason)= ，reason 不管是哪种内容均直接作为执行失败事件处理函数的入参。
+
+注意：关于抛异常的做法，同步模式为 =throw new Error("I'm synchronous way!")= ，而 Promise 规范的做法是 =reject(new Error("I'm asynchronous way!"));=
+
+** 实例方法
+
+=Promise then([{Function} onFulfilled[, {Function} onRejected]])= ，用于订阅 Promise 对象状态转换事件，入参 onFulfilled 为执行成功的事件处理函数，入参 onRejected 为执行失败的事件处理函数。两者的返回值均作为 Promise 对象单向链表中下一个 Promise 对象的状态转换事件处理函数的入参。而 then 方法的返回值是一个新的 Promise 对象并且已添加到 Promise 对象单向链表的末尾。
+
+=Promise catch({Function} onRejected)= ，相当于 =then(null, onRejected)= 。
+
+** 类方法
+
+=Promise Promise.resolve({Any} obj)= ，用于将非 Promise 类型的入参封装为 Promise 对象，若 obj 为非 thenable 对象则返回状态为 fulfilled 的 Promise 对象，对于非若入参为 Promise 对象则直接返回。
+
+=Promise Promise.reject({Any} obj)= ，用于将非 Promise 类型的入参封装为状态为 rejected 的 Promise 对象。
+
+=Promise Promise.all({Array} array)= ，当 array 中所有 Promise 实例的状态均为 fulfilled 时，该方法返回的 Promise 对象的状态也转为 fulfilled（执行成功事件处理函数的入参为 array 数组中所有 Promise 实例执行成功事件处理函数的返回值），否则转换为 rejected。
+
+=Promise Promise.race({Array} array)= ，当 array 中有一个 Promise 实例的状态出现 fulfilled 或 rejected 时，该方法返回的 Promise 对象的状态也转为 fulfilled 或 rejected。
+
+** thenable对象
+
+拥有 =then方法= 的对象均称为 thenable 对象，并且 thenable 对象将作为 Promise 对象被处理。
+
+* 通过示例看特性
+
+单看接口 API 是无法掌握 Promise/A 的特性的，下面通过示例说明：
+
+*示例 1 —— 链式操作 + 执行最近的事件处理函数*
+
+#+BEGIN_SRC js
+  // 创建Promise实例p1
+  var p1 = new Promise(function(resovle, reject){
+      setTimout(function(){
+	  console.log('hello1');
+	  // 1秒后修改promise实例的状态为fulfilled
+	  resolve('hello1');
+      },1000);
+  });
+  // 订阅p1的执行成功事件处理函数，并创建Promise实例p2
+  // 该处理函数将立即返回结果
+  var p2 = p1.then(function(val){
+      var newVal = 'hello2';
+      console.log(val);
+      console.log(newVal);
+      return newVal;
+  })
+  // 订阅p2的执行成功事件处理函数，并创建Promise实例p3
+  // 该处理函数返回一个Promise实例，并1秒后该Promise实例的状态转换为rejected
+  var p3 = p2.then(function(val){
+      console.log(val);
+      var tmp = new Promise(function(resolve, reject){
+	  setTimout(function(){
+	      reject(new Error('my error!'));
+	  }, 1000);
+      });
+      return tmp;
+  });
+  // 订阅p3的执行成功事件处理函数，并创建Promise实例p4
+  // 由于p2的处理函数所返回的Promise实例状态为rejected，因此p3的执行成功事件处理函数将不被执行，并且p3没有执行失败事件处理函数，因此会将控制权往下传递给p4的执行失败事件处理函数。
+  var p4 = p3.then(function(val){
+      console.log('skip');
+  })
+  //  订阅p4的执行成功事件处理函数，并创建Promise实例p5
+  var p5 = p4.catch(function(reason){
+      console.log(reason);
+  });
+#+END_SRC
+
+该示例的结果为： =hello1     hello1    hello2    hello2    error:my error!= 。
+
+*示例 2 —— 事件处理函数晚绑定，同样可被触发*
+
+#+BEGIN_SRC js
+  var p1 = new Promise(function(resolve, reject){
+      resolve('hello');
+  });
+  // Promise实例p1状态转换为fulfilled一秒后才绑定事件处理函数
+  setTimeout(function(){
+      p1.then(function(val){
+	  console.log(val);
+      });
+  }, 1000);
+#+END_SRC
+
+该示例的结果为： =hello= 。
+
+* 官方实现的源码剖析
+
+由于 Promises/A 规范实际仅提供接口定义，并没有规定具体实现细节，因此我们可以先自行作实现方式的猜想。
+
+上述的示例 1 表明 Promise 是具有链式操作，因此 Promise 的内部结构应该是一个单向链表结构，每个节点除了自身数据外，还有一个字段用于指向下一个 Promise 实例。
+
+构造函数的具体实现可以是这样的
+
+#+BEGIN_SRC js
+  var Promise = exports.Promise = function(fn){
+      if (!(this instanceof iPromise))
+	  return new iPromise(fn);
+      var _ = this._ = {};
+      _.state = 0; // 0:pending, 1:fulfilled, 2:rejected
+      _.thenables = []; // 单向链表
+      fn && fn(this.resolve.bind(this), this.reject.bind(this));
+  };
+#+END_SRC
+
+#+BEGIN_SRC js
+  Promise.prototype.then = function(fulfilledHandler, rejectedHandler){
+      var _ = this._;
+      var promise = new Promise();
+      // 单向链表的逻辑结构
+      var thenable = {
+	  onFulfilled: fulfilledHandler, // 执行成功的事件处理函数
+	  onRejected: rejectedHandler, // 执行失败的事件处理函数
+	  promise: promise // 下一个Promise实例
+      };
+      _.thenables.push(thenable);
+      if (_.state !== 0){
+	  window[window.setImmediate ? 'setImmediate' : 'setTimeout'].call(window, function(){
+	      handle(_);
+	  }, 0);
+      }
+      return promise;
+  };
+#+END_SRC
+
+但官方提供的实现方式却比上述思路晦涩得多(源码含适配 nodejs 和浏览器端的额外代码干扰视线，因此我提取可直接在浏览器上使用的主逻辑部分出来，具体代码请浏览：https://github.com/fsjohnhuang/iPromise/blob/master/theory/PromisesA/promise-6.0.0-browser.js)
+
+** 基础功能部分
+
+基础功能部分主要分为 *构造函数* 和 *then函数的实现* 两部分，而 *then函数的实现* 是理解的难点
+
+*** 构造函数
+
+#+BEGIN_SRC js
+  var Promise = exports.Promise = function (fn) {
+      if (typeof this !== "object") throw new TypeError("Promises must be constructed via new");
+      if (typeof fn !== "function") throw new TypeError("not a function");
+      var state = null; // 状态，null：pending，true：fulfilled，false：rejected
+      var value = null; // 当前promise的状态事件处理函数（onFulfilled或onRejected）的入参
+      var deferreds = []; // 当前promise的状态事件处理函数和promise链表中下一个promise的状态转换发起函数
+      var self = this;
+      // 唯一的公开方法
+      this.then = function(onFulfilled, onRejected) {
+	  return new self.constructor(function(resolve, reject) {
+	      handle(new Handler(onFulfilled, onRejected, resolve, reject));
+	  });
+      };
+      // 保存和执行deferreds数组中的元素
+      function handle(deferred) {
+	  if (state === null) {
+	      deferreds.push(deferred);
+	      return;
+	  }
+	  // asap的作用为将入参的操作压入event loop队列中
+	  asap(function() {
+	      var cb = state ? deferred.onFulfilled : deferred.onRejected;
+	      if (cb === null) {
+		  (state ? deferred.resolve : deferred.reject)(value);
+		  return;
+	      }
+	      var ret;
+	      try {
+		  // 执行当前promise的状态转换事件处理函数
+		  ret = cb(value);
+	      } catch (e) {
+		  // 修改promise链表中下一个promise对象的状态为rejected
+		  deferred.reject(e);
+		  return;
+	      }
+	      // 修改promise链表中下一个promise对象的状态为fulfilled
+	      deferred.resolve(ret);
+	  });
+      }
+      // promise的状态转换发起函数，触发promise的状态从pending->fulfilled
+      function resolve(newValue) {
+	  try {
+	      if (newValue === self) throw new TypeError("A promise cannot be resolved with itself.");
+	      if (newValue && (typeof newValue === "object" || typeof newValue === "function")) {
+		  var then = newValue.then;
+		  if (typeof then === "function") {
+		      // 将控制权移交thenable和promise对象，由它们来设置当前pormise的状态和状态转换事件处理函数的实参
+		      doResolve(then.bind(newValue), resolve, reject);
+		      return;
+		  }
+	      }
+	      state = true;
+	      value = newValue;
+	      finale();
+	  } catch (e) {
+	      reject(e);
+	  }
+      }
+      // promise的状态转换发起函数，触发promise的状态从pending->rejected
+      function reject(newValue) {
+	  state = false;
+	  value = newValue;
+	  finale();
+      }
+      // 向链表的下一个promise移动
+      function finale() {
+	  for (var i = 0, len = deferreds.length; i < len; i++) handle(deferreds[i]);
+	  deferreds = null;
+      }
+      // 执行构造函数的工厂方法，由工厂方法触发promise的状态转换
+      doResolve(fn, resolve, reject);
+  }
+#+END_SRC
+
+我们可以通过 =new Promise(function(resolve, reject){ resolve('hello'); });= 来跟踪一下执行过程，发现重点在 =doResolve(fn, resolve, reject)= 方法调用中，该方法定义如下：
+
+#+BEGIN_SRC js
+  // 对状态转换事件处理函数进行封装后，再传给执行函数
+  function doResolve(fn, onFulfilled, onRejected) {
+      // done作为开关以防止fn内同时调用resolve和reject方法
+      var done = false;
+      try {
+	  fn(function(value) {
+	      if (done) return;
+	      done = true;
+	      onFulfilled(value);
+	  }, function(reason) {
+	      if (done) return;
+	      done = true;
+	      onRejected(reason);
+	  });
+      } catch (ex) {
+	  if (done) return;
+	  done = true;
+	  onRejected(ex);
+      }
+  }
+#+END_SRC
+
+doResovle 仅仅是对 resolve 和 reject 方法进行封装以防止同时被调用的情况而已，这时控制权到达 =resolve方法= 。由于 resovle 的入参为字符串类型，因此直接修改当前 promise 的状态和保存状态转换事件处理函数的实参即可（{{{red(若 resolve 的入参为 thenable 对象或 Promise 对象，则将控制权交给该对象，由该对象来设置当前 promise 的状态和状态转换事件处理函数的实参)}}}），然后将控制权移交 =finale方法= 。finale 方法内部会遍历 deffereds 数组并根据状态调用对应的处理函数和修改 promise 链表中下一个 promise 对象的状态。
+
+那么 deffereds 数组具体是什么呢？其实它就跟我之前猜想的 thenables 数组功能一致，用于保存状态转换事件处理函数和维护 promise 单向链表（不直接存放下一个 promise 对象的指针，而是存放下一个 promise 的 resovle 和 reject 方法）的。具体数据结构如下：
+
+#+BEGIN_SRC js
+  // 构造promise的链表逻辑结构
+  function Handler(onFulfilled, onRejected, resolve, reject) {
+    this.onFulfilled = typeof onFulfilled === "function" ? onFulfilled : null; // 当前promise的状态转换事件处理函数
+    this.onRejected = typeof onRejected === "function" ? onRejected : null; // 当前promise的状态转换事件处理函数
+    this.resolve = resolve; // 设置链表中下一个promise的状态为fulfilled
+    this.reject = reject; // 设置链表中下一个promise的状态为rejected
+  }
+#+END_SRC
+
+若当前 promise 有 deffered 实例，那么则会执行 handle 函数中 asap 函数的函数入参
+
+#+BEGIN_SRC js
+  function() {
+      var cb = state ? deferred.onFulfilled : deferred.onRejected;
+      if (cb === null) {
+	  (state ? deferred.resolve : deferred.reject)(value);
+	  return;
+      }
+      var ret;
+      try {
+	  // 执行当前promise的状态转换事件处理函数
+	  ret = cb(value);
+      } catch (e) {
+	  // 修改promise链表中下一个promise对象的状态为rejected
+	  deferred.reject(e);
+	  return;
+      }
+      // 修改promise链表中下一个promise对象的状态为fulfilled
+      deferred.resolve(ret);
+  }
+#+END_SRC
+
+我觉得原实现方式不够直白，于是改成这样：
+
+#+BEGIN_SRC js
+  function(){
+      var cb = deferred[state ? 'onFulfilled' : 'onRejected'];
+      var deferredAction = 'resolve', ret;
+      try{
+	  ret = cb ? cb(value) : value;
+      }
+      catch (e){
+	  ret = e;
+	  deferredAction = 'reject';
+      }
+      deferred[deferredAction].call(deferred, ret);
+  }
+#+END_SRC
+
+文字太多了，还是看图更清楚哦！
+
+[[./1.png]]
+
+接下来的问题就是 deffereds 数组的元素是从何而来呢？那就要看看 then 函数了。
+
+*** then 函数的实现
+
+then 函数代码结构上很简单，但设计上却很精妙。
+
+#+BEGIN_SRC js
+  this.then = function(onFulfilled, onRejected){
+    return new self.constructor(function(resolve, reject) {
+       handle(new Handler(onFulfilled, onRejected, resolve, reject));
+    });
+  }
+#+END_SRC
+
+为了好看些，我修改了一下格式：
+
+#+BEGIN_SRC js
+  this.then = function(onFulfilled, onRejected) {
+      // 构造新的promise实例并返回，从而形成链式操作
+      return new Promise(function(resolve, reject) {
+	  var handler = new Handler(onFulfilled, onRejected, resolve, reject);
+	  /*
+	    注意：这里利用了闭包特性，此处的handle并不是新Promise的handle函数，而是this.then所属promise的handle函数。
+	    因此handler将被添加到this.then所属promise的deffereds数组中。
+	    而onFulfilled和onRejected自然成为了this.then所属promise的状态转换事件处理函数，
+	    而resolve和reject依旧是新promise实例的状态转换触发函数。
+	  ,*/
+	  handle(handler);
+      });
+  };
+#+END_SRC
+
+*源码读后感：*
+
+#+BEGIN_QUOTE
+通过闭包特性来让链表后一个对象调用前一个对象的方法和变量，从而实现私有成员方法和属性实在是过瘾。比起我猜想的实现方式通过下划线(_)提示 API 调用者该属性下的均为私有成员的做法封装性更完整。
+#+END_QUOTE
+
+** 辅助功能部分
+
+辅助功能部分主要就是 =Promise.resolve= 、 =Promise.reject= 、 =Promise.all= 、 =Promsie.race= 的实现，它们均由基础功能扩展而来。
+
+*** Promise.resolve 实现
+
+作用：将非Promise对象转换为Promise对象，而非Promise对象则被细分为两种：thenable对象和非thenable对象。
+
+thenable 对象的 then 将作为 Promise 构造函数的工厂方法被调用
+
+非 thenable 对象（Number、DOMString、Boolean、null、undefined 等）将作为 pending->fulfilled 的事件处理函数的入参。
+
+由于源码中加入性能优化的代码，因此我提出核心逻辑以便分析：
+
+#+BEGIN_SRC js
+  // 将非thenable对象构造为thenable对象
+  // 其then方法则返回一个真正的Promise对象
+  function ValuePromise(value) {
+      this.then = function(onFulfilled) {
+	  if (typeof onFulfilled !== "function") return this;
+	  return new Promise(function(resolve, reject) {
+	      asap(function() {
+		  try {
+		      resolve(onFulfilled(value));
+		  } catch (ex) {
+		      reject(ex);
+		  }
+	      });
+	  });
+      };
+  }
+  /*
+    也可以将非thenable对象构造为Promise对象
+    function ValuePromise(value){
+    return new Promise(function(resolve){
+    resolve(value);
+    });
+    }*/
+
+  Promise.resolve = function(value) {
+      if (value instanceof Promise) return value;
+      if (typeof value === "object" || typeof value === "function") {
+	  try {
+	      var then = value.then;
+	      if (typeof then === "function") {
+		  return new Promise(then.bind(value));
+	      }
+	  } catch (ex) {
+	      return new Promise(function(resolve, reject) {
+		  reject(ex);
+	      });
+	  }
+      }
+      return new ValuePromise(value);
+  };
+#+END_SRC
+
+*** Promise.reject 实现
+
+作用：创建一个状态为 rejected 的 promise 对象，且入参将作为 onRejected 函数的入参。
+
+#+BEGIN_SRC js
+  Promise.reject = function(value) {
+	return new Promise(function(resolve, reject) {
+	  reject(value);
+	});
+      };
+#+END_SRC
+
+*** Promise.all 实现
+
+作用：返回的一个 promise 实例，且该实例当且仅当 Promise.all 入参数组中所有 Promise 元素状态均为 fulfilled 时该返回的 promise 实例的状态转换为 fulfilled（onFulfilled 事件处理函数的入参为处理结果数组），否则转换为 rejected。
+
+#+BEGIN_SRC js
+  Promise.all = function(arr) {
+      var args = Array.prototype.slice.call(arr);
+      return new Promise(function(resolve, reject) {
+	  if (args.length === 0) return resolve([]);
+	  var remaining = args.length;
+	  function res(i, val) {
+	      try {
+		  if (val && (typeof val === "object" || typeof val === "function")) {
+		      var then = val.then;
+		      if (typeof then === "function") {
+			  then.call(val, function(val) {
+			      // 对于thenable和promise对象则订阅onFulfilled事件获取处理结果值
+			      res(i, val);
+			  }, reject);
+			  return;
+		      }
+		  }
+		  args[i] = val;
+		  // 检测是否所有入参都已返回值
+		  if (--remaining === 0) {
+		      resolve(args);
+		  }
+	      } catch (ex) {
+		  reject(ex);
+	      }
+	  }
+	  for (var i = 0; i < args.length; i++) {
+	      res(i, args[i]);
+	  }
+      });
+  };
+#+END_SRC
+
+*** Promise.race 实现
+
+作用：返回一个 promise 对象，且入参数组中一旦某个 promise 对象状态转换为 fulfilled，则该 promise 对象的状态也转换为 fulfilled。
+
+#+BEGIN_SRC js
+  Promise.race = function(values) {
+      return new Promise(function(resolve, reject) {
+	  values.forEach(function(value) {
+	      // 将数组元素转换为promise对象
+	      Promise.resolve(value).then(resolve, reject);
+	  });
+      });
+  };
+#+END_SRC
+
+源码实现的方式是即使第一个数组元素的状态已经为 fulfilled，但仍然会订阅其他元素的 onFulfilled 和 onRejected 事件，依赖 resolve 函数中的标识位 done 来保证返回的 promise 对象的 onFulfilled 函数仅执行一次。我修改为如下形式：
+
+#+BEGIN_SRC js
+  Promise.race = function(values){
+      return new Promise(function(resolve, reject){
+	  var over = 0;
+	  for (var i = 0, len = values.length; i < len && !over; ++i){
+	      var val = values[i];
+	      if (val && typeof val.then === 'function'){
+		  val.then(function(res){
+		      !over++ && resolve(res);
+		  }, reject);
+	      }
+	      else{
+		  !over++ && resolve(val);
+	      }
+	  }
+      });
+  };
+#+END_SRC
+
+* 总结
+
+虽然通过 Promises/A 规范进行异步编程已经舒坦不少，但该规范仍然不够给力，于是出现了 Promises/A+ 规范。后面我们继续探讨 Promises/A+ 规范吧！
+
+尊重原创，转载请注明来自：http://www.cnblogs.com/fsjohnhuang/p/4135149.html ^_^肥仔John
+
+* 参考
+
+http://javascript.ruanyifeng.com/advanced/asynchronous.htm
+
+http://www.zhangxinxu.com/wordpress/2014/02/es6-javascript-promise-%E6%84%9F%E6%80%A7%E8%AE%A4%E7%9F%A5/comment-page-1/

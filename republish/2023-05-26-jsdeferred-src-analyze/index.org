@@ -1,0 +1,690 @@
+#+SETUPFILE: ../../setup_re.org
+#+FILETAGS: js
+
+#+TITLE: JS魔法堂：jsDeferred源码剖析
+#+AUTHOR: ^_^肥仔John
+#+DATE: [2014-12-05 Fri 13:33]
+
+#+BEGIN_aside
+本文转载自 ^_^肥仔的博客：JS魔法堂：jsDeferred 源码剖析，文章讲解了 jsDeferred 的实现。
+
+原文地址：https://www.cnblogs.com/fsjohnhuang/p/4141918.html
+#+END_aside
+
+#+MACRO: red @@html:<span style="color:red">$1</span>@@
+
+{{{toc}}}
+
+* 前言
+
+最近在研究 Promises/A+ 规范及实现，而 Promise/A+ 规范的制定则很大程度地参考了由日本 geek cho45 [[https://github.com/cho45][cho45]] 发起的 jsDeferred 项目（《JavaScript框架设计》提供该资讯，再次感谢），追本溯源地了解 jsDeferred 是十分有必要的，并且当你看过官网（http://cho45.stfuawsc.com/jsdeferred/ ）的新手引导后就会有种不好好学学就太可惜的感觉了，而只看 API 和使用指南是无法满足我对它的好奇心的，通过解读源码读透它的设计思想才是根本。
+
+本文部分内容将和[[https://www.cnblogs.com/fsjohnhuang/p/4135149.html][《JS魔法堂：剖析源码理解Promises/A》]]中的内容作对比来讲解。
+
+由于内容较多，特设目录一坨。
+
+* jsDeferred 与 Promises/A 的核心区别
+
+*jsDeferred 的特点：*
+
+1. 内部通过单向链表结果存储 成功事件处理函数、失败事件处理函数和链表中下一个 Deferred 类型对象；
+2. Deferred 实例内部没有状态标识（也就是说 Deferred 实例没有自定义的生命周期）；
+3. 由于 Deferred 实例没有状态标识，因此不支持成功/失败事件处理函数的晚绑定；
+4. Deferred 实例的成功/失败事件是基于事件本身的触发而被调用的；
+5. 由于 Deferred 实例没有状态标识，因此成功/失败事件可被多次触发，也不存在不变值作为事件处理函数入参的说法；
+
+*Promises/A 的特点：*
+
+1. 内部通过单向链表结果存储成功事件处理函数、失败事件处理函数和链表中下一个 Promise 类型对象；
+2. Promise 实例内部有状态标识：pending（初始状态）、fulfilled（成功状态）和 rejected（失败状态），且状态为单方向移动 =pending->fulfilled= ， =pending->rejected= ；（也就是 Promse 实例存在自定义的生命周期，而生命周期的每个阶段具备不同的事件和操作）
+3. 由于 Promise 实例含状态标识，因此支持事件处理函数的晚绑定；
+4. Promise 实例的成功/失败事件函数是基于 Promise 的状态而被调用的。
+
+*核心区别*
+
+Promises 调用成功/失败事件处理函数的两种流程：
+
+1. 调用 resolve/reject 方法尝试改变 Promise 实例的状态，若成功改变其状态，则调用 Promise 当前状态相应的事件处理函数；（类似于触发 onchange 事件）
+2. 通过 then 方法进行事件绑定，若 Promise 实例的状态不是 pending，则调用 Promise 当前状态相应的事件处理函数。
+
+由上述可以知道 Promises 的成功/失败事件处理函数均基于 Promise 实例的状态而被调用，而非成功/失败事件。
+
+jsDeferred 调用成功/失败事件处理函数的流程：
+
+1. 调用 call/fail 方法触发成功/失败事件，则调用相应的事件处理函数。
+
+因此 jsDeferred 的是基于事件的。
+
+* 从API说起
+
+{{{red(下列内容均为大概介绍 API 接口，具体用法请参考官网。)}}}
+
+1. 构造函数
+
+   - =Deferred= ，可通过 =new Deferred()= 或 =Deferred()= 两种方式创建 Deferred 实例。
+
+2. 实例方法
+
+   - =Deferred next({Function} fn)= ，绑定成功事件处理函数，返回一个新的 Deferred 实例。
+
+   - =Deferred error({Function} fn)= ，绑定失败事件处理函数，返回一个新的 Deferred 实例。
+
+   - =Deferred call(val*)= ，触发成功事件，返回一个新的 Deferred 实例。
+
+   - =Deferred fail(val*)= ，触发失败事件，返回一个新的 Deferred 实例。
+
+3. 静态属性
+
+   - ={Function} Deferred.ok= ，默认的成功事件处理函数。
+
+   - ={Function} Deferred.ng= ，默认的失败事件处理函数。
+
+   - ={Array} Deferred.methods= ，默认的向外暴露的静态方法。（供 =Deferred.define= 方法使用）
+
+4. 静态方法
+
+   - ={Function}Deferred Deferred.define(obj, list)= ，暴露 list 制定的静态方法到 obj 上，obj 默认是全局对象。
+
+   - =Deferred Deferred.call({Function} fn [, arg]*)= ，创建一个 Deferred 实例并且触发其成功事件。
+
+   - =Deferred Deferred.next({Function} fn)= ，创建一个 Deferred 实例并且触发其成功事件，其实就是无法传入参到成功事件处理函数的 =Deferred.call()= 。
+
+   - =Deferred Deferred.wait(sec)= ，创建一个 Deferred 实例并且等 sec 秒后触发其成功事件。
+
+   - =Deferred Deferred.loop(n, fun)= ，循环执行 fun 并且上一个 fun，最后一个 fun 的返回值将作为 Deferred 实例的成功事件处理函数的入参。
+
+   - =Deferred Deferred.parallel(dl)= ，将 dl 中非 Deferred 对象转换为 Deferred 对象，然后并行触发 dl 中的 Deferred 实例的成功事件，当所有 Deferred 对象均调用了成功事件处理函数后，返回的 Deferred 实例则触发成功事件，并且所有返回值将被封装为数组作为 Deferred 实例的成功事件处理函数的入参。
+
+   - =Deferred Deferred.earlier(dl)= ，将 dl 中非 Deferred 对象转换为 Deferred 对象，然后并行触发 dl 中的 Deferred 实例的成功事件，当其中一个 Deferred 对象调用了成功事件处理函数则终止其他 Deferred 对象的触发成功事件，而返回的 Deferred 实例则触发成功事件，并且那个被调用的成功事件处理函数的返回值为 Deferred 实例的成功事件处理函数的入参。
+
+   - =Boolean Deferred.isDeferred(obj)= ，判断 obj 是否为 Deferred 类型。
+
+   - =Deferred Deferred.chain(args)= ，创建一个 Deferred 实例一次执行 args 的函数。
+
+   - =Deferred Deferred.connect(funo, options)= ，将某个函数封装为 Deferred 对象。
+
+   - =Deferred Deferred.register(name, fn)= ，将静态方法附加到 Deferred.prototype 上。
+
+   - =Deferred Deferred.retry(retryCount, funcDeferred, options)= ，尝试调用 funcDeffered 方法（返回值类型为 Deferred）retryCount，直到触发成功事件或超过尝试次数为止。
+
+   - =Deferred Deferred.repeat(n, fun)= ，循环执行 fun 方法 n 次，若 fun 的执行事件超过 20 毫秒则先将 UI 线程的控制权交出，等一会儿再执行下一轮的循环。
+
+jsDeferred 采用 DSL 风格的 API 设计，语义化我喜欢啊!
+
+* 细说功能实现
+
+** 基础功能部分
+
+*** 构造函数
+
+#+BEGIN_SRC js
+  function Deferred () { return (this instanceof Deferred) ? this.init() : new Deferred() }
+  // 默认的成功事件处理函数
+  Deferred.ok = function (x) { return x };
+  // 默认的失败事件处理函数
+  Deferred.ng = function (x) { throw  x };
+  Deferred.prototype = {
+      // 初始化函数
+      init : function () {
+	  this._next    = null;
+	  this.callback = {
+	      ok: Deferred.ok,
+	      ng: Deferred.ng
+	  };
+	  return this;
+      }};
+#+END_SRC
+
+*** call 函数
+
+#+BEGIN_SRC js
+  Deferred.prototype.call = function (val) { return this._fire("ok", val) };
+  Deferred.prototype._filre = function(okng, value){
+      var next = "ok";
+      try {
+	  // 调用当前Deferred实例的事件处理函数
+	  value = this.callback[okng].call(this, value);
+      } catch (e) {
+	  next = "ng";
+	  value = e;
+	  if (Deferred.onerror) Deferred.onerror(e);
+      }
+      if (Deferred.isDeferred(value)) {
+	  // 若事件处理函数返回一个新Deferred实例，则将新Deferred实例的链表指针指向当前Deferred实例的链表指针指向，
+	  // 这样新Deferred实例的事件处理函数就会先与原链表中其他Deferred实例的事件处理函数被调用。
+	  value._next = this._next;
+      } else {
+	  if (this._next) this._next._fire(next, value);
+      }
+      return this;
+  };
+#+END_SRC
+
+*** fail 函数
+
+#+BEGIN_SRC js
+  Deferred.prototype.fail = function (err) { return this._fire("ng", err) };
+#+END_SRC
+
+*** next 函数
+
+#+BEGIN_SRC js
+  Deferred.prototype.next = function (fun) { return this._post("ok", fun) };
+  Deferred.prototype._post = function (okng, fun) {
+      // 创建一个新的Deferred实例，插入Deferred链表尾，并将事件处理函数绑定到新的Deferred上
+      this._next = new Deferred();
+      this._next.callback[okng] = fun;
+      return this._next;
+  };
+#+END_SRC
+
+[[https://www.cnblogs.com/fsjohnhuang/p/4135149.html][《JS魔法堂：剖析源码理解Promises/A》]]中的官网实现示例是将事件处理函数绑定到当前的 Promise 实例，而不是新创的 Promise 实例。而 jsDeferred 则是绑定到新创建的 Deferred 实例上。这是因为 Promise 实例默认的事件处理函数为 undefined，而 Deferred 是含默认的事件处理函数的。
+
+*** error 函数
+
+#+BEGIN_SRC js
+  Deferred.prototype.error = function (fun) { return this._post("ng", fun) }；
+#+END_SRC
+
+** 辅助功能部分
+
+jsDeferred 的基础功能部分都十分好理解，我认为它的精彩之处在于类方法——辅助功能部分。
+
+*** Deferred.define 函数实现
+
+#+BEGIN_SRC js
+  Deferred.define = function (obj, list) {
+      if (!list) list = Deferred.methods;
+      // 以全局对象作为默认的入潜目标
+      // 由于带代码运行在sloppy模式，因此函数内的this指针指向全局对象。若运行在strict模式，则this指针值为undefined。
+      // 即使被以strict模式运行的程序调用，本段程序依然以sloppy模式运行使用
+      if (!obj) obj = (function getGlobal () { return this })();
+      for (var i = 0; i < list.length; i++) {
+	  var n = list[i];
+	  obj[n] = Deferred[n];
+      }
+      return Deferred;
+  };
+#+END_SRC
+
+当我第一次看新手引导中的示例代码
+
+#+BEGIN_SRC js
+  Deferred.define();
+  next(function(){
+    ............
+  }).next(function(){
+    ...............
+  });
+#+END_SRC
+
+这不是就和 jdk1.5 的静态导入 =import static= 一样吗？！两者同样是以入侵的方式将类方法附加到当前执行上下文中，这种导入的方式有人喜欢有人明令禁止（原上下文被破坏，维护性大大降低）。而我则有一个准则，就是导入的类方法足够少（5 个左右，反正能看一眼 API 就记得那种），团队的小伙伴们均熟知这些 API，并且仅以此方式导入一个类的方法到当前执行上下文中。其实能满足这些要求的库不多，还不如起个短小精干的类名作常规导入更实际。这里扯远了，我再看看 Deferred.define 方法吧，其实它除了将类方法导入到当前执行上下文，还可以导入到一个指定的对象中（这个方法比较中用！）
+
+#+BEGIN_SRC js
+  var ctx = {};
+  Deferred.define(ctx);
+  ctx.next(function(){
+     ..............
+  }).next(function(){
+     .............
+  });
+#+END_SRC
+
+*** Deferred.isDeferred 函数实现
+
+#+BEGIN_SRC js
+Deferred.isDeferred = function (obj) {
+    return !!(obj && obj._id === Deferred.prototype._id);
+};
+// 貌似是Mozilla有个插件也叫Deferred，因此不能通过instanceof来检测。cho45于是自定义标志位来作检测，并在github上提交fxxking Mozilla，哈哈！
+Deferred.prototype._id = 0xe38286e381ae;
+#+END_SRC
+
+*** Deferred.wait 函数实现
+
+#+BEGIN_SRC js
+  Deferred.wait = function (n) {
+      var d = new Deferred(), t = new Date();
+      var id = setTimeout(function () {
+	  // 入参为实际等待毫秒数，由于各浏览器的setTimeout均有一个最小精准度参数（IE9+和现代浏览器为4msec，IE5.5~8为15.4msec），因此实际等待的时间一定被希望的长
+	  d.call((new Date()).getTime() - t.getTime());
+      }, n * 1000);
+      d.canceller = function () { clearTimeout(id) };
+      return d;
+  };
+#+END_SRC
+
+刚看到该函数时我确实有点小鸡冻，我们可以将[[https://www.cnblogs.com/fsjohnhuang/p/4135149.html#a3][《JS魔法堂：剖析源码理解Promises/A》的第三节“从感性领悟”]]下的示例，写得于现实生活的思路更贴近了。
+
+#+BEGIN_SRC js
+  // 任务定义部分
+  var 下班 = function(){};
+  var 搭车 = function(){};
+  var 接小孩 = function(){};
+  var 回家 = function(){};
+
+  // 流程部分
+  next(下班)
+      .wait(10*60)
+      .next(下班)
+      .wait(10*60)
+      .next(搭车)
+      .wait(10*60)
+      .next(接小孩)
+      .wait(20*60)
+      .next(回家);
+#+END_SRC
+
+*** Deferred.next 函数实现
+
+该函数可为是真个 jsDeferred 最出彩的地方了，也是后续其他方法的实现基础，它的功能是创建一个新的 Deferred 对象，并且异步执行该 Deferred 对象的 call 方法来触发成功事件。针对运行环境的不同，它提供了相应的异步调用的实现方式并作出降级处理。
+
+#+BEGIN_SRC js
+  Deferred.next =
+      Deferred.next_faster_way_readystatechange ||
+      Deferred.next_faster_way_Image ||
+      Deferred.next_tick ||
+      Deferred.next_default;
+#+END_SRC
+
+由浅入深，我们先看看使用setTimeout实现异步的 =Deferred.next_default= 方法（存在最小时间精度的问题）
+
+#+BEGIN_SRC js
+  Deferred.next_default = function (fun) {
+      var d = new Deferred();
+      var id = setTimeout(function () { d.call() }, 0);
+      d.canceller = function () { clearTimeout(id) };
+      if (fun) d.callback.ok = fun;
+      return d;
+  };
+#+END_SRC
+
+然后是针对 nodejs 的 =Deferred.next_tick= 方法
+
+#+BEGIN_SRC js
+  Deferred.next_tick = function (fun) {
+      var d = new Deferred();
+      // 使用process.nextTick来实现异步调用
+      process.nextTick(function() { d.call() });
+      if (fun) d.callback.ok = fun;
+      return d;
+  };
+#+END_SRC
+
+然后就是针对现代浏览器的 =Deferred.next_faster_way_Image= 方法
+
+#+BEGIN_SRC js
+Deferred.next_faster_way_Image = function (fun) {
+    var d = new Deferred();
+    var img = new Image();
+    var handler = function () {
+        d.canceller();
+        d.call();
+    };
+    img.addEventListener("load", handler, false);
+    img.addEventListener("error", handler, false);
+    d.canceller = function () {
+        img.removeEventListener("load", handler, false);
+        img.removeEventListener("error", handler, false);
+    };
+    // 请求一个无效data uri scheme导致马上触发load或error事件
+    // 注意：先绑定事件处理函数，再设置图片的src是个良好的习惯。因为设置img.src属性后就会马上发起请求，假如读的是缓存那有可能还未绑定事件处理函数，事件已经被触发了。
+    img.src = "data:image/png," + Math.random();
+    if (fun) d.callback.ok = fun;
+    return d;
+};
+#+END_SRC
+
+最后就是针对 IE5.5~8 的 =Deferred.next_faster_way_readystatechange= 方法
+
+#+BEGIN_SRC js
+  Deferred.next_faster_way_readystatechange = ((typeof window === 'object') && (location.protocol == "http:") && !window.opera && /\bMSIE\b/.test(navigator.userAgent)) && function (fun) {
+      var d = new Deferred();
+      var t = new Date().getTime();
+      /* 原理：
+	 由于浏览器对并发请求数作出限制（IE5.5~8为2~3,IE9+和现代浏览器为6），
+	 因此当并发请求数大于上限时，会让请求的发起操作排队执行，导致延时更严重了。
+	 实现手段：
+	 以150毫秒为一个周期，每个周期以通过setTimeout发起的异步执行作为起始，
+	 周期内的其他异步执行操作均通过script请求实现。
+	 （若该方法将在短时间内被频繁调用，可以将周期频率再设高一些，如100毫秒）
+      ,*/
+      if (t - arguments.callee._prev_timeout_called < 150) {
+	  var cancel = false;
+	  var script = document.createElement("script");
+	  script.type = "text/javascript";
+	  // 采用无效的data uri sheme马上触发readystate变化
+	  script.src  = "data:text/javascript,";
+	  script.onreadystatechange = function () {
+	      // 由于在一次请求过程中script的readystate会变化多次，因此通过cancel标识来保证仅调用一次call方法
+	      if (!cancel) {
+		  d.canceller();
+		  d.call();
+	      }
+	  };
+	  d.canceller = function () {
+	      if (!cancel) {
+		  cancel = true;
+		  script.onreadystatechange = null;
+		  document.body.removeChild(script);
+	      }
+	  };
+	  // 不同于img元素，script元素需要添加到dom树中才会发起请求
+	  document.body.appendChild(script);
+      } else {
+	  arguments.callee._prev_timeout_called = t;
+	  var id = setTimeout(function () { d.call() }, 0);
+	  d.canceller = function () { clearTimeout(id) };
+      }
+      if (fun) d.callback.ok = fun;
+      return d;
+  };
+#+END_SRC
+
+*** Deferred.call 函数实现
+
+#+BEGIN_SRC js
+  Deferred.call = function (fun) {
+      var args = Array.prototype.slice.call(arguments, 1);
+	  // 核心在Deferred.next
+      return Deferred.next(function () {
+	  return fun.apply(this, args);
+      });
+  };
+#+END_SRC
+
+*** Deferred.loop 函数实现
+
+#+BEGIN_SRC js
+  Deferred.loop = function (n, fun) {
+      // 入参n类似于Python中range的效果
+      // 组装循环的配置信息
+      var o = {
+	  begin : n.begin || 0,
+	  end   : (typeof n.end == "number") ? n.end : n - 1,
+	  step  : n.step  || 1,
+	  last  : false,
+	  prev  : null
+      };
+      var ret, step = o.step;
+      return Deferred.next(function () {
+	  function _loop (i) {
+	      if (i <= o.end) {
+		  if ((i + step) > o.end) {
+		      o.last = true;
+		      o.step = o.end - i + 1;
+		  }
+		  o.prev = ret;
+		  ret = fun.call(this, i, o);
+		  if (Deferred.isDeferred(ret)) {
+		      return ret.next(function (r) {
+			  ret = r;
+			  return Deferred.call(_loop, i + step);
+		      });
+		  } else {
+		      return Deferred.call(_loop, i + step);
+		  }
+	      } else {
+		  return ret;
+	      }
+	  }
+	  return (o.begin <= o.end) ? Deferred.call(_loop, o.begin) : null;
+      });
+  };
+#+END_SRC
+
+上述代码的理解难点在于 Deferred 实例 A 的事件处理函数若返回一个新的 Deferred 实例 B，而实例 A 的 Deferred 链表中原本指向 Deferred 实例 C，那么当调用实例 A 的 call 方法时是实例 C 的事件处理函数先被调用，还是实例 B 的事件处理函数先被调用呢？这时只需细读 =Deferred.prototype.call= 方法的实现就迎刃而解了，答案是先调用实例 B 的事件处理函数哦！
+
+*** Deferred.parallel 函数实现
+
+#+BEGIN_SRC js
+  Deferred.parallel = function (dl) {
+      // 对入参作处理
+      var isArray = false;
+      if (arguments.length > 1) {
+	  dl = Array.prototype.slice.call(arguments);
+	  isArray = true;
+      } else if (Array.isArray && Array.isArray(dl) || typeof dl.length == "number") {
+	  isArray = true;
+      }
+
+      var ret = new Deferred(), values = {}, num = 0;
+      for (var i in dl) if (dl.hasOwnProperty(i)) (function (d, i) {
+	  // 若d为函数类型，则封装为Deferred实例
+	  // 若d既不是函数类型，也不是Deferred实例则报错哦！
+	  if (typeof d == "function")
+	      dl[i] = d = Deferred.next(d);
+	  d.next(function (v) {
+	      values[i] = v;
+	      if (--num <= 0) {
+		  // 凑够数就触发事件处理函数
+		  if (isArray) {
+		      values.length = dl.length;
+		      values = Array.prototype.slice.call(values, 0);
+		  }
+		  ret.call(values);
+	      }
+	  }).error(function (e) {
+	      ret.fail(e);
+	  });
+	  num++;
+      })(dl[i], i);
+
+      // 当dl为空时触发Deferred实例的成功事件
+      if (!num) Deferred.next(function () { ret.call() });
+      ret.canceller = function () {
+	  for (var i in dl) if (dl.hasOwnProperty(i)) {
+	      dl[i].cancel();
+	  }
+      };
+      return ret;
+  };
+#+END_SRC
+
+通过源码我们可以知道 parallel 的入参必须为函数或 Deferred 实例，否则会报错哦！
+
+*** Deferred.earlier 函数实现
+
+#+BEGIN_SRC js
+  Deferred.earlier = function (dl) {
+      // 对入参作处理
+      var isArray = false;
+      if (arguments.length > 1) {
+	  dl = Array.prototype.slice.call(arguments);
+	  isArray = true;
+      } else if (Array.isArray && Array.isArray(dl) || typeof dl.length == "number") {
+	  isArray = true;
+      }
+      var ret = new Deferred(), values = {}, num = 0;
+      for (var i in dl) if (dl.hasOwnProperty(i)) (function (d, i) {
+	  // d只能是Deferred实例，否则抛异常
+	  d.next(function (v) {
+	      values[i] = v;
+	      // 一个Deferred实例触发成功事件则终止其他Deferred实例触发成功事件了
+	      if (isArray) {
+		  values.length = dl.length;
+		  values = Array.prototype.slice.call(values, 0);
+	      }
+	      ret.call(values);
+	      ret.canceller();
+	  }).error(function (e) {
+	      ret.fail(e);
+	  });
+	  num++;
+      })(dl[i], i);
+
+      // 当dl为空时触发Deferred实例的成功事件
+      if (!num) Deferred.next(function () { ret.call() });
+      ret.canceller = function () {
+	  for (var i in dl) if (dl.hasOwnProperty(i)) {
+	      dl[i].cancel();
+	  }
+      };
+      return ret;
+  };
+#+END_SRC
+
+通过源码我们可以知道 earlier 的入参必须为 Deferred 实例，否则会报错哦！
+
+*** Deferred.chain 函数实现
+
+#+BEGIN_SRC js
+  Deferred.chain = function () {
+      var chain = Deferred.next();
+      // 生成Deferred实例链表，链表长度等于arguemtns.length
+      for (var i = 0, len = arguments.length; i < len; i++) (function (obj) {
+	  switch (typeof obj) {
+	      case "function":
+		  var name = null;
+		  // 通过函数名决定是订阅成功还是失败事件
+		  try {
+		      name = obj.toString().match(/^\s*function\s+([^\s()]+)/)[1];
+		  } catch (e) { }
+		  if (name != "error") {
+		      chain = chain.next(obj);
+		  } else {
+		      chain = chain.error(obj);
+		  }
+		  break;
+	      case "object":
+		  // 这里的object包含形如{0:function(){}, 1: Deferred实例}、Deferred实例
+		  chain = chain.next(function() { return Deferred.parallel(obj) });
+		  break;
+	      default:
+		  throw "unknown type in process chains";
+	  }
+      })(arguments[i]);
+      return chain;
+  };
+#+END_SRC
+
+*** Deferred.connect 函数实现
+
+#+BEGIN_SRC js
+  Deferred.connect = function (funo, options) {
+      var target, // 目标函数所属的对象
+	  func, // 目标函数
+	  obj; // 配置项
+      if (typeof arguments[1] == "string") {
+	  target = arguments[0];
+	  func   = target[arguments[1]];
+	  obj    = arguments[2] || {};
+      } else {
+	  func   = arguments[0];
+	  obj    = arguments[1] || {};
+	  target = obj.target;
+      }
+
+      // 预设定的入参
+      var partialArgs       = obj.args ? Array.prototype.slice.call(obj.args, 0) : [];
+      // 指出成功事件的回调处理函数位于原函数的入参索引
+      var callbackArgIndex  = isFinite(obj.ok) ? obj.ok : obj.args ? obj.args.length : undefined;
+      // 指出失败事件的回调处理函数位于原函数的入参索引
+      var errorbackArgIndex = obj.ng;
+
+      return function () {
+	  // 改造成功事件处理函数，将预设入参和实际入参作为成功事件处理函数的入参
+	  var d = new Deferred().next(function (args) {
+	      var next = this._next.callback.ok;
+	      this._next.callback.ok = function () {
+		  return next.apply(this, args.args);
+	      };
+	  });
+
+	  // 合并预设入参和实际入参
+	  var args = partialArgs.concat(Array.prototype.slice.call(arguments, 0));
+	  // 打造func的成功事件处理函数，内部将触发d的成功事件
+	  if (!(isFinite(callbackArgIndex) && callbackArgIndex !== null)) {
+	      callbackArgIndex = args.length;
+	  }
+	  var callback = function () { d.call(new Deferred.Arguments(arguments)) };
+	  args.splice(callbackArgIndex, 0, callback);
+
+	  // 打造func的失败事件处理函数，内部将触发d的失败事件
+	  if (isFinite(errorbackArgIndex) && errorbackArgIndex !== null) {
+	      var errorback = function () { d.fail(arguments) };
+	      args.splice(errorbackArgIndex, 0, errorback);
+	  }
+	  // 相当于setTimeout(function(){ func.apply(target, args) })
+	  Deferred.next(function () { func.apply(target, args) });
+	  return d;
+      };
+  };
+#+END_SRC
+
+如何简化将 setTimeout、setInterval、XmlHttpRequest 等异步 API 封装为 Deferred 对象（或 Promise）对象的步骤是一件值思考的事情，而 jsDeferred 的 connect 类方法提供了一个很好的范本。
+
+*** Deferred.register 函数实现
+
+#+BEGIN_SRC js
+  Deferred.register = function (name, fun) {
+      this.prototype[name] = function () {
+	  var a = arguments;
+	  return this.next(function () {
+	      return fun.apply(this, a);
+	  });
+      };
+  };
+
+  Deferred.register("loop", Deferred.loop);
+  Deferred.register("wait", Deferred.wait);
+#+END_SRC
+
+*** Deferred.retry 函数实现
+
+#+BEGIN_SRC js
+Deferred.retry = function (retryCount, funcDeferred, options) {
+    if (!options) options = {};
+
+    var wait = options.wait || 0; // 尝试的间隔时间，存在最小时间精度所导致的延时问题
+    var d = new Deferred();
+    var retry = function () {
+        // 有funcDeferred内部触发事件
+        var m = funcDeferred(retryCount);
+        m.next(function (mes) {
+                d.call(mes);
+            }).
+            error(function (e) {
+                if (--retryCount <= 0) {
+                    d.fail(['retry failed', e]);
+                } else {
+                    setTimeout(retry, wait * 1000);
+                }
+            });
+    };
+    // 异步执行retry方法
+    setTimeout(retry, 0);
+    return d;
+};
+#+END_SRC
+
+*** Deferred.repeat 函数实现
+
+#+BEGIN_SRC js
+  Deferred.repeat = function (n, fun) {
+      var i = 0, end = {}, ret = null;
+      return Deferred.next(function () {
+	  var t = (new Date()).getTime();
+	  // 当fun的执行耗时小于20毫秒，则马上继续执行下一次的fun；
+	  // 若fun的执行耗时大于20毫秒，则将UI线程控制权交出，并将异步执行下一次的fun。
+	  // 从而降低因循环执行耗时操作使页面卡住的风险。
+	  do {
+	      if (i >= n) return null;
+	      ret = fun(i++);
+	  } while ((new Date()).getTime() - t < 20);
+	  return Deferred.call(arguments.callee);
+      });
+  };
+#+END_SRC
+
+* 总结
+
+通过剖析 jsDeferred 源码我们更深刻地理解 Promises/A 和 Promises/A+ 规范，也了解到 setTimeout 的延时问题和通过 img、script 等事件缩短延时的解决办法（当然这里并没有详细记录解决办法的细节），最重要的是吸取大牛们的经验和了解 API 设计的艺术。但这里我提出一点对 jsDeferred 设计上的吐槽，就是 Deferred 实例的私有成员还是可以通过实例直接引用，而不像 Promises/A 官网实现示例那样通过闭包隐藏起来。
+
+尊重原创，转载请注明来自：http://www.cnblogs.com/fsjohnhuang/p/4141918.html  ^_^肥子John
+
+* 参考
+
+《[[https://github.com/RubyLouvre/jsbook][JavaScript 架构设计]]》
+
+[[https://cho45.stfuawsc.com/jsdeferred/][JSDeferred 官网]]

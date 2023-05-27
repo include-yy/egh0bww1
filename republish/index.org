@@ -44,9 +44,13 @@ lily.onclick = () => {
 #+END_EXPORT
 
 * 目录
-
+- [2023-05-28] [[file:2023-05-28-js-arch-design-12-async-notes/index.org][JS读书心得：《JavaScript框架设计》——第12章 异步处理]]
+- [2023-05-27] [[file:2023-05-27-promise-a-spec-analyze/index.org][JS魔法堂：剖析源码理解Promises/A规范]]
+- [2023-05-26] [[file:2023-05-26-jsdeferred-src-analyze/index.org][JS魔法堂：jsDeferred源码剖析]]
 - [2023-04-09] [[file:2023-04-09-5-yinwang-programming-philosophy/index.org][编程的智慧]]
 - [2023-04-09] [[file:2023-04-09-4-yinwang-turing/index.org][图灵的光环]]
 - [2023-04-09] [[file:2023-04-09-3-yinwang-authority/index.org][我和权威的故事]]
+- [2023-04-09] [[file:2023-04-09-2-yinwang-chez-scheme/index.org][Chez Scheme 的传说]]
+- [2023-04-09] [[file:2023-04-09-1-yinwang-dan-friedman/index.org][GTF -- Great Teacher Friedman]]
 - [2023-03-23] [[file:2023-03-23-implementing-remote-procedure-calls/index.org][Implementing Remote Procedure Call]]
 - [2023-02-14] [[file:2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][康托尔、哥德尔、图灵——永恒的金色对角线]]
