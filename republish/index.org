@@ -44,6 +44,7 @@ lily.onclick = () => {
 #+END_EXPORT
 
 * 目录
+- [2023-06-01] [[file:2023-06-01-jsdeferred/index.html][JSDeferred]]
 - [2023-05-28] [[file:2023-05-28-js-arch-design-12-async-notes/index.org][JS读书心得：《JavaScript框架设计》——第12章 异步处理]]
 - [2023-05-27] [[file:2023-05-27-promise-a-spec-analyze/index.org][JS魔法堂：剖析源码理解Promises/A规范]]
 - [2023-05-26] [[file:2023-05-26-jsdeferred-src-analyze/index.org][JS魔法堂：jsDeferred源码剖析]]
