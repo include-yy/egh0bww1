@@ -149,10 +149,3 @@ Bugs in software can arise from mistakes and errors made in interpreting and ext
 
 
 * 后记
-
-#+BEGIN_COMMENT
-| [[https://www.pixiv.net/artworks/59332061][file:-4.jpg]] | [[https://www.pixiv.net/artworks/97724715][file:-2.jpg]]  | [[https://www.pixiv.net/artworks/107754268][file:-3.jpg]]  |
-| [[https://www.pixiv.net/artworks/23839947][file:-1.jpg]] | [[https://www.pixiv.net/artworks/50052145][file:-12.jpg]] | [[https://www.pixiv.net/artworks/105256151][file:-6.jpg]]  |
-| [[https://www.pixiv.net/artworks/53230026][file:-7.jpg]] | [[https://www.pixiv.net/artworks/31435475][file:-8.jpg]]  | [[https://www.pixiv.net/artworks/39419396][file:-5.jpg]]  |
-| [[https://www.pixiv.net/artworks/81199241][file:-9.jpg]] | [[https://www.pixiv.net/artworks/82664147][file:-10.jpg]] | [[https://www.pixiv.net/artworks/91412459][file:-11.jpg]] |
-#+END_COMMENT
