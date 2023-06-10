@@ -47,6 +47,7 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * 目录
+- [2023-06-11 Sun]  [[file:2023-06-11-38-emacs-async-emacs-deferred/index.org][JSDeferred in Emacs]]
 - [2023-05-21 Sun]  [[file:2023-05-21-37-tr-evolution-of-emacs-lisp/index.org][【翻译】Evolution of Emacs Lisp]]
 - [2023-05-07 Sun]  [[file:2023-05-07-36-emacs-inlining/index.org][在 emacs 中进行内联]]
 - [2023-05-02 Tue]  [[file:2023-05-02-35-emacs-named-let-usage/index.org][emacs 的 named-let 使用和实现介绍]]

@@ -1,0 +1,832 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: JSDeferred in Emacs
+#+DATE: [2023-05-26 Fri 03:12]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/108536972][file:0.jpg]]
+
+在简单阅读 [[https://github.com/kiwanami/emacs-epc][emacs-epc]] 的代码后，我发现在其中使用了一个叫做 [[https://github.com/kiwanami/emacs-deferred][emacs-deferred]] 的包，据 README 所说，它的思路来自 cho45 的 [[https://github.com/cho45/jsdeferred][JSDeferred]]。本着对 JS 的兴趣和了解 Emacs 异步编程的想法，本文会简单介绍 JSDeferred 和 deferred.el 的实现，并将 cho45 为 JSDeferred 写的[[https://cho45.stfuawsc.com/jsdeferred/][文档]]中的例子用 elisp 全部实现一遍。
+
+本文应该是一小系列文章的开始，即介绍一些将 JS 异步思路在 Emacs 中实现的包，目前我看到的有 emacs-deferred，concurrent.el，[[https://github.com/chuntaro/emacs-promise][emacs-promise]]，[[https://github.com/chuntaro/emacs-async-await][emacs-async-await]]。由于这些包都借鉴了 JS，所以这（些）文章可能需要读者有一定的 JS 基础，特别是 Promise 相关的。本文使用的环境如下：
+
+- Emacs 28.2 on Windows 10
+- [[https://github.com/kiwanami/emacs-deferred/tree/2239671d94b38d92e9b28d4e12fd79814cfb9c16][emacs-deferred -- 2239671]]
+
+{{{toc}}}
+
+* 前置知识
+
+如开头所说，本文需要一点 JS 知识，不过需要的也不多，我会推荐一些教程或博文，并介绍一个简单的消息模型。
+
+《[[https://zh.javascript.info/][现代 JavaScript 教程]]》应该是我看过的最好的 JavaScript 入门书。本书的第一部分第 [[https://zh.javascript.info/callbacks][11]] 节非常生动地讲解了 Promise 的用法。第二部分第 [[https://zh.javascript.info/event-loop][6.3]] 节介绍了 JavaScript 的事件循环与宏任务和微任务，这一部分也可以参考 MDN 文档中的[[https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Event_loop][并发模型与事件循环]]。
+
+《JavaScript 框架设计(第二版)》一书的第 12 章介绍了 JavaScript 中异步的发展过程，从 Promise 诞生之前的 JSDeferred 一直到 generator 和 async/awiat。书中并不只是介绍历史，还对实现进行了详细的分析。顺带一提，本书的作者是司徒正美。这里还有一篇笔记：[[https://www.cnblogs.com/fsjohnhuang/p/4296831.html][JS读书心得：《JavaScript框架设计》——第12章 异步处理]]，笔记里还有作者的其他相关文章，值得一看。
+
+最后是文章开头提到的 JSDeferred [[https://cho45.stfuawsc.com/jsdeferred/][文档]]，阅读该文档可以了解 JSDeferred 的基本用法，这里顺带附上 Promise/A+ 标准：[[https://promisesaplus.com/][Promise/A+]]。
+
+你没有必要把这些资料全看一遍，对阅读本文来说你只需要了解什么是事件驱动模型和明白下面代码的输出就行了（文章写完后我发现看不懂也没关系(笑)）：
+
+#+BEGIN_SRC js
+// https://zh.javascript.info/event-loop
+console.log(1);
+setTimeout(() => console.log(2));
+Promise.resolve().then(() => console.log(3));
+Promise.resolve().then(() => setTimeout(() => console.log(4)));
+Promise.resolve().then(() => console.log(5));
+setTimeout(() => console.log(6));
+console.log(7);
+
+//answer: output order is: 1 7 3 5 2 6 4
+#+END_SRC
+
+Emacs 和 JS 一样，是事件驱动的。按键输入、鼠标输入、timer 消息和异步进程输出可以看作事件。MDN 文档中用一幅[[https://developer.mozilla.org/en-US/docs/Web/JavaScript/Event_loop/the_javascript_runtime_environment_example.svg][图]]说明了 JS 中的运行模型，不过我画了个更简单的：
+
+[[./1.png]]
+
+这是一张相当简化的图片，不过用作说明已经足够了。事件循环从消息队列中读取事件，然后交给对应的处理函数，函数完成后会回到事件循环继续处理接下来的事件。就比如我们在 Emacs 中按下 =C-n=, =C-p=, =C-f=, =C-b= 分别调用 =next-line=, =previous-line=, =forward-char= 和 =backward-char= 一样。与命令行程序或批处理程序相比，我们可以认为在事件驱动模型中是输入 *调用* 了代码而不是代码 *处理* 了输入。可惜这一点很难在命令行程序或计算程序中体现出来，因为它们在代码中占比过小且处理的东西过于简单。
+
+程序处理输入和输入控制程序这两种视角都是没有问题的，事件循环模型的意义在于它解耦了消息的获取与处理，为了处理某个消息，我们只需要注册事件处理函数（对 Emacs 就是创建 keybinding、使用 timer 的回调、使用 process 的 filter 和 sentinel），事件循环会在事件出现时调用处理函数。下面是一段简单的 nodejs 代码，我们只是向 stdin 注册了接收数据的处理函数就能实现一个“循环”：
+
+#+BEGIN_SRC js
+  process.stdin.on('data', (data) => {
+      console.log('Hello ', data.toString());
+  });
+
+  process.stdin.resume();
+#+END_SRC
+
+在我的博客主页中我使用了如下代码来在用户点击图片时切换图片：
+
+#+BEGIN_SRC js
+  let cirno = document.getElementById("cirno")
+  let flag = true;
+
+  cirno.onclick = () => {
+      if (flag) {
+	  cirno.src = "./img/cirno.gif"
+	  flag = false
+      } else {
+	  cirno.src = "./img/cirno.jpg"
+	  flag = true
+      }
+  }
+#+END_SRC
+
+Emacs 和 JS 不可能完全一样，我们也不能全照着 JS 的模子来理解 Emacs，不过适当的类比是很有用的，我们只需要在行为不一致时再了解细节，其他时间把 Emacs 当成 JS 就行了。
+
+* 项目介绍
+
+=emacs-deferred= 的第一个 [[https://github.com/kiwanami/emacs-deferred/commit/c491b4f5d3b77e72cec37be5a0d04d47b40cf49f][commit]] 出现在 2010 年 8 月 13 年，也就是 13 年前。最后的 commit 出现在 2017 年 9 月 1 日，也就是 6 年前。目前该项目存在 10 个 issue，5 个 pr，以及 43 个 fork。当前（指 2023 年 5 月 26 日）它在 MEPLA 上的总下载量是 701,626 次，这并不是一个面向最终用户的包，而是一个库，这个[[https://melpa.org/#/?q=deferred][下载量]]应该能说明它的可用性。
+
+#+CAPTION: 2023-05-26
+[[./2.png]]
+
+=emacs-deferred= 的作者是 [[https://github.com/kiwanami][kiwanami]]，从 profile 来看位于日本的福岡県。除了这个包外他还编写了其他的一些 emacs 包，比如 epc 的 elisp 实现 [[https://github.com/kiwanami/emacs-epc][emacs-epc]]，node 实现 [[https://github.com/kiwanami/node-elrpc][node-elrpc]]。从 commit 历史来看 2017 年开始就是空荡荡一片了（涙），他的博客也停留在了 2018 年。这也是为什么有这么多 fork 的原因，某些小修小补 pr 没有被处理。
+
+根据 README 中的介绍， =emacs-deferred= 是对 [[https://github.com/cho45/jsdeferred][JSDeferred]] 的“翻译”，JSDeferred 的出现早于 JS 的 Promise，可以通过链式调用消除回调地狱：
+
+#+BEGIN_SRC js
+  // before
+  // http.get is assumed to be a function that takes a
+  // URI and a callback function as arguments
+  http.get("/foo.json", function (dataOfFoo) {
+      http.get("/bar.json", function (dataOfBar) {
+	  http.get("/baz.json", function (dataOfBaz) {
+	      alert([dataOfFoo, dataOfBar, dataOfBaz]);
+	  });
+      });
+  });
+#+END_SRC
+
+[[./3.jpg]]
+
+#+BEGIN_SRC js
+  // after
+  // http.get is assumed to be a function that takes a URI
+  // as an argument and returns a Deferred instance
+  var results = [];
+  next(function () {
+      return http.get("/foo.json").next(function (data) {
+	  results.push(data);
+      });
+  }).next(function () {
+      return http.get("/baz.json").next(function (data) {
+	  results.push(data);
+      });
+  }).next(function () {
+      return http.get("/baz.json").next(function (data) {
+	  results.push(data);
+      });
+  }).next(function () {
+      alert(results);
+  });
+#+END_SRC
+
+从代码来看这与 Promise 已经非常相似了。JSDeferred 的第一次 [[https://github.com/cho45/jsdeferred/commits/master?after=0ea58e44517478d2870e18b7ae679627361820ac+314&branch=master&qualified_name=refs%2Fheads%2Fmaster][commit]] 出现在 2007 年，而 Promise 作为 ES6 的一部分在 2015 年才被正式加入 JS 中，async/await（Promise 的语法糖）则是在 ES2017 中加入。
+
+* 实现原理
+
+《JavaScript 框架设计》中已经对 JSDeferred 的实现给出了非常详细的讲解，这里我介绍一下它的基本思路，方便读者去理解书中内容和下一节中使用 elisp 实现的 JSDeferred。这里假设我们的异步函数是一个向远程计算机请求 f(x)=x+1 值的函数，由于距离太远，它大概需要一秒才能返回：
+
+#+BEGIN_SRC elisp
+  (defun yy-getfn (n f)
+    (run-at-time 1 nil f (1+ n)))
+#+END_SRC
+
+假设我们想要迭代三次，那么我们可以这样写：
+
+#+BEGIN_SRC elisp
+  (yy-getfn 1
+	    (lambda (x)
+	      (yy-getfn x
+			(lambda (x)
+			  (yy-getfn x
+				    'print)))))
+  => 4 ;; after 3 sec
+#+END_SRC
+
+我们的核心目标是使用类似同步的方式来编写异步代码，而不用写出上面那样的回调嵌套。
+
+** 基于轮询的思路
+
+一个直接但不怎么聪明的方法是让异步函数返回标志，只有在回调函数调用后才将这些标志置位。在异步调用后我们通过创建 timer 不断检查标志来判断异步调用是否完成。这有点类似单片机中的轮询思路：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defun yy-getfn-1 (n state)
+    (let ((flag (cons state nil))) ; (state value)
+      (yy-getfn n (lambda (x)
+		    (setcdr flag x)))
+      flag))
+
+  (let ((a (yy-getfn-1 0 0))
+	ti)
+    (setq ti (lambda ()
+	       (message (format "%s" a))
+	       (and (cdr a) ; value is not nil
+		    (pcase (car a) ;state
+		      (0 (setq a (yy-getfn-1 (cdr a) 1)))
+		      (1 (setq a (yy-getfn-1 (cdr a) 2)))
+		      (2 (message (format "%s" a)))))
+	       (when (not (eq (cdr a) 3))
+		 (run-at-time 0.05 nil ti))))
+    (run-at-time 0.05 nil ti))
+#+END_SRC
+
+可以看到当状态码没有到 3 时我们通过 =run-at-time= 不断创建 timer，并在完成后通过 =pcase= 表达式分派任务给下一个函数。以上代码的输出如下：
+
+[[./4.png]]
+
+根据输出的重复次数可以计算 16 * 50 = 800，接近 =yy-getfn= 中 timer 的一秒。虽然上面的代码针对 =yy-getfn-1= 实现了链式异步调用，但我们希望可以使用一种更加一般的方法，毕竟被调用的函数不需要知道自己被“调度”了（ =yy-getfn-1= 主动接收 =state= 标识自己状态），它们只需要被调用就行了。我们可以通过创建一些宏来让我们方便地编写上面方式的“链式”异步调用（试问其他语言做得到吗）：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defvar yy-interval 0.05)
+
+  (defun yy-deco (fn &optional sync)
+    "async function's arglist must be (a1 a2 ... callback)"
+    (if sync
+	(lambda (&rest args)
+	  (vector t (apply fn args)))
+      (lambda (&rest args)
+	(let ((res (make-vector 2 nil))) ; [bool-finish return-value]
+	  (apply fn `(,@args ,(lambda (x) (aset res 0 t) (aset res 1 x))))
+	  res))))
+
+  (defmacro yy-pass (exp)
+    (declare (indent 1) (debug (sexp exp)))
+    (error "yy-pass can only be used within yy-chain"))
+
+  (defmacro yy-simple (exp)
+    (declare (indent 1) (debug (sexp exp)))
+    (error "yy-simple can only be used within yy-chain"))
+
+  (defmacro yy-chain (start &rest calls)
+    (let ((res (gensym "res"))
+	  (state (gensym "st"))
+	  (timer (gensym "ti")))
+      `(cl-symbol-macrolet ((it (aref ,res 1)))
+	 (cl-macrolet ((yy-pass (exp) `(prog1 ,',res ,exp))
+		       (yy-simple (exp) `(vector t ,exp)))
+	   (let ((,res (vector t nil))
+		 (,state 0)
+		 ,timer)
+	     (setq ,res ,start)
+	     (setq ,timer (lambda ()
+			    (and (aref ,res 0)
+				 (pcase ,state
+				   ,@(cl-loop for a in calls
+					      for i from 0
+					      collect `(,i (setq ,res ,a)
+							   (cl-incf ,state)))))
+			    (when (< ,state ,(length calls))
+			      (run-at-time yy-interval nil ,timer))))
+	     (run-at-time yy-interval nil ,timer))))))
+#+END_SRC
+
+因为现在函数的返回值需要区分是否完成，而返回值也可能是 nil，所以我将返回值的格式设为 =[flag value]= 的长度为 2 的向量，其中 =flag= 为 t 表示调用已完成，否则未完成。 =value= 当未完成时为 nil，完成后为结果值。我也定义了将普通函数转换为满足返回值格式函数的 =yy-deco= ，它对同步函数会直接返回 =[t val]= ，对异步函数会在回调中将这个向量设为 =[t val]= 。
+
+=yy-pass= 和 =yy-simple= 是两个辅助宏，前者的作用是忽略当前表达式的值，可以用于打印信息，后者的作用是将简单表达式转换为 =[t val]= 的形式，只要给普通表达式加上它就可以直接在 =yy-chain= 中使用了。在 =yy-chain= 中我添加了一个特殊名字 =it= ，它是上一次调用的返回值，可以在随后的调用中使用。
+
+你也应该注意到了我根据表达式在 =calls= 中出现的顺序为它们分配了状态值，并在某一调用结束后将当前状态值自增 1，这样我们在宏展开阶段就自动实现了状态的分配，而不用向函数显式传递它们的状态值。
+
+使用这一系列函数我们可以重写本节开头的嵌套调用：
+
+#+BEGIN_SRC elisp
+  (let ((f (yy-deco 'yy-getfn)))
+    (yy-chain
+     (yy-pass (message "1"))
+     (funcall f 1)
+     (yy-pass (message (format "%s" it)))
+     (funcall f it)
+     (yy-pass (message (format "%s" it)))
+     (funcall f it)
+     (yy-pass (message (format "%s" it)))))
+  ;; output 1 2 3 4 per second
+#+END_SRC
+
+可以看到嵌套确实被消除掉了，嵌套关系变成了顺序关系。虽然这种基于轮询思路的实现确实将代码线性化了，但是它也存在一些问题：
+
+1. 即使是无需等待的同步调用之间也要间隔差不多一个 timer 周期（timer 计时不一定准确）
+2. 因为实现原理是通过创建 timer 来主动检测调用是否完成，如果 timer 间隔过短会占用过多资源（试试将计时器的时间设为 0）
+
+对于第 1 点，我们可以将相邻的同步调用合并到一起，所以这不是什么大问题，但在 Emacs 这个事件驱动模型中使用单片机式的轮询有点 naive 了属于是，我们完全可以在异步调用完成时通过 *某种方式* 触发执行。
+
+下面我介绍一种使用单链表而不是状态值来实现相同功能的方法，这主要是因为 JSDeferred 和 deferred.el 中都是这样做的，读者提前了解这样的实现也许能更轻松理解后面的内容。在此之前我为我实现的 =yy-chain= 补充一个例子，顺便贴一下检测 =run-at-time= 的最小时间间隔的代码：
+
+#+BEGIN_SRC elisp
+(let (res)
+  (yy-chain
+   (yy-simple 1)
+   (yy-pass (push it res))
+   (yy-pass (push it res))
+   (yy-simple (+ it 3))
+   (yy-pass (push it res))
+   (yy-simple (1+ it))
+   (yy-pass (push it res))
+   (yy-simple (- it 4))
+   (yy-pass (push it res))
+   (yy-simple (+ it 3))
+   (yy-pass (push it res))
+   (yy-pass (message (format "%s" (reverse res))))))
+=> (1 1 4 5 1 4)
+#+END_SRC
+
+以下代码来自《JavaScript 框架设计》的 12 章开头，我将它“翻译”为了 elisp：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defun testme (count ms)
+    (let ((c 1)
+	  time func)
+      (setq func (lambda ()
+		   (push (float-time) time)
+		   (cl-incf c)
+		   (if (<= c count)
+		       (run-with-timer ms nil func)
+		     (let* ((tl (length time))
+			    (res (cl-loop for a on time
+					  if (not (null (cdr a)))
+					  sum (- (car a) (cadr a)))))
+		       (message (format "%s" (/ res 1.0 tl)))))))
+      (push (float-time) time)
+      (run-with-timer ms nil func)))
+
+  (run-at-time 3 nil 'testme 10000 0)
+  => 0.0011155852293112363 ;s
+#+END_SRC
+
+如果 CPU 更好一点，这个时间应该能更短。
+
+** 使用单链表
+
+在上面的代码中我们使用状态变量和 =pcase= 创建了一条调用链：
+
+#+BEGIN_CENTER
+0->1->2->...->N
+#+END_CENTER
+
+不知道你是否意识到了，这就是一个 *任务列表* ，在前一个任务完成后，后一个任务就会触发，直到执行完成所有的任务。现在让我们换一种思路，使用单链表而不是状态值（这样添加任务更加自由些，不用使用宏了），每个任务包含一个回调函数表示任务被触发时需要执行的动作：
+
+[[./5.png]]
+
+我们可以添加一个帮助我们将函数串起来的函数，它实际上就是链表尾插：
+
+#+BEGIN_SRC elisp
+  (defun yy-fcons (task callback)
+    (let ((o (list callback))) ; (callback . nil)
+      (setcdr task o)
+      o))
+
+  (let* ((start (list '1+))
+	 (it start))
+    (setq it (yy-fcons it '1+))
+    (setq it (yy-fcons it '1+))
+    (let ((value 0))
+      (while start
+	(setq value (funcall (pop start) value)))
+      value))
+  => 3
+#+END_SRC
+
+接着就是触发函数了，它和上面的 =yy-chain= 一样，都是通过不断使用 timer 来检查调用是否完成，不过这一次我消除了同步任务之间的 timer：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defun yy-runit (task arg)
+    (let* ((result nil)
+	   timer)
+      (setq result (funcall (pop task) arg))
+      (setq timer
+	    (lambda ()
+	      (while (and task (aref result 0)) ;consume sync calls
+		(setq result (funcall (pop task) (aref result 1))))
+	      (when task
+		(run-at-time 0.05 nil timer))))
+      (run-at-time 0.05 nil timer)))
+#+END_SRC
+
+使用 =yy-runit= 和 =yy-fcons= ，我们也能实现和上面的宏相同的效果：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (let ((f (yy-deco 'yy-getfn))
+	(show (yy-deco (lambda (x) (prog1 x (message (format "%s" x)))) t)))
+    (let* ((start (list f))
+	   (it start))
+      (setq it (yy-fcons it show))
+      (setq it (yy-fcons it f))
+      (setq it (yy-fcons it show))
+      (setq it (yy-fcons it f))
+      (setq it (yy-fcons it show))
+      (yy-runit start 0)))
+  ;; output 1 2 3 per second
+#+END_SRC
+
+你可能会觉得这和使用状态码的 =pcase= 没什么区别，函数能做的宏也能做，而且可能做的更好。但链表远比钉死在 =pcase= 里的语句要灵活，它允许我们在 *运行时* 对链表进行修改，这也是 JSDeferred 的关键思路。
+
+** JSDeferred 的思路
+
+正如我们在上面看到的，通过任务队列我们可以轻松实现函数的串行调用：
+
+#+BEGIN_SRC elisp
+  (let* ((start (list '1+))
+	 (it start))
+    (setq it (yy-fcons it '1+))
+    (setq it (yy-fcons it '1+))
+    (let ((value 0))
+      (while start
+	(setq value (funcall (pop start) value)))
+      value))
+#+END_SRC
+
+如果我们想要在链中加入异步而且不使用轮询，我们应该怎么做呢？我们需要在异步完成前暂停任务列表的执行，并在完成后继续执行。那么 =yy-runit= 应该在发现刚刚结束的调用是异步时停止执行，并在这个异步完成后继续执行。我们不可能让 =yy-runit= 在这个执行点等待返回而卡住整个 emacs（毕竟单线程），所以比较好的做法应该是 =yy-runit= 在发现异步后直接返回，然后再由异步完成后的回调函数在当前点调用 =yy-runit= 继续执行，但我们要怎样让这个异步的回调知道当前任务列表呢？
+
+JSDeferred 的思路是将异步函数包装为创建并返回任务对象的函数，该函数会在回调函数中以这个任务为起点调用 =yy-runit= ； =yy-runit= 在发现函数返回任务对象时会将这个任务与余下的任务序列连接起来，这样回调函数启动任务列表时就能继续执行了：
+
+[[./6.png]]
+
+这个思路确实惊艳到我了，到了这里我对 JSDeferred 的实现原理一下子就豁然开朗了。
+
+下面，我们对前面的 =yy-getfn= 进行一下简单的包装，并修改一下 =yy-runit= 。因为要处理普通返回值和任务对象返回值，它的逻辑要变得稍微复杂一些（这里偷懒了，使用了非常粗略的判定，理论上应该给任务对象专门定义一个类型）：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defun yy-getfn-2 (n)
+    (let ((task (list 'identity)))
+      (yy-getfn n (lambda (x)
+		    (yy-runit-1 task x)))
+      task))
+
+  (defun yy-runit-1 (task arg)
+    (when task
+      (let ((result (funcall (car task) arg)))
+	(cond ((and (consp result)
+		    (= (length result) 1)) ; a task, very rough :)
+	       (setcdr result (cdr task)))
+	      (t (yy-runit-1 (cdr task) result))))))
+
+  (let* ((start (list 'yy-getfn-2))
+	 (it start))
+    (setq it (yy-fcons it '1+))
+    (setq it (yy-fcons it 'print))
+    (setq it (yy-fcons it 'yy-getfn-2))
+    (setq it (yy-fcons it 'print))
+    (setq it (yy-fcons it '1+))
+    (setq it (yy-fcons it 'yy-getfn-2))
+    (setq it (yy-fcons it 'print))
+    (yy-runit-1 start 1))
+  ;; print 3 4 6 per second
+#+END_SRC
+
+按上面思路实现的代码克服了轮询的两个问题：无需不断调用 timer；同步任务会直接立刻执行下去。下面让我们详细了解一下 JSDeferred 的实现，然后在 elisp 中简单实现一下。读者若有兴趣的话也可阅读 JSDeferred 的源码或者看司徒正美的书来了解实现。
+
+* JSDeferred 实现与使用
+
+我们在上一节简单介绍了 JSDeferred 的原理，但也只是原理而已。现实中还有许多需要考虑的问题，下面我们来介绍一下 JSDeferred 的实现，并给出功能尽可能相似的 elisp 实现。
+
+原本我打算直接介绍 deferred.el 而不管 JSDeferred，但我在查看前者的代码后发现它和 JSDeferred 还是存在一定的差异，不如先从后者开始。
+
+#+BEGIN_QUOTE
+Promise 发展历史最重要的一块基石就是 JSDeferred，可以说 Promise/A+ 规范的制定则很大程度上参考了由日本 geek cho45 发起的 jsDeferred 项目，追本溯源地了解 jsDeferred 是十分有必要的。
+
+jsDeferred 的特点：
+
+1. 内部通过单向链表结构存储成功事件处理函数、失败事件处理函数和链表中下一个 Deferred 类型对象
+2. Deferred 实例内部没有状态标识（也就是说 Deferred 实例没有自定义的生命周期）
+3. 由于 Deferred 实例没有状态标识，因此不支持成功/失败事件处理函数的晚绑定
+4. Deferred 实例的成功/失败事件是基于事件本身的触发而被调用的
+5. 由于 Deferred 实例没有状态标识，因此成功/失败事件可被多次触发，也不存在不变值作为事件处理函数入参的说法
+
+Promise/A 的特点
+
+1. 内部通过单向链表存储成功事件处理函数、失败事件处理函数和链表中下一个 Promise 类型对象
+2. Promise 实例内部有状态标识：pending（初始状态）、fulfilled（成功状态）和 rejected（失败状态），且状态为单方向移动“pending->fulfilled” “pending->rejected”（也就是 Promise 实例存在自定义的生命周期，而生命周期的每个阶段具备不同的事件和操作）
+3. 由于 Promise 实例含状态标识，因此支持事件处理函数的晚绑定
+4. Promise 实例的成功/失败事件函数是基于 Promise 的状态而被调用的
+
+《JavaScript 框架设计》12.3 JSDeferred 里程碑
+#+END_QUOTE
+
+** from jsdeferred.js to elisp
+
+下面我们就正式开始学习 jsdeferred 了，这里我选取了[[https://github.com/cho45/jsdeferred/blob/master/jsdeferred.js][仓库]]中的 jsdeferred.js。为了纪念 cho45，下面的 elisp 代码使用 chodf 这个前缀（笑）。
+
+jsdeferred.js 差不多有 800 行，其中大部分都是注释，我们按照从上往下的顺序介绍。
+
+首先是默认的成功回调和失败回调：
+
+#+BEGIN_SRC js
+Deferred.ok = function (x) { return x };
+Deferred.ng = function (x) { throw  x };
+#+END_SRC
+
+elisp:
+
+#+BEGIN_SRC elisp
+  (defun chodf-ok (x)
+    "Default callback function"
+    x)
+
+  (defun chodf-ng (x)
+    "Default errorback function"
+    (signal (car x) (cdr x)))
+#+END_SRC
+
+接着就是 Deferred 原型链上挂的方法：
+
+#+BEGIN_SRC js
+  Deferred.prototype = {
+      init : function () {
+	  this._next    = null;
+	  this.callback = {
+	      ok: Deferred.ok,
+	      ng: Deferred.ng
+	  };
+	  return this;
+      },
+      next  : function (fun) { return this._post("ok", fun) },
+      error : function (fun) { return this._post("ng", fun) },
+      call  : function (val) { return this._fire("ok", val) },
+      fail  : function (err) { return this._fire("ng", err) },
+      cancel : function () {
+	  (this.canceller || function () {}).apply(this);
+	  return this.init();
+      },
+      _post : function (okng, fun) {
+	  this._next =  new Deferred();
+	  this._next.callback[okng] = fun;
+	  return this._next;
+      },
+      _fire : function (okng, value) {
+	  var next = "ok";
+	  try {
+	      value = this.callback[okng].call(this, value);
+	  } catch (e) {
+	      next  = "ng";
+	      value = e;
+	      if (Deferred.onerror) Deferred.onerror(e);
+	  }
+	  if (Deferred.isDeferred(value)) {
+	      value._next = this._next;
+	  } else {
+	      if (this._next) this._next._fire(next, value);
+	  }
+	  return this;
+      }
+  };
+#+END_SRC
+
+=init= 不用多说就是对象的初始化函数， =next= 和 =error= 用来在任务列表中添加新的成功/失败任务，它们内部都使用了 =_post= ，这个 =_post= 和 =yy-fcons= 很像。而最后的 =fire= 类似于我们上面的 =yy-runit= ，由它来启动整个任务列表。
+
+=cancel= 方法提供了取消某个任务列表开始执行的方法，不过 jsdeferred 之后的 Promise 并没有这个方法（原因[[https://www.zhihu.com/question/495412354][见此]]）。所以这里我也不在对象中设置这个成员。
+
+因为 elisp 没有面向对象（或者说我懒得用 EIEIO），我会使用显式接收对象的函数来实现它们：
+
+#+BEGIN_SRC elisp
+  (cl-defstruct (chodf (:constructor chodf-new)
+		       (:copier nil))
+    "Data struct used to reprensent a deferred object."
+    (okcb 'chodf-ok
+	  :documentation "the success callback")
+    (ngcb 'chodf-ng
+	  :documentation "the fail callback")
+    (n nil :documentation "points to the next deferred object or nil"))
+
+  (defun chodf--post (odf okng fun)
+    "[internal] Creates a deferred object, make OBF points to it.
+  if OKNG is `:ok', then obj's OKCB is FUN, otherwise NGCB."
+    (let ((new (chodf-new)))
+      (pcase okng
+	(:ok (setf (chodf-okcb new) fun))
+	(:ng (setf (chodf-ngcb new) fun)))
+      (setf (chodf-n odf) new)
+      new))
+
+  (defun chodf-next (odf fun)
+    "Creates new deferred and sets FUN as its callback then connect ODF to it"
+    (chodf--post odf :ok fun))
+  (defun chodf-error (odf fun)
+    "Creates new deferred and sets FUN as its errback, then connect ODF to it.
+  if FUN does not signal an error but just returns normal value,
+  deferred treats the give error is recovery and continue chain"
+    (chodf--post odf :ng fun))
+  (defun chodf-ner (odf okfn ngfn)
+    "Creates new deferred and sets okcb to OKFN, ngcb to NGFN,
+  then connect ODF to it. this function doens't exist in jsdeferred.
+  I add it just for code simplification."
+    (let ((new (chodf-new)))
+      (setf (chodf-okcb new) okfn)
+      (setf (chodf-ngcb new) ngfn)
+      (setf (chodf-n odf) new)
+      new))
+
+  (defun chodf--fire (odf okng value)
+    "[internal] Executing deferred callback chosen by OKNG.
+  OKNG can either be `:ok' or `:ng'. VALUE is arg for callback.
+  If an error is signaled by ok or ng function, and deferred's `n' exists,
+  then the next deferred object's ngcb function will be called"
+    (cl-assert (member okng '(:ok :ng)))
+    (let ((next :ok))
+      (condition-case err
+	  (pcase okng
+	    (:ok (setq value (funcall (chodf-okcb odf) value)))
+	    (:ng (setq value (funcall (chodf-ngcb odf) value))))
+	(error
+	 (setq next :ng)
+	 (setq value err)))
+      (if (chodf-p value)
+	  (setf (chodf-n value) (chodf-n odf))
+	(when (chodf-n odf)
+	  (chodf--fire (chodf-n odf) next value)))
+      odf))
+
+  (defun chodf-call (odf val)
+    "Invokes self callback chain.
+  Used this in async function's callback to start a deferred object (chain)."
+    (chodf--fire odf :ok val))
+  (defun chodf-fail (odf val)
+    "Invokes self errorback chain.
+  Use this function for explicit errors. (eg. HTTP request failed)"
+    (chodf--fire odf :ng val))
+#+END_SRC
+
+接下来是判断对象是否为 Deferred 对象的函数，和启动任务队列的函数 =next= 。其中类型判断已经由 =cl-defstruct= 默认帮我们实现了，而 =next= 由于环境不同有多个可用实现，我们在 emacs 中可能只能用上它默认的那一种：
+
+#+BEGIN_SRC js
+Deferred.isDeferred = function (obj) {
+	return !!(obj && obj._id === Deferred.prototype._id);
+};
+
+Deferred.next_default = function (fun) {
+	var d = new Deferred();
+	var id = setTimeout(function () { d.call() }, 0);
+	d.canceller = function () { clearTimeout(id) };
+	if (fun) d.callback.ok = fun;
+	return d;
+};
+#+END_SRC
+
+由于 =chodf= 的 =next= 名字已经被用了，这里我们使用 =nextx= ：
+
+#+BEGIN_SRC elisp
+  (defun chodf-nextx (&optional fun wait-time)
+    "Shorthand for creating new deferred which is called after current task.
+  If WAIT-TIME is specified, deferred will start after WAIT-TIME seconds,
+  otherwise it is ZERO."
+    (setq wait-time (or wait-time 0))
+    (let ((d (chodf-new)))
+      (when fun (setf (chodf-okcb d) fun))
+      (run-at-time wait-time nil
+		   (lambda () (chodf-call d nil)))
+      d))
+#+END_SRC
+
+有了这些函数，我们就可以实现上一节的一些例子了：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defun yy-getfn-3 (n)
+    (let ((d (chodf-new)))
+      (yy-getfn n (lambda (x)
+		    (chodf-call d x)))
+      d))
+
+  (let ((it (chodf-nextx (lambda (_)
+			   (message "1")
+			   (yy-getfn-3 1)))))
+    (setq it (chodf-next it
+			 (lambda (x)
+			   (message (format "%s" x))
+			   (yy-getfn-3 x))))
+    (setq it (chodf-next it
+			 (lambda (x)
+			   (message (format "%s" x))
+			   (yy-getfn-3 x))))
+    (setq it (chodf-next it
+			 (lambda (x)
+			   (message (format "%s" x))))))
+  ;; show 1 2 3 4 per second
+
+  (let ((it (chodf-nextx (lambda (_)
+			   (message "1")
+			   (yy-getfn-3 1)))))
+    (setq it (chodf-next it
+			 (lambda (x)
+			   (message (format "%s" x))
+			   (chodf-ng 1))))
+    (setq it (chodf-next it
+			 (lambda (x)
+			   (message "Happy")
+			   (yy-getfn-3 x))))
+    (setq it (chodf-error it
+			  (lambda (x)
+			    (message (format "SAD"))))))
+  ;; output 1 2 SAD
+#+END_SRC
+
+可见 JSDeferred 的核心很小，在 elisp 里也才不到百行（这还是算了注释）。我原本打算在这一节把 jsdeferred.js 全部讲一遍，但是这也太长了一点，我把全部代码放到 [[https://github.com/include-yy/chodf][github]] 上了，剩下的一些函数比如 =parallel= ， =chain= ， =loop= 的实现并不 trivial，读者如果感兴趣可以去看看。在这一节的末尾我列举一下全部的 API。
+
+- =chodf-ticktime= ，指定 =chodf-loop= ， =chodf-repeat= 和 =chodf-retry= 两次调用之间的间隔
+- =chodf-repeat-maxtime= ，指定 =chodf-repeat= 某次执行最多用时
+- =(chodf-new)= ，创建一个 deferred 对象
+- =(chodf-obcb odf)= ，获取 deferred 对象的成功回调函数
+- =(chodf-ngcb odf)= ，获取 deferred 对象的失败回调函数
+- =(chodf-n odf)= ，获取 deferred 对象指向的下一个 deferred 对象
+- =(chodf-ok x)= ，默认的成功回调函数
+- =(chodf-ng (err . val))= ，默认的失败回调函数，它的实现为 =(signal err val)=
+- =(chodf-next odf fun)= ，创建一个新的 deferred 对象，使其 =okcb= 为 =fun= ，且令 =odf= 指向它
+- =(chodf-error odf fun)= ，创建一个新的 deferred 对象，使其 =ngcb= 为 =fun= ，且令 =odf= 指向它
+- =(chodf-ner odf okfn ngfn)= ， 合并 =chodf-next= 和 =chodf-error= 的功能
+- =(chodf-call odf val)= ，使用 val 启动成功调用链
+- =(chodf-fail odf val)= ，使用 val 启动失败调用链
+- =(chodf-sync! odf)= ，同步等待 =odf= 的回调被执行，用于测试或调试
+- =(chodf-nextx &optional fun wait-time)= ，启动调用链，可指定首个 deferred 对象的成功回调和启动前的延时
+- =(chodf-wait n)= ，等待 n 秒后执行调用链
+- =(chodf-connect fun &optional testfn errtype)= ，将普通函数包装为返回 deferred 对象的函数
+- =(chodf-parallel &rest fun-or-d)= ，同时开始多个 deferred 函数或 deferred 对象
+- =(chodf-chain &rest funs-or-err)= ，顺序进行多个异步过程
+- =(chodf-earlier &rest chodfs)= ，等待多个 deferred 对象并选取最先返回的那个
+- =(chodf-loop n fun)= ，提供非阻塞的循环
+- =(chodf-repeat n fun)= ，类似 =chodf-loop= ，但只接受普通函数
+- =(chodf-retry n fun &optional wait)= ，重复尝试直到 =fun= 成功
+
+额外的说明和例子可以参考 github 中的 README。
+
+** 文档中的几个例子
+
+JSDeferred 的文档非常有意思，可以看出作者学过 Scheme，毕竟都出现 call/cc 了。我会在这一节把一些[[https://cho45.stfuawsc.com/jsdeferred/][例子]]用 elisp 实现一遍。
+
+这是文档中给出的将普通异步函数包装为 deferred 函数的例子：
+
+#+BEGIN_SRC js
+  http = {}
+  http.get = function (uri) {
+      var deferred = new Deferred();
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+	  if (xhr.readyState == 4) {
+	      if (xhr.status == 200) {
+		  deferred.call(xhr);
+	      } else {
+		  deferred.fail(xhr);
+	      }
+	  }
+      };
+      deferred.canceller = function () { xhr.abort() };
+      return deferred;
+  }
+#+END_SRC
+
+假设 Emacs 中也有上面的函数，那么我们可以这样做：
+
+#+BEGIN_SRC elisp
+  (defun my-http-def (uri)
+    (let ((d (chodf-new)))
+      (XMLHttpRequest
+       uri (lambda (res)
+	     (if (= (get-state res) 4)
+		 (if (= (get-status res) 200)
+		     (chodf-call d res)
+		   (chodf-fail d `(error . ,res))))))
+      d))
+#+END_SRC
+
+有时候我们非常容易漏掉下面的 =d= ，如果函数的参数形式是 =(a1, a2, ..., callback)= 那就可以使用 =chodf-connect= 将其变换为 deferred 函数。
+
+以下代码可以无阻塞地打印 1 到 1000，在打印期间可以正常移动光标：
+
+#+BEGIN_SRC elisp
+  (chodf-loop
+   1000 (let ((i 0))
+	  (lambda ()
+	    (message (format "%s" (cl-incf i))))))
+#+END_SRC
+
+我们甚至可以使用它来实现 =call/cc= ，毕竟过程都保存在链中了：
+
+#+BEGIN_SRC elisp
+  (defun callcc (fun)
+    (let (curr)
+      (setq curr (chodf-callx
+		  (lambda ()
+		    (funcall fun
+			     (lambda (k)
+			       (chodf-call (chodf-n curr) k)
+			       (chodf-ng `(error . t)))))))))
+
+  (chodf-chain (lambda (_)
+		 (callcc (lambda (k) (* 10 10 (funcall k 20)))))
+	       (lambda (v)
+		 (print v)))
+  ;; print 10
+
+  (let ((cout nil)
+	(i 0))
+    (chodf-chain (lambda (_)
+		   (callcc (lambda (c)
+			     (setq cout c)
+			     10)))
+		 (lambda (v)
+		   (print v)
+		   (cl-incf i)
+		   (if (zerop (1- i))
+		       (funcall cout 20)))))
+  ;; print 10, then 20
+#+END_SRC
+
+老实说文档中使用 JS 实现的 callcc 对我来说太深奥了点，JS 的 =this= 真是神通广大啊（笑）。
+
+* deferred.el 实现与使用
+
+=deferred.el= 可以认为是直接派生于 JSDeferred，但是作者在上面做了不少的改进。写完 =chodf= 后我感觉十分的疲惫，这里就简单说几点算了。
+
+首先，与 JSDeferred 中顺着链表立刻执行不同，deferred.el 在链表两项之间会间隔一个 =deferred-tick-time= ，这也就是说即使链中全是同步函数也会有延时，我们可以使用它的 README 中的第一个例子来说明：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (setq deferred:tick-time 1)
+
+  (deferred:$
+    (deferred:next
+      (lambda () (message "deferred start")))
+    (deferred:nextc it
+      (lambda ()
+	(message "chain 1")
+	1))
+    (deferred:nextc it
+      (lambda (x)
+	(message "chain 2 : %s" x)))
+    (deferred:nextc it
+      (lambda ()
+	(read-minibuffer "Input a number: ")))
+    (deferred:nextc it
+      (lambda (x)
+	(message "Got the number : %i" x)))
+    (deferred:error it
+      (lambda (err)
+	(message "Wrong input : %s" err))))
+#+END_SRC
+
+运行之，你可以感受到非常明显的间隔。我猜测作者这样做是为了不卡界面，但对于不需要间隔的代码这样可能就不太友好了。
+
+另外，deferred.el 中存在 JSDeferred 中没有的机制：队列。每当调用 =post-task= 时会向队列中添加一个 deferred 任务，随后在某个计时器触发时删除队列中的第一项并执行它。同样我也不太清楚为什么要添加这个机制，也许是为了方便不卡界面，或者是方便调试。
+
+deferred.el 中定义了许多宏来方便编写代码，不过另一方面也增加了一些理解成本（新语言问题），我的 chodf 中没有用一个宏。
+
+如果你想在 Emacs 中使用类似 JSDeferred 的功能，使用 deferred.el 是绝对没有问题的，它已经经过了很多用户的检验。README 中已经有很详细的使用介绍了，这里我就不多说了。如果你觉得阅读 deferred.el 的源代码有些困难的话，可以考虑先读一下 chodf 的代码（笑），不过我不建议你在新代码中使用 chodf，现在它只算是个实验品，功能还不是很成熟。
+
+* 后记
+
+也许你听说过所谓的“造轮子综合征”（或 NIH 综合征），它指认为自己做的东西比现成的成果更好更适合环境。本文以及 chodf 在某种意义上就是 NIH 综合征的产物。如果自己不完全清楚某个库的作用那还不如自己重写一个，这是我一直以来的想法（我正在努力地克服它）。
+
+把 NIH 推倒极端就是任何东西都最好自己做，当然我们也知道这在各种意义上都是不大可能的，我们的现代生活建立在前人的基础上，某些我们习以为常的东西其实是非常了不起的发明创造，至少我不会有重新发明电灯的想法。话又说回来，既然我们觉得某些东西有重新发明轮子的必要，那是否说明这些东西还没有真正的尘埃落定？
+
+哈，又是在不同思想中撕扯出的一篇文章。感谢阅读。
+
+| [[https://www.pixiv.net/artworks/59332061][file:p4.jpg]] | [[https://www.pixiv.net/artworks/97724715][file:p2.jpg]]  | [[https://www.pixiv.net/artworks/107754268][file:p3.jpg]]  |
+| [[https://www.pixiv.net/artworks/23839947][file:p1.jpg]] | [[https://www.pixiv.net/artworks/50052145][file:p12.jpg]] | [[https://www.pixiv.net/artworks/105256151][file:p6.jpg]]  |
+| [[https://www.pixiv.net/artworks/53230026][file:p7.jpg]] | [[https://www.pixiv.net/artworks/31435475][file:p8.jpg]]  | [[https://www.pixiv.net/artworks/39419396][file:p5.jpg]]  |
+| [[https://www.pixiv.net/artworks/81199241][file:p9.jpg]] | [[https://www.pixiv.net/artworks/82664147][file:p10.jpg]] | [[https://www.pixiv.net/artworks/91412459][file:p11.jpg]] |
