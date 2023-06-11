@@ -1,0 +1,526 @@
+#+SETUPFILE: ../../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs 中的数字函数
+#+DATE: [2023-03-06 Mon 16:30]
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/89729181][file:0.jpg]]
+
+elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数，但是内容比较分散在不同的小节中了。本文的目的是收集一下 emacs 中的一些数字函数（位运算不知道算不算），方便写代码时查找。由于 emacs 本身也不是用来进行科学计算的，我似乎很难找到以数学计算为目的的包（不算 calc 的话）。
+
+本文是 elisp manual 补完计划的一部分。本文使用的 emacs 为 28.2 x86_64 on windows 10。
+
+{{{toc}}}
+
+* emacs 中的数字
+
+虽然文档中写到 emacs 支持整数和浮点数两种数字类型，但实际上应该是三种：定长整数（fixnum），大整数（bignum）和浮点数（float）。emacs 于 27 中引入了大整数，这是使用 gmp 实现的。
+
+通过在整数的前面添加 =#{X}= 前缀，我们可以使用二进制（ =#b= ），八进制（ =#o= ）和十六进制（ =#x= ）。当然我们也可以通过 =#{radix}r{integer}= 来指定 2 到 36 进制：
+
+#+BEGIN_SRC elisp
+  #b10101 => 21
+  #o777 => 511
+  #xff => 255
+  #3r12 => 5
+  #36rincludeyy => 52609796300554
+#+END_SRC
+
+对浮点数我们可以使用科学计数法：
+
+#+BEGIN_SRC elisp
+  15e2 => 1500.0
+  1e+10 => 10000000000.0
+  .15e4 => 1500.0
+#+END_SRC
+
+下面是一些我不知道如何归类的函数，不如就放在这里了：
+
+- =(frexp X)= ，获取浮点数的符号位（SGNFCAND）和指数值（EXP），即 =X = SGNFCAND * 2^EXP= ，返回序对 =(SGNFCAND . EXP)=
+  - 如果 =X= 等于 0，那么 =SGNFCAND= 和 =EXP= 都为 0
+  #+BEGIN_SRC elisp
+    (frexp 1.0) => (0.5 . 1)
+    (frexp 15.0) => (0.9375 . 4)
+    (frexp 0) => (0.0 . 0)
+    (frexp t) => (wrong-type-argument numberp t)
+  #+END_SRC
+- =(ldexp SGNFCAND EXPONENT)= ，frexp 的反向过程，由 =SGNFCAND= 和 =EXP= 得到浮点数
+  #+BEGIN_SRC elisp
+    (ldexp 1.0 2) => 4.0
+    (ldexp 3.0 4) => 48.0
+    (ldexp 0.114514 10) => 117.262336
+    (ldexp 1.0 30.0) => (wrong-type-argument fixnump 30.0)
+    (ldexp t 30) => (wrong-type-argument numberp t)
+  #+END_SRC
+- =(copysign X1 X2)= ，将 X2 的符号复制到 X1 上，即使 X1 与 X2 符号相同
+  - X1 X2 必须都是浮点数
+  #+BEGIN_SRC elisp
+    (copysign 1.0 -2.0) => -1.0
+    (copysign 0.0 3.0) => 0.0
+    (copysign 0.0 -3.0) => -0.0
+    (copysign 1 2) => (wrong-type-argument floatp 1)
+    (copysign 1.0 2) => (wrong-type-argument floatp 2)
+  #+END_SRC
+- =(float ARG)= ，返回等于 ARG 的浮点数
+  #+BEGIN_SRC elisp
+    (float 1) => 1.0
+    (float 1.14) => 1.14
+    (float t) => (wrong-type-argument numberp t)
+    (float (expt 2 100)) => 1.2676506002282294e+30
+    (float (expt 2 -100)) => 7.888609052210118e-31
+  #+END_SRC
+
+* 一些常量
+
+- =most-positive-fixnum= ，最大的定长整数，在 emacs 28 中为 2305843009213693951，2^61 - 1
+- =most-negative-fixnum= ，最小的定长整数，在 emacs 28 中为 -2305843009213693952
+- =integer-width= ，最大整数宽度，对应的最大整数值为 2^65536 - 1，如果某个整数大于该值会引发范围错误
+  #+BEGIN_SRC elisp
+    (expt 2 integer-width) => (overflow-error)
+  #+END_SRC
+- =infinity= ，无穷大，有正无穷 =1.0e+INF= 和负无穷 =-1.0e+INF= ，它们两个是字面量
+  #+BEGIN_SRC elisp
+    (/ 1.0 .0) => 1.0e+INF
+    (/ 1.0 -.0) => -1.0e+INF
+  #+END_SRC
+- =not-a-number= ，非数字，通常出现在零除零中，字面量有 =0.0e+NaN= 和 =-0.0e+NaN=
+  #+BEGIN_SRC elisp
+    (/ 0.0 0.0) => -0.0e+NaN
+    (- (/ 0.0 0.0)) => 0.0e+NaN
+  #+END_SRC
+- =float-e= ，自然常数，值为 2.718281828459045
+- =float-pi= ，π，值为 3.141592653589793
+- =(cl-float-limits)= ，这并不是一个常数而是一个初始化各常数的函数，这些常数包括：
+  - =cl-most-positive-float= ，最大的浮点数，初始化为 1.7976931348623157e+308
+  - =cl-most-negative-float= ，最小的浮点数，初始化为 -1.7976931348623157e+308
+  - =cl-least-positive-float= ，绝对值最小的正浮点数，为 5e-324
+  - =cl-least-negative-float=', 绝对值最小的负浮点数，为 -5e-324
+  - =cl-float-epsilon= ，最小的可与 1.0 相加引起变化的数字，为 2.220446049250313e-16
+  - =cl-float-negative-epsilon= ，最小的可与 1.0 相减引起变化的数字，为 1.1102230246251565e-16
+  - =cl-least-positive-normalized-float= ，最小的大于 0.0 的浮点数，为 2.2250738585072014e-308
+  - =cl-least-negative-normalized-float= ，最大的小于 0.0 的浮点数，为 -2.2250738585072014e-308
+
+* 数字 <=> 字符串
+
+- =(number-to-string NUMBER)= ，将数字转换为字符串
+  #+BEGIN_SRC elisp
+    (number-to-string 1) => "1"
+    (number-to-string 1.14514) => "1.14514"
+    (number-to-string 1.0e+INF) => "1.0e+INF"
+    (number-to-string -1.0e+INF) => "-1.0e+INF"
+    (number-to-string 0.0e+NaN) => "0.0e+NaN"
+    (number-to-string -0.0e+NaN) => "-0.0e+NaN"
+    (number-to-string (expt 2 64)) => "18446744073709551616"
+  #+END_SRC
+- =(string-to-number STRING &optional BASE)= ，将字符串转换为数字
+  - =BASE= 默认为 10 进制，若指定必须在 2 到 16 内。若 =BASE= 不为 10，则按整数解析字符串
+  #+BEGIN_SRC elisp
+    (string-to-number "123") => 123
+    (string-to-number "-0") => 0
+    (string-to-number "123.456") => 123.456
+    (string-to-number "1.0e+INF") => 1.0e+INF
+    (string-to-number "0.0e+NaN") => 0.0e+NaN
+    (string-to-number "1e23") => 1e+23
+    (string-to-number "Hello") => 0
+    (string-to-number "123HE") => 123
+    (string-to-number "11111" 2) => 31
+    (string-to-number "12222" 3) => 161
+    (string-to-number "ffff" 16) => 65535
+    (string-to-number "12222" 2) => 1
+    (string-to-number "") => 0
+    (string-to-number "" -1) => (args-out-of-range -1)
+    (string-to-number "" 100) => (args-out-of-range 100)
+  #+END_SRC
+- =(cl-parse-integer STRING &key START END RADIX JUNK-ALLOWED)= ，根据字符串得到数字，相比 =string-to-number= 支持的进制更多（从 2 到 36），我们可以通过 =START= =END= 指定要解析的范围。若 =JUNK-ALLOWED= 为真，则允许一些非数字字符的存在
+  #+BEGIN_SRC elisp
+    (cl-parse-integer "12345" :radix 10) => 12345
+    (cl-parse-integer "12345" :end 4) => 1234
+    (cl-parse-integer "12345" :start 2) => 345
+    (cl-parse-integer "1234/5" :junk-allowed t) => 1234
+    (cl-parse-integer "1234/5") => (error "Not an integer string: ‘1234/5’")
+  #+END_SRC
+
+* 判断函数
+
+- =bignump= ，判断对象是否为大整数
+  #+BEGIN_SRC elisp
+    (bignump (expt 2 61)) => t
+    (bignump (1- (expt 2 61))) => nil
+    (bignump 1.1) => nil
+    (bignump t) => nil
+  #+END_SRC
+- =fixnump= ，判断对象是否为定点数
+  #+BEGIN_SRC elisp
+    (fixnump 0) => t
+    (fixnump (expt 2 61)) => nil
+    (fixnump (1- (expt 2 61))) => t
+    (fixnump 0.0) => nil
+  #+END_SRC
+- =floatp= ，判断对象是否为浮点数
+  #+BEGIN_SRC elisp
+    (floatp 0.0) => t
+    (floatp 0) => nil
+  #+END_SRC
+- =integerp= ，判断对象是否为整数
+  #+BEGIN_SRC elisp
+    (integerp 0) => t
+    (integerp (expt 2 64)) => t
+    (integerp (expt 2 128)) => t
+    (integerp 0.0) => nil
+  #+END_SRC
+- =numberp= ，判断对象是否为数字
+  #+BEGIN_SRC elisp
+    (numberp 0.0) => t
+    (numberp 1) => t
+    (numberp (expt 2 1000)) => t
+    (numberp 'hello) => nil
+  #+END_SRC
+- =natnump= ，判断对象是否为自然数
+  #+BEGIN_SRC elisp
+    (natnump 0) => t
+    (natnump -1) => nil
+    (natnump 114514) => t
+    (natnump (expt 2 90)) => t
+  #+END_SRC
+- =zerop= ，判断对象是否为 0
+  #+BEGIN_SRC elisp
+    (zerop 0) => t
+    (zerop 1) => nil
+    (zerop 0.0) => t
+    (zerop 'hello) => error
+  #+END_SRC
+- =isnan= ，判断对象是否为 NaN
+  #+BEGIN_SRC elisp
+    (isnan (/ 0.0 0.0)) => t
+    (isnan 0.1) => nil
+    (isnan t) => (wrong-type-argument floatp t)
+  #+END_SRC
+- =cl-plusp= ，判断数字是否为正数
+- =cl-minusp= ，判断数字是否为负数
+- =cl-oddp= ，判断数字是否为奇数
+- =cl-evenp= ，判断数字是否为偶数
+- =cl-signum= ，若数字为整数，返回 1，若为 0，返回 0，若为负数返回 -1
+  #+BEGIN_SRC elisp
+    (cl-signum 2) => 1
+    (cl-signum 0) => 0
+    (cl-signum -2) => -1
+  #+END_SRC
+- =(cl-digit-char-p CHAR &optional RADIX)= ，判断字符 =CHAR= 是否在某进制下是合法的数字字符，默认 10 进制
+  #+BEGIN_SRC elisp
+    (cl-every 'cl-digit-char-p (number-sequence ?0 ?9)) => t
+    (cl-digit-char-p ?z 36) => 35
+    (cl-digit-char-p ?o 16) => nil
+  #+END_SRC
+
+* 数值比较函数
+
+- =(eql OBJ1 OBJ2= ， =eq= 的强化版，可用于比较两个浮点数
+
+  #+BEGIN_SRC elisp
+    (eql 1 1.0) => nil
+    (eql 1.0 1.0) => t
+    (eq 1.0 1.0) => nil
+  #+END_SRC
+
+- =(cl-equalp X Y)= ， =equal= 的强化版，可用于比较浮点数值
+  #+BEGIN_SRC elisp
+    (cl-equalp -0.0 0.0) => t
+  #+END_SRC
+
+- ~(= NUMBER-OR-MARKER &rest NUMBER-OR-MARKERS)~ ，判断所有参数是否相等
+
+  #+BEGIN_SRC elisp
+    (= 1 1) => t
+    (= 1 1 2) => nil
+    (= 1.0 1) => t
+    (= 0.0 0.0) => t
+
+    (= +0.0 -0.0) => t
+    (eql +0.0 -0.0) => nil
+    (equal +0.0 -0.0) => nil
+  #+END_SRC
+
+- ~(/= NUM1 NUM2)~ ，判断两个数字是否不相等
+
+- =(< NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)= ，判断左边的数字是否比右边小
+
+  #+BEGIN_SRC elisp
+    (< 1 2 3) => t
+    (< 1 2) => t
+    (< 1 3 2) => nil
+  #+END_SRC
+
+- ~(<= NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)~ ，判断左边数字是否小于等于右边数字
+
+- =(> NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)= ，判断左边数字是否大于右边数字
+
+- ~(>= NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)~ ，判断左边数字是否大于等于右边数字
+
+- =(max NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)= ，返回参数中数值最大的那个
+
+- =(min NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)= ，返回参数中数值最小的那个
+
+* 取整函数
+
+- =(truncate ARG &optional DIVISOR)= ，返回趋 0 截断的数：
+
+  #+BEGIN_SRC elisp
+    (truncate 1.2) => 1
+    (truncate 1.6) => 1
+    (truncate -1.2) => -1
+    (truncate -1.6) => -1
+    (truncate 8 3) => 2 ;; 8 / 3 = 2.6667 => 2
+  #+END_SRC
+
+- =(floor ARG &optional DIVISOR)= ，下取整
+  #+BEGIN_SRC elisp
+    (floor 1.4) => 1
+    (floor 0.9) => 0
+    (floor -.1) => -1
+    (floor -1.0) => -1
+    (floor 2 2.1) => 0
+  #+END_SRC
+
+- =(ceiling ARG &optional DIVISOR)= ，上取整
+
+  #+BEGIN_SRC elisp
+    (ceiling 1.1) => 2
+    (ceiling -.9) => 0
+    (ceiling 2.2 1.05) => 3
+  #+END_SRC
+
+- =(round ARG &optional DIVISOR)= ，四舍五入
+
+  #+BEGIN_SRC elisp
+    (round 0.51) => 1
+    (round 0.50) => 0
+    (round 0.499) => 0
+    (round -0.1) => 0
+    (round -.6) => -1
+    (round 2 1.5) => 1
+  #+END_SRC
+
+对于上面的每一个函数，在函数名前面加上 =f= 可以得到浮点数版本，也就是返回值为浮点数而不是整数，但是在 === 意义下相等：（它们没有第二参数）
+
+#+BEGIN_SRC elisp
+  (= (floor 1.5) (ffloor 1.5)) => t
+  (= (ceiling 1.5) (fceiling 1.5)) => t
+  (= (ftruncate 1.5) (truncate 1.5)) => t
+  (= (fround 1.5) (round 1.5)) => t
+
+  (ffloor 1.5) => 1.0
+#+END_SRC
+
+- =cl-truncate= =cl-floor= =cl-ceiling=  =cl-round= ，类似上面的 =floor= 到 =round= ，但是会返回一个 list，其中 car 部分是整数部分，cadr 是小数部分：
+  #+BEGIN_SRC elisp
+    (cl-floor 1.5) => (1 0.5)
+    (cl-ceiling 1.5) => (2 -0.5)
+    (cl-truncate 1.5) => (1 0.5)
+    (cl-round 1.5) => (2 -0.5)
+  #+END_SRC
+
+* 算术函数
+
+- =1+= 和 =1-= ，将数字加一或减一
+
+- =+= 和 =-= ，加法和减法运算
+
+  #+BEGIN_SRC elisp
+    ;; (+ &rest NUMBERS-OR-MARKERS)
+    (+) => 0
+    (+ 1) => 1
+    (+ 1 2) => 3
+    (+ 1 2 3) => 6
+
+    ;; (- &optional NUMBER-OR-MARKER &rest MORE-NUMBERS-OR-MARKERS)
+    (-) => 0
+    (- 1) => -1
+    (- 1 2) => -1
+    (- 1 2 3) => -4
+  #+END_SRC
+
+- =*= 和 =/= ，乘法和除法运算
+
+  #+BEGIN_SRC elisp
+    ;; (* &rest NUMBERS-OR-MARKERS)
+    (*) => 1
+    (* 1 2) => 2
+    (* 1 2 3) => 6
+
+    ;; (/ NUMBER &rest DIVISORS)
+    (/ 0.5) => 2.0
+    (/ 2) => 0
+    (/ 5 2) => 2
+    (/ 5.0 2) => 2.5
+    (/ 5 2.0) => 2.5
+    (/ 5 2.0 2.0) => 1.25
+  #+END_SRC
+
+- =%= 和 =mod= ，取余运算， =mod= 会使结果与除数符号一致
+
+  #+BEGIN_SRC elisp
+    ;; (% X Y)
+    (% 5 2) => 1
+    (% 8 3) => 2
+    (% -9 4) => -1
+    (% -9 -4) => -1
+    (% 9 -4) => 1
+
+    ;; (mod X Y)
+    (mod -9 4) => 3
+  #+END_SRC
+
+  两者的区别在于 =mod= 使用 =floor= 而不是 =/= 来得到整除结果：
+
+  #+BEGIN_SRC elisp
+    (+ (% dividend divisor)
+       (* (/ dividend divisor) divisor))
+
+    (+ (mod dividend divisor)
+       (* (floor dividend divisor) divisor))
+  #+END_SRC
+
+- =(abs ARG)= ，获取数值的绝对值
+
+- =(cl-gcd &rest ARGS)= ，返回参数的最大公因数
+
+- =(cl-lcm &rest ARGS)= ，返回参数的最小公倍数
+
+- =(cl-mod X Y)= ，返回 X 除 Y 的余数，符号与 Y 相同
+
+- =(cl-rem X Y)= ，返回 X 除 Y 的余数，符号与 X 相同
+
+* 初等函数
+
+- =sin= ， =cos= ， =tan= 三角函数
+  #+BEGIN_SRC elisp
+    (sin (/ float-pi 6)) => 0.49999999999999994
+    (cos (/ float-pi 3)) => 0.5000000000000001
+    (tan (/ float-pi 4)) => 0.9999999999999999
+    (tan (/ float-pi 2)) => 1.633123935319537e+16
+
+    (sin 0.0e+NaN) => 0.0e+NaN
+    (cos 0.0e+NaN) => 0.0e+NaN
+    (tan 0.0e+NaN) => 0.0e+NaN
+    (sin 1.0e+INF) => 0.0e+NaN
+  #+END_SRC
+- =asin= ， =acos= ， =atan= ，反三角函数
+  #+BEGIN_SRC elisp
+    (asin 1) => 1.5707963267948966
+    (asin 1.1) => -0.0e+NaN
+    (asin -1) => -1.5707963267948966
+    (asin 0) => 0.0
+    (acos 0) => 1.5707963267948966
+    (atan 1.0e+INF) => 1.5707963267948966
+    (atan 0) => 0.0
+    ;; (atan Y &optional X)
+    (atan 1 0) => 1.5707963267948966
+    (atan (sqrt 6) (sqrt 2)) => 1.0471975511965976 ; (/ float-pi 3)
+  #+END_SRC
+- =(exp ARG)= ，以 =e= 为底的指数函数
+  #+BEGIN_SRC elisp
+    (exp 1) => 2.718281828459045
+    (exp 1.0e+INF) => 1.0e+INF
+    (exp 0.0e+NaN) => 0.0e+NaN
+    (exp -1.0e+INF) => 0.0
+  #+END_SRC
+- =(expt ARG1 ARG2)= ，以第一参数为底数，第二参数为指数
+  #+BEGIN_SRC elisp
+    (expt 1 2) => 1
+    (expt 1 1.0e+INF) => 1.0
+    (expt 1 -1.0e+INF) => 1.0
+    (expt 0 0) => 1 ;wow
+    (expt 0 1) => 0
+    (expt 1.0e+INF 0) => 1.0
+    (expt 0.0e+NaN 0) => 1.0
+    (expt 0.0e+NaN 1) => 0.0e+NaN
+  #+END_SRC
+- =(log ARG &optional BASE)= ，计算 =ARG= 的自然对数，若指定了 =BASE= 则以它为底
+  #+BEGIN_SRC elisp
+    (log float-e) => 1.0
+    (log 1.0e+INF) => 1.0e+INF
+    (log 0) => -1.0e+INF
+    (log 4 2) => 2.0
+    (+ (log 5 10) (log 2 10)) => 1.0
+  #+END_SRC
+- =(log10 X)= ，计算 =X= 的常用对数，即以 10 为底
+- =(logb ARG)= ，返回小于 ARG 对 2 的对数的最大整数
+  #+BEGIN_SRC elisp
+    (logb 32) => 5
+    (logb 1023) => 9
+    (logb 1) => 0
+    (logb 0.5) => -1
+    (logb (/ 1.0 1024)) => -10
+  #+END_SRC
+- =(sqrt ARG)= ，平方根函数
+  #+BEGIN_SRC elisp
+    (sqrt 1) => 1.0
+    (sqrt 256) => 16.0
+    (sqrt 1024) => 32.0
+    (sqrt 0.5) => 0.7071067811865476
+    (sqrt 0.0) => 0.0
+    (sqrt 1.0e+INF) => 1.0e+INF
+    (sqrt 0.0e+NaN) => 0.0e+NaN
+    (sqrt -1) => -0.0e+NaN
+  #+END_SRC
+- =(cl-isqrt X)= ，获取最大的小于等于 X 平方根的整数
+  #+BEGIN_SRC elisp
+    (cl-isqrt 30) => 5
+    (cl-isqrt 1024) => 32
+  #+END_SRC
+
+* 位运算函数
+
+- =(ash VALUE COUNT)= ，算数位移，将 =VALUE= 左移 =COUNT= 位，若 =COUNT= 为负数则右移
+  #+BEGIN_SRC elisp
+    (ash 1 10) => 1024
+    (ash 1 -1) => 0
+    (ash -1 10) => -1024
+    (ash -1 -100) => -1
+    (ash 1024 -11) => 0
+  #+END_SRC
+- =(lsh VALUE COUNT)= ，逻辑位移，假设数值为无符号整数，位移时不会保留最高符号位
+  #+BEGIN_SRC elisp
+    (lsh -1 -1) => 2305843009213693951
+    (lsh 20 1) => 40
+    (lsh -2 1) => -4
+  #+END_SRC
+- =(logand &rest INTS-OR-MARKERS)= ，位与运算
+  #+BEGIN_SRC elisp
+    (logand 1 2 3) => 0
+    ;; 01 10 11
+    (logand 1 3) => 1
+
+    (logand -1 2) => 2
+    ;; ...11111 10
+  #+END_SRC
+- =(logior &rest INTS-OR-MARKERS)= ，位或运算
+- =(logxor &rest INTS-OR-MARKERS)= ，位异或运算
+- =(lognot NUMBER)= ，位非运算
+  #+BEGIN_SRC elisp
+    (lognot -1) => 0
+    (lognot 2) => -3
+    (lognot (lognot 1)) => 1
+  #+END_SRC
+- =(logcount VALUE)= ，对正数返回二进制表达中 1 的个数，对负数返回二进制表达中 0 的个数
+  #+BEGIN_SRC elisp
+    (logcount 3) => 2
+    (logcount 127) => 7
+    (logcount -1) => 0
+    (logcount -2) => 1
+  #+END_SRC
+
+* 随机数函数
+
+- =(random &optional LIMIT)= ，返回一个伪随机数，可通过指定 LIMIT 为整数来返回 =[0, Limit)= 范围内的伪随机数
+  - =LIMIT= 若为整数，则需要在 =[most-negative-fixnum, most-positve-fixnum]= 范围内
+  - 若 =LIMIT= 为 t，则根据一些系统信息重设随机数种子
+  - 若 =LIMIT= 为字符串，则根据字符串创建种子
+
+- =(cl-random LIM &optional STATE)= ，接受一个数字作为随机数的范围，并返回在该范围内的非负数字，如果这个数字是整数，那么随机数也是整数，如果是浮点数那么随机数也是浮点数
+  - 可选参数 =state= 应该是一个 =random-state= 对象。 =cl-random= 会修改这个对象的状态（它用来记录随机数的信息，以得到下一个随机数）。如果 =state= 参数被忽略了， =cl-random= 会使用内部的 =cl--random-state= ，它是默认的 =random-state= 对象。使用相同的 =state= 对象会产生相同的随机序列
+  - 可以使用 =cl-make-random-state= 创建一个 =state= 对象
+
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/49820216][file:p1.jpg]]
