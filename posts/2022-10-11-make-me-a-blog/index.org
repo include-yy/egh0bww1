@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: blog
 #+TITLE: 怎么弄个自己的 blog
 #+DATE: [2022-10-10 Mon 23:55]

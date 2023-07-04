@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 
 #+TITLE: JSDeferred in Emacs
 #+DATE: [2023-05-26 Fri 03:12]

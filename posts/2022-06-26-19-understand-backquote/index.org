@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: 关于 backquote 理解的一个汇总与总结
 #+DATE: [2022-03-14 Mon 22:57]
 
@@ -742,12 +742,12 @@ CL-USER> ``(,@,@(list 1 2 3))
 #+END_SRC
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/8247715][file:-1.png]]
+[[https://www.pixiv.net/artworks/8247715][file:p1.png]]
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/66906462][file:-2.jpg]]
+[[https://www.pixiv.net/artworks/66906462][file:p2.jpg]]
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/83888736][file:-3.jpg]]
+[[https://www.pixiv.net/artworks/83888736][file:p3.jpg]]
 
 [fn:2] [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html]]

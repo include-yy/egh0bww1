@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: blog
+#+SETUPFILE: ../setup.org
+#+FILETAGS: gossip
 
 #+TITLE: 如何正确地使用他人的作品
 #+DATE: [2023-02-14 Tue 17:02]

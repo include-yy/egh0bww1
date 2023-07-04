@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: 关于作用域的一个小结
 #+DATE: [2021-04-17 Sat]
 

@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 
 #+TITLE: emacs 中的数字函数
 #+DATE: [2023-03-06 Mon 16:30]

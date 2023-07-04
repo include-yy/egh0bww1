@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs org_mode
+#+SETUPFILE: ../setup.org
+#+FILETAGS: orgmode
 #+TITLE: The Org Manual 13.9 全解
 #+DATE: [2023-01-15 Sun 16:45]
 
@@ -1012,4 +1012,4 @@ your style specifications may change these, in addition to any of the standard c
 在下一篇文章中，我们会简单学习 org HTML 导出后端的实现，然后从头到尾地写出一个自用的 CSS 来（希望吧）。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/65930664][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/65930664][file:p1.jpg]]

@@ -38,6 +38,31 @@ body {
     color:rgb(100,72,138);
 }
 
+#org-div-home-and-up {
+    display: flex;
+    justify-content: flex-end;
+    position: sticky;
+    float: right;
+    top: 0px;
+/*    flex-direction: row-reverse;*/
+}
+
+#org-div-home-and-up a {
+    font-size: 1.2em;
+    margin: 0 0.5ex;
+    padding: 0.2ex 0.4ex;
+    text-decoration: none;
+    text-transform: uppercase;
+    background: white;
+    border: 2px solid black;
+    border-top: 0;
+    color: rgb(35,73,142);
+}
+
+#org-div-home-and-up a:hover {
+    color:rgb(100,72,138);
+}
+
 .title {
     font-size: 2em;
     max-width: 60rem;

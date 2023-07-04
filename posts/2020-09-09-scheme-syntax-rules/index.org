@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: scheme lisp
-#+TITLE: Scheme的syntax-rules
+#+SETUPFILE: ../setup.org
+#+FILETAGS: lisp
+#+TITLE: Scheme 的 syntax-rules
 #+DATE: [2020-09-09 Wed]
 
 #+ATTR_HTML: :class top-down-img

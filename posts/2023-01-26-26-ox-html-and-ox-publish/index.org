@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs org_mode
+#+SETUPFILE: ../setup.org
+#+FILETAGS: orgmode
 #+TITLE: ox-html 浅析与 ox-publish 使用介绍
 #+DATE: [2023-01-23 16:02]
 
@@ -581,4 +581,4 @@ PROJECT is the current project."
 本文简单介绍了 ox-html 和 ox-publish 的一些功能，但是不是很全，只是对我感兴趣的部分做了个笔记而已。在下一篇文章中，我会简单介绍 HTML5 是什么，以及如何使用 ox-html 来导出 HTML5 风格的 HTML 文件。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/28980292][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/28980292][file:p1.jpg]]

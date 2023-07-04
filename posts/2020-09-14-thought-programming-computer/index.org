@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: gossip
 #+TITLE: 我所认识的编程与计算机
 #+DATE: [2020-09-14 Mon]

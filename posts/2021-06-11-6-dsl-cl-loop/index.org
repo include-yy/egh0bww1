@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: 什么是 dsl 和作为 dsl 的 cl-loop
 #+DATE: [2021-06-11 Fri]
 

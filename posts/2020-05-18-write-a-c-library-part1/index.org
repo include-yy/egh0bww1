@@ -1,10 +1,10 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: c
-#+TITLE: 写个C库-part1
+#+TITLE: 写个 C 库 - part1
 #+DATE: [2020-05-18 Mon]
 
 #+ATTR_HTML: :class top-down-img
-[[./head.jpg]]
+[[./0.jpg]]
 
 本文翻译自 *Writing a C library part 1*
 

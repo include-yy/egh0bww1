@@ -8,3 +8,19 @@
 如果您有任何问题，欢迎通过 issue 与我交流。
 
 RSS： https://egh0bww1.com/rss.xml
+
+* 更新
+
+使用 ox-html 的魔改版作为 html 后端：ox-yyhtml
+
+- 添加了全新的 HTML_HEAD_FUNC 选项，可以接受一个函数名。函数接受 =info= 参数，应该返回插入到 =<head>= 中的内容，它位于 =HTML_HEAD= 和 =HTML_HEAD_EXTRA= 之后
+
+- 为 preamble 和 postamble 添加了额外的选项： =HTML_PREVAR= ， =HTML_PER= ， =HTML_SUFVAR= ， =HTML_SUF= 。可以在通过 =#+SETUP:= 引入的文件中编写 postamble 和 preamble 了，或是通过变量定义 postamble 和 preamble
+
+- home/up 可以使用更多的名字，而不是只有 =UP= 和 =HOME= ，现在可以用 =HTML_LINK_LEFT= 和 =HTML_LINK_RIGHT= 指定链接，使用 =HTML_LINK_LNAME= 和 =HTML_LINK_RNAME= 指定各自链接的名字，或是直接使用 =HTML_LINK_FUNC= 指定返回字符串的函数
+
+需要完成的工作：
+
+- 链接改进
+- 处理 filetags
+- 构建工具改进

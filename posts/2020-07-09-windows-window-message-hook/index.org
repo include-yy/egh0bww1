@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: windows
-#+TITLE: Windows窗口与消息：钩子
+#+SETUPFILE: ../setup.org
+#+FILETAGS: win32
+#+TITLE: Windows 窗口与消息：钩子
 #+DATE: [2020-07-09 Thu]
 
 #+ATTR_HTML: :class top-down-img

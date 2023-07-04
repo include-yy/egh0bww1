@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: math
 #+TITLE: 1 / chx^n 形式的不定积分
 #+DATE: [2019-03-18 Mon]
@@ -18,7 +18,6 @@
 很明显，由题目的描述，可以列出几个方程。
 
 $l = len - 2 \times s$
-
 
 由万有引力定律， 两者之间的引力大小为：
 

@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: emacs 中的 list 函数
 #+DATE: [2021-09-04 Sat]
 
@@ -1447,4 +1447,4 @@ org-mode 提供的 GTD 功能让我可以方便地给函数打勾，就像这样
 这回是真的暂时再见了（笑）
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/73073540][file:-1.png]]
+[[https://www.pixiv.net/artworks/73073540][file:p1.png]]

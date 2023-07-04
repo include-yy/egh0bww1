@@ -1,10 +1,10 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: c
-#+TITLE: 写个C库-part4
+#+TITLE: 写个 C 库 - part4
 #+DATE: [2020-06-14 Sun]
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/81957473][file:head.jpg]]
+[[https://www.pixiv.net/artworks/81957473][file:0.jpg]]
 
 本文翻译自 *Writing a C library part 4*
 

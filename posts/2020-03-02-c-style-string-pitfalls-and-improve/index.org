@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: c
-#+TITLE: C风格字符串缺陷及改进
+#+TITLE: C 风格字符串缺陷及改进
 #+DATE: [2020-03-02 Mon]
 
 #+ATTR_HTML: :class top-down-img

@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: gossip
 #+TITLE: 我的大学四年的一个总结
 #+DATE: [2022-06-09 Thu 09:36]
@@ -479,7 +479,7 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 | *planetarian ～ちいさなほしのゆめ～*         | *NEKOPARA Vol. 1*                       | *保健室のセンセーとシャボン玉中毒の助手*                 |
 | [[./28.PNG]]                                     | [[./29.jpg]]                                | [[./30.jpg]]                                                 |
 | *サノバウィッチ*                             | *腐り姫*                                | *NIL*                                                    |
-| [[./43.PNG]]                                     | [[./44.jpg]]                                | [[./-1.png]]                                                 |
+| [[./43.PNG]]                                     | [[./44.jpg]]                                | [[./p1.png]]                                                 |
 
 
 下面是一些我玩过但是没有完全通关的游戏，或者是仅听说过的游戏，记录一下以后有时间再去看看。
@@ -502,4 +502,4 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 玩笑话说的差不多了，就这样吧。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/82488792][file:-1.png]]
+[[https://www.pixiv.net/artworks/82488792][file:p1.png]]

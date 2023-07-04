@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAG: windows
-#+TITLE: Win32编程基础之鼠标输入
+#+SETUPFILE: ../setup.org
+#+FILETAG: win32
+#+TITLE: Win32 编程基础之鼠标输入
 #+DATE: [2020-07-11 Sat]
 
 #+ATTR_HTML: :class top-down-img

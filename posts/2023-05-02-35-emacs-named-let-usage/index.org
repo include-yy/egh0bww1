@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 
 #+TITLE: emacs 的 named-let 使用和实现介绍
 #+DATE: [2023-04-30 Sun 11:40]
@@ -554,7 +554,7 @@ details.
 五一快乐。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/25854793][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/25854793][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/77780352][file:-2.jpg]]
+[[https://www.pixiv.net/artworks/77780352][file:p2.jpg]]

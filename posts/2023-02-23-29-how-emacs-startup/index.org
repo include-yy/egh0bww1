@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 
 #+TITLE: emacs 是如何启动的
@@ -1120,4 +1120,4 @@ emacs server 的实现位于 server.el 中，总行数大概是 1600 行。不�
 正如文章开头所说，本文是从“对 emacs 加载机制的介绍”中分出来的，我也没想到能写上这么多。不出意外的话下一篇文章应该是对 =load= 的实现分析以及 emacs 加载机制的介绍了。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/23822730][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/23822730][file:p1.jpg]]

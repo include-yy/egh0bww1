@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 
 #+TITLE: 如何保存 emacs 当前状态供下次打开时恢复
@@ -478,7 +478,7 @@ this table.  See also `desktop-minor-mode-handlers'."
 
 除了内置的 desktop，还有其他的一些 package 可用，比如 [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]]，读者若感兴趣可以试试，我就不做过多介绍了。
 
-| [[https://www.pixiv.net/artworks/56704239][file:-1.jpg]] | [[https://www.pixiv.net/artworks/35742993][file:-4.jpg]] |
-| [[https://www.pixiv.net/artworks/62992330][file:-6.jpg]] | [[https://www.pixiv.net/artworks/39183606][file:-2.jpg]] |
-| [[https://www.pixiv.net/artworks/103945174][file:-5.jpg]] | [[https://www.pixiv.net/artworks/92968281][file:-3.jpg]] |
-| [[https://www.pixiv.net/artworks/79176328][file:-7.jpg]] | [[https://www.pixiv.net/artworks/98499538][file:-8.jpg]] |
+| [[https://www.pixiv.net/artworks/56704239][file:p1.jpg]] | [[https://www.pixiv.net/artworks/35742993][file:p4.jpg]] |
+| [[https://www.pixiv.net/artworks/62992330][file:p6.jpg]] | [[https://www.pixiv.net/artworks/39183606][file:p2.jpg]] |
+| [[https://www.pixiv.net/artworks/103945174][file:p5.jpg]] | [[https://www.pixiv.net/artworks/92968281][file:p3.jpg]] |
+| [[https://www.pixiv.net/artworks/79176328][file:p7.jpg]] | [[https://www.pixiv.net/artworks/98499538][file:p8.jpg]] |

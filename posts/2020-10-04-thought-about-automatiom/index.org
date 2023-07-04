@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: gossip
 #+TITLE: 现在我所能看到的自动化专业
 #+DATE: [2020-10-04 Sun]

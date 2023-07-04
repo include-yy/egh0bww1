@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: windows
-#+TITLE: Win32编程基础之按钮控件
+#+SETUPFILE: ../setup.org
+#+FILETAGS: win32
+#+TITLE: Win32 编程基础之按钮控件
 #+DATE: [2021-02-28 Sun]
 
 #+ATTR_HTML: :class top-down-img

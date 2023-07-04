@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: math
 #+TITLE: 布尔函数的表示与化简
 #+DATE: [2020-03-05 Thu]

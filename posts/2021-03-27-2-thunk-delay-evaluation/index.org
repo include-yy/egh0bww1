@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: 借学习 thunk 之机看看 delay-evaluation
 #+DATE: [2021-03-27 Sat]
 

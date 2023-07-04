@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: blog
 #+TITLE: 怎么弄个自己的博客 —— 安装和使用数据库
 #+DATE: [2022-12-11 Sun 23:45]
@@ -574,4 +574,4 @@ REVOKE type_of_permission ON database_name.table_name FROM 'username'@'host';
 虽说本文介绍的是 MySQL，但当我的博客应用完成时也许最终不会使用它，有可能会用更加简单的 SQLite。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/75323183][file:-1.png]]
+[[https://www.pixiv.net/artworks/75323183][file:p1.png]]

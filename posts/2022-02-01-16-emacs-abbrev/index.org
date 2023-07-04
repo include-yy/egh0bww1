@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 #+TITLE: emacs 的 abbrev 使用介绍
 #+DATE: [2022-01-31 Mon 10:59]
@@ -160,4 +160,4 @@ dabbrev 和 abbrev-mode 没有任何关系；使用 =M-/= 进行展开和普通�
 abbrev 这东西在 emacs manual 和 elisp manual 中都有，前者介绍用户界面，后者介绍代码接口。既然两份官方文档中都有，难不成这还是个比较重要的功能？之后有时间了再去看看。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/10675718][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/10675718][file:p1.jpg]]

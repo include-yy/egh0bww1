@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: orgmode
 #+TITLE: org-mode 导出宏：org-macro
 #+DATE: [2023-01-15 Sun 22:57]
 
@@ -572,8 +572,8 @@ include-yy
 以上。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/97473377][file:-1.png]]
+[[https://www.pixiv.net/artworks/97473377][file:p1.png]]
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/73710237][file:-2.jpg]]
+[[https://www.pixiv.net/artworks/73710237][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/62443260][file:-3.jpg]]
+[[https://www.pixiv.net/artworks/62443260][file:p3.jpg]]

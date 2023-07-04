@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 #+TITLE: 在 emacs 中使用模板之 skeleton tempo 和 autoinsert 的使用介绍
 #+DATE: [2022-02-02 Wed 15:54]
@@ -720,8 +720,8 @@ tempo.el 中的注释建议不要在模板的开头使用它，否则会有比�
 - http://blog.jqian.net/post/emacs-skeleton.html
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/49972693][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/49972693][file:p1.jpg]]
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/80299182][file:-2.jpg]]
+[[https://www.pixiv.net/artworks/80299182][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/88521374][file:-3.jpg]]
+[[https://www.pixiv.net/artworks/88521374][file:p3.jpg]]

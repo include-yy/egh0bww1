@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs org_mode
+#+SETUPFILE: ../setup.org
+#+FILETAGS: orgmode
 #+TITLE: 对 org 到 HTML5 导出的补充
 #+DATE: [2023-02-04 Sat 14:08]
 
@@ -337,4 +337,4 @@ hello
 Sacha Chua 的 emacs [[https://sachachua.com/dotemacs/index.html][配置]]值得一看，她的 org 导出设定具有借鉴意义。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/50363027][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/50363027][file:p1.jpg]]

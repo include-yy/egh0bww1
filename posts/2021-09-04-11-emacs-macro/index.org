@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: emacs 的 macro
 #+DATE: [2021-08-21 Sat 09:58]
 
@@ -710,4 +710,4 @@ Still, calling gensym every single time we want a nameless symbol is clunky and 
 | /ansi common lisp/ | Paul Graham |
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/47704780][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/47704780][file:p1.jpg]]

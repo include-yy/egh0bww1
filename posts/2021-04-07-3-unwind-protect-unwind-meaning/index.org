@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
-#+TITLE: unwind-protect的unwind是什么意思
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
+#+TITLE: unwind-protect 的 unwind 是什么意思
 #+DATE: [2021-04-07 Wed]
 
 #+ATTR_HTML: :class top-down-img

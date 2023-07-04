@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: git
 #+TITLE: 怎么写 gitignore
 #+DATE: [2021-01-01 Fri]

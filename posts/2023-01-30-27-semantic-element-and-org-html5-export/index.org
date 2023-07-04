@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: org_mode emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: orgmode
 #+TITLE: 语义元素与 org 的 html5 导出
 #+DATE: [2023-01-26 Thu 20:16]
 
@@ -918,4 +918,4 @@ contextual information."
 在完成了本文后，我距离弄个博客出来的目标又近了一步。在这一系列的下一篇文章中我会介绍如何设置适用于 org-mode 导出的 HTML 文件的 CSS。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/7789482][file:-1.png]]
+[[https://www.pixiv.net/artworks/7789482][file:p1.png]]

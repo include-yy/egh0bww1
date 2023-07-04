@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 
 #+TITLE: Emacs 26 Brings Generators and Threads
@@ -197,5 +197,5 @@ Emacs 26 还为我们带来了线程，这些线程的使用方法非常固定�
 
 接下来我可能会分析一下 emacs 中 generator 的实现。
 
-| [[https://www.pixiv.net/artworks/52424495][file:-2.jpg]] | [[https://www.pixiv.net/artworks/81703594][file:-1.jpg]] |
-| [[https://www.pixiv.net/artworks/54962252][file:-4.jpg]] | [[https://www.pixiv.net/artworks/87979074][file:-3.jpg]] |
+| [[https://www.pixiv.net/artworks/52424495][file:p2.jpg]] | [[https://www.pixiv.net/artworks/81703594][file:p1.jpg]] |
+| [[https://www.pixiv.net/artworks/54962252][file:p4.jpg]] | [[https://www.pixiv.net/artworks/87979074][file:p3.jpg]] |

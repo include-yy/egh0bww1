@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 
 #+TITLE: emacs 的加载机制
@@ -914,5 +914,5 @@ for more details about the different forms of FILE and their semantics."
 
 在下一篇文章中，我会对 emacs 内置的包管理器做一些介绍，不过也说不好，也许是 use-package 呢？
 
-| [[https://www.pixiv.net/artworks/68868289][file:-1.jpg]] | [[https://www.pixiv.net/artworks/28288129][file:-2.jpg]] |
-| [[https://www.pixiv.net/artworks/82193242][file:-3.jpg]] | [[https://www.pixiv.net/artworks/74887022][file:-4.jpg]] |
+| [[https://www.pixiv.net/artworks/68868289][file:p1.jpg]] | [[https://www.pixiv.net/artworks/28288129][file:p2.jpg]] |
+| [[https://www.pixiv.net/artworks/82193242][file:p3.jpg]] | [[https://www.pixiv.net/artworks/74887022][file:p4.jpg]] |

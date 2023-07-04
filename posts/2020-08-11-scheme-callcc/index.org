@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: scheme lisp
+#+SETUPFILE: ../setup.org
+#+FILETAGS: lisp
 #+TITLE: Scheme 的 call/cc
 #+DATE: [2020-08-11 Tue]
 

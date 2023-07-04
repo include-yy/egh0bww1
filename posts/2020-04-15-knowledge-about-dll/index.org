@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: c windows
+#+SETUPFILE: ../setup.org
+#+FILETAGS: win32
 #+TITLE: 有关动态链接库的知识
 #+DATE: [2020-04-15 Wed]
 

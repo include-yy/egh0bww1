@@ -1,6 +1,6 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: windows
-#+TITLE: Win32编程基础之资源
+#+SETUPFILE: ../setup.org
+#+FILETAGS: win32
+#+TITLE: Win32 编程基础之资源
 #+DATE: [2020-07-17 Fri]
 
 #+ATTR_HTML: :class top-down-img

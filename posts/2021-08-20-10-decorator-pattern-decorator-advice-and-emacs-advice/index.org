@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 #+TITLE: decorator pattern, decorator&advice, and emacs advice
 #+DATE: [2021-08-20 Fri]
 
@@ -111,7 +111,6 @@
 	      return fib(1, 0, 0, 1, n);
 	  }
   };
-
 #+END_SRC
 
 现在，我们已经有了可以使用的斐波那契函数，它们分别使用了递归方法，迭代方法和 SICP 上面介绍的一种方法。就像上面我说的，u32 最多只能支持到 fib(47)，也许我们有必要对函数接受的参数进行检查来避免溢出。我们可以直接修改源代码，在函数体开始处加上条件判断来确保参数的合理性，不过根据所谓的开闭原则，直接修改源代码是不太好的行为，我们应当对其进行扩展而不是直接修改。
@@ -134,7 +133,6 @@
    public:
        fib_deco(fib* p): container(p) {}
   };
-
 #+END_SRC
 
 这个装饰器什么也没有做，它只是使用一个私有变量存储了一个 fib 对象，并在调用 calc 方法时使用 container 指向对象的方法。接下来我们在它的基础上定义限制输入的装饰器：
@@ -553,7 +551,6 @@ emacs 提供了两套 api 来为函数添加 advice，其一是使用 advice.el 
   "world"
 
   "!!!"
-
 #+END_SRC
 
 即便会弹出 debugger 告诉你出现了除 0 错误， "Hello world !!!" 还是能够打印出来。
@@ -775,7 +772,6 @@ remove-function 的函数原型是 =(remove-function place function)= ，它将 
 (remove-function (symbol-function 'add3) 'yyy)
 
 (add3 1) => 4
-
 #+END_SRC
 
 上面我使用了 =name= 来指定 advice 的名字，如果不对匿名函数指定一个名字的话，在 lexical-binding 为 non-nil 的情况下，使用原匿名函数的 lambda 表达式作为 remove-function 的函数参数并不能成功删除 advice，但是在 lexical-binding 为 nil 时则可以。这大概是因为在词法作用域下给匿名函数加入了额外的信息，使得两个相同的表达式并不 =equal= 等价。读者可以自己试一试。
@@ -982,7 +978,6 @@ For these reasons, advice should be reserved for the cases where you cannot modi
      (advice-remove 'fact 'fact@yy-fact))
 
   (fact 10) => 3628800
-
 #+END_SRC
 
 上面都是非常简单的例子，我没有演示 depth 的使用，这方面可以参考 defadvice 中的例子。
@@ -998,4 +993,4 @@ For these reasons, advice should be reserved for the cases where you cannot modi
 这大概是我在 2021 年的最后一篇文章了，接下来我可能会非常的忙。看到这里的同学真是辛苦了，我们来年再见。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/33080985][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/33080985][file:p1.jpg]]

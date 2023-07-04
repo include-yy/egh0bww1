@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: emacs
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
 
 #+TITLE: 在 emacs 中进行内联
 #+DATE: [2023-05-03 18:13]
@@ -1517,6 +1517,6 @@ elisp manual [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Eval-Du
 
 感谢阅读。
 
-| [[https://www.pixiv.net/artworks/98819511][file:-1.jpg]] | [[https://www.pixiv.net/artworks/104509853][file:-2.jpg]] | [[https://www.pixiv.net/artworks/95726642][file:-3.jpg]] |
-| [[https://www.pixiv.net/artworks/98176287][file:-4.jpg]] | [[https://www.pixiv.net/artworks/59648670][file:-5.jpg]] | [[https://www.pixiv.net/artworks/41731839][file:-6.jpg]] |
-| [[https://www.pixiv.net/artworks/86068876][file:-7.jpg]] | [[https://www.pixiv.net/artworks/84132594][file:-8.jpg]] | [[https://www.pixiv.net/artworks/99592247][file:-9.jpg]] |
+| [[https://www.pixiv.net/artworks/98819511][file:p1.jpg]] | [[https://www.pixiv.net/artworks/104509853][file:p2.jpg]] | [[https://www.pixiv.net/artworks/95726642][file:p3.jpg]] |
+| [[https://www.pixiv.net/artworks/98176287][file:p4.jpg]] | [[https://www.pixiv.net/artworks/59648670][file:p5.jpg]] | [[https://www.pixiv.net/artworks/41731839][file:p6.jpg]] |
+| [[https://www.pixiv.net/artworks/86068876][file:p7.jpg]] | [[https://www.pixiv.net/artworks/84132594][file:p8.jpg]] | [[https://www.pixiv.net/artworks/99592247][file:p9.jpg]] |

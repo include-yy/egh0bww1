@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: rescript
 #+TITLE: 用 ReScript 写个神经网络 hello world
 #+DATE: [2022-11-11 Fri 21:06]
@@ -1555,4 +1555,4 @@ MNIST 识别代码位于 =Mnist.res= 文件中。
 感谢阅读。
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.fanbox.cc/@bakupa/posts/4688312][file:-1.jpeg]]
+[[https://www.fanbox.cc/@bakupa/posts/4688312][file:p1.jpeg]]
