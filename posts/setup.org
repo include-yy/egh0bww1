@@ -1,0 +1,18 @@
+#+SETUPFILE: ../cfg.org
+
+#+AUTHOR: include-yy
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../../img/rin.ico">
+#+HTML_HEAD: <script src="../../js/copycode.js"></script>
+
+#+HTML_LINK_HOME:../../index.html
+#+HTML_LINK_UP:../index.html
+
+#+HTML_LINK_LNAME: HOME
+#+HTML_LINK_LEFT: ../../index.html
+#+HTML_LINK_RNAME: BLOG
+#+HTML_LINK_RIGHT: ../index.html
+
+#+HTML_SUFFUNC: yynt-post-postamble
+#+HTML_HEAD_FUNC: yynt-post-head

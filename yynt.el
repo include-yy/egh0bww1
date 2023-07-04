@@ -1,4 +1,5 @@
 ;; -*- lexical-binding:t; -*-
+;; obsolete, use yynt2 instead
 
 (defvar t-var-store nil
   "list to store variables' previous value")
@@ -175,6 +176,8 @@
     (when (eq type 'headline)
       (unless user-label
 	(let ((numbers (org-export-get-headline-number datum info)))
+	      ;;(numbers (cdr (assq datum (plist-get info :headline-numbering)))))
+	  ;; 如果 #+OPTIONS: num:nil ，那么 numbers 为空表，这会生成错误的标题 id
 	  (setq user-label (concat "org-h-" (mapconcat #'number-to-string numbers "-"))))))
     (when (org-html-standalone-image-p datum info)
       (unless user-label (setq user-label "")))
