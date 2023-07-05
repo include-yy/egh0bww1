@@ -1,86 +1,80 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+<!-- refs: https://www.runoob.com/rss/rss-syntax.html -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
   <channel>
-    <atom:link href="https://egh0bww1.com/rss.xml" rel="self" type="application/rss+xml"/>
+    <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
-    <title>include-yy :: blog</title>
-    <description>The last ten articles I write</description>
-    <pubDate>2023-05-21 22:34</pubDate>
+    <description>My recent 10 articles</description>
+    <pubDate>2023-07-06T00:42:29</pubDate>
+    <item>
+      <title>emacs 中的数字函数</title>
+      <link>https://egh0bww1.com/posts/2023-06-12-39-emacs-math-functions</link>
+      <description>本文总结了 emacs 中的一些数学函数，方便查找</description>
+      <category>elisp</category>
+      <pubDate>2023-06-12</pubDate>
+    </item>
     <item>
       <title>JSDeferred in Emacs</title>
       <link>https://egh0bww1.com/posts/2023-06-11-38-emacs-async-emacs-deferred</link>
-      <category>emacs</category>
       <description>本文对 JSDeferred 的实现原理进行了简单介绍并在 Emacs 中实现了一个简化版本，同时介绍了已有的实现 deferred.el</description>
+      <category>elisp</category>
       <pubDate>2023-06-11</pubDate>
     </item>
     <item>
       <title>【翻译】Evolution of Emacs Lisp</title>
       <link>https://egh0bww1.com/posts/2023-05-21-37-tr-evolution-of-emacs-lisp</link>
-      <category>emacs</category>
       <description>本文是对 Evolution of Emacs Lisp 这篇论文的翻译，这篇文章详细介绍了 Emacs Lisp 语言近 30 年的发展历程</description>
+      <category>elisp</category>
       <pubDate>2023-05-21</pubDate>
     </item>
     <item>
       <title>在 emacs 中进行内联</title>
       <link>https://egh0bww1.com/posts/2023-05-07-36-emacs-inlining</link>
-      <category>emacs</category>
       <description>本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline</description>
+      <category>elisp</category>
       <pubDate>2023-05-07</pubDate>
     </item>
     <item>
       <title>emacs 的 named-let 使用和实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-05-02-35-emacs-named-let-usage</link>
-      <category>emacs</category>
       <description>本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式</description>
+      <category>elisp</category>
       <pubDate>2023-05-02</pubDate>
     </item>
     <item>
       <title>调用 url-retrieve 时出现的 multibyte text 错误</title>
       <link>https://egh0bww1.com/posts/2023-04-24-34-emacs-url-retrieve-multibyte-error</link>
-      <category>emacs</category>
       <description>本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议</description>
+      <category>emacs</category>
       <pubDate>2023-04-24</pubDate>
     </item>
     <item>
-      <title>emacs generator 使用及其实现介绍</title>
+      <title>emacs generator 使用及实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-04-02-33-emacs-generator</link>
-      <category>emacs</category>
       <description>本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法</description>
+      <category>emacs</category>
       <pubDate>2023-04-02</pubDate>
     </item>
     <item>
       <title>The Lisper -- Matt Might</title>
       <link>https://egh0bww1.com/posts/2023-03-27-the-lisper-matt-might</link>
-      <category>emacs</category>
       <description>本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客</description>
+      <category>lisp</category>
       <pubDate>2023-03-27</pubDate>
     </item>
     <item>
       <title>Emacs 26 Brings Generators and Threads</title>
       <link>https://egh0bww1.com/posts/2023-03-25-32-emacs-26-generator-thread</link>
+      <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成</description>
       <category>emacs</category>
-      <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成。</description>
       <pubDate>2023-03-25</pubDate>
     </item>
     <item>
       <title>如何保存 emacs 当前状态供下次打开时恢复</title>
       <link>https://egh0bww1.com/posts/2023-03-05-31-emacs-restore-buffers</link>
-      <category>emacs</category>
       <description>本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法</description>
+      <category>emacs</category>
       <pubDate>2023-03-05</pubDate>
-    </item>
-    <item>
-      <title>emacs 的加载机制</title>
-      <link>https://egh0bww1.com/posts/2023-03-04-30-emacs-load-mechanism</link>
-      <category>emacs</category>
-      <description>本文是对 elisp manual 16 的讲解和分析，较为完整地介绍了一些加载机制的使用和原理</description>
-      <pubDate>2023-03-04</pubDate>
-    </item>
-    <item>
-      <title>emacs 是如何启动的</title>
-      <link>https://egh0bww1.com/posts/2023-02-23-29-how-emacs-startup</link>
-      <category>emacs</category>
-      <description>本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍。</description>
-      <pubDate>2023-02-23</pubDate>
     </item>
   </channel>
 </rss>

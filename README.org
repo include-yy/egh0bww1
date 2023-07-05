@@ -23,4 +23,7 @@ RSS： https://egh0bww1.com/rss.xml
 
 - [X] 链接改进
 - [X] 处理 filetags
+- [ ] CSS ，页面不足一页，主页浮动条
+- [ ] projecteuler 主页
+- [ ] 完善 readme
 - 构建工具改进

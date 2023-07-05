@@ -77,6 +77,29 @@
 <p class=\"creator\">Creator: %c</p>
 </div>")
 
+;;; euler
+(defun yynt-euler-postamble (_info)
+  "\
+<hr>
+<div id=\"cc-container\">
+<div>
+<p>Created: %d</p>
+<p>Updated: %C</p>
+<p class=\"creator\">Creator: %c</p>
+</div>
+<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
+<img alt=\"CC-BY-SA 4.0\" src=\"../img/by-sa.svg\"></a>
+</div>")
+
+(defun yynt-euler-head (_info)
+  "\
+<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/style.css\">
+<link rel=\"icon\" type=\"image/x-icon\" href=\"../img/rin.ico\">
+<script src=\"../js/copycode.js\"></script>
+<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
+<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
+<link href=\"https://fonts.googleapis.com/css2?family=Roboto&display=swap\" rel=\"stylesheet\">")
+
 ;;; posts start here
 (defun yynt-get-file-info (filename infos)
   "此处只取文件的 4096 字节数据，毕竟标题和 TAG 写在文件的最前面
@@ -290,3 +313,177 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
     (yynt-generate-titlelists
      (seq-take yynt--repost-dir-title-tag num)
      "republish/")))
+
+;; some template for posts, reposts and euler
+;; [YYYY-MM-DD DAY HH:MM]
+(defun yynt-temp-current-time ()
+  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+(defun yynt-temp-post (title tag)
+  (insert (format
+	   "\
+#+SETUPFILE: ../setup.org
+#+FILETAGS: %s\n
+#+TITLE: %s
+#+DATE: %s\n
+#+YYNTRSS:"
+	   tag title
+	   (yynt-temp-current-time))))
+
+(defun yynt-temp-repost ()
+  (insert "\
+#+SETUPFILE: ../setup.org
+#+FILETAGS:\n
+#+TITLE:
+#+DATE:
+#+AUTHOR:\n
+#+BEGIN_aside\n
+#+END_aside\n"))
+
+(defun yynt-temp-euler (num)
+  (interactive)
+  (insert (format
+	   "\
+#+SETUPFILE: ./setup.org\n
+#+TITLE: Problem %s
+#+DATE:\n
+* Problem\n
+*[[https://projecteuler.net/problem=%s]]*\n
+*中文题目*\n
+https://pe-cn.github.io/%s
+* Solution"
+	   num num num)))
+
+;; generate rss file
+(defvar yynt-rss-filepath (concat yynt-basedir "rss.xml")
+  "RSS 文件位置")
+(defvar yynt-rss-link "https://egh0bww1.com"
+  "RSS 网站首页 url")
+(defvar yynt-rss-post-link "https://egh0bww1.com/posts/"
+  "用于 RSS 的网页 url")
+(defvar yynt-rss-post-title "include-yy's blog"
+  "RSS 标题")
+(defvar yynt-rss-post-description "My recent 10 articles"
+  "RSS 内容描述")
+(defun yynt-rss-get-current-time ()
+  "获取当前时间"
+  (format-time-string "%Y-%m-%dT%H:%M:%S"))
+(defvar yynt-rss-post-n 10
+  "在 RSS 中的文章个数")
+
+(defun yynt-rss-generate-chan-header ()
+  "生成 channel 的头部"
+    (format "\
+<title>%s</title>
+<link>%s</link>
+<description>%s</description>
+<pubDate>%s</pubDate>\n"
+	    yynt-rss-post-title
+	    yynt-rss-link
+	    yynt-rss-post-description
+	    (yynt-rss-get-current-time)))
+
+(defun yynt-rss-generate-item (title link desc &optional tag date)
+  "生成 link 内容"
+  (format "<item>
+<title>%s</title>
+<link>%s</link>
+<description>%s</description>%s%s
+</item>"
+	  title link desc
+	  (if tag (format "\n<category>%s</category>" tag) "")
+	  (if date (format "\n<pubDate>%s</pubDate>" date) "")))
+
+;; 使用 yynt-get-post-dir-titles-tags，我们可以获得几乎所有的 post 信息，除了 DESC
+(defun yynt-get-post-rss ()
+  "格式为 ((dir . fpath) . ((\"title\" . title) (\"filtag\" . tag) (\"yyntrss\" . rss)))"
+  (let ((dir-fnames (yynt-get-all-post-files)))
+    (cl-mapcar (lambda (x y) (cons x y))
+	       dir-fnames
+	       (mapcar (lambda (x)
+			 (yynt-get-file-info (cdr x) '("title" "filetags" "yyntrss")))
+		       dir-fnames))))
+
+(defun yynt-rss-generate ()
+  "生成完整的 RSS"
+  (concat
+   "<!-- refs: https://www.runoob.com/rss/rss-syntax.html -->\n"
+   "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
+   "<rss version=\"2.0\">\n"
+   "<channel>\n"
+   (yynt-rss-generate-chan-header)
+   ;; 单个数据格式为 ((dir . fpath) . alist), key:{title, filetags, yyntrss}
+   (mapconcat (lambda (x)
+		(let ((link (concat yynt-rss-post-link (caar x)))
+		      (title (cdr (assoc "title" (cdr x))))
+		      (desc (cdr (assoc "yyntrss" (cdr x))))
+		      (tag (cdr (assoc "filetags" (cdr x))))
+		      (date (substring (caar x) 0 10)))
+		  (if (or (null link) (null title) (null desc))
+		      (error "yynt-rss: %s misses title or description!" (caar x))
+		    (yynt-rss-generate-item title link desc tag date))))
+	      (seq-take (reverse (yynt-get-post-rss)) yynt-rss-post-n) "\n")
+   "\n</channel>\n</rss>"))
+
+(defun yynt-rss-update ()
+  "更新 RSS 文件"
+  (interactive)
+  (with-temp-file yynt-rss-filepath
+    (set-buffer-file-coding-system 'utf-8)
+    (insert (yynt-rss-generate)))
+  (save-current-buffer
+    (set-buffer (find-file-noselect yynt-rss-filepath))
+    (indent-region (point-min) (point-max))
+    (save-buffer)
+    (kill-buffer))
+  (message "update rss fin"))
+
+;; 直接在对应目录创建文件夹和 org 文件
+(defun yynt-create-draft (dirname title tag)
+  "在 draft 目录创建新的草稿"
+  (interactive (list (read-from-minibuffer "Enter dirname: ")
+		     (read-from-minibuffer "Enter title: ")
+		     (completing-read "Select tag: " (yynt--post-read-tags))))
+  (let ((dirpath (concat yynt-basedir "drafts/"
+			 (format-time-string "%Y-%m-%d-")
+			 dirname)))
+    (make-directory dirpath)
+    (find-file (concat dirpath "/index.org"))
+    (yynt-temp-post title tag)))
+
+(defun yynt-publish-draft (dirpath)
+  "将当前所在草稿 org 文件所在文件夹发布到 post"
+  (interactive (list default-directory))
+  (if (not (string-match-p (concat yynt-basedir "drafts")
+			   dirpath))
+      (message "currently not in draft source file, quit")
+    (let ((newdir (concat yynt-basedir "posts/"
+			  (format-time-string "%Y-%m-%d-")
+			  (substring (file-relative-name
+				      dirpath
+				      (concat yynt-basedir "drafts"))
+				     11))))
+      (copy-directory dirpath newdir t t t)
+      (find-file (concat newdir "/index.org"))
+      (set-buffer-file-coding-system 'utf-8)
+      (message "publish draft fin"))))
+
+(defun yynt-create-repost (dirname)
+  "创建新的 republish 文件夹"
+  (interactive (list (read-from-minibuffer "Enter dirname: ")))
+  (let ((dirpath (concat yynt-basedir "republish/"
+			 (format-time-string "%Y-%m-%d-")
+			 dirname)))
+    (make-directory dirpath)
+    (find-file (concat dirpath "/index.org"))
+    (set-buffer-file-coding-system 'utf-8)
+    (yynt-temp-repost)))
+
+(defun yynt-create-euler (number)
+  "创建新的 projecteuler 文件"
+  (interactive (list (read-from-minibuffer "Enter problem Number: ")))
+  (let ((filepath (concat yynt-basedir "projecteuler/"
+			  number ".org")))
+    (find-file filepath)
+    (set-buffer-file-coding-system 'utf-8)
+    (unless (file-exists-p filepath)
+      (yynt-temp-euler number))))
