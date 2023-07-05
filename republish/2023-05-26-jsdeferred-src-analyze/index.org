@@ -1,7 +1,7 @@
-#+SETUPFILE: ../../setup_re.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: js
 
-#+TITLE: JS魔法堂：jsDeferred源码剖析
+#+TITLE: JS 魔法堂：jsDeferred 源码剖析
 #+AUTHOR: ^_^肥仔John
 #+DATE: [2014-12-05 Fri 13:33]
 

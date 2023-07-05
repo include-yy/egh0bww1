@@ -1,62 +1,29 @@
-#+OPTIONS: toc:nil
-#+OPTIONS: ^:{}
+#+SETUPFILE: ../cfg.org
 #+OPTIONS: num:nil
-
-# html5
-#+HTML_DOCTYPE: html5
-#+HTML_CONTAINER: section
-#+OPTIONS: html5-fancy:t
-#+OPTIONS: html-style:nil
-#+OPTIONS: html-preamble:nil
-#+OPTIONS: html-postamble:nil
 
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
 #+HTML_LINK_UP:./index.html
 #+HTML_LINK_HOME:../index.html
+#+HTML_LINK_FUNC: yynt-repost-home/up-func
+#+HTML_SUFFUNC: yynt-repost-index-postamble
 
-# ROBOTO
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+#+MACRO: re_init  (eval (yynt-repost-init))
+#+MACRO: re_clr   (eval (yynt-repost-clr))
+#+MACRO: re_all   (eval (yynt-repost-titlelists))
+#+MACRO: re_total (eval (yynt-repost-total))
 
 #+TITLE: include-yy :: republish
-
+{{{re_init}}}
 
 #+ATTR_HTML: :class top-down-img :id lily
-[[./0.jpg]]
+[[../img/repost-0.jpg]]
 
-#+BEGIN_EXPORT html
-<script>
-let lily = document.getElementById("lily")
-let flag = 0;
-
-lily.onclick = () => {
-    if (flag == 0) {
-	lily.src = "./1.jpg"
-	flag = 1
-    } else {
-        lily.src = "./0.jpg"
-        flag = 0
-    }
-}
-</script>
-#+END_EXPORT
+Total number of republish article is {{{re_total}}}.
 
 * 目录
-- [2023-06-07] [[file:2023-06-07-select-poll-epoll/index.org][【操作系统】I/O 多路复用，select/poll/epoll 详解]]
-- [2023-06-06] [[file:2023-06-06-os-process-schedule/index.org][【操作系统】进程的调度、僵尸进程/孤儿进程/守护进程]]
-- [2023-06-05] [[file:2023-06-05-os-trap-interrupt-exception/index.org][【操作系统】陷阱、中断、异常、信号]]
-- [2023-06-04] [[file:2023-06-04-os-ipc-ways/index.org][【操作系统】进程间的通信方式]]
-- [2023-06-03] [[file:2023-06-03-block-sync-async-os/index.org][【操作系统】详解阻塞、非阻塞、同步、异步]]
-- [2023-06-01] [[file:2023-06-01-jsdeferred/index.html][JSDeferred]]
-- [2023-05-28] [[file:2023-05-28-js-arch-design-12-async-notes/index.org][JS读书心得：《JavaScript框架设计》——第12章 异步处理]]
-- [2023-05-27] [[file:2023-05-27-promise-a-spec-analyze/index.org][JS魔法堂：剖析源码理解Promises/A规范]]
-- [2023-05-26] [[file:2023-05-26-jsdeferred-src-analyze/index.org][JS魔法堂：jsDeferred源码剖析]]
-- [2023-04-09] [[file:2023-04-09-5-yinwang-programming-philosophy/index.org][编程的智慧]]
-- [2023-04-09] [[file:2023-04-09-4-yinwang-turing/index.org][图灵的光环]]
-- [2023-04-09] [[file:2023-04-09-3-yinwang-authority/index.org][我和权威的故事]]
-- [2023-04-09] [[file:2023-04-09-2-yinwang-chez-scheme/index.org][Chez Scheme 的传说]]
-- [2023-04-09] [[file:2023-04-09-1-yinwang-dan-friedman/index.org][GTF -- Great Teacher Friedman]]
-- [2023-03-23] [[file:2023-03-23-implementing-remote-procedure-calls/index.org][Implementing Remote Procedure Call]]
-- [2023-02-14] [[file:2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][康托尔、哥德尔、图灵——永恒的金色对角线]]
+
+{{{re_all}}}
+
+{{{re_clr}}}

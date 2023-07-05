@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup_re.org
-#+FILETAGS: blog
+#+SETUPFILE: ../setup.org
+#+FILETAGS: os
 
 #+TITLE: 【操作系统】进程间的通信方式
 #+DATE: [2020-02-26 Wed]

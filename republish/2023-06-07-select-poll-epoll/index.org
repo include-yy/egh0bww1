@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup_re.org
-#+FILETAGS: blog
+#+SETUPFILE: ../setup.org
+#+FILETAGS: os
 
 #+TITLE: 【操作系统】I/O 多路复用，select/poll/epoll 详解
 #+DATE: [2020-02-27 Thu]

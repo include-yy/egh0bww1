@@ -1,5 +1,5 @@
 #+SETUPFILE: ../setup.org
-#+FILETAG: win32
+#+FILETAGS: win32
 #+TITLE: Win32 编程基础之鼠标输入
 #+DATE: [2020-07-11 Sat]
 

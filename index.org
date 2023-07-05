@@ -1,24 +1,23 @@
-#+OPTIONS: toc:nil
-#+OPTIONS: ^:{}
+#+SETUPFILE: ./cfg.org
+
 #+OPTIONS: num:nil
-
-# html5
-#+HTML_DOCTYPE: html5
-#+HTML_CONTAINER: section
-#+OPTIONS: html5-fancy:t
-#+OPTIONS: html-style:nil
-#+OPTIONS: html-preamble:nil
-#+OPTIONS: html-postamble:nil
-
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
 
-# ROBOTO
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+#+HTML_SUFFUNC: yynt-homepage-postamble
+
+#+MACRO: post_n    (eval (yynt-post-homepage-titlelists $1))
+#+MACRO: post_init (eval (yynt-post-init))
+#+MACRO: post_clr  (eval (yynt-post-clr))
+
+#+MACRO: re_n    (eval (yynt-repost-homepage-titlelists $1))
+#+MACRO: re_init (eval (yynt-repost-init))
+#+MACRO: re_clr  (eval (yynt-repost-clr))
 
 #+TITLE: Home :: include-yy
+
+{{{post_init}}}
+{{{re_init}}}
 
 #+ATTR_HTML: :class top-down-img :id cirno
 [[./img/cirno.jpg]]
@@ -41,47 +40,14 @@ cirno.onclick = () => {
 #+END_EXPORT
 
 * Recent [[./posts/index.org][Posts]]
-- [2023-06-12 Mon]  [[file:posts/2023-06-12-39-emacs-math-functions/index.org][emacs 中的数字函数]]
-- [2023-06-11 Sun]  [[file:posts/2023-06-11-38-emacs-async-emacs-deferred/index.org][JSDeferred in Emacs]]
-- [2023-05-21 Sun]  [[file:posts/2023-05-21-37-tr-evolution-of-emacs-lisp/index.org][【翻译】Evolution of Emacs Lisp]]
-- [2023-05-07 Sun]  [[file:posts/2023-05-07-36-emacs-inlining/index.org][在 emacs 中进行内联]]
-- [2023-05-02 Tue]  [[file:posts/2023-05-02-35-emacs-named-let-usage/index.org][emacs 的 named-let 使用和实现介绍]]
-- [2023-04-24 Mon]  [[file:posts/2023-04-24-34-emacs-url-retrieve-multibyte-error/index.org][调用 url-retrieve 时出现的 multibyte text 错误]]
-- [2023-04-02 Sun]  [[file:posts/2023-04-02-33-emacs-generator/index.org][emacs generator 使用及其实现介绍]]
-- [2023-03-27 Mon]  [[file:posts/2023-03-27-the-lisper-matt-might/index.org][The Lisper -- Matt Might]]
-- [2023-03-25 Sat]  [[file:posts/2023-03-25-32-emacs-26-generator-thread/index.org][Emacs 26 Brings Generators and Threads]]
-- [2023-03-05 Sun]  [[file:posts/2023-03-05-31-emacs-restore-buffers/index.org][如何保存 emacs 当前状态供下次打开时恢复]]
-- [2023-03-04 Sat]  [[file:posts/2023-03-04-30-emacs-load-mechanism/index.org][emacs 的加载机制]]
-- [2023-02-23 Thu]  [[file:posts/2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
-- [2023-02-17 Fri]  [[file:posts/2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
-- [2023-02-05 Sun]  [[file:posts/2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
-- [2023-01-30 Mon]  [[file:posts/2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
-- [2023-01-26 Thu]  [[file:posts/2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
-- [2023-01-22 Sun]  [[file:posts/2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
-- [2023-01-17 Tue]  [[file:posts/2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
-- [2023-01-15 Sun]  [[file:posts/2023-01-15-make-me-a-blog-from-html-to-blog/index.html][怎么弄个自己的 blog —— 从 HTML 到博客]]
-- [2023-01-12 Thu]  [[file:posts/2023-01-12-make-me-a-blog-wrong-way/index.org][怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏]]
-- [2022-12-19 Mon]  [[file:posts/2022-12-19-make-me-a-blog-install-database/index.org][怎么弄个自己的博客 —— 安装和使用数据库]]
-- [2022-12-15 Thu]  [[file:posts/2022-12-15-tr-why-lsp/index.org][【翻译】Why LSP?]]
-- [2022-12-11 Sun]  [[file:posts/2022-12-11-tr-introduction-to-databases/index.org][【翻译】Introduction to Databases]]
+
+{{{post_n(10)}}}
+{{{post_clr}}}
 
 * Recent [[file:republish/index.org][Republish]]
-- [2023-06-07] [[file:republish/2023-06-07-select-poll-epoll/index.org][【操作系统】I/O 多路复用，select/poll/epoll 详解]]
-- [2023-06-06] [[file:republish/2023-06-06-os-process-schedule/index.org][【操作系统】进程的调度、僵尸进程/孤儿进程/守护进程]]
-- [2023-06-05] [[file:republish/2023-06-05-os-trap-interrupt-exception/index.org][【操作系统】陷阱、中断、异常、信号]]
-- [2023-06-04] [[file:republish/2023-06-04-os-ipc-ways/index.org][【操作系统】进程间的通信方式]]
-- [2023-06-03] [[file:republish/2023-06-03-block-sync-async-os/index.org][【操作系统】详解阻塞、非阻塞、同步、异步]]
-- [2023-06-01] [[file:republish/2023-06-01-jsdeferred/index.html][JSDeferred]]
-- [2023-05-28] [[file:republish/2023-05-28-js-arch-design-12-async-notes/index.org][JS读书心得：《JavaScript框架设计》——第12章 异步处理]]
-- [2023-05-27] [[file:republish/2023-05-27-promise-a-spec-analyze/index.org][JS魔法堂：剖析源码理解Promises/A规范]]
-- [2023-05-26] [[file:republish/2023-05-26-jsdeferred-src-analyze/index.org][JS魔法堂：jsDeferred源码剖析]]
-- [2023-04-09] [[file:republish/2023-04-09-5-yinwang-programming-philosophy/index.org][编程的智慧]]
-- [2023-04-09] [[file:republish/2023-04-09-4-yinwang-turing/index.org][图灵的光环]]
-- [2023-04-09] [[file:republish/2023-04-09-3-yinwang-authority/index.org][我和权威的故事]]
-- [2023-04-09] [[file:republish/2023-04-09-2-yinwang-chez-scheme/index.org][Chez Scheme 的传说]]
-- [2023-04-09] [[file:republish/2023-04-09-1-yinwang-dan-friedman/index.org][GTF -- Great Teacher Friedman]]
-- [2023-03-23] [[file:republish/2023-03-23-implementing-remote-procedure-calls/index.org][Implementing Remote Procedure Call]]
-- [2023-02-14] [[file:republish/2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][康托尔、哥德尔、图灵——永恒的金色对角线]]
+
+{{{re_n(5)}}}
+{{{re_clr}}}
 
 * [[file:rss.xml][RSS]]
 

@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup_re.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: rpc
 
 #+MACRO: red @@html:<span style="color:red">$1</span>@@

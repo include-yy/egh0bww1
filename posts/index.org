@@ -1,30 +1,31 @@
-#+OPTIONS: toc:nil
-#+OPTIONS: ^:{}
-#+OPTIONS: num:nil
+#+SETUPFILE: ../cfg.org
 
-# html5
-#+HTML_DOCTYPE: html5
-#+HTML_CONTAINER: section
-#+OPTIONS: html5-fancy:t
-#+OPTIONS: html-style:nil
-#+OPTIONS: html-preamble:nil
-#+OPTIONS: html-postamble:nil
+#+OPTIONS: num:nil
+#+HTML_SUFFUNC: yynt-post-index-postamble
 
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
 #+HTML_LINK_UP:./index.html
 #+HTML_LINK_HOME:../index.html
+#+HTML_LINK_LNAME: HOME
+#+HTML_LINK_LEFT: ../index.html
+#+HTML_LINK_RNAME: TAGS
+#+HTML_LINK_RIGHT: ./tags.html
 
-# ROBOTO
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+#+MACRO: arch_init  (eval (yynt-post-init))
+#+MACRO: arch_clr   (eval (yynt-post-clr))
+#+MACRO: arch_year  (eval (yynt-post-year-titlelists $1))
+#+MACRO: arch_num   (eval (yynt-post-year-num $1))
+#+MACRO: arch_total (eval (yynt-post-total))
+
+{{{arch_init}}}
 
 #+TITLE: include-yy :: blog
 
 #+ATTR_HTML: :class top-down-img :id cirno
 #+CAPTION: https://www.pixiv.net/artworks/104647968
-[[./light.jpg]]
+[[../img/post-light.jpg]]
 
 #+BEGIN_EXPORT html
 <script>
@@ -33,100 +34,43 @@ let flag = 0;
 
 cirno.onclick = () => {
     if (flag == 0) {
-	cirno.src = "./dark.jpg"
+	cirno.src = "../img/post-dark.jpg"
 	flag = 1
     } else if (flag == 1) {
-	cirno.src = "./0.jpg"
+	cirno.src = "../img/post-0.jpg"
 	flag = 2
     } else {
-        cirno.src = "./light.jpg"
+        cirno.src = "../img/post-light.jpg"
         flag = 0
     }
 }
 </script>
 #+END_EXPORT
 
-* 目录
-- [2023-06-12 Mon]  [[file:2023-06-12-39-emacs-math-functions/index.org][emacs 中的数字函数]]
-- [2023-06-11 Sun]  [[file:2023-06-11-38-emacs-async-emacs-deferred/index.org][JSDeferred in Emacs]]
-- [2023-05-21 Sun]  [[file:2023-05-21-37-tr-evolution-of-emacs-lisp/index.org][【翻译】Evolution of Emacs Lisp]]
-- [2023-05-07 Sun]  [[file:2023-05-07-36-emacs-inlining/index.org][在 emacs 中进行内联]]
-- [2023-05-02 Tue]  [[file:2023-05-02-35-emacs-named-let-usage/index.org][emacs 的 named-let 使用和实现介绍]]
-- [2023-04-24 Mon]  [[file:2023-04-24-34-emacs-url-retrieve-multibyte-error/index.org][调用 url-retrieve 时出现的 multibyte text 错误]]
-- [2023-04-02 Sun]  [[file:2023-04-02-33-emacs-generator/index.org][emacs generator 使用及其实现介绍]]
-- [2023-03-27 Mon]  [[file:2023-03-27-the-lisper-matt-might/index.org][The Lisper -- Matt Might]]
-- [2023-03-25 Sat]  [[file:2023-03-25-32-emacs-26-generator-thread/index.org][Emacs 26 Brings Generators and Threads]]
-- [2023-03-05 Sun]  [[file:2023-03-05-31-emacs-restore-buffers/index.org][如何保存 emasc 当前状态供下次打开时恢复]]
-- [2023-03-04 Sat]  [[file:2023-03-04-30-emacs-load-mechanism/index.org][emacs 的加载机制]]
-- [2023-02-23 Thu]  [[file:2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
-- [2023-02-17 Fri]  [[file:2023-02-17-use-others-work-properly/index.org][如何正确地使用别人的作品]]
-- [2023-02-05 Sun]  [[file:2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
-- [2023-01-30 Mon]  [[file:2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
-- [2023-01-26 Thu]  [[file:2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
-- [2023-01-22 Sun]  [[file:2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
-- [2023-01-17 Tue]  [[file:2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
-- [2023-01-15 Sun]  [[file:2023-01-15-make-me-a-blog-from-html-to-blog/index.html][怎么弄个自己的 blog —— 从 HTML 到博客]]
-- [2023-01-12 Thu]  [[file:2023-01-12-make-me-a-blog-wrong-way/index.org][怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏]]
-- [2022-12-19 Mon]  [[file:2022-12-19-make-me-a-blog-install-database/index.org][怎么弄个自己的博客 —— 安装和使用数据库]]
-- [2022-12-15 Thu]  [[file:2022-12-15-tr-why-lsp/index.org][【翻译】Why LSP?]]
-- [2022-12-11 Sun]  [[file:2022-12-11-tr-introduction-to-databases/index.org][【翻译】Introduction to Databases]]
-- [2022-12-06 Tue]  [[file:2022-12-06-make-me-a-blog-install-http-server/index.org][怎么弄个自己的 blog —— 安装和使用 HTTP 服务器]]
-- [2022-11-27 Sun]  [[file:2022-11-27-rescript-neural-network-helloworld/index.org][用 ReScript 写个神经网络 hello world]]
-- [2022-10-11 Tue]  [[file:2022-10-11-make-me-a-blog/index.org][怎么弄个自己的 blog]]
-- [2022-10-07 Fri]  [[file:2022-10-07-23-elisp-play-brainfuck-i/index.org][用 elisp 玩 brainfuck Ⅰ]]
-- [2022-09-09 Fri]  [[file:2022-09-09-22-emacs-symbol-implement/index.org][emacs的symbol类型及其实现]]
-- [2022-08-31 Wed]  [[file:2022-08-31-21-emacs-template-skeleton-tempo-autoinsert-intro/index.org][在 emacs 中使用模板之 skeleton tempo 和 autoinsert 的使用介绍]]
-- [2022-08-03 Wed]  [[file:2022-08-03-20-use-org-mode-manage-bookmarks/index.org][使用 org-mode 管理浏览器书签]]
-- [2022-07-04 Mon]  [[file:2022-07-04-four-year-college-life/index.org][我的大学四年的一个总结]]
-- [2022-06-26 Sun]  [[file:2022-06-26-19-understand-backquote/index.org][关于 backquote 理解的一个汇总与总结]]
-- [2022-03-17 Thu]  [[file:2022-03-17-18-buffer-manage-ibuffer-usage/index.org][buffer 管理和 ibuffer 的介绍与使用]]
-- [2022-02-22 Tue]  [[file:2022-02-22-17-setf-CL-five-gangs-elisp-high-order-approach/index.org][setf 之 CL 的 five gangs 与 elisp 的 high-order approach]]
-- [2022-02-01 Tue]  [[file:2022-02-01-16-emacs-abbrev/index.org][emacs 的 abbrev 使用介绍]]
-- [2022-01-24 Mon]  [[file:2022-01-24-15-emacs-hashtable-multi-value/index.org][emacs 中的哈希表与多值返回]]
-- [2021-12-01 Wed]  [[file:2021-12-01-FFT-notes/index.org][FFT 小记]]
-- [2021-10-25 Mon]  [[file:2021-10-25-14-butterfly-emacs-animation/index.org][蝴蝶效应与 emacs 动画]]
-- [2021-10-04 Mon]  [[file:2021-10-04-13-emacs-list-functions/index.org][emacs 中的 list 函数]]
-- [2021-09-24 Fri]  [[file:2021-09-24-12-emacs-byte-compilation/index.org][emacs 的 byte compilation]]
-- [2021-09-04 Sat]  [[file:2021-09-04-11-emacs-macro/index.org][emacs 的 macro]]
-- [2021-08-20 Fri]  [[file:2021-08-20-10-decorator-pattern-decorator-advice-and-emacs-advice/index.org][decorator pattern, decorator&advice, and emacs advice]]
-- [2021-07-29 Thu]  [[file:2021-07-29-9-use-emacs-as-app-launcher/index.org][使用emacs作为app启动器]]
-- [2021-07-04 Sun]  [[file:2021-07-04-8-bug-debugging-and-debugger-and-also-edebug/index.org][bug, debugging, and debugger, and also edebug]]
-- [2021-06-18 Fri]  [[file:2021-06-18-7-emacs-customization/index.org][emacs 的 customization]]
-- [2021-06-11 Fri]  [[file:2021-06-11-6-dsl-cl-loop/index.org][什么是 dsl 和作为 dsl 的 cl-loop]]
-- [2021-05-28 Fri]  [[file:2021-05-28-5-emacs-cl-lib/index.org][emacs 的 cl 扩展]]
-- [2021-04-17 Sat]  [[file:2021-04-17-4-scope-summary/index.org][关于作用域的一个小结]]
-- [2021-04-07 Wed]  [[file:2021-04-07-3-unwind-protect-unwind-meaning/index.org][unwind-protect的unwind是什么意思]]
-- [2021-03-27 Sat]  [[file:2021-03-27-2-thunk-delay-evaluation/index.org][借学习 thunk 之机看看 delay-evaluation]]
-- [2021-03-22 Mon]  [[file:2021-03-22-1-scheme-elisp-self-apply-difference/index.org][由 (λ(x)(x x)) 看 elisp 与 scheme 之区别]]
-- [2021-03-21 Sun]  [[file:2021-03-21-0-start-my-emacs-config/index.org][我的从 0 开始的 emacs 配置]]
-- [2021-02-28 Sun]  [[file:2021-02-28-win32-basic-button/index.org][Win32编程基础之按钮控件]]
-- [2021-01-25 Mon]  [[file:2021-01-25-c-string-problem/index.org][C 的字符串有哪些问题]]
-- [2021-01-01 Fri]  [[file:2021-01-01-how-to-write-gitignore/index.org][怎么写 gitignore]]
-- [2020-10-04 Sun]  [[file:2020-10-04-thought-about-automatiom/index.org][现在我所能看到的自动化专业]]
-- [2020-09-14 Mon]  [[file:2020-09-14-thought-programming-computer/index.org][我所认识的编程与计算机]]
-- [2020-09-09 Wed]  [[file:2020-09-09-scheme-syntax-rules/index.org][Scheme的syntax-rules]]
-- [2020-08-11 Tue]  [[file:2020-08-11-scheme-callcc/index.org][Scheme 的 call/cc]]
-- [2020-07-17 Fri]  [[file:2020-07-17-win32-basic-resource/index.org][Win32编程基础之资源]]
-- [2020-07-14 Tue]  [[file:2020-07-14-win32-basic-scroll-bar/index.org][Win32编程基础之滚动条]]
-- [2020-07-14 Tue]  [[file:2020-07-14-win32-basic-controls/index.org][Win32编程基础之控件]]
-- [2020-07-13 Mon]  [[file:2020-07-13-win32-basic-keyboard-input/index.org][Win32编程基础之键盘输入]]
-- [2020-07-11 Sat]  [[file:2020-07-11-win32-basic-mouse-input/index.org][Win32编程基础之鼠标输入]]
-- [2020-07-09 Thu]  [[file:2020-07-09-windows-window-message-hook/index.org][Windows窗口与消息：钩子]]
-- [2020-07-01 Wed]  [[file:2020-07-01-windows-window-message-window-property/index.org][Windows窗口与消息：窗口属性]]
-- [2020-06-26 Fri]  [[file:2020-06-26-windows-window-message-timer/index.org][Windows窗口与消息：计时器]]
-- [2020-06-25 Thu]  [[file:2020-06-25-windows-window-message-queue/index.org][Windows窗口与消息：消息与消息队列]]
-- [2020-06-24 Wed]  [[file:2020-06-24-windows-window-message-wndproc/index.org][WIndows窗口与消息：窗口过程]]
-- [2020-06-22 Mon]  [[file:2020-06-22-windows-window-message-window-class/index.org][Windows窗口与消息：窗口类]]
-- [2020-06-17 Wed]  [[file:2020-06-17-windows-console-and-app/index.org][Windows的控制台和控制台应用]]
-- [2020-06-15 Mon]  [[file:2020-06-15-write-a-c-library-part5/index.org][写个C库-part5]]
-- [2020-06-14 Sun]  [[file:2020-06-14-write-a-c-library-part4/index.org][写个C库-part4]]
-- [2020-06-03 Wed]  [[file:2020-06-03-write-a-c-library-part3/index.org][写个C库-part3]]
-- [2020-05-31 Sun]  [[file:2020-05-31-write-a-c-library-part2/index.org][写个C库-part2]]
-- [2020-05-18 Mon]  [[file:2020-05-18-write-a-c-library-part1/index.org][写个C库-part1]]
-- [2020-05-06 Wed]  [[file:2020-05-06-what-is-base64/index.org][什么是base64编码]]
-- [2020-04-15 Wed]  [[file:2020-04-15-knowledge-about-dll/index.org][有关动态链接库的知识]]
-- [2020-03-29 Sun]  [[file:2020-03-29-fourier-series-and-transform/index.org][傅里叶级数与傅里叶变换]]
-- [2020-03-19 Thu]  [[file:2020-03-19-common-linear-diff-eq-solution/index.org][常见线性常微分方程的解法]]
-- [2020-03-05 Thu]  [[file:2020-03-05-bool-function-express-and-simplify/index.org][布尔函数的表示与化简]]
-- [2020-03-02 Mon]  [[file:2020-03-02-c-style-string-pitfalls-and-improve/index.org][C风格字符串缺陷及改进]]
-- [2019-03-18 Mon]  [[file:2019-03-18-1-div-chx-n-int/index.org][1 / chx^n 形式的不定积分]]
+Total number of articles: {{{arch_total}}}
+
+#+BEGIN_nav
+| [[IIIII][2023]] | [[IIII][2022]] | [[III][2021]] | [[II][2020]] | [[I][2019]] |
+#+END_nav
+
+* 2023 <<IIIII>> {{{arch_num(2023)}}}
+
+{{{arch_year(2023)}}}
+
+* 2022 <<IIII>> {{{arch_num(2022)}}}
+
+{{{arch_year(2022)}}}
+
+* 2021 <<III>> {{{arch_num(2021)}}}
+
+{{{arch_year(2021)}}}
+
+* 2020 <<II>> {{{arch_num(2020)}}}
+
+{{{arch_year(2020)}}}
+
+* 2019 <<I>> {{{arch_num(2019)}}}
+
+{{{arch_year(2019)}}}
+
+{{{arch_clr}}}

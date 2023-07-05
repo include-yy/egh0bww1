@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup_re.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: blog
 
 #+TITLE: GTF -- Great Teacher Friedman

@@ -1,0 +1,78 @@
+#+SETUPFILE: ../cfg.org
+
+#+OPTIONS: num:nil
+#+HTML_SUFFUNC: yynt-post-index-postamble
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
+#+HTML_LINK_UP:./index.html
+#+HTML_LINK_HOME:../index.html
+#+HTML_LINK_LNAME: HOME
+#+HTML_LINK_LEFT: ../index.html
+#+HTML_LINK_RNAME: ARCH
+#+HTML_LINK_RIGHT: ./index.html
+
+#+MACRO: arch_init (eval (yynt-post-init))
+#+MACRO: arch_clr  (eval (yynt-post-clr))
+#+MACRO: arch_tag  (eval (yynt-post-tag-titlelists $1))
+#+MACRO: arch_num  (eval (yynt-post-tag-num $1))
+#+MACRO: arch_total (eval (yynt-post-tag-total))
+
+#+TITLE: include-yy :: blog :: tags
+{{{arch_init}}}
+
+#+ATTR_HTML: :class top-down-img
+[[../img/post-lily.jpg]]
+
+{{{toc}}}
+
+Total number of tag is {{{arch_total}}}.
+
+* elisp {{{arch_num(elisp)}}}
+
+一些和 elisp 语言相关的文章。
+
+{{{arch_tag(elisp)}}}
+
+* emacs {{{arch_num(emacs)}}}
+
+一些和 emacs 相关的文章，与 elisp 标签的不同之处在于它们更关心 emacs 本身的功能而不是 elisp 编程。
+
+{{{arch_tag(emacs)}}}
+
+* 闲扯 {{{arch_num(gossip)}}}
+
+一些杂谈和胡思乱想。
+
+{{{arch_tag(gossip)}}}
+
+* lisp {{{arch_num(lisp)}}}
+
+和 Lisp 相关（比如 CL 和 Scheme）但不属于 elisp 的文章。
+
+{{{arch_tag(lisp)}}}
+
+* org mode {{{arch_num(orgmode)}}}
+{{{arch_tag(orgmode)}}}
+* tr {{{arch_num(tr)}}}
+
+一些英文文章的翻译。
+
+{{{arch_tag(tr)}}}
+* blog {{{arch_num(blog)}}}
+{{{arch_tag(blog)}}}
+* math {{{arch_num(math)}}}
+{{{arch_tag(math)}}}
+* win32 {{{arch_num(win32)}}}
+
+一些 Win32 API 折腾笔记。现在请不要花时间在这堆过时的 API 上了，除非你是考古学家。
+
+{{{arch_tag(win32)}}}
+* others
+** c {{{arch_num(c)}}}
+{{{arch_tag(c)}}}
+** git {{{arch_num(git)}}}
+{{{arch_tag(git)}}}
+** rescript {{{arch_num(rescript)}}}
+{{{arch_tag(rescript)}}}

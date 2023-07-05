@@ -8,7 +8,6 @@
 #+OPTIONS: html-preamble:t
 #+OPTIONS: html-postamble:t
 
-#+MACRO: cfg #+SETUPFILE: ../setup.org
 #+MACRO: toc #+TOC: headlines 2
 #+MACRO: q @@html:<q>$1</q>@@
 #+MACRO: br @@html:<br>@@

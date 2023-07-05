@@ -1,17 +1,17 @@
-#+SETUPFILE: ../../setup_re.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: js
 
-#+TITLE: JS魔法堂：剖析源码理解Promises/A规范
+#+TITLE: JS 魔法堂：剖析源码理解 Promises/A 规范
 #+AUTHOR: ^_^肥仔John
 #+DATE: [2014-12-02 Tue 15:27]
+
+#+MACRO: red @@html:<span style="color:red">$1</span>@@
 
 #+BEGIN_aside
 本文转载自 ^_^肥仔John 的文章，介绍了 JS 中的 Promises/A 规范以及部分实现。
 
 文章地址：https://www.cnblogs.com/fsjohnhuang/p/4135149.html
 #+END_aside
-
-#+MACRO: red @@html:<span style="color:red">$1</span>@@
 
 * 前言
 

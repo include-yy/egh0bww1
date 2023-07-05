@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup_re.org
-#+FILETAGS: blog
+#+SETUPFILE: ../setup.org
+#+FILETAGS: os
 
 #+TITLE: 【操作系统】详解阻塞、非阻塞、同步、异步
 #+DATE: [2019-11-15 Fri]

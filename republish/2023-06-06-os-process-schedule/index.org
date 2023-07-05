@@ -1,5 +1,5 @@
-#+SETUPFILE: ../../setup_re.org
-#+FILETAGS: blog
+#+SETUPFILE: ../setup.org
+#+FILETAGS: os
 
 #+TITLE: 【操作系统】进程的调度、僵尸进程/孤儿进程/守护进程
 #+DATE: [2020-07-07 Tue]
@@ -150,5 +150,3 @@ Linux 将进程的阻塞状态进一步细分为：暂停、浅睡眠、深睡�
 ** 守护进程
 
 守护进程（英语：daemon，英语发音：/ˈdiːmən/或英语发音：/ˈdeɪmən/）是一种 *在后台执行* 的电脑程序。此类程序会被以进程的形式初始化。
-
-
