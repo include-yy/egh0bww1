@@ -4,6 +4,8 @@
 #+TITLE: JSDeferred in Emacs
 #+DATE: [2023-05-26 Fri 03:12]
 
+#+YYNTRSS: 本文对 JSDeferred 的实现原理进行了简单介绍并在 Emacs 中实现了一个简化版本，同时介绍了已有的实现 deferred.el
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/108536972][file:0.jpg]]
 

@@ -4,6 +4,8 @@
 #+TITLE: emacs 是如何启动的
 #+DATE: [2023-02-19 Sun 00:57]
 
+#+YYNTRSS: 本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/92158159][file:0.jpg]]
 

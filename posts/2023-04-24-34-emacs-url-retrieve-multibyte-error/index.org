@@ -4,6 +4,8 @@
 #+TITLE: 调用 url-retrieve 时出现的 multibyte text 错误
 #+DATE: [2023-04-24 16:34]
 
+#+YYNTRSS: 本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/107485378][file:0.jpg]]
 

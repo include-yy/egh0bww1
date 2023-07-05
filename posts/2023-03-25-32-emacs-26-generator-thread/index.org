@@ -4,6 +4,8 @@
 #+TITLE: Emacs 26 Brings Generators and Threads
 #+DATE: [2023-03-24 Fri 21:42]
 
+#+YYNTRSS: 本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76724761][file:0.jpg]]
 

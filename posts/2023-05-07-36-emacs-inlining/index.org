@@ -4,6 +4,8 @@
 #+TITLE: 在 emacs 中进行内联
 #+DATE: [2023-05-03 18:13]
 
+#+YYNTRSS: 本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/83963903][file:0.jpg]]
 

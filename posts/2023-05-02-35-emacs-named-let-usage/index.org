@@ -4,6 +4,8 @@
 #+TITLE: emacs 的 named-let 使用和实现介绍
 #+DATE: [2023-04-30 Sun 11:40]
 
+#+YYNTRSS: 本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/96322989][file:0.jpg]]
 

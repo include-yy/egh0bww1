@@ -4,6 +4,8 @@
 #+TITLE: 如何保存 emacs 当前状态供下次打开时恢复
 #+DATE: [2023-03-04 Sat 16:42]
 
+#+YYNTRSS: 本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/97628041][file:0.jpg]]
 

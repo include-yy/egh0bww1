@@ -4,6 +4,8 @@
 #+TITLE: emacs 中的数字函数
 #+DATE: [2023-03-06 Mon 16:30]
 
+#+YYNTRSS: 本文总结了 emacs 中的一些数学函数，方便查找
+
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89729181][file:0.jpg]]
 

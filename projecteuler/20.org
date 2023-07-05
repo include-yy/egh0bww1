@@ -1,5 +1,4 @@
-#+SETUPFILE: ../setup_eu.org
-#+FILETAGS: projecteuler
+#+SETUPFILE: ./setup.org
 
 #+TITLE: Problem 20
 #+DATE: [2019-05-21 Tue 14:45]
@@ -36,4 +35,3 @@ n! 的意思是 n × (n − 1) × ... × 3 × 2 × 1。
 (- (cl-reduce (lambda (s a) (+ s a -48)) (number-to-string (eu20-fac 100))) 48)
 ;; 648
 #+END_SRC
-

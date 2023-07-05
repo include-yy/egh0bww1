@@ -1,5 +1,4 @@
-#+SETUPFILE: ../setup_eu.org
-#+FILETAGS: projecteuler
+#+SETUPFILE: ./setup.org
 
 #+TITLE: Problem 19
 #+DATE: [2019-05-21 Tue 14:33]

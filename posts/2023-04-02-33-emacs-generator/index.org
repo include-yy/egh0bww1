@@ -1,5 +1,7 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
+
+#+YYNTRSS: 本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法
 
 #+TITLE: emacs generator 使用及实现介绍
 #+DATE: [2023-03-25 Sat 20:20]
@@ -2090,4 +2092,4 @@ emacs 的 generator 实现位于 =emacs-lisp/generator.el= 中，总行数刚好
 Thanks for reading~
 
 #+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/80811365][file:-1.jpg]]
+[[https://www.pixiv.net/artworks/80811365][file:p1.jpg]]
