@@ -1,7 +1,0 @@
-#+SETUPFILE: ../../setup.org
-#+FILETAGS: ros
-
-#+TITLE: ROS 入门笔记
-#+DATE: [2023-03-15 Wed 10:18]
-
-本文是对 ROS noetic [[http://wiki.ros.org/ROS/Tutorials][入门教程]]的一些简单笔记

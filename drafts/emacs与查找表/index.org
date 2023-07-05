@@ -1,6 +1,0 @@
-#+SETUPFILE: ../../setup.org
-#+TITLE:
-#+TITLE:
-#+DATE: [2022-10-03 Mon 21:24]
-#+TAGS: emacs
-
