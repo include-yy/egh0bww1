@@ -1,3 +1,4 @@
 *.html
-drafts/
-!drafts/setup.org
+!/drafts
+/drafts/*
+!/drafts/setup.org
