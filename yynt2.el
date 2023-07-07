@@ -422,8 +422,8 @@ https://pe-cn.github.io/%s
 (defun yynt-rss-generate ()
   "生成完整的 RSS"
   (concat
-   "<!-- refs: https://www.runoob.com/rss/rss-syntax.html -->\n"
    "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
+   "<!-- refs: https://www.runoob.com/rss/rss-syntax.html -->\n"
    "<rss version=\"2.0\">\n"
    "<channel>\n"
    (yynt-rss-generate-chan-header)
