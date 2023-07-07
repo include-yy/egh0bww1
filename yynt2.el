@@ -5,6 +5,24 @@
 
 (defvar yynt-basedir (expand-file-name "./"))
 
+;; https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/
+;; (setq org-babel-exp-code-template "#+begin_src %lang :summary %summary\n%body\n#+end_src")
+;; (defun t-org-html-src-block (src-block _contents info)
+;;   (let* ((result (org-html-src-block src-block _contents info))
+;;          (block-info
+;;           (org-with-point-at (org-element-property :begin src-block)
+;;             (org-babel-get-src-block-info)))
+;;          (summary (assoc-default :summary (elt block-info 2))))
+;;     (if (member summary '("%summary" ""))
+;;         result
+;;       (format "<details><summary>%s</summary>%s</details>"
+;;               summary
+;;               result))))
+;; (with-eval-after-load 'ox-html
+;;   (map-put!
+;;    (org-export-backend-transcoders (org-export-get-backend 'html))
+;;    'src-block 't-org-html-src-block))
+
 (defun yynt-imgattr ()
   "插入用于头图和尾图的 CSS"
   (interactive)
@@ -639,7 +657,7 @@ https://pe-cn.github.io/%s
 			 (file-name-concat yynt-basedir "projecteuler" "res") t)))
 	;; 404 可能几个月更新一次
 	(f404 (list (file-name-concat yynt-basedir "404.html"))))
-    (mapc 'yynt-publish-attachment (append css img js rss eulerimg))))
+    (mapc 'yynt-publish-attachment (append css img js rss eulerimg f404))))
 
 (defun yynt-publish-single-post (dir)
   "将某个 posts 下的所有文件发布
