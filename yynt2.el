@@ -99,6 +99,10 @@
 <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
 <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
 <link href=\"https://fonts.googleapis.com/css2?family=Roboto&display=swap\" rel=\"stylesheet\">")
+;;; 404
+(defun yynt-404-postamble (_info)
+  "<hr><div style=\"text-align:center;\"><i>404~</i></div>")
+
 
 ;;; posts start here
 (defun yynt-get-file-info (filename infos)

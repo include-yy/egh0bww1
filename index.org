@@ -53,8 +53,9 @@ let yynt_daiyousei = document.createElement('div')
 yynt_daiyousei.setAttribute('class', 'fly_daiyousei')
 yynt_rd.appendChild(yynt_daiyousei)
 
-yynt_header.appendChild(yynt_rc)
-yynt_header.appendChild(yynt_rd)
+yynt_header.insertBefore(yynt_rd, yynt_header.firstElementChild)
+yynt_header.insertBefore(yynt_rc, yynt_header.firstElementChild)
+
 </script>
 #+END_EXPORT
 

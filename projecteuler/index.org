@@ -1,6 +1,16 @@
-#+SETUPFILE: ../setup_eu.org
+#+SETUPFILE: ../cfg.org
 
-#+TITLE: include-yy::projecteuler
+#+OPTIONS: num:nil
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
+#+HTML_LINK_UP:./index.html
+#+HTML_LINK_HOME:../index.html
+#+HTML_LINK_FUNC: yynt-repost-home/up-func
+#+HTML_SUFFUNC: yynt-repost-index-postamble
+
+#+TITLE: include-yy :: projecteuler
 #+DATE: [2023-04-27 Thu 01:54]
 
 #+BEGIN_SRC elisp :exports none
@@ -18,12 +28,27 @@
 #+END_SRC
 
 #+ATTR_HTML: :class top-down-img
-[[./res/ana.jpg]]
+[[../img/euler_portrait.png]]
 
-- [[./1.org][problem 1]]
-- [[./2.org][problem 2]]
-- [[./3.org][problem 3]]
-- [[./4.org][problem 4]]
-- [[./5.org][problem 5]]
-- [[./6.org][problem 6]]
-- [[./7.org][problem 7]]
+| Problem | Description                                     | TAG     |
+|---------+-------------------------------------------------+---------|
+| [[./1.org][1]]       | 求为 3 或 5 的倍数的和                          |         |
+| [[./2.org][2]]       | 求一定范围内偶 fib 数之和                       |         |
+| [[./3.org][3]]       | 求某数的最大质因数                              |         |
+| [[./4.org][4]]       | 求两三位数相乘能得到的最大回文数                |         |
+| [[./5.org][5]]       | 求能被 1 到 20 整除的最小整数                   |         |
+| [[./6.org][6]]       | 前 100 个自然数平方和与和平方之差               |         |
+| [[./7.org][7]]       | 第 10001 个质数是什么                           | #prime# |
+| [[./8.org][8]]       | 在一个数字串中找到连续 13 个数字的最大乘积      |         |
+| [[./9.org][9]]       | 求满足 a+b+c<1000 的毕达哥拉斯三元组            |         |
+| [[./10.org][10]]      | 求小于两百万的素数的和                          | #prime# |
+| [[./11.org][11]]      | 求数字方阵中四个相邻数的最大乘积                |         |
+| [[./12.org][12]]      | 求约数数量超过 500 的第一个三角形数             |         |
+| [[./13.org][13]]      | 求 100 个 50 位数字之和的前十位数字             |         |
+| [[./14.org][14]]      | 求小于一百万数中最长的 Collatz 序列             |         |
+| [[./15.org][15]]      | 求从边长为 n 的网格左上角移动到右下角的路径总数 |         |
+| [[./16.org][16]]      | 求 2^{1000} 的各位数字和                        |         |
+| [[./17.org][17]]      | 获取 1 到 1000 的数字英文表达                   |         |
+| [[./18.org][18]]      | 从数字塔顶端到底端的最大路径和                  | #dp#    |
+| [[./19.org][19]]      | 二十世纪有多少个月的第一天是周日                |         |
+| [[./20.org][20]]      | 求 100! 的各位数字和                            |         |
