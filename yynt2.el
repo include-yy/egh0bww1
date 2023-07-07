@@ -39,8 +39,8 @@
   "\
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../css/style.css\">
 <link rel=\"icon\" type=\"image/x-icon\" href=\"../../img/rin.ico\">
-<script async src=\"../../js/copycode.js\"></script>
-<script async src=\"../../js/img_hideshow.js\"></script>
+<script src=\"../../js/copycode.js\"></script>
+<script src=\"../../js/img_hideshow.js\"></script>
 <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
 <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
 <link href=\"https://fonts.googleapis.com/css2?family=Roboto&display=swap\" rel=\"stylesheet\">")
@@ -505,5 +505,73 @@ https://pe-cn.github.io/%s
       (yynt-temp-euler number))))
 
 ;;; 基于 org-publish 完成新的构建工具
+;;; 待 emacs 29 发布再实现带缓存的构建
 
-(defvar yynt-publish-dir (expand-file-name "./blog-build"))
+(defvar yynt-publish-dir (expand-file-name "./blog-build")
+  "博客构建结果的根目录")
+
+(defun yynt-gen-all-posts-barbar ()
+  "重新构建 posts 中的所有 org 文件，也包括 index 文件"
+  (interactive)
+  ;;(org-export-to-file 'yyhtml "index.html")
+  (let ((all-posts (yynt-get-all-post-files)))
+    (dolist (f all-posts)
+      (when (string= (file-name-extension (cdr f)) "org")
+	(message "yynt: gen %s" (car f))
+	(with-current-buffer (find-file-noselect (cdr f))
+	  (org-export-to-file 'yyhtml "index.html")
+	  (kill-buffer)))))
+  (dolist (f (list (concat yynt-basedir "posts/index.org")
+		   (concat yynt-basedir "posts/tags.org")))
+    (with-current-buffer (find-file-noselect f)
+      (org-export-to-file 'yyhtml (format "%s.html" (file-name-base)))
+      (kill-buffer))))
+
+(defun yynt-gen-all-reposts-barbar ()
+  "重新构建 reposts 中的 org 文件，也包括 index 目录文件"
+  (interactive)
+    (let ((all-posts (yynt-get-all-repost-files)))
+      (dolist (f all-posts)
+	(when (string= (file-name-extension (cdr f)) "org")
+	  (message "yynt: gen %s" (car f))
+	  (with-current-buffer (find-file-noselect (cdr f))
+	    (org-export-to-file 'yyhtml "index.html")
+	    (kill-buffer)))))
+    (with-current-buffer (find-file-noselect (concat yynt-basedir "republish/index.org"))
+      (org-export-to-file 'yyhtml "index.html")
+      (kill-buffer)))
+
+(defun yynt-gen-all-projecteuler-barbar ()
+  "重新构建 euler 中的 org 文件"
+  (interactive)
+  (let ((all-posts (directory-files
+		    (file-name-concat yynt-basedir "projecteuler")
+		    t "[0-9]+\\.org")))
+    (dolist (f all-posts)
+      (with-current-buffer (find-file-noselect f)
+	(org-export-to-file 'yyhtml (format "%s.html" (file-name-base f)))
+	(kill-buffer)))
+    (with-current-buffer (find-file-noselect
+			  (file-name-concat yynt-basedir
+					    "projecteuler" "index.org"))
+      (org-export-to-file 'yyhtml "index.html")
+      (kill-buffer))))
+
+(defun yynt-gen-toplevel-barbar ()
+  "重新构建位于根目录的 org 文件"
+  (interactive)
+  (let ((all-files (list (file-name-concat yynt-basedir "index.org")
+			 (file-name-concat yynt-basedir "404.org"))))
+    (dolist (f all-files)
+      (with-current-buffer (find-file-noselect f)
+	(org-export-to-file 'yyhtml (format "%s.html" (file-name-base f)))
+	(kill-buffer))))
+  (yynt-rss-update))
+
+(defun yynt-gen-barbar ()
+  "重新构建整个 blog"
+  (interactive)
+  (yynt-gen-all-posts-barbar)
+  (yynt-gen-all-reposts-barbar)
+  (yynt-gen-all-projecteuler-barbar)
+  (yynt-gen-toplevel-barbar))

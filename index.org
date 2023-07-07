@@ -63,7 +63,7 @@ yynt_daiyousei.addEventListener('click', () => window.location.href='https://www
 #+END_EXPORT
 
 #+BEGIN_nav
-| NOTES | [[./posts/index.org][POSTS]] | [[./republish/index.org][REPOSTS]] | [[./projecteuler/index.org][EULER]] | [[*ABOUT][ABOUT]] | FOLKS |
+| [[./posts/index.org][POSTS]] | [[./republish/index.org][REPOSTS]] | [[./projecteuler/index.org][EULER]] | [[*ABOUT][ABOUT]] | FOLKS |
 #+END_nav
 
 * Recent [[./posts/index.org][Posts]]
