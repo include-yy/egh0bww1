@@ -2,6 +2,7 @@
 
 #+OPTIONS: num:nil
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/rotate_cd.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
 
 #+HTML_SUFFUNC: yynt-homepage-postamble
@@ -36,6 +37,24 @@ cirno.onclick = () => {
 	flag = true
     }
 }
+
+let yynt_header = document.getElementsByTagName('header')[0]
+yynt_header.setAttribute("class", "rotation-container")
+
+let yynt_rc = document.createElement('div')
+yynt_rc.setAttribute('class', 'rotationc')
+let yynt_cirno = document.createElement('div')
+yynt_cirno.setAttribute('class', 'fly_cirno')
+yynt_rc.appendChild(yynt_cirno)
+
+let yynt_rd = document.createElement('div')
+yynt_rd.setAttribute('class', 'rotationd')
+let yynt_daiyousei = document.createElement('div')
+yynt_daiyousei.setAttribute('class', 'fly_daiyousei')
+yynt_rd.appendChild(yynt_daiyousei)
+
+yynt_header.appendChild(yynt_rc)
+yynt_header.appendChild(yynt_rd)
 </script>
 #+END_EXPORT
 
