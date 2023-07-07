@@ -3,6 +3,7 @@
 #+TITLE: 【翻译】Introduction to Databases
 #+DATE: [2022-12-07 Wed 01:55]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74131508][file:0.png]]
 
@@ -438,5 +439,6 @@ MySQL 在基于网络的后端数据库方面非常流行，可以单独使用�
 
 作者毕竟不是中国人，文中的许多例子和梗对我来说并不是很熟悉，比如银行和星际迷航，貌似我已经将近八年没有去电影院正经看过电影了。也许原文中的一些常识过个几十年就成了需要注解才能看懂的历史词汇，不过这就不是翻译文章的我需要关心的了。
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/72631366][file:p1.png]]

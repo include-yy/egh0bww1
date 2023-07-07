@@ -3,6 +3,7 @@
 #+TITLE: 用 elisp 玩 brainfuck Ⅰ
 #+DATE: [2022-09-14 Wed 15:10]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76705181][file:0.jpg]]
 
@@ -1122,6 +1123,8 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 
 以上，去学学编译器。
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 来点可爱的妖梦。
 
 #+ATTR_HTML: :class top-down-img
@@ -1130,3 +1133,4 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 [[https://www.pixiv.net/artworks/39015698][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/31643135][file:p3.jpg]]
+#+END_tailimgs

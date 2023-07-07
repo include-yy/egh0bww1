@@ -3,6 +3,7 @@
 #+TITLE: buffer 管理和 ibuffer 的介绍与使用
 #+DATE: [2022-03-15 Tue 15:56]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/12413285][file:0.jpg]]
 
@@ -847,6 +848,8 @@ ibuffer-vc 的主要功能是提供了依据仓库的分组，以及一些 sorte
 
 /haru desu yo/
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82271708][file:p1.png]]
 
@@ -858,3 +861,4 @@ ibuffer-vc 的主要功能是提供了依据仓库的分组，以及一些 sorte
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74220539][file:p4.png]]
+#+END_tailimgs

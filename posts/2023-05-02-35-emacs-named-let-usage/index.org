@@ -6,6 +6,7 @@
 
 #+YYNTRSS: 本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/96322989][file:0.jpg]]
 
@@ -555,8 +556,11 @@ details.
 
 五一快乐。
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/25854793][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77780352][file:p2.jpg]]
+#+END_tailimgs

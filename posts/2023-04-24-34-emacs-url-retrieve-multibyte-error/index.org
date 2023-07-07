@@ -6,6 +6,7 @@
 
 #+YYNTRSS: 本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/107485378][file:0.jpg]]
 
@@ -207,5 +208,6 @@ HTTP 报文由请求头，HTTP 头部字段， =\r\n= 和可选的主体数据�
 
 原先在遇到问题时我还以为这是个 bug，稍稍了解后才发现是对 emacs 中的字符串理解不够深入，哈。有时间的话，我会写一篇文章介绍一下 emacs 中的字符串。
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50149567][file:p1.jpg]]

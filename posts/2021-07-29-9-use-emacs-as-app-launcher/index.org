@@ -3,6 +3,7 @@
 #+TITLE: 使用 emacs 作为 app 启动器
 #+DATE: [2021-07-29 Thu]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/58025515][file:0.jpg]]
 
@@ -191,6 +192,7 @@ app-launcher 只提供了运行方法，没有提供修改 .desktop 文件的函
 
 文章最后来一张中国图，再不往下的话东方角色估计在这个专栏里面是没办法完全展示了：
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64529008][file:p1.jpg]]
 

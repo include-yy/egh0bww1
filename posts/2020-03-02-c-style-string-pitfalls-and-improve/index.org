@@ -3,6 +3,7 @@
 #+TITLE: C 风格字符串缺陷及改进
 #+DATE: [2020-03-02 Mon]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74372409][file:0.jpg]]
 

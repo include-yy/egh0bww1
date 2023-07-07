@@ -3,6 +3,7 @@
 #+TITLE: emacs 中的 list 函数
 #+DATE: [2021-09-04 Sat]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/3130111][file:0.jpg]]
 
@@ -1446,5 +1447,6 @@ org-mode 提供的 GTD 功能让我可以方便地给函数打勾，就像这样
 
 这回是真的暂时再见了（笑）
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/73073540][file:p1.png]]

@@ -3,6 +3,7 @@
 #+TITLE: emacs 的 cl 扩展
 #+DATE: [2021-05-28]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89040851][file:0.jpg]]
 

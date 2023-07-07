@@ -3,6 +3,7 @@
 #+TITLE: 现在我所能看到的自动化专业
 #+DATE: [2020-10-04 Sun]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/25429547][file:0.jpg]]
 

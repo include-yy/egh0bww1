@@ -3,6 +3,7 @@
 #+TITLE: Scheme 的 call/cc
 #+DATE: [2020-08-11 Tue]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/17975444][file:0.jpg]]
 

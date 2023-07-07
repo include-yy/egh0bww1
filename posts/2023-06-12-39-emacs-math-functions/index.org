@@ -6,6 +6,7 @@
 
 #+YYNTRSS: 本文总结了 emacs 中的一些数学函数，方便查找
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89729181][file:0.jpg]]
 
@@ -524,5 +525,6 @@ elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数
   - 可选参数 =state= 应该是一个 =random-state= 对象。 =cl-random= 会修改这个对象的状态（它用来记录随机数的信息，以得到下一个随机数）。如果 =state= 参数被忽略了， =cl-random= 会使用内部的 =cl--random-state= ，它是默认的 =random-state= 对象。使用相同的 =state= 对象会产生相同的随机序列
   - 可以使用 =cl-make-random-state= 创建一个 =state= 对象
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/49820216][file:p1.jpg]]

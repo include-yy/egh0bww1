@@ -3,6 +3,7 @@
 #+TITLE: C 的字符串有哪些问题
 #+DATE: [2021-01-25 Mon]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/81644052][file:0.jpg]]
 

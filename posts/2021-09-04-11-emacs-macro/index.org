@@ -3,6 +3,7 @@
 #+TITLE: emacs 的 macro
 #+DATE: [2021-08-21 Sat 09:58]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/90367612][file:0.jpg]]
 
@@ -709,5 +710,6 @@ Still, calling gensym every single time we want a nameless symbol is clunky and 
 | /on lisp/          | Paul Graham |
 | /ansi common lisp/ | Paul Graham |
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/47704780][file:p1.jpg]]

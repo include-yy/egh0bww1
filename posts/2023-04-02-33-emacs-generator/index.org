@@ -6,6 +6,7 @@
 #+TITLE: emacs generator 使用及实现介绍
 #+DATE: [2023-03-25 Sat 20:20]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82466830][file:0.png]]
 
@@ -2091,5 +2092,6 @@ emacs 的 generator 实现位于 =emacs-lisp/generator.el= 中，总行数刚好
 
 Thanks for reading~
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/80811365][file:p1.jpg]]

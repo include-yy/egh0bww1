@@ -3,6 +3,7 @@
 #+TITLE: Win32 编程基础之资源
 #+DATE: [2020-07-17 Fri]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/41366851][file:0.jpg]]
 

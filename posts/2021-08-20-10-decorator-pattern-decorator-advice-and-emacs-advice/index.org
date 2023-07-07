@@ -3,6 +3,7 @@
 #+TITLE: decorator pattern, decorator&advice, and emacs advice
 #+DATE: [2021-08-20 Fri]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/38145009][file:0.jpg]]
 
@@ -992,5 +993,6 @@ For these reasons, advice should be reserved for the cases where you cannot modi
 
 这大概是我在 2021 年的最后一篇文章了，接下来我可能会非常的忙。看到这里的同学真是辛苦了，我们来年再见。
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/33080985][file:p1.jpg]]

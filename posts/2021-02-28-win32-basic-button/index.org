@@ -3,6 +3,7 @@
 #+TITLE: Win32 编程基础之按钮控件
 #+DATE: [2021-02-28 Sun]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://twitter.com/yutamaro43/status/1331958847431270402][file:0.jpg]]
 

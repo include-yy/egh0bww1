@@ -3,6 +3,7 @@
 #+TITLE: FFT 小记
 #+DATE: [2021-11-30 Tue 13:36]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/58604150][file:0.jpg]]
 

@@ -3,6 +3,7 @@
 #+TITLE: Win32 编程基础之鼠标输入
 #+DATE: [2020-07-11 Sat]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/45629233][file:0.jpg]]
 

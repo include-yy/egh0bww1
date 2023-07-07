@@ -3,6 +3,7 @@
 #+TITLE: 借学习 thunk 之机看看 delay-evaluation
 #+DATE: [2021-03-27 Sat]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64918546][file:0.jpg]]
 

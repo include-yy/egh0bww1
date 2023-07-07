@@ -3,6 +3,7 @@
 #+TITLE: 写个 C 库 - part4
 #+DATE: [2020-06-14 Sun]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/81957473][file:0.jpg]]
 

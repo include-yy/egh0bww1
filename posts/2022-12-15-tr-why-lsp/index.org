@@ -3,6 +3,7 @@
 #+TITLE: 【翻译】Why LSP?
 #+DATE: [2022-12-14 Wed 21:52]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76570526][file:0.jpg]]
 
@@ -170,5 +171,6 @@ P.S. 如果你有机会从使用 rust-analyzer 中受益，请考虑赞助 [[htt
 
 [[./matklad.png]]
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77546208][file:p1.jpg]]

@@ -3,6 +3,7 @@
 #+TITLE: org-mode 导出宏：org-macro
 #+DATE: [2023-01-15 Sun 22:57]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84249040][file:0.png]]
 
@@ -570,10 +571,12 @@ include-yy
 #+END_SRC
 
 以上。
-
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/97473377][file:p1.png]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/73710237][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/62443260][file:p3.jpg]]
+#+END_tailimgs

@@ -3,6 +3,7 @@
 #+TITLE: emacs 中的哈希表与多值返回
 #+DATE: [2021-10-09 Sat 17:06]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84777976][file:0.jpg]]
 
@@ -1406,8 +1407,11 @@ VALUE.  In any case, return VALUE.  */)
 
 2022 新年快乐。
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/10771317][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/1429115][file:p2.jpg]]
+#+END_tailimgs

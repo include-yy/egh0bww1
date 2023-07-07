@@ -6,6 +6,7 @@
 
 #+YYNTRSS: 本文是对 elisp manual 16 的讲解和分析，较为完整地介绍了一些加载机制的使用和原理
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/38412472][file:0.jpg]]
 
@@ -916,5 +917,6 @@ for more details about the different forms of FILE and their semantics."
 
 在下一篇文章中，我会对 emacs 内置的包管理器做一些介绍，不过也说不好，也许是 use-package 呢？
 
+#+NAME: tailimg
 | [[https://www.pixiv.net/artworks/68868289][file:p1.jpg]] | [[https://www.pixiv.net/artworks/28288129][file:p2.jpg]] |
 | [[https://www.pixiv.net/artworks/82193242][file:p3.jpg]] | [[https://www.pixiv.net/artworks/74887022][file:p4.jpg]] |

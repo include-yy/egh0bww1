@@ -25,8 +25,8 @@ RSS： https://egh0bww1.com/rss.xml
 - [X] 处理 filetags
 - [X] CSS ，页面不足一页，主页浮动条，注意 yynt2.el 的 404 部分和主页部分，以及 style.css
 - [X] projecteuler 主页
+- [X] 添加图片隐藏机制
 - [ ] 构建工具改进
 - [ ] 完善 FOLKS 页面
-- [ ] 完善 readme
-- [ ] 添加图片隐藏机制
 - [ ] 添加暗色模式
+- [ ] 完善 readme

@@ -3,6 +3,7 @@
 #+TITLE: 什么是 dsl 和作为 dsl 的 cl-loop
 #+DATE: [2021-06-11 Fri]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84143335][file:0.jpg]]
 

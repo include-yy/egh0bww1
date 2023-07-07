@@ -3,6 +3,7 @@
 #+TITLE: bug, debugging, and debugger, and also edebug
 #+DATE: [2021-07-04 Sun]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50042840][file:0.jpg]]
 
@@ -838,6 +839,7 @@ Elisp 内置的调试器主要是起辅助作用，相比之下 edebug 就是个
 
 （如果题图总是 cirno 的话那我岂不是发不完所有东方角色的图了，干脆之后每篇文章的结尾都放一张不同的？）
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64400529][file:p1.jpg]]
 

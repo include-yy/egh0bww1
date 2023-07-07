@@ -3,6 +3,7 @@
 #+TITLE: Win32 编程基础之滚动条
 #+DATE: [2020-07-14 Tue]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
 

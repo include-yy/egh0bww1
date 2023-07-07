@@ -3,6 +3,7 @@
 #+TITLE: 有关动态链接库的知识
 #+DATE: [2020-04-15 Wed]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77293039][file:0.jpg]]
 

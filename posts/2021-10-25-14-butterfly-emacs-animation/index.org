@@ -3,6 +3,7 @@
 #+TITLE: 蝴蝶效应与 emacs 动画
 #+DATE: [2021-10-23 Sat 22:44]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/85778545][file:0.jpg]]
 
@@ -521,8 +522,11 @@ f.close()
 
 上面列出的一些问题等到我有时间的时候再去想想，毕竟最主要的工作已经完成了 —— 播放 bad apple。
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50255345][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/923358][file:p2.jpg]]
+#+END_tailimgs

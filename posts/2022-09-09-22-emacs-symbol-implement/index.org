@@ -3,6 +3,7 @@
 #+TITLE: emacs 的 symbol 类型及其实现
 #+DATE: [2021-10-09 Sat 17:07]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89383520][file:0.jpg]]
 
@@ -1052,9 +1053,12 @@ R.I.P.
 
 就这样。
 
+#+NAME: tailimg
+#+BEGIN_tailimgs
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/32555104][file:p1.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/22979773][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/19559081][file:p3.jpg]]
+#+END_tailimgs

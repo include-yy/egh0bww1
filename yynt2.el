@@ -10,6 +10,17 @@
   (interactive)
   (insert "#+ATTR_HTML: :class top-down-img"))
 
+(defun yynt-headimg ()
+  "插入头部图片所需内容"
+  (interactive)
+  (insert "#+NAME: headimg\n")
+  (yynt-imgattr))
+
+(defun yynt-tailimg ()
+  "插入尾部图片所需内容"
+  (interactive)
+  (insert "#+NAME: tailimg\n")
+  (yynt-imgattr))
 ;;; post
 (defun yynt-post-postamble (_info)
   "\
@@ -28,7 +39,8 @@
   "\
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../css/style.css\">
 <link rel=\"icon\" type=\"image/x-icon\" href=\"../../img/rin.ico\">
-<script src=\"../../js/copycode.js\"></script>
+<script async src=\"../../js/copycode.js\"></script>
+<script async src=\"../../js/img_hideshow.js\"></script>
 <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
 <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
 <link href=\"https://fonts.googleapis.com/css2?family=Roboto&display=swap\" rel=\"stylesheet\">")
@@ -495,5 +507,3 @@ https://pe-cn.github.io/%s
 ;;; 基于 org-publish 完成新的构建工具
 
 (defvar yynt-publish-dir (expand-file-name "./blog-build"))
-
-

@@ -3,6 +3,7 @@
 #+TITLE: setf 之 CL 的 five gangs 与 elisp 的 high-order approach
 #+DATE: [2022-02-21 Mon 9:08]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
 
@@ -997,5 +998,6 @@ a => (3 1 2)
 
 - /On lisp/ - Paul Graham
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/26565465][file:p1.jpg]]

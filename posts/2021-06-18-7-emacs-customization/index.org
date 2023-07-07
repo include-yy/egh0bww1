@@ -3,6 +3,7 @@
 #+TITLE: emacs 的 customization
 #+DATE: [2021-06-18 Fri]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.deviantart.com/smilocg/art/cirno-168923283][file:0.jpg]]
 

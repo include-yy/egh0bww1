@@ -3,6 +3,7 @@
 #+TITLE: Scheme 的 syntax-rules
 #+DATE: [2020-09-09 Wed]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/79337308][file:0.jpg]]
 

@@ -3,6 +3,7 @@
 #+TITLE: Win32 编程基础之键盘输入
 #+DATE: [2020-07-13 Mon]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
 

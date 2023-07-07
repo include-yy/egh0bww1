@@ -3,6 +3,7 @@
 #+TITLE: 用 ReScript 写个神经网络 hello world
 #+DATE: [2022-11-11 Fri 21:06]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/46426781][file:0.jpg]]
 
@@ -1554,5 +1555,6 @@ MNIST 识别代码位于 =Mnist.res= 文件中。
 
 感谢阅读。
 
+#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.fanbox.cc/@bakupa/posts/4688312][file:p1.jpeg]]

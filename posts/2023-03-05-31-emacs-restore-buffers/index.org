@@ -6,6 +6,7 @@
 
 #+YYNTRSS: 本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/97628041][file:0.jpg]]
 
@@ -480,6 +481,7 @@ this table.  See also `desktop-minor-mode-handlers'."
 
 除了内置的 desktop，还有其他的一些 package 可用，比如 [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]]，读者若感兴趣可以试试，我就不做过多介绍了。
 
+#+NAME: tailimg
 | [[https://www.pixiv.net/artworks/56704239][file:p1.jpg]] | [[https://www.pixiv.net/artworks/35742993][file:p4.jpg]] |
 | [[https://www.pixiv.net/artworks/62992330][file:p6.jpg]] | [[https://www.pixiv.net/artworks/39183606][file:p2.jpg]] |
 | [[https://www.pixiv.net/artworks/103945174][file:p5.jpg]] | [[https://www.pixiv.net/artworks/92968281][file:p3.jpg]] |

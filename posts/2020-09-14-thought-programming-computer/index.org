@@ -3,6 +3,7 @@
 #+TITLE: 我所认识的编程与计算机
 #+DATE: [2020-09-14 Mon]
 
+#+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.PNG]]
 
