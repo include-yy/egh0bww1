@@ -42,7 +42,7 @@
 
 下面就是 butterfly 命令的显示效果了：
 
-@@html:<div class="yyheadimg"><img src="./1.gif" alt="load failed"></div>@@
+[[./1.gif]]
 
 当然，在闲的蛋疼的时候发现这个命令的人显然不止我一个（更何况我还是在别人的帖子里看到的），[[https://sachachua.com/blog/2013/06/animating-things-in-emacs/][Sacha Chua]] 也是在某次无聊的浏览命令中发现了这个命令，我在她的博客中发现了一个和 emacs 有关的简单动画教程，感兴趣的同学可以去看看：[[http://dantorop.info/project/emacs-animation/][emacs lisp animations]]
 
@@ -246,7 +246,7 @@ animate.el 中的 =animate-string= 函数巧妙地避免了这个问题，在输
 
 得到的效果图如下：
 
-@@html:<div class="yyheadimg"><img src="./4.gif" alt="load failed"></div>@@
+[[./4.gif]]
 
 除了 =animate-string= ，还有一个叫做 =anmiate-sequence= 的函数，它接受一个字符串表和一个表示字符串间空行数的整数，若第二参数为 0，则字符串表中的字符串空行数为 0。它将字符串表中的字符串逐串打印到buffer 中，若 =animation-buffer-name= 的值为 nil，则默认打印到 =*Animation*= buffer 中。下面我们使用一个 ascii 艺术作为例子演示 =animate-sequence= 的使用：
 

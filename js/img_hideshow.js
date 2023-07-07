@@ -1,20 +1,23 @@
-var yynt_headimg = document.getElementById('headimg')
-var yynt_tailimg = document.getElementById('tailimg')
-var yynt_imgstate = 0;
+var yynt_headimg
+var yynt_tailimg
+var yynt_imgstate
 
-yynt_tailimg.style.display = 'none'
-yynt_headimg.style.display = 'none'
+window.onload = function(e) {
+    yynt_headimg = document.getElementById('headimg')
+    yynt_tailimg = document.getElementById('tailimg')
+    yynt_imgstate = 0
 
-document.onkeydown = (e) => {
-    if (e.keyCode == 89) {
-	if (yynt_imgstate == 0) {
-	    yynt_tailimg.style.display = ''
-	    yynt_headimg.style.display = ''
-	    yynt_imgstate = 1
-	} else {
-	    yynt_tailimg.style.display = 'none'
-	    yynt_headimg.style.display = 'none'
-	    yynt_imgstate = 0
+    document.onkeydown = (e) => {
+	if (e.keyCode == 89) {
+	    if (yynt_imgstate == 0) {
+		yynt_headimg ? yynt_headimg.style.display = 'flex' : null
+		yynt_tailimg ? yynt_tailimg.style.display = '' : null
+		yynt_imgstate = 1
+	    } else {
+		yynt_headimg ? yynt_headimg.style.display = 'none' : null
+		yynt_tailimg ? yynt_tailimg.style.display = 'none' : null
+		yynt_imgstate = 0
+	    }
 	}
     }
 }

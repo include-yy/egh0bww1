@@ -1,4 +1,4 @@
-#+SETUPFILE: ../../setup.org
+#+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 #+TITLE: emacs 中的哈希表与多值返回
 #+DATE: [2021-10-09 Sat 17:06]

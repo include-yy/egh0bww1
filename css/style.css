@@ -67,6 +67,7 @@ img {
 
 .top-down-img {
     max-width: 33vw;
+
 }
 
 .org-svg{
@@ -441,4 +442,8 @@ aside {
     padding: 1em;
     margin-bottom: 3em;
     color: rgba(0,0,0,0.4)
+}
+
+#headimg {
+    display: none
 }
