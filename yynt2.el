@@ -510,63 +510,51 @@ https://pe-cn.github.io/%s
 (defvar yynt-publish-dir (expand-file-name "./blog-build")
   "博客构建结果的根目录")
 
+(defun yynt-gen-org-barbar (files)
+  "对列表中的文件进行 org 构建"
+  (dolist (f files)
+    (when (and (file-exists-p f)
+	       (string= (file-name-extension f) "org"))
+      (message "yynt: gen %s" f)
+      (if-let ((buf (get-file-buffer f)))
+	  (with-current-buffer buf
+	    (org-export-to-file 'yyhtml (format "%s.html" (file-name-base f))))
+	(with-current-buffer (find-file-noselect f)
+	  (org-export-to-file 'yyhtml (format "%s.html" (file-name-base f)))
+	  (kill-buffer))))))
+
 (defun yynt-gen-all-posts-barbar ()
   "重新构建 posts 中的所有 org 文件，也包括 index 文件"
   (interactive)
   ;;(org-export-to-file 'yyhtml "index.html")
-  (let ((all-posts (yynt-get-all-post-files)))
-    (dolist (f all-posts)
-      (when (string= (file-name-extension (cdr f)) "org")
-	(message "yynt: gen %s" (car f))
-	(with-current-buffer (find-file-noselect (cdr f))
-	  (org-export-to-file 'yyhtml "index.html")
-	  (kill-buffer)))))
-  (dolist (f (list (concat yynt-basedir "posts/index.org")
-		   (concat yynt-basedir "posts/tags.org")))
-    (with-current-buffer (find-file-noselect f)
-      (org-export-to-file 'yyhtml (format "%s.html" (file-name-base)))
-      (kill-buffer))))
+  (let* ((all-posts (mapcar 'cdr (yynt-get-all-post-files)))
+	 (index-and-tags (list (file-name-concat yynt-basedir "posts" "index.org")
+			       (file-name-concat yynt-basedir "posts" "tags.org"))))
+    (yynt-gen-org-barbar (append all-posts index-and-tags))))
 
 (defun yynt-gen-all-reposts-barbar ()
   "重新构建 reposts 中的 org 文件，也包括 index 目录文件"
   (interactive)
-    (let ((all-posts (yynt-get-all-repost-files)))
-      (dolist (f all-posts)
-	(when (string= (file-name-extension (cdr f)) "org")
-	  (message "yynt: gen %s" (car f))
-	  (with-current-buffer (find-file-noselect (cdr f))
-	    (org-export-to-file 'yyhtml "index.html")
-	    (kill-buffer)))))
-    (with-current-buffer (find-file-noselect (concat yynt-basedir "republish/index.org"))
-      (org-export-to-file 'yyhtml "index.html")
-      (kill-buffer)))
+  (let ((all-posts (mapcar 'cdr (yynt-get-all-repost-files)))
+	(index (list (file-name-concat yynt-basedir "republish" "index.org"))))
+    (yynt-gen-org-barbar (append all-posts index))))
 
 (defun yynt-gen-all-projecteuler-barbar ()
   "重新构建 euler 中的 org 文件"
   (interactive)
   (let ((all-posts (directory-files
 		    (file-name-concat yynt-basedir "projecteuler")
-		    t "[0-9]+\\.org")))
-    (dolist (f all-posts)
-      (with-current-buffer (find-file-noselect f)
-	(org-export-to-file 'yyhtml (format "%s.html" (file-name-base f)))
-	(kill-buffer)))
-    (with-current-buffer (find-file-noselect
-			  (file-name-concat yynt-basedir
-					    "projecteuler" "index.org"))
-      (org-export-to-file 'yyhtml "index.html")
-      (kill-buffer))))
+		    t "[0-9]+\\.org"))
+	(index (list (file-name-concat yynt-basedir "projecteuler" "index.org"))))
+    (yynt-gen-org-barbar (append all-posts index))))
 
 (defun yynt-gen-toplevel-barbar ()
   "重新构建位于根目录的 org 文件"
   (interactive)
   (let ((all-files (list (file-name-concat yynt-basedir "index.org")
 			 (file-name-concat yynt-basedir "404.org"))))
-    (dolist (f all-files)
-      (with-current-buffer (find-file-noselect f)
-	(org-export-to-file 'yyhtml (format "%s.html" (file-name-base f)))
-	(kill-buffer))))
-  (yynt-rss-update))
+    (yynt-gen-org-barbar all-files)
+  (yynt-rss-update)))
 
 (defun yynt-gen-barbar ()
   "重新构建整个 blog"
@@ -575,3 +563,184 @@ https://pe-cn.github.io/%s
   (yynt-gen-all-reposts-barbar)
   (yynt-gen-all-projecteuler-barbar)
   (yynt-gen-toplevel-barbar))
+
+;; 更新 post 需要更新 post index, post tags index, homepage index, rss
+(defun yynt-update-current-post (filepath &optional noquiz)
+  "更新某一 post，同时更新各种目录文件和 rss"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (if (or (not (string-match-p (file-name-concat yynt-basedir "posts")
+			       filepath))
+	  (string= (file-name-directory filepath)
+		   (file-name-concat yynt-basedir "posts/")))
+      (message "current not in post's dir dir, quit")
+    (let ((idx-tag-home (list (file-name-concat yynt-basedir "posts" "index.org")
+			      (file-name-concat yynt-basedir "posts" "tags.org")
+			      (file-name-concat yynt-basedir "index.org"))))
+      (if (string= "org" (file-name-extension filepath))
+	  (progn (yynt-gen-org-barbar (cons filepath idx-tag-home))
+		 (yynt-rss-update))
+	(if (or noquiz (y-or-n-p "no org file, still want to update?"))
+	    (progn (yynt-gen-org-barbar idx-tag-home)
+		   (yynt-rss-update))
+	  (message "update nothing, quit"))))))
+
+;; 更新 reposts 需要更新 repost index, homepage index
+(defun yynt-update-current-repost (filepath)
+  "更新某一 repost，以及各种 index 文件"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (if (or (not (string-match-p (file-name-concat yynt-basedir "republish")
+			       filepath))
+	  (string= (file-name-directory filepath)
+		   (file-name-concat yynt-basedir "republish/")))
+      (message "current not in repost's dir dir, quit")
+    (let ((idx-home (list (file-name-concat yynt-basedir "republish" "index.org")
+			  (file-name-concat yynt-basedir "index.org"))))
+      (if (string= "org" (file-name-extension filepath))
+	  (yynt-gen-org-barbar (cons filepath idx-home))
+	(yynt-gen-org-barbar idx-home)))))
+
+;; 更新 projecteuler 需要更新 euler index
+(defun yynt-update-current-euler (filepath)
+  (interactive (list (buffer-file-name (current-buffer))))
+  (if (not (string= (file-name-directory filepath)
+		    (file-name-concat yynt-basedir "projecteuler/")))
+      (message "current not in euler's dir, quit")
+    (if (not (string= "org" (file-name-extension filepath)))
+	(message "file is not euler's source")
+      (yynt-gen-org-barbar (list filepath
+				 (file-name-concat yynt-basedir
+						   "projecteuler" "index.org"))))))
+
+;; 这里采用先原地生成后复制到目标的方法
+;; 这样一来，资源的发布就是复制而已
+
+;;; 这里参考了 org-publish-attachment
+;; (file-relative-name)
+(defun yynt-publish-attachment (filename)
+  "将某个文件移动到 `yynt-publish-dir' 下
+文件名需要是绝对路径，且位于 `yynt-basedir' 内"
+  (when (string-match-p yynt-basedir filename)
+    (let* ((rela-name (file-relative-name filename yynt-basedir))
+	   (rela-path (file-name-directory rela-name))
+	   (new-path (file-name-concat yynt-publish-dir rela-path))
+	   (new-name (file-name-concat yynt-publish-dir rela-name)))
+      (unless (file-directory-p new-path)
+	(make-directory new-path t))
+      (copy-file filename new-name t))))
+
+(defun yynt-publish-global-resource ()
+  "将全局图片和一些东西进行复制"
+  (interactive)
+  (let ((css (cddr (directory-files (file-name-concat yynt-basedir "css") t)))
+	(img (cddr (directory-files (file-name-concat yynt-basedir "img") t)))
+	(js  (cddr (directory-files (file-name-concat yynt-basedir "js")  t)))
+	(rss (list (file-name-concat yynt-basedir "rss.xml")))
+	(eulerimg (cddr (directory-files
+			 (file-name-concat yynt-basedir "projecteuler" "res") t)))
+	;; 404 可能几个月更新一次
+	(f404 (list (file-name-concat yynt-basedir "404.html"))))
+    (mapc 'yynt-publish-attachment (append css img js rss eulerimg))))
+
+(defun yynt-publish-single-post (dir)
+  "将某个 posts 下的所有文件发布
+不包括一些文件，比如 org, pptx, "
+  (let* ((files (cddr (directory-files dir t)))
+	 (exfiles (cl-remove-if
+		   (lambda (x)
+		     (string-match-p
+		      "pptx?\\|org"
+		      (file-name-extension x)))
+		   files)))
+    (mapc 'yynt-publish-attachment exfiles)))
+
+(defun yynt-publish-current-post-barbar (filename)
+  "将当前 post 发布"
+  (interactive (list (buffer-file-name (current-buffer))))
+  ;; 首先重生成
+  (yynt-update-current-post filename t)
+  (yynt-publish-single-post (file-name-directory filename))
+  ;;接着发布目录文件和主页，以及 rss
+  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "index.html"))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "tags.html"))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "index.html"))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "rss.xml")))
+
+(defun yynt-publish-all-posts-barbar (update)
+  "发布所有的 posts 内容，交互模式下询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (when update
+    (yynt-gen-all-posts-barbar))
+  (mapc 'yynt-publish-single-post
+	(mapcar (lambda (x) (file-name-directory (cdr x)))
+		(yynt-get-all-post-files)))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "index.html"))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "tags.html")))
+
+(defun yynt-publish-single-repost (dir)
+  "将某个 repost 下的所有文件发布
+不包括 org，如果源文件是 html，则直接复制整个目录"
+  (if (file-exists-p (file-name-concat dir "index.htm"))
+      (let* ((b-dir (file-relative-name dir yynt-basedir))
+	    (new-dir (file-name-concat yynt-publish-dir b-dir)))
+	(copy-directory dir new-dir t t t))
+    (yynt-publish-single-post dir)))
+
+(defun yynt-publish-current-repost-barbar (filename)
+  "发布当前 repost"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (yynt-update-current-repost filename)
+  (yynt-publish-single-repost (file-name-directory filename))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "republish" "index.html"))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "index.html")))
+
+(defun yynt-publish-all-reposts-barbar (update)
+  "发布所有的 repost 内容，询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (when update
+    (yynt-gen-all-reposts-barbar))
+  (mapc 'yynt-publish-single-repost
+	(mapcar (lambda (x) (file-name-directory (cdr x)))
+		(yynt-get-all-repost-files)))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "republish" "index.html")))
+
+(defun yynt-publish-current-euler-barbar (filename)
+  "发布当前 euler"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (yynt-update-current-euler filename)
+  (yynt-publish-attachment (file-name-concat
+			    (file-name-directory filename)
+			    (format "%s.html" (file-name-base filename))))
+  (yynt-publish-attachment (file-name-concat yynt-basedir "projecteuler" "index.html")))
+
+(defun yynt-publish-all-euler-barbar (update)
+  "发布所有的 euler 内容，询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (when update
+    (yynt-gen-all-projecteuler-barbar))
+  (mapc 'yynt-publish-attachment
+	(directory-files (file-name-concat yynt-basedir "projecteuler")
+			 t ".*\\.html")))
+
+(defun yynt-publish-current-file (filename &optional update)
+  "发布当前文件（也可用变量指定）
+若为 org 文件则询问是否更新对应 html，随后发布"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (if (not (string= (file-name-extension filename) "org"))
+      (yynt-publish-attachment filename)
+    (when (or update (y-or-n-p "Update this file?"))
+      (yynt-gen-org-barbar (list filename)))
+    (yynt-publish-attachment (file-name-concat
+			      (file-name-directory filename)
+			      (format "%s.html" (file-name-base filename))))))
+
+(defun yynt-publish-whole-barbar (update)
+  "发布当前博客的全部内容，询问是否重生成"
+  (interactive (list (y-or-n-p "Update all?")))
+  (when update
+    (yynt-gen-barbar))
+  (yynt-publish-all-euler-barbar nil)
+  (yynt-publish-all-reposts-barbar nil)
+  (yynt-publish-all-posts-barbar nil)
+  (yynt-publish-global-resource)
+  (yynt-publish-current-file
+   (file-name-concat yynt-basedir "index.org")))
