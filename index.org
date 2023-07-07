@@ -15,6 +15,7 @@
 #+MACRO: re_init (eval (yynt-repost-init))
 #+MACRO: re_clr  (eval (yynt-repost-clr))
 
+#+MACRO: curr_time (eval (yynt-temp-current-time))
 #+TITLE: Home :: include-yy
 
 {{{post_init}}}
@@ -56,8 +57,14 @@ yynt_rd.appendChild(yynt_daiyousei)
 yynt_header.insertBefore(yynt_rd, yynt_header.firstElementChild)
 yynt_header.insertBefore(yynt_rc, yynt_header.firstElementChild)
 
+yynt_cirno.addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109530208')
+yynt_daiyousei.addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109113009')
 </script>
 #+END_EXPORT
+
+#+BEGIN_nav
+| NOTES | [[./posts/index.org][POSTS]] | [[./republish/index.org][REPOSTS]] | [[./projecteuler/index.org][EULER]] | [[*ABOUT][ABOUT]] | FOLKS |
+#+END_nav
 
 * Recent [[./posts/index.org][Posts]]
 
@@ -69,6 +76,30 @@ yynt_header.insertBefore(yynt_rc, yynt_header.firstElementChild)
 {{{re_n(5)}}}
 {{{re_clr}}}
 
-* [[file:rss.xml][RSS]]
+* ABOUT
 
-https://egh0bww1.com/rss.xml
+本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。
+
+如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
+
+你可以添加 [[file:rss.xml][RSS]] 以订阅此博客，链接为：https://egh0bww1.com/rss.xml
+
+如果你也有 emacs 相关的博客，或者是非常有趣的东西，我很高兴把你的链接放在 FOLKS 里。
+
+*如果您发现某些内容侵犯了著作权，请通过邮件告诉我，我会及时删除。*
+
+#+BEGIN_QUOTE
+This blog primarily focuses on emacs-related content, with some other topics that I find interesting. All blog posts are published under CC-BY-SA 4.0.
+
+If you come across any issues in the articles, you can inform me through an issue or by emailing yy@egh0bww1.com.
+
+You can add the RSS feed to subscribe to this blog. The link is https://egh0bww1.com/rss.xml
+
+If you also have an emacs-related blog or something interesting, I would be happy to include your link in the FOLKS page.
+
+*If you find any content that infringes upon copyright, please inform me via email, and I will promptly remove it.*
+#+END_QUOTE
+
+*include-yy [2023-07-07 Fri 16:46]*
+
+Last modified: {{{curr_time}}}

@@ -491,3 +491,9 @@ https://pe-cn.github.io/%s
     (set-buffer-file-coding-system 'utf-8)
     (unless (file-exists-p filepath)
       (yynt-temp-euler number))))
+
+;;; 基于 org-publish 完成新的构建工具
+
+(defvar yynt-publish-dir (expand-file-name "./blog-build"))
+
+
