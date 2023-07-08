@@ -1,5 +1,5 @@
 #+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
+#+FILETAGS: elisp
 #+TITLE: emacs 的 byte compilation
 #+DATE: [2021-09-22 Wed]
 

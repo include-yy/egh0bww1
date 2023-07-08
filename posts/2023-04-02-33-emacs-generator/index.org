@@ -1,5 +1,5 @@
 #+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
+#+FILETAGS: elisp
 
 #+YYNTRSS: 本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法
 

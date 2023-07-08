@@ -27,8 +27,9 @@ RSS： https://egh0bww1.com/rss.xml
 - [X] projecteuler 主页
 - [X] 添加图片隐藏机制
 - [X] 构建工具改进
-- [ ] 代码重构
+- [X] 添加暗色模式
 - [ ] tag 修正
+- [ ] 代码重构
 - [ ] 完善 FOLKS 页面
-- [ ] 添加暗色模式
+- [ ] robot.txt
 - [ ] 完善 readme
