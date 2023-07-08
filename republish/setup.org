@@ -13,4 +13,4 @@
 #+HTML_LINK_RIGHT: ../index.html
 
 #+HTML_SUFFUNC: yynt-repost-postamble
-#+HTML_HEAD_FUNC: yynt-post-head
+#+HTML_HEAD_FUNC: yynt-repost-head

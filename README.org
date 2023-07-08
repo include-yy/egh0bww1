@@ -33,3 +33,5 @@ RSS： https://egh0bww1.com/rss.xml
 - [ ] 代码重构
 - [ ] 完善 FOLKS 页面
 - [ ] 完善 readme
+- [ ] 修正手机 css
+- [ ] mathjax 超出屏幕

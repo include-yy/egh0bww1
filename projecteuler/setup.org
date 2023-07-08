@@ -14,5 +14,5 @@
 #+HTML_LINK_RNAME: SUMMARY
 #+HTML_LINK_RIGHT: ./index.html
 
-#+HTML_SUFFUNC: yynt-euler-postamble
 #+HTML_HEAD_FUNC: yynt-euler-head
+#+HTML_SUFFUNC: yynt-euler-postamble

@@ -1,14 +1,15 @@
 #+SETUPFILE: ../cfg.org
-
-#+OPTIONS: num:nil
-
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
 
+#+OPTIONS: num:nil
+
 #+HTML_LINK_UP:./index.html
 #+HTML_LINK_HOME:../index.html
-#+HTML_LINK_FUNC: yynt-repost-home/up-func
-#+HTML_SUFFUNC: yynt-repost-index-postamble
+
+#+HTML_LINK_FUNC: yynt-euler-home/up-func
+#+HTML_HEAD_FUNC: yynt-euler-head
+#+HTML_SUFFUNC: yynt-euler-index-postamble
 
 #+TITLE: include-yy :: projecteuler
 #+DATE: [2023-04-27 Thu 01:54]

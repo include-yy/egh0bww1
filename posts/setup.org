@@ -15,5 +15,5 @@
 #+HTML_LINK_RNAME: BLOG
 #+HTML_LINK_RIGHT: ../index.html
 
-#+HTML_SUFFUNC: yynt-post-postamble
 #+HTML_HEAD_FUNC: yynt-post-head
+#+HTML_SUFFUNC: yynt-post-postamble

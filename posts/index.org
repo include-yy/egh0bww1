@@ -1,10 +1,11 @@
 #+SETUPFILE: ../cfg.org
-
-#+OPTIONS: num:nil
-#+HTML_SUFFUNC: yynt-post-index-postamble
-
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
 #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
+#+OPTIONS: num:nil
+
+#+HTML_HEAD_FUNC: yynt-post-index-head
+#+HTML_SUFFUNC: yynt-post-index-postamble
 
 #+HTML_LINK_UP:./index.html
 #+HTML_LINK_HOME:../index.html
