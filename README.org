@@ -28,8 +28,8 @@ RSS： https://egh0bww1.com/rss.xml
 - [X] 添加图片隐藏机制
 - [X] 构建工具改进
 - [X] 添加暗色模式
-- [ ] tag 修正
+- [X] tag 修正
+- [X] robots.txt
 - [ ] 代码重构
 - [ ] 完善 FOLKS 页面
-- [ ] robot.txt
 - [ ] 完善 readme
