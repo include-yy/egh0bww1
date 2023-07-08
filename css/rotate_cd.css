@@ -58,12 +58,12 @@
 	transform: rotateZ(-45deg) scaleY(0.5) rotate(108deg);
 	z-index: 2;
     }
-    60% {
-	transform: rotateZ(-45deg) scaleY(0.5) rotate(216deg);
+    55% {
+	transform: rotateZ(-45deg) scaleY(0.5) rotate(198deg);
 	z-index: 2;
     }
-    65% {
-	transform: rotateZ(-45deg) scaleY(0.5) rotate(234deg);
+    60% {
+	transform: rotateZ(-45deg) scaleY(0.5) rotate(216deg);
 	z-index: 0;
     }
     90% {

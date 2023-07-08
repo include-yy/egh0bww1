@@ -30,8 +30,9 @@ RSS： https://egh0bww1.com/rss.xml
 - [X] 添加暗色模式
 - [X] tag 修正
 - [X] robots.txt
-- [ ] 代码重构
-- [ ] 完善 FOLKS 页面
+- [X] 完善 FOLKS 页面
+- [X] 修正手机 css
+- [X] mathjax 超出屏幕
+- [X] 代码重构
 - [ ] 完善 readme
-- [ ] 修正手机 css
-- [ ] mathjax 超出屏幕
+- [ ] 改进图片隐藏

@@ -5,7 +5,7 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-07-08T01:01:20</pubDate>
+    <pubDate>2023-07-09T01:58:23</pubDate>
     <item>
       <title>emacs 中的数字函数</title>
       <link>https://egh0bww1.com/posts/2023-06-12-39-emacs-math-functions</link>
@@ -52,7 +52,7 @@
       <title>emacs generator 使用及实现介绍</title>
       <link>https://egh0bww1.com/posts/2023-04-02-33-emacs-generator</link>
       <description>本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法</description>
-      <category>emacs</category>
+      <category>elisp</category>
       <pubDate>2023-04-02</pubDate>
     </item>
     <item>

@@ -57,6 +57,7 @@
   (insert "#+NAME: tailimg\n")
   (yynt-imgattr))
 
+
 ;;; file api
 ;; 提供一些方便使用的文件操作 api
 ;; 参考了 f.el: https://github.com/rejeep/f.el
@@ -135,6 +136,7 @@
    (yynt-get-fullpath s-path)
    (yynt-get-fullpath t-path)))
 
+
 ;;; 一些 html 代码生成函数
 (defun yynt-html-gen-css (path)
   "生成 css 引用"
@@ -175,7 +177,8 @@
 	      (yynt-rela-cdpath yynt--rela-current-path
 				t-dir)
 	      name))
-
+
+;;;; 一些固定的元素
 ;;; post
 ;; 博客的发表目录，为二层结构，即 posts/*/index.org
 (defvar yynt-sb-post "posts"
@@ -311,10 +314,15 @@
 (defun yynt-404-postamble (_info)
   "<hr><div style=\"text-align:center;\"><i>404~</i></div>")
 
-;;; posts start here
+
+;;;; 针对单层目录和双层目录做一下抽象，分为 p1 和 p2 系列函数
+;;;; 提供一些通用的函数
+
 (defun yynt-get-file-info (filename infos)
-  "此处只取文件的 4096 字节数据，毕竟标题和 TAG 写在文件的最前面
+  "获取文件头的一些以 #+NAME: value 为格式的属性
+此处只取文件的 4096 字节数据，毕竟标题和 TAG 写在文件的最前面
 感觉 1024 也许就足够了"
+  (cl-assert (file-exists-p filename))
   (let ((case-fold-search t))
     (with-temp-buffer
       (insert-file-contents filename nil 0 4096)
@@ -326,22 +334,76 @@
 	    (push (cons a (match-string 1)) res)))
 	res))))
 
+(defvar yynt--match-anything ".*"
+  "匹配任何字符串的正则")
+(defun yynt--always-return-true (&rest args)
+  "总是返回 t 的函数"
+  t)
+
+;; 对于二级目录的子项，可以认为主要内容位于各二级目录内
+;; 而一级目录用来存储少许汇总性信息，比如文章列表，tag 汇总，等等
+;; 也可以是一些静态的资源文件
+(defun yynt-p2-getdirs (path regexp-or-pred pred)
+  "对于双层目录，获取满足条件的二次目录
+regexp-or-pred 用来匹配目录，pred 用来判断二级目录是否符合条件，比如是否含有某个文件
+若非 `nil'，pred 的返回值会被作为 yynt-p2-getdirs 的一部分
+返回相对目录和二次目录文件的绝对路径组成的表
+((dirname . fullpath) ...)
+这里的相对目录可以认为是一层目录下的 UUID"
+  (let* ((files (directory-files
+		 path t
+		 directory-files-no-dot-files-regexp))
+	 (dirs (seq-filter (lambda (x)
+			     (and (file-directory-p x)
+				  (if (stringp regexp-or-pred)
+				      (string-match-p regexp-or-pred (yynt-fbase x))
+				    (funcall regexp-or-pred (yynt-fbase x)))))
+			   files))
+	 res)
+    (dolist (a dirs)
+      (when-let ((p (funcall pred a)))
+	(push (cons (yynt-fbase a) p) res)))
+    (reverse res)))
+
+(defun yynt-p-get-info (list klist)
+  "根据 klist 中的关键字从 list 中的文件中获取信息
+list 的格式为 ((dir . fullname)...)
+返回值为 (((dir . fullname) . ((p1 . v1) (p2 . v2))) ...)"
+  (cl-mapcar 'cons list
+	     (mapcar (lambda (x)
+		       (yynt-get-file-info (cdr x) klist))
+		     list)))
+
+;; 对于一级目录的子项，所有项都在这一层目录里，相比二级目录比较简单
+;; 可能存在一些统一存放资源的文件夹，以及少数汇总式文件
+(defun yynt-p1-getfiles (path regexp-or-pred)
+  "与 yynt-p2-getdirs 类似，不过只针对一层
+regexp-or-pred 用来匹配文件，若为函数，则非 `nil' 表示匹配
+返回文件名（无扩展名）和文件的绝对路径组成的表
+((barename . fullpath) ...)
+文件名可以认为是 UUID"
+  (let* ((all (directory-files
+		 path t
+		 directory-files-no-dot-files-regexp))
+	 (files (seq-filter (lambda (x)
+			     (and (file-regular-p x) ;; f-file-p
+				  (if (stringp regexp-or-pred)
+				      (string-match-p regexp-or-pred (yynt-fname x))
+				    (funcall regexp-or-pred (yynt-fname x)))))
+			    all)))
+    (mapcar (lambda (x) (cons (yynt-fbase x) x)) files)))
+
+;;; post starts here
+;;; 用于 posts 的内容获取函数系列
 (defun yynt-get-dated-2xxx-under-dir (dirname)
   "获取某目录下的所有以 2xxx 开头的目录，以及其中的 index.org|html 文件绝对路径"
-  (let* ((dirs (directory-files (concat yynt-basedir
-					(file-name-as-directory dirname))
-				nil "2"))
-	 (fnames (mapcar (lambda (x)
-			   (let* ((d (concat yynt-basedir
-					     (file-name-as-directory dirname) x "/"))
-				  (org (concat d "index.org"))
-				  (htm (concat d "index.htm")))
-			     (cond
-			      ((file-exists-p org) org)
-			      ((file-exists-p htm) htm)
-			      (t (error "yynt: can't find post files")))))
-			 dirs)))
-    (cl-mapcar (lambda (x y) (cons x y)) dirs fnames)))
+  (yynt-p2-getdirs
+   (yynt-get-fullpath dirname) "^2"
+   (lambda (x)
+     (when-let ((org (yynt-fjoin x "index.org"))
+		(htm (yynt-fjoin x "index.htm"))
+		(ret (cl-find-if 'file-exists-p (list org htm))))
+       ret))))
 
 (defun yynt-get-all-post-files ()
   "获取 posts 目录下的所有文章源文件绝对路径 (目录名 . 绝对路径)"
@@ -351,16 +413,17 @@
   "获取 dir-fnames 下所有文章的标题和 tag
 格式为 ((目录名 . 绝对路径) . ((\"title\" . 标题) (\"filtag\" . tag)))
 注意 alist 顺序并不一定是 title 在前，请使用 assoc 访问"
-  (cl-mapcar (lambda (x y) (cons x y))
-	     dir-fnames
-	     (mapcar (lambda (x)
-		       (yynt-get-file-info (cdr x) '("title" "filetags")))
-		     dir-fnames)))
+  (yynt-p-get-info dir-fnames '("title" "filetags")))
 
 (defun yynt-get-post-dir-titles-tags ()
   "获取 posts 下所有文章的标题和 tag"
   (yynt-get-all-post-titles-tags (yynt-get-all-post-files)))
 
+;; 下面的代码用于 org-macro 的展开，变量负责在宏展开期间暂存数据
+;; 这是为了能在其他页面中插入根据 Post 信息生成的项
+;; 这里采用的方法是每对一个年份都过一遍所有的项
+;; 可以考虑先根据年份分组，随后直接插入组对应项
+;; （不过我懒得改了，又不是不能用） 2023-07-08
 (defvar yynt--post-dir-title-tag nil
   "用于暂存生成 post 的 index 文件的标题和 tag")
 
@@ -369,11 +432,11 @@
   (let ((fmt "- [%s] [[file:%s][%s]]"))
     (mapconcat (lambda (x)
 		 (let* ((d (caar x))
-			(file (file-name-nondirectory (cdar x)))
+			(file (yynt-fname (cdar x)))
 			(title (cdr (assoc "title" (cdr x)))))
 		   (format fmt
 			   (substring d 0 10)
-			   (concat prefix d "/" file)
+			   (yynt-fjoin (or prefix "") d file)
 			   title)))
 	       dir-titles
 	       "\n")))
@@ -416,10 +479,12 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   (let ((num (string-to-number numstr)))
     (yynt-generate-titlelists
      (seq-take yynt--post-dir-title-tag num)
-     "posts/")))
+     "posts")))
 
 ;;; posts tags start here
-(defvar yynt--post-tags-file (concat yynt-basedir "post-tags.el")
+;;; 为 post 文件生成 tagfile
+;;; 可以考虑给 repost 也做一个，不过文章现在还太少，没必要
+(defvar yynt--post-tags-file (yynt-get-fullpath "post-tags.el")
   "tag 文件路径")
 
 (defun yynt--post-read-tags ()
@@ -438,12 +503,16 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   (message "yynt: write tags fin"))
 
 (defun yynt-post-get-tags ()
-  "获取所有文章中的 tag 集合"
+  "获取所有文章中的 tag 集合
+可用于调试目的，寻找被遗漏的 tag
+如果结果中出现了 nil，则说明存在文件没有 tag"
   (delete-dups
    (mapcar (lambda (x)
 	     (cdr (assoc "filetags" (cdr x))))
 	   (yynt-get-post-dir-titles-tags))))
 
+;; tag 管理用户函数
+;; 增加，删除，和在文章中插入 tag
 (defun yynt-post-insert-tag ()
   "当前位置插入 tag"
   (interactive)
@@ -465,8 +534,11 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   (interactive (list (completing-read "Select a tag: " (yynt--post-read-tags))))
   (yynt--post-write-tags (remove tag (yynt--post-read-tags))))
 
+;; 用于 org-macro 的模板宏的函数们
+;; 同样这里可以优化，比如以 tag 为键使用哈希表，应该能快不少
+;; 但是规模太小反倒现在没有必要（笑）
 (defun yynt--post-tag-filter (tagstr dir-titles)
-  "根据年份筛选文章列表"
+  "根据 tag 筛选文章列表"
   (seq-filter (lambda (x)
 		(string= (cdr (assoc "filetags" (cdr x)))
 			 tagstr))
@@ -489,6 +561,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   "获取 post 的 tag 总数"
   (number-to-string (length (yynt--post-read-tags))))
 
+
 ;;; repost starts here
 (defun yynt-get-all-repost-files ()
   "获取 republish 目录下的所有文章源文件绝对路径 (目录名 . 绝对路径)"
@@ -524,12 +597,14 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
     (yynt-generate-titlelists
      (seq-take yynt--repost-dir-title-tag num)
      "republish/")))
-
+
+;; 一些写作模板
 ;; some template for posts, reposts and euler
 ;; [YYYY-MM-DD DAY HH:MM]
 (defun yynt-temp-current-time ()
   (format-time-string "[%Y-%m-%d %a %H:%M]"))
 (defun yynt-temp-post (title tag)
+  (interactive)
   (insert (format
 	   "\
 #+SETUPFILE: ../setup.org
@@ -541,6 +616,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 	   (yynt-temp-current-time))))
 
 (defun yynt-temp-repost ()
+  (interactive)
   (insert "\
 #+SETUPFILE: ../setup.org
 #+FILETAGS:\n
@@ -563,9 +639,12 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 https://pe-cn.github.io/%s
 * Solution"
 	   num num num)))
-
+
+;; 生成 RSS
+;; 也许可以考虑添加多个 channel，不过现在没什么必要
+;; 也许可以考虑添加图片，不过没几个人看，算了
 ;; generate rss file
-(defvar yynt-rss-filepath (concat yynt-basedir "rss.xml")
+(defvar yynt-rss-filepath (yynt-get-fullpath "rss.xml")
   "RSS 文件位置")
 (defvar yynt-rss-link "https://egh0bww1.com"
   "RSS 网站首页 url")
@@ -608,11 +687,8 @@ https://pe-cn.github.io/%s
 (defun yynt-get-post-rss ()
   "格式为 ((dir . fpath) . ((\"title\" . title) (\"filtag\" . tag) (\"yyntrss\" . rss)))"
   (let ((dir-fnames (yynt-get-all-post-files)))
-    (cl-mapcar (lambda (x y) (cons x y))
-	       dir-fnames
-	       (mapcar (lambda (x)
-			 (yynt-get-file-info (cdr x) '("title" "filetags" "yyntrss")))
-		       dir-fnames))))
+    (yynt-p-get-info dir-fnames
+		     '("title" "filetags" "yyntrss"))))
 
 (defun yynt-rss-generate ()
   "生成完整的 RSS"
@@ -647,6 +723,9 @@ https://pe-cn.github.io/%s
     (save-buffer)
     (kill-buffer))
   (message "update rss fin"))
+
+;; 一些方便的新建文件夹功能
+;; 也行应该和上面的模板放在一起
 
 ;; 直接在对应目录创建文件夹和 org 文件
 (defun yynt-create-draft (dirname title tag)
@@ -654,63 +733,81 @@ https://pe-cn.github.io/%s
   (interactive (list (read-from-minibuffer "Enter dirname: ")
 		     (read-from-minibuffer "Enter title: ")
 		     (completing-read "Select tag: " (yynt--post-read-tags))))
-  (let ((dirpath (concat yynt-basedir "drafts/"
-			 (format-time-string "%Y-%m-%d-")
-			 dirname)))
+  (let ((dirpath (yynt-fjoin (yynt-get-fullpath "drafts")
+			     (concat (format-time-string "%Y-%m-%d-")
+				     dirname))))
     (make-directory dirpath)
-    (find-file (concat dirpath "/index.org"))
+    (find-file (yynt-fjoin dirpath "index.org"))
     (yynt-temp-post title tag)))
 
-(defun yynt-publish-draft (dirpath)
+(defun yynt-move-draft (dirpath)
   "将当前所在草稿 org 文件所在文件夹发布到 post"
   (interactive (list default-directory))
-  (if (not (string-match-p (concat yynt-basedir "drafts")
-			   dirpath))
+  (if (not (equal (yynt-get-fullpath "drafts")
+		  (yynt-fdir dirpath)))
       (message "currently not in draft source file, quit")
-    (let ((newdir (concat yynt-basedir "posts/"
-			  (format-time-string "%Y-%m-%d-")
-			  (substring (file-relative-name
-				      dirpath
-				      (concat yynt-basedir "drafts"))
-				     11))))
+    (let ((newdir (yynt-fjoin
+		   (yynt-get-fullpath "posts")
+		   (concat (format-time-string "%Y-%m-%d-")
+			   (substring (yynt-frela
+				       dirpath
+				       (yynt-get-fullpath "drafts"))
+				      11)))))
       (copy-directory dirpath newdir t t t)
-      (find-file (concat newdir "/index.org"))
+      (find-file (yynt-fjoin newdir "index.org"))
       (set-buffer-file-coding-system 'utf-8)
       (message "publish draft fin"))))
 
 (defun yynt-create-repost (dirname)
   "创建新的 republish 文件夹"
   (interactive (list (read-from-minibuffer "Enter dirname: ")))
-  (let ((dirpath (concat yynt-basedir "republish/"
-			 (format-time-string "%Y-%m-%d-")
-			 dirname)))
+  (let ((dirpath (yynt-fjoin
+		  (yynt-get-fullpath "republish")
+		  (concat (format-time-string "%Y-%m-%d-")
+			  dirname))))
     (make-directory dirpath)
-    (find-file (concat dirpath "/index.org"))
+    (find-file (yynt-fjoin dirpath "index.org"))
     (set-buffer-file-coding-system 'utf-8)
     (yynt-temp-repost)))
 
 (defun yynt-create-euler (number)
   "创建新的 projecteuler 文件"
   (interactive (list (read-from-minibuffer "Enter problem Number: ")))
-  (let ((filepath (concat yynt-basedir "projecteuler/"
-			  number ".org")))
+  (let ((filepath (yynt-fjoin (yynt-get-fullpath "projecteuler")
+			      (concat number ".org"))))
     (find-file filepath)
-    (set-buffer-file-coding-system 'utf-8)
     (unless (file-exists-p filepath)
+      (set-buffer-file-coding-system 'utf-8)
       (yynt-temp-euler number))))
+
+;;; 区别于 org-publish 的构建功能
+;;; 待 emacs 29 发布再实现带缓存的构建，可以考虑用 sqlite3
+;;; 不过感觉不需要缓存也行，更何况 org-publish 不太能处理引用文件发生变化的情况
+;;; 以下实现采用的方式是先在本地生成，随后复制到目标目录，且保持原目录结构不变
+;;; 相比于原版直接生成到目标看上去有点蠢，取 `barbarian' 之 `barbar' 作为后缀
+;;; 构建系统应该能够描述依赖关系....... 这部分留到下一个 ^L
 
-;;; 基于 org-publish 完成新的构建工具
-;;; 待 emacs 29 发布再实现带缓存的构建
+;; 直接构建整个 blog
 
-(defvar yynt-publish-dir (expand-file-name "./blog-build")
-  "博客构建结果的根目录")
+;;; 添加一个构建信息 logger，不使用 message
+(defvar yynt--logger "*yynt*"
+  "用于输出 log 消息的 buffer 名")
+(defun yynt-gen-log (str)
+  (with-current-buffer (get-buffer-create yynt--logger)
+    (goto-char (point-max))
+    (insert str "\n")))
+(defun yynt-show-log ()
+  (interactive)
+  (display-buffer (get-buffer-create yynt--logger)))
 
+;; 以下函数可能仅用于博客出现大规模改动时
 (defun yynt-gen-org-barbar (files)
   "对列表中的文件进行 org 构建"
   (dolist (f files)
-    (when (and (file-exists-p f)
-	       (string= (file-name-extension f) "org"))
-      (message "yynt: gen %s" f)
+    (if (not (and (file-exists-p f)
+		  (string= (file-name-extension f) "org")))
+	(yynt-gen-log (format "skipping  : %s" f))
+      (yynt-gen-log (format   "generating: %s" f))
       (if-let ((buf (get-file-buffer f)))
 	  (with-current-buffer buf
 	    (org-export-to-file 'yyhtml (format "%s.html" (file-name-base f))))
@@ -723,31 +820,30 @@ https://pe-cn.github.io/%s
   (interactive)
   ;;(org-export-to-file 'yyhtml "index.html")
   (let* ((all-posts (mapcar 'cdr (yynt-get-all-post-files)))
-	 (index-and-tags (list (file-name-concat yynt-basedir "posts" "index.org")
-			       (file-name-concat yynt-basedir "posts" "tags.org"))))
+	 (index-and-tags (list (yynt-fjoin (yynt-get-fullpath "posts") "index.org")
+			       (yynt-fjoin (yynt-get-fullpath "posts") "tags.org"))))
     (yynt-gen-org-barbar (append all-posts index-and-tags))))
 
 (defun yynt-gen-all-reposts-barbar ()
   "重新构建 reposts 中的 org 文件，也包括 index 目录文件"
   (interactive)
   (let ((all-posts (mapcar 'cdr (yynt-get-all-repost-files)))
-	(index (list (file-name-concat yynt-basedir "republish" "index.org"))))
+	(index (list (yynt-fjoin (yynt-get-fullpath "republish") "index.org"))))
     (yynt-gen-org-barbar (append all-posts index))))
 
 (defun yynt-gen-all-projecteuler-barbar ()
   "重新构建 euler 中的 org 文件"
   (interactive)
-  (let ((all-posts (directory-files
-		    (file-name-concat yynt-basedir "projecteuler")
-		    t "[0-9]+\\.org"))
-	(index (list (file-name-concat yynt-basedir "projecteuler" "index.org"))))
+  (let ((all-posts (mapcar 'cdr (yynt-p1-getfiles
+				 (yynt-get-fullpath yynt-sb-euler) "[0-9]\\.org")))
+	(index (list (yynt-fjoin (yynt-get-fullpath "projecteuler") "index.org"))))
     (yynt-gen-org-barbar (append all-posts index))))
 
 (defun yynt-gen-toplevel-barbar ()
   "重新构建位于根目录的 org 文件"
   (interactive)
-  (let ((all-files (list (file-name-concat yynt-basedir "index.org")
-			 (file-name-concat yynt-basedir "404.org"))))
+  (let ((all-files (list (yynt-get-fullpath "index.org")
+			 (yynt-get-fullpath "404.org"))))
     (yynt-gen-org-barbar all-files)
   (yynt-rss-update)))
 
@@ -758,59 +854,81 @@ https://pe-cn.github.io/%s
   (yynt-gen-all-reposts-barbar)
   (yynt-gen-all-projecteuler-barbar)
   (yynt-gen-toplevel-barbar))
+
+;;;; 构建中的依赖关系
 
-;; 更新 post 需要更新 post index, post tags index, homepage index, rss
-(defun yynt-update-current-post (filepath &optional noquiz)
-  "更新某一 post，同时更新各种目录文件和 rss"
+;; 以上是不带脑子的构建过程，现在让我们考虑一下依赖关系
+;; 比如更新了 posts 中的文章，我们需要更新 post index, post tags, homepage 和 rss
+;; 更新了 reposts 的文章，我们需要更新 repost index 和 homepage
+;; 更新了 euler 的文章，我们需要更新 euler index
+;; 也许我们可以使用类似钩子的机制来在某次更新完成后对其他内容进行更新
+;; 同时也要考虑到更新合并的问题，比如同时更新两个 posts 文章，我们只需要
+;; 更新一次 index, tags, homepage 和 rss
+
+(defun yynt--update-homepage ()
+  "只更新 homepage"
+  (yynt-gen-org-barbar (list (yynt-get-fullpath "index.org"))))
+(defun yynt--update-post-index-and-tags ()
+  "更新 posts 中的 index 和 tag"
+  (yynt-gen-org-barbar (list (yynt-get-fullpath "posts/index.org")
+			     (yynt-get-fullpath "posts/tags.org"))))
+(defun yynt--update-repost-index ()
+  "更新 repost 的 index"
+  (yynt-gen-org-barbar (list (yynt-get-fullpath "republish/index.org"))))
+(defun yynt--update-euler-index ()
+  "更新 euler 的 index"
+  (yynt-gen-org-barbar (list (yynt-get-fullpath "projecteuler/index.org"))))
+
+(defvar yynt--update-post-hook (list 'yynt--update-post-index-and-tags
+				     'yynt--update-homepage
+				     'yynt-rss-update)
+  "更新一些 posts 后需要的更新操作")
+(defvar yynt--update-repost-hook (list 'yynt--update-repost-index
+				       'yynt--update-homepage)
+  "更新 reposts 后需要的更新操作")
+(defvar yynt--update-euler-hook (list 'yynt--update-euler-index)
+  "更新单篇 euler 后需要的更新操作")
+
+;; 如果项目多起来了，可以考虑创建一个包含各项目判定函数的列表
+;; 然后利用这些函数判定属于那个项目，不过现在还是算了
+(defun yynt--update-find-sb (path)
+  "根据 path 寻找所属 sb, 比如 post 等等，返回用于后续动作的钩子
+`path' 需要是文件路径"
+  (if (or (not (string-match-p yynt-basedir path)) ; 不在 yynt 内
+	  (yynt-fsame-p (yynt-fdir path) yynt-basedir)) ; 在根目录上
+      nil
+    (let* ((fnm (yynt-fname path))
+	   (dir (yynt-fdir path))
+	   (d-1 (yynt-fname dir)))
+      (pcase d-1
+	((guard (equal yynt-sb-post d-1)) nil)
+	((guard (equal yynt-sb-repost d-1)) nil)
+	((guard (equal yynt-sb-euler d-1))
+	 (if (equal fnm "index.org") nil
+	   'yynt--update-euler-hook))
+	(_ (let* ((dir-2 (yynt-fdir dir))
+		  (d-2 (yynt-fname dir-2)))
+	     (pcase d-2
+	       ((guard (equal yynt-sb-post d-2)) 'yynt--update-post-hook)
+	       ((guard (equal yynt-sb-repost d-2)) 'yynt--update-repost-hook)
+	       (_ (error "should't happens for now")))))))))
+
+(defun yynt-update-current-buffer (path)
+  "更新当前的 org 文件，并运行对应的钩子"
   (interactive (list (buffer-file-name (current-buffer))))
-  (if (or (not (string-match-p (file-name-concat yynt-basedir "posts")
-			       filepath))
-	  (string= (file-name-directory filepath)
-		   (file-name-concat yynt-basedir "posts/")))
-      (message "current not in post's dir dir, quit")
-    (let ((idx-tag-home (list (file-name-concat yynt-basedir "posts" "index.org")
-			      (file-name-concat yynt-basedir "posts" "tags.org")
-			      (file-name-concat yynt-basedir "index.org"))))
-      (if (string= "org" (file-name-extension filepath))
-	  (progn (yynt-gen-org-barbar (cons filepath idx-tag-home))
-		 (yynt-rss-update))
-	(if (or noquiz (y-or-n-p "no org file, still want to update?"))
-	    (progn (yynt-gen-org-barbar idx-tag-home)
-		   (yynt-rss-update))
-	  (message "update nothing, quit"))))))
+  (let ((hook (yynt--update-find-sb path)))
+    (yynt-gen-org-barbar (list path))
+    (run-hooks hook)))
 
-;; 更新 reposts 需要更新 repost index, homepage index
-(defun yynt-update-current-repost (filepath)
-  "更新某一 repost，以及各种 index 文件"
-  (interactive (list (buffer-file-name (current-buffer))))
-  (if (or (not (string-match-p (file-name-concat yynt-basedir "republish")
-			       filepath))
-	  (string= (file-name-directory filepath)
-		   (file-name-concat yynt-basedir "republish/")))
-      (message "current not in repost's dir dir, quit")
-    (let ((idx-home (list (file-name-concat yynt-basedir "republish" "index.org")
-			  (file-name-concat yynt-basedir "index.org"))))
-      (if (string= "org" (file-name-extension filepath))
-	  (yynt-gen-org-barbar (cons filepath idx-home))
-	(yynt-gen-org-barbar idx-home)))))
-
-;; 更新 projecteuler 需要更新 euler index
-(defun yynt-update-current-euler (filepath)
-  (interactive (list (buffer-file-name (current-buffer))))
-  (if (not (string= (file-name-directory filepath)
-		    (file-name-concat yynt-basedir "projecteuler/")))
-      (message "current not in euler's dir, quit")
-    (if (not (string= "org" (file-name-extension filepath)))
-	(message "file is not euler's source")
-      (yynt-gen-org-barbar (list filepath
-				 (file-name-concat yynt-basedir
-						   "projecteuler" "index.org"))))))
-
+;; 为什么没有只更新一个 buffer 的命令，因为我们可以 C-c C-e y y（笑）
+
 ;; 这里采用先原地生成后复制到目标的方法
 ;; 这样一来，资源的发布就是复制而已
+;; 也许我在编写过程中部分参考了 org-publish，比如 `org-publish-attachment'
 
-;;; 这里参考了 org-publish-attachment
-;; (file-relative-name)
+(defvar yynt-publish-dir (yynt-get-fullpath "blog-build")
+  "博客构建结果的根目录")
+
 (defun yynt-publish-attachment (filename)
   "将某个文件移动到 `yynt-publish-dir' 下
 文件名需要是绝对路径，且位于 `yynt-basedir' 内"
@@ -823,122 +941,125 @@ https://pe-cn.github.io/%s
 	(make-directory new-path t))
       (copy-file filename new-name t))))
 
-(defun yynt-publish-global-resource ()
-  "将全局图片和一些东西进行复制"
-  (interactive)
-  (let ((css (cddr (directory-files (file-name-concat yynt-basedir "css") t)))
-	(img (cddr (directory-files (file-name-concat yynt-basedir "img") t)))
-	(js  (cddr (directory-files (file-name-concat yynt-basedir "js")  t)))
-	(rss (list (file-name-concat yynt-basedir "rss.xml")))
-	(eulerimg (cddr (directory-files
-			 (file-name-concat yynt-basedir "projecteuler" "res") t)))
-	;; 404 可能几个月更新一次
-	(f404 (list (file-name-concat yynt-basedir "404.html"))))
-    (mapc 'yynt-publish-attachment (append css img js rss eulerimg f404))))
-
-(defun yynt-publish-single-post (dir)
-  "将某个 posts 下的所有文件发布
-不包括一些文件，比如 org, pptx, "
-  (let* ((files (cddr (directory-files dir t)))
-	 (exfiles (cl-remove-if
-		   (lambda (x)
-		     (string-match-p
-		      "pptx?\\|org"
-		      (file-name-extension x)))
-		   files)))
-    (mapc 'yynt-publish-attachment exfiles)))
-
-(defun yynt-publish-current-post-barbar (filename)
-  "将当前 post 发布"
-  (interactive (list (buffer-file-name (current-buffer))))
-  ;; 首先重生成
-  (yynt-update-current-post filename t)
-  (yynt-publish-single-post (file-name-directory filename))
-  ;;接着发布目录文件和主页，以及 rss
-  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "index.html"))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "tags.html"))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "index.html"))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "rss.xml")))
-
-(defun yynt-publish-all-posts-barbar (update)
-  "发布所有的 posts 内容，交互模式下询问是否更新"
-  (interactive (list (y-or-n-p "Update?")))
-  (when update
-    (yynt-gen-all-posts-barbar))
-  (mapc 'yynt-publish-single-post
-	(mapcar (lambda (x) (file-name-directory (cdr x)))
-		(yynt-get-all-post-files)))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "index.html"))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "posts" "tags.html")))
-
-(defun yynt-publish-single-repost (dir)
-  "将某个 repost 下的所有文件发布
-不包括 org，如果源文件是 html，则直接复制整个目录"
-  (if (file-exists-p (file-name-concat dir "index.htm"))
-      (let* ((b-dir (file-relative-name dir yynt-basedir))
-	    (new-dir (file-name-concat yynt-publish-dir b-dir)))
-	(copy-directory dir new-dir t t t))
-    (yynt-publish-single-post dir)))
-
-(defun yynt-publish-current-repost-barbar (filename)
-  "发布当前 repost"
-  (interactive (list (buffer-file-name (current-buffer))))
-  (yynt-update-current-repost filename)
-  (yynt-publish-single-repost (file-name-directory filename))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "republish" "index.html"))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "index.html")))
-
-(defun yynt-publish-all-reposts-barbar (update)
-  "发布所有的 repost 内容，询问是否更新"
-  (interactive (list (y-or-n-p "Update?")))
-  (when update
-    (yynt-gen-all-reposts-barbar))
-  (mapc 'yynt-publish-single-repost
-	(mapcar (lambda (x) (file-name-directory (cdr x)))
-		(yynt-get-all-repost-files)))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "republish" "index.html")))
-
-(defun yynt-publish-current-euler-barbar (filename)
-  "发布当前 euler"
-  (interactive (list (buffer-file-name (current-buffer))))
-  (yynt-update-current-euler filename)
-  (yynt-publish-attachment (file-name-concat
-			    (file-name-directory filename)
-			    (format "%s.html" (file-name-base filename))))
-  (yynt-publish-attachment (file-name-concat yynt-basedir "projecteuler" "index.html")))
-
-(defun yynt-publish-all-euler-barbar (update)
-  "发布所有的 euler 内容，询问是否更新"
-  (interactive (list (y-or-n-p "Update?")))
-  (when update
-    (yynt-gen-all-projecteuler-barbar))
+(defun yynt-publish-a-dir (dirname regexp)
+  "递归发布目录下的所有文件，但排除正则匹配的扩展名
+扩展名需要带点，目录为相对路径"
   (mapc 'yynt-publish-attachment
-	(directory-files (file-name-concat yynt-basedir "projecteuler")
-			 t ".*\\.html")))
+	(cl-remove-if
+	 (lambda (x) (string-match-p regexp x))
+	 (directory-files-recursively
+	  (yynt-get-fullpath dirname) ".*"))))
 
-(defun yynt-publish-current-file (filename &optional update)
-  "发布当前文件（也可用变量指定）
+(defun yynt-publish-global-res-barbar ()
+  "发布全局资源"
+  (interactive)
+  (let ((dirs (list yynt-d-css yynt-d-img yynt-d-js)))
+    (mapc (lambda (x) (copy-directory (yynt-get-fullpath x)
+				      (yynt-fjoin yynt-publish-dir x) t t t))
+	  dirs))
+  (let ((files '("robots.txt" "rss.xml")))
+    (mapc (lambda (x) (yynt-publish-attachment (yynt-get-fullpath x)))
+	  files))
+  (message "publish res: fin"))
+
+(defun yynt--publish-barbar (dirname regexp genfunc &optional update)
+  "用于 posts repost euler 的内部函数"
+  (when update
+    (funcall genfunc))
+  (yynt-publish-a-dir dirname regexp))
+
+
+(defun yynt-publish-posts-barbar (update)
+  "发布所有的 posts，询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (yynt--publish-barbar yynt-sb-post "\\.org\\|pptx?"
+			'yynt-gen-all-posts-barbar
+			update))
+
+(defun yynt-publish-reposts-barbar (update)
+  "发布所有的 reposts，询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (yynt--publish-barbar yynt-sb-repost "\\.org\\|pptx?"
+			'yynt-gen-all-reposts-barbar
+			update))
+
+(defun yynt-publish-eulers-barbar (update)
+  "发布所有的 euler，询问是否更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (yynt--publish-barbar yynt-sb-euler "\\.org"
+			'yynt-gen-all-projecteuler-barbar
+			update))
+
+(defun yynt-publish-homepage-404-barbar (update)
+  "询问更新 index.org 和 404.org 并发布"
+  (interactive (list (y-or-n-p "Update?")))
+  (when update
+    (yynt-gen-org-barbar
+     (list (yynt-get-fullpath "index.org")
+	   (yynt-get-fullpath "404.org"))))
+  (mapc 'yynt-publish-attachment
+	(list (yynt-get-fullpath "index.html")
+	      (yynt-get-fullpath "404.html"))))
+
+(defun yynt-publish-barbar (update)
+  "发布所有内容，并询问更新"
+  (interactive (list (y-or-n-p "Update?")))
+  (when update
+    (yynt-rss-update))
+  (yynt-publish-posts-barbar update)
+  (yynt-publish-reposts-barbar update)
+  (yynt-publish-eulers-barbar update)
+  (yynt-publish-global-res-barbar)
+  (yynt-publish-homepage-404-barbar update))
+;; 愚蠢的发布方式就到此为止了
+;; 同样，这些代码只适合在博客大规模改动时使用
+
+
+;;; 处理依赖关系的发布当前内容功能
+;;; 毕竟是发布，大多数情况下应该默认重新生成
+;;; 若之后使用多种后端，可以考虑扩展，不过暂时没有这个需求~
+
+(defun yynt-publish-single (filename)
+  "发布当前单个文件（也可用变量指定）
 若为 org 文件则询问是否更新对应 html，随后发布"
   (interactive (list (buffer-file-name (current-buffer))))
   (if (not (string= (file-name-extension filename) "org"))
       (yynt-publish-attachment filename)
-    (when (or update (y-or-n-p "Update this file?"))
-      (yynt-gen-org-barbar (list filename)))
-    (yynt-publish-attachment (file-name-concat
-			      (file-name-directory filename)
-			      (format "%s.html" (file-name-base filename))))))
+    (yynt-gen-org-barbar (list filename))
+    (yynt-publish-attachment (yynt-fswap-ext filename "html"))))
 
-(defun yynt-publish-whole-barbar (update)
-  "发布当前博客的全部内容，询问是否重生成"
-  (interactive (list (y-or-n-p "Update all?")))
-  (when update
-    (yynt-gen-barbar))
-  (yynt-publish-all-euler-barbar nil)
-  (yynt-publish-all-reposts-barbar nil)
-  (yynt-publish-all-posts-barbar nil)
-  (yynt-publish-global-resource)
-  (yynt-publish-current-file
-   (file-name-concat yynt-basedir "index.org")))
+;; 这里直接借用 `yynt--update-find-sb' 的项目判断
+;; 同样，逻辑全写在一起了，有需要的话再改吧（笑）
+(defun yynt-publish-current-buffer (filename)
+  "发布当前文件（也可用变量指定）
+由于有依赖关系，这个文件需要是 org 或 htm 文件"
+  (interactive (list (buffer-file-name (current-buffer))))
+  (let ((hname (yynt--update-find-sb filename)))
+    (if (null hname) (yynt-publish-single filename)
+      (yynt-update-current-buffer filename)
+      (pcase hname
+	('yynt--update-euler-hook
+	 (progn
+	   (mapc 'yynt-publish-attachment
+		 (list (yynt-fswap-ext filename "html")
+		       (yynt-get-fullpath "projecteuler/index.html")))
+	   (yynt-publish-a-dir "projecteuler/res" "⑨")))
+	('yynt--update-repost-hook
+	 (yynt-publish-a-dir (yynt-frela (yynt-fdir filename) yynt-basedir)
+			     "\\.org\\|pptx?")
+	 (mapc 'yynt-publish-attachment
+	       (mapcar 'yynt-get-fullpath
+		       '("index.html" "republish/index.html"))))
+	('yynt--update-post-hook
+	 (yynt-publish-a-dir (yynt-frela (yynt-fdir filename) yynt-basedir)
+			     "\\.org\\|pptx?")
+	 (mapc 'yynt-publish-attachment
+	       (mapcar 'yynt-get-fullpath
+		       '("index.html" "rss.xml"
+			 "posts/index.html" "posts/tags.html"))))
+	(_ (error "yynt-publish: never happends"))))))
+
+;;; sacha chua 的 src block 强化功能，之后详细了解一下
 
 ;; https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/
 ;; (setq org-babel-exp-code-template "#+begin_src %lang :summary %summary\n%body\n#+end_src")
