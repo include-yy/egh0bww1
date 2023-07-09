@@ -608,7 +608,6 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 (defun yynt-temp-current-time ()
   (format-time-string "[%Y-%m-%d %a %H:%M]"))
 (defun yynt-temp-post (title tag)
-  (interactive)
   (insert (format
 	   "\
 #+SETUPFILE: ../setup.org
@@ -620,7 +619,6 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 	   (yynt-temp-current-time))))
 
 (defun yynt-temp-repost ()
-  (interactive)
   (insert "\
 #+SETUPFILE: ../setup.org
 #+FILETAGS:\n
@@ -631,7 +629,6 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 #+END_aside\n"))
 
 (defun yynt-temp-euler (num)
-  (interactive)
   (insert (format
 	   "\
 #+SETUPFILE: ./setup.org\n

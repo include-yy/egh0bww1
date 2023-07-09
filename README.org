@@ -1,38 +1,200 @@
 
 * 关于博客的说明
 
+*Welcome to include-yy's blog source.*
+
 本博客使用了 emacs 的 org-mode 的导出功能，将 org 文件导出为 html 文件。虽然 github 支持 org 文件渲染，不过前往网页浏览的体验应该会更好。
 
-博客使用 CC-BY-SA 4.0，如果有精力可以遵守一下这个协议，比较懒的话我也不会怎么样，feel free to do what you want（笑）。
+博客目录如下：
 
-如果您有任何问题，欢迎通过 issue 与我交流。
+- =/img=, =/css=, =/js= 一些全局资源
+- =/posts/*= 发布的文章
+- =/republish/*= 一些转载的文章
+- =/projecteuler= 一些简单 [[https://projecteuler.net/archives][projecteuler]] 题解
 
-RSS： https://egh0bww1.com/rss.xml
+#+BEGIN_QUOTE
+Problems 1 to 100 provide a wealth of helpful introductory teaching material and if you are able to respect our requirements, then we give permission for those problems and their solutions to be discussed elsewhere.
 
-* 更新
+https://projecteuler.net/about
+#+END_QUOTE
 
-使用 ox-html 的魔改版作为 html 后端：ox-yyhtml
+- =/drafts/*= 草稿，只有配置文件
+- =/index.org= 博客主页 org 源文件
+- =/404.org= 404 页面源文件
+- =/rss.xml= 最新的 RSS 文件
+- =/robots.txt= Robots 文件
+- =/cfg.org= 全局配置文件
+- =/post-tags.el= 用于 posts 的包含所有 tag 的文件
+- =/yynt2.el=, =/ox-yyhtml.el=, =/htmlize.el= 构建工具代码
 
-- 添加了全新的 HTML_HEAD_FUNC 选项，可以接受一个函数名。函数接受 =info= 参数，应该返回插入到 =<head>= 中的内容，它位于 =HTML_HEAD= 和 =HTML_HEAD_EXTRA= 之后
+博客的 posts 和 projecteuler 部分使用 CC-BY-SA 4.0，不遵守我也懒得管，feel free to do what you want（笑）。如果您有任何问题，欢迎通过 issue 与我交流。
 
-- 为 preamble 和 postamble 添加了额外的选项： =HTML_PREVAR= ， =HTML_PER= ， =HTML_SUFVAR= ， =HTML_SUF= 。可以在通过 =#+SETUP:= 引入的文件中编写 postamble 和 preamble 了，或是通过变量定义 postamble 和 preamble
+Wishlist:
+
+- 添加生成 sitemap 的功能
+- 优化一些算法，比如 tag 的归类
+
+* Related Projects
+
+- [[https://github.com/fniessen/org-html-themes][org-html-themes]] 一些用于 org 的 CSS
+- [[https://github.com/org2blog/org2blog][org2blog]] Blog from Org mode to WordPress
+- [[https://github.com/bastibe/org-static-blog][org-static-blog]] A static site generator using org-mode
+
+* 致谢
+
+感谢 [[https://github.com/gongzhitaao][gongzhitaao]] 的 [[https://github.com/gongzhitaao/orgcss][orgcss]]（展示页：https://gongzhitaao.org/orgcss/） ，这是我最初使用过的 CSS，现在也是在此基础上做了一些简化。
+
+感谢 [[https://github.com/bastibe/org-static-blog][org-static-blog]]，我从中学到了获取 =FILETAGS= 的方法。
+
+感谢 Sacha chua 的 [[https://sachachua.com/blog/2023/01/using-javascript-to-add-a-copy-code-link-to-source-code-blocks-in-my-blog-posts/][Using Javascript to add a "Copy code" link to source code blocks in my blog posts]] 和 [[https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/][Adding a custom header argument to Org Mode source blocks and using that argument during export]] ，这让 org 的 src 变得更加易用。
+
+* 生成工具手册
+
+在 yynt2.el 之前，本博客的生成工具是 [[https://github.com/include-yy/notes/blob/9ff4baa30b7ad0150ee9a44e47ab9762767afaab/yynt.el][yynt.el]] ，它通过 =:override= advice 修改了 ox-html 后端的一些默认行为，比如修改 =<meta>= 标签，让 org 不生成随机 id，不生成默认的 CSS，使用更加 HTML5 的标签，等等。虽然勉强够用，但是缺少一些博客常见的功能，比如 TAG 页面，归档页面，RSS。
+
+现在的生成后端直接来自 ox-html，但是在源代码的基础上做了一些改变，变成了现在的 ox-yyhtml.el。我将它的按键注册为 'y'，这样可以在 =C-c C-e= 后通过 =y y= 更新当前 org 的 HTML 生成，这样就不再影响 ox-html 的默认行为。在导出后端之外我还在 yynt2.el 中添加了常见的博客功能，即 tag 和 RSS 生成，这样就不用手动更新 rss 了。
+
+请通过在 =yynt2.el= 中运行 =M-x eval-buffer= 来加载构建工具。
+
+** 博客头的格式
+
+一篇博客应该包含以下头信息：
+
+- =#+SETUPFILE: ../setup.org= 引入配置文件（可以没有）
+- =#+FILETAGS: tags= 文章的 tag，只允许一个
+- =#+TITLE: name= 文章的标题
+- =#+DATE: [YYYY-MM-DD XXX HH:MM]= 文章的创建时间
+- =#+DESCRIPTION: ...= 对文章内容的介绍，这部分用于生成 RSS 的 =<description>=
+
+对于 republish 和 projecteuler 也是类似的头结构，不过一般我们不用手写，直接使用 =yynt-temp-post=, =yynt-temp-repost= 和 =yynt-temp-euler= 生成即可。
+
+比较麻烦的是这些函数需要通过 =M-:= 来调用，所以我提供了更方便的函数：
+
+- =yynt-create-draft= ，在 =draft= 目录生成草稿，包含必要的头信息
+- =yynt-move-draft= ，将完成的草稿移动到 =posts= 目录
+- =yynt-create-repost= ，在 =republish= 目录创建新文章，生成头信息
+- =yynt-create-euler= ，在 =projecteuler= 目录创建新文章，生成头信息
+
+** 在博客中插入封面和尾图
+
+可以使用 =yynt-headimg= 插入适用于头图的代码，使用 =yynt-tailimg= 插入适用于尾图的代码，它们的效果如下：
+
+#+BEGIN_SRC elisp
+  (yynt-headimg)
+  ,#+BEGIN_noscript
+  ,#+NAME: headimg
+  ,#+ATTR_HTML: :class top-down-img
+
+  ,#+END_noscript
+
+  (yynt-tailimg)
+  ,#+BEGIN_noscript
+  ,#+NAME: tailimg
+  ,#+ATTR_HTML: :class top-down-img
+
+  ,#+END_noscript
+#+END_SRC
+
+我们只需要在 =#+ATTR_HTML= 下面插入图片链接即可。如果您有多张图片需要插入，可以使用如下格式：
+
+#+BEGIN_SRC org
+  ,#+BEGIN_noscript
+  ,#+NAME: headimg
+  ,#+BEGIN_div
+  ,#+ATTR_HTML: :class top-down-img
+  img1 link here
+  ,#+ATTR_HTML: :class top-down-img
+  img2 link here
+  ...
+  ,#+END_div
+  ,#+END_noscript
+
+  or
+
+  ,#+BEGIN_noscript
+  ,#+NAME: headimg
+  | img1 | img2 | img3 |
+  | ...  | ...  | ...  |
+  ,#+END_noscript
+#+END_SRC
+
+我修改了 ox-yyhtml 中的 =t-html5-elements= ，添加了 =noscript= 和 =div= ，这样我们可以使用 =BEGIN_div= 和 =BEGIN_noscript= 块，它们用于图片的隐藏功能目的。
+
+如果你不想让图片被隐藏，可以使用 =yynt-imgattr= 生成简单的 org 指令：
+
+#+BEGIN_SRC elisp
+  (yynt-imgattr)
+  ,#+ATTR_HTML: :class top-down-img
+#+END_SRC
+
+** tag 管理
+
+所以 posts 文章的 tag 都存储在 =/post-tags.el= 中，格式大致如下：
+
+#+BEGIN_SRC elisp
+("math" "c" "win32" "lisp" "gossip" "git" "emacs" "elisp" "blog" "rescript" "tr" "orgmode")
+#+END_SRC
+
+通过 =yynt--post-read-tags= 和 =yynt--post-write-tags= 我们可以对这个文件中的 tag 进行读写，不过一般不需要使用这样低层的函数，而是以下这些，它们会提供用于选择 tag 的 minibuffer：
+
+- =yynt-post-add-tags= 向 tag 文件中添加新的 tag
+- =yynt-post-delete-tags= 从 tag 文件中删除某 tag
+- =yynt-post-insert-tag= 在当前位置插入某个 tag
+
+** RSS 生成
+
+调用 =yynt-rss-update= 可以根据 posts 中的文件更新 rss.xml 文件。
+
+** 构建功能
+
+相比于 org-publish，我没有实现基于文件时间戳的缓存功能。
+
+- =yynt-show-log= 显式生成中的 log 输出 buffer
+- =yynt-gen-all-posts-barbar= ，重新生成 posts 中的所有 org 文件
+- =yynt-gen-all-reposts-barbar= ，重新生成 reposts 中的所有 org 文件
+- =yynt-gen-all-projecteuler-barbar= ，重新生成 projecteuler 中的所有 org 文件
+- =yynt-gen-all-toplevel-barbar= ，重新生成 =/index.org= 和 =/404.org= 文件
+- =yynt-gen-barbar= ，重新生成整个 blog
+
+对于一些带有依赖关系的构建，比如更新 posts 中的 org 需要更新主页，rss 等文件，我提供了如下函数：
+
+- =yynt-update-current-buffer= 构建当前 org 文件，并构建依赖它内容的文件
+
+** 发布功能
+
+相比于 org-publish 的生成到目标文件，我采取的方式是先原地生成再复制到目标目录。
+
+- =yynt-publish-dir= ，发布目录，默认为 =/blog-build=
+- =yynt-publish-single= ，发布单个文件
+- =yynt-publish-global-res-barbar= ，发布一些全局资源，比如 css, js, img
+- =yynt-publish-posts-barbar= ，发布 posts 下的文件，询问是否先构建
+- =yynt-publish-reposts-barbar= ，发布 republish 下的所有文件，询问更新
+- =yynt-publish-eulers-barbar= ，发布 projecteuler 下的所有文件，询问更新
+- =yynt-publish-homepage-404-barbar= ，发布 index 和 404 html，询问更新
+- =yynt-publish-barbar= ，发布 blog 所有内容，询问更新
+
+最后，我提供了带有依赖关系的发布函数： =yynt-publish-current-buffer= ，它会发布所有依赖当前文件的文件。
+
+* 实现注解
+
+** ox-yyhtml.el
+
+- 添加了全新的 =HTML_HEAD_FUNC= 选项，可以接受一个函数名。函数接受 =info= 参数，应该返回插入到 =<head>= 中的内容，若指定了该选项，则 =HTML_HEAD= 和 =HTML_HEAD_EXTRA= 会变得无效
+
+- 为 =preamble= 和 =postamble= 添加了额外的选项： =HTML_PREFUNC= ， =HTML_PRE= ， =HTML_SUFFUNC= ， =HTML_SUF= 。可以在文件中编写 postamble 和 preamble 了，或是通过调用指定的函数得到 postamble 和 preamble，参加各 setup.org 文件了解其用法
 
 - home/up 可以使用更多的名字，而不是只有 =UP= 和 =HOME= ，现在可以用 =HTML_LINK_LEFT= 和 =HTML_LINK_RIGHT= 指定链接，使用 =HTML_LINK_LNAME= 和 =HTML_LINK_RNAME= 指定各自链接的名字，或是直接使用 =HTML_LINK_FUNC= 指定返回字符串的函数
 
-需要完成的工作：
+- 为 =org-yyhtml-html5-elemets= 添加了 "div" 和 "noscript"，现在可以在 org 文件中使用 =BEGIN_div= 和 =BEGIN_noscript= 了
 
-- [X] 链接改进
-- [X] 处理 filetags
-- [X] CSS ，页面不足一页，主页浮动条，注意 yynt2.el 的 404 部分和主页部分，以及 style.css
-- [X] projecteuler 主页
-- [X] 添加图片隐藏机制
-- [X] 构建工具改进
-- [X] 添加暗色模式
-- [X] tag 修正
-- [X] robots.txt
-- [X] 完善 FOLKS 页面
-- [X] 修正手机 css
-- [X] mathjax 超出屏幕
-- [X] 代码重构
-- [X] 改进图片隐藏
-- [ ] 完善 readme
+其他改动可以在 =ox-yyhtml.el= 中使用 =occur <yynt>= 来观察
+
+** htmlize.el
+
+直接来自 https://github.com/hniksic/emacs-htmlize ，无修改。
+
+** yynt2.el
+
+- 如果要添加新的子目录，可以参考 posts 和 repost 的实现
+
+- 从 f.el 抄了一些小函数，可以考虑将 f.el 作为项目的依赖项
