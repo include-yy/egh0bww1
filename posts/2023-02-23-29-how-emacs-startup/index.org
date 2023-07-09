@@ -4,11 +4,13 @@
 #+TITLE: emacs 是如何启动的
 #+DATE: [2023-02-19 Sun 00:57]
 
-#+YYNTRSS: 本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍
+#+DESCRIPTION: 本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/92158159][file:0.jpg]]
+#+END_noscript
 
 原本我准备将这一部分内容放在一篇介绍 emacs 加载机制的文章中，但是写着写着发现这一部分的内容已经足够成为一篇文章了，故单独分出来，以“emacs 是如何启动的”作为题目。
 
@@ -1122,6 +1124,8 @@ emacs server 的实现位于 server.el 中，总行数大概是 1600 行。不�
 
 正如文章开头所说，本文是从“对 emacs 加载机制的介绍”中分出来的，我也没想到能写上这么多。不出意外的话下一篇文章应该是对 =load= 的实现分析以及 emacs 加载机制的介绍了。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/23822730][file:p1.jpg]]
+#+END_noscript

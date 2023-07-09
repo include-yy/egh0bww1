@@ -3,9 +3,11 @@
 #+TITLE: 蝴蝶效应与 emacs 动画
 #+DATE: [2021-10-23 Sat 22:44]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/85778545][file:0.jpg]]
+#+END_noscript
 
 从这个标题你就应该知道了这不是什么正经的技术文章。本文就偶然发现的 emacs butterfly 命令来谈谈 emacs 中如何使用 animate.el 实现简单的动画效果，最后使用经典的 bad apple 来展示一个简单的动画。 bad apple 和 animate.el 的关系可能不是很大了，放在这里仅图一乐。
 
@@ -522,11 +524,13 @@ f.close()
 
 上面列出的一些问题等到我有时间的时候再去想想，毕竟最主要的工作已经完成了 —— 播放 bad apple。
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50255345][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/923358][file:p2.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

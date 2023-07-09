@@ -3,9 +3,11 @@
 #+TITLE: FFT 小记
 #+DATE: [2021-11-30 Tue 13:36]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/58604150][file:0.jpg]]
+#+END_noscript
 
 本文简要介绍了 FFT 的原理，给出了一种最简单算法的实现，算是我个人的一些小小整合。
 

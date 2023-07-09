@@ -3,9 +3,11 @@
 #+TITLE: emacs 中的 list 函数
 #+DATE: [2021-09-04 Sat]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/3130111][file:0.jpg]]
+#+END_noscript
 
 本文是对于 elisp manual 上关于 list 操作函数的一份整理。除了 elisp 自带的那些函数，本文还会介绍 cl-seq.el，seq.el 和 dash.el 中的 list 函数。
 
@@ -1447,6 +1449,8 @@ org-mode 提供的 GTD 功能让我可以方便地给函数打勾，就像这样
 
 这回是真的暂时再见了（笑）
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/73073540][file:p1.png]]
+#+END_noscript

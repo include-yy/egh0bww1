@@ -49,13 +49,17 @@
 (defun yynt-headimg ()
   "插入头部图片所需内容"
   (interactive)
+  (insert "#+BEGIN_noscript\n")
   (insert "#+NAME: headimg\n")
-  (yynt-imgattr))
+  (yynt-imgattr)
+  (insert "\n\n#+END_noscript"))
 (defun yynt-tailimg ()
   "插入尾部图片所需内容"
   (interactive)
+  (insert "#+BEGIN_noscript\n")
   (insert "#+NAME: tailimg\n")
-  (yynt-imgattr))
+  (yynt-imgattr)
+  (insert "\n\n#+END_noscript"))
 
 
 ;;; file api
@@ -611,7 +615,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 #+FILETAGS: %s\n
 #+TITLE: %s
 #+DATE: %s\n
-#+YYNTRSS:"
+#+DESCRIPTION:"
 	   tag title
 	   (yynt-temp-current-time))))
 
@@ -685,10 +689,10 @@ https://pe-cn.github.io/%s
 
 ;; 使用 yynt-get-post-dir-titles-tags，我们可以获得几乎所有的 post 信息，除了 DESC
 (defun yynt-get-post-rss ()
-  "格式为 ((dir . fpath) . ((\"title\" . title) (\"filtag\" . tag) (\"yyntrss\" . rss)))"
+  "格式为 ((dir . fpath) . ((\"title\" . title) (\"filtag\" . tag) (\"description\" . rss)))"
   (let ((dir-fnames (yynt-get-all-post-files)))
     (yynt-p-get-info dir-fnames
-		     '("title" "filetags" "yyntrss"))))
+		     '("title" "filetags" "description"))))
 
 (defun yynt-rss-generate ()
   "生成完整的 RSS"
@@ -702,7 +706,7 @@ https://pe-cn.github.io/%s
    (mapconcat (lambda (x)
 		(let ((link (concat yynt-rss-post-link (caar x)))
 		      (title (cdr (assoc "title" (cdr x))))
-		      (desc (cdr (assoc "yyntrss" (cdr x))))
+		      (desc (cdr (assoc "description" (cdr x))))
 		      (tag (cdr (assoc "filetags" (cdr x))))
 		      (date (substring (caar x) 0 10)))
 		  (if (or (null link) (null title) (null desc))

@@ -3,9 +3,11 @@
 #+TITLE: 写个 C 库 - part1
 #+DATE: [2020-05-18 Mon]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
+#+END_noscript
 
 本文翻译自 *Writing a C library part 1*
 

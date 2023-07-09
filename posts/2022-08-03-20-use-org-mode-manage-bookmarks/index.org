@@ -3,9 +3,11 @@
 #+TITLE: 使用 org-mode 管理浏览器书签
 #+DATE: [2022-07-23 Sat 11:28]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/86655206][file:0.jpg]]
+#+END_noscript
 
 出于整理浏览器收藏夹的需要，我稍微折腾了一下，最后还是选择了使用 org-mode 来管理书签。本文记录了我的一点折腾过程和最后使用 org-mode 管理记录的方法。
 
@@ -801,8 +803,9 @@ org-agenda 提供的搜索功能包括但不限于：
 
 Enjoy and have fun~
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/75804255][file:p1.jpg]]
 #+ATTR_HTML: :class top-down-img
@@ -811,4 +814,5 @@ Enjoy and have fun~
 [[https://www.pixiv.net/artworks/5503305][file:p3.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/2941968][file:p4.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

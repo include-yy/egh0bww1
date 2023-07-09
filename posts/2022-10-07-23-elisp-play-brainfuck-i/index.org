@@ -3,9 +3,11 @@
 #+TITLE: 用 elisp 玩 brainfuck Ⅰ
 #+DATE: [2022-09-14 Wed 15:10]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76705181][file:0.jpg]]
+#+END_noscript
 
 老早就听说过 brainfuck 这吊语言，仅凭八个操作符就实现了图灵完备。要实现一个它的解释器也是非常的简单，随便一搜就可以找到常见语言的实现（当然也有 elisp 的）。如果本文只是介绍 brainfuck 的 elisp 实现那大概就没有写的必要了，考虑到我还没学过 PLT（programming language theory）知识，这里不妨借 brainfuck 来入门一下。
 
@@ -1119,12 +1121,13 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 
 使用不同的语言就会有不同的思维方式，低级语言真的是能够限制思想和表达的。我想我现在算是能够理解为什么在欧洲十六十七世纪的时候不承认负数的存在了，要想发明一个先前不存在的概念并不容易。如果使用 brainfuck 样的编程语言的话，你也不太想用负数。
 
-感觉写不下去的时候我就会移动到文首看看封面，チルノちゃんくっそ可愛ええ。
-
 以上，去学学编译器。
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
+感觉写不下去的时候我就会移动到文首看看封面，チルノちゃんくっそ可愛ええ。
+
 来点可爱的妖梦。
 
 #+ATTR_HTML: :class top-down-img
@@ -1133,4 +1136,5 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 [[https://www.pixiv.net/artworks/39015698][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/31643135][file:p3.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

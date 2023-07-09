@@ -4,11 +4,13 @@
 #+TITLE: 如何保存 emacs 当前状态供下次打开时恢复
 #+DATE: [2023-03-04 Sat 16:42]
 
-#+YYNTRSS: 本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法
+#+DESCRIPTION: 本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/97628041][file:0.jpg]]
+#+END_noscript
 
 通过使用 emacs 的 =desktop-save-mode= ，一旦我们保存了当前的 /desktop/ ，我们就可以重新载入它来恢复到保存时的状态，这些状态包括 buffer 本身以及它们的 major mode，光标位置等。一直以来我用这个包用的挺舒服，自己写几个小函数就可以做到打开 emacs 就回到上次关闭 emacs 时的状态。可惜这个功能在 Windows 上性能不是很好，我的启动时间有很大一部分花在了恢复 desktop 上。也许我有必要摸索一下其他的方式，我可能不需要恢复这么多东西，只要 buffer 和光标位置就够了。
 
@@ -481,8 +483,10 @@ this table.  See also `desktop-minor-mode-handlers'."
 
 除了内置的 desktop，还有其他的一些 package 可用，比如 [[https://github.com/Bad-ptr/persp-mode.el][persp-mode]]，读者若感兴趣可以试试，我就不做过多介绍了。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/56704239][file:p1.jpg]] | [[https://www.pixiv.net/artworks/35742993][file:p4.jpg]] |
 | [[https://www.pixiv.net/artworks/62992330][file:p6.jpg]] | [[https://www.pixiv.net/artworks/39183606][file:p2.jpg]] |
 | [[https://www.pixiv.net/artworks/103945174][file:p5.jpg]] | [[https://www.pixiv.net/artworks/92968281][file:p3.jpg]] |
 | [[https://www.pixiv.net/artworks/79176328][file:p7.jpg]] | [[https://www.pixiv.net/artworks/98499538][file:p8.jpg]] |
+#+END_noscript

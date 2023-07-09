@@ -3,9 +3,11 @@
 #+TITLE: 我的从 0 开始的 emacs 配置
 #+DATE: [2021-03-21 Sun]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/86142125][file:0.jpg]]
+#+END_noscript
 
 {{{toc}}}
 

@@ -1,7 +1,7 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: lisp
 
-#+YYNTRSS: 本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客
+#+DESCRIPTION: 本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客
 
 #+TITLE: The Lisper -- Matt Might
 #+DATE: [2023-03-26]

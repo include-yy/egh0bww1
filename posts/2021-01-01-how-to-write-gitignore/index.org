@@ -3,9 +3,11 @@
 #+TITLE: 怎么写 gitignore
 #+DATE: [2021-01-01 Fri]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/66788686][file:0.jpg]]
+#+END_noscript
 
 {{{toc}}}
 

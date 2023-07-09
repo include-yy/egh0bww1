@@ -3,9 +3,11 @@
 #+TITLE: 用 ReScript 写个神经网络 hello world
 #+DATE: [2022-11-11 Fri 21:06]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/46426781][file:0.jpg]]
+#+END_noscript
 
 最早是在 2018 年还是 2019 年的时候我就听说过神经网络了，当时和它一起火爆的还有 Python 和 Python 爬虫，只不过现在爬虫好像没啥音了（笑）。大学的一些课程中我也学过基础的神经网络知识，只是当时对神经网络没兴趣，以及考试只考神经网络的简单概念，我也就没有想过仔细推导一下神经网络的计算方法，没有想过自己实现一个简单的神经网络，更不用提学习什么 Tensorflow 和 Pytorch 了。
 
@@ -1555,6 +1557,8 @@ MNIST 识别代码位于 =Mnist.res= 文件中。
 
 感谢阅读。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.fanbox.cc/@bakupa/posts/4688312][file:p1.jpeg]]
+#+END_noscript

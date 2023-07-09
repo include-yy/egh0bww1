@@ -3,9 +3,11 @@
 #+TITLE: 关于 backquote 理解的一个汇总与总结
 #+DATE: [2022-03-14 Mon 22:57]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/9594894][file:0.jpg]]
+#+END_noscript
 
 我于今年的 2 月 22 日开始在 emacs-china 上写这篇文章[fn::https://emacs-china.org/t/backquote/20060]，并在 3 月 14 日完成。不幸地是，2022年 6 月 20 日 emacs-china 因为一些原因暂时闭站了，随后在今天（也就是 26 日）重新恢复。（顺带一提，adnmb 在 20 日重新以 nmbxd 浮起来了）。
 
@@ -742,8 +744,9 @@ CL-USER> ``(,@,@(list 1 2 3))
 => `(,@1 ,@2 ,@3)
 #+END_SRC
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/8247715][file:p1.png]]
 
@@ -752,6 +755,7 @@ CL-USER> ``(,@,@(list 1 2 3))
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/83888736][file:p3.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript
 
 [fn:2] [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html]]

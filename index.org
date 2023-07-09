@@ -42,23 +42,15 @@ cirno.onclick = () => {
 let yynt_header = document.getElementsByTagName('header')[0]
 yynt_header.setAttribute("class", "rotation-container")
 
-let yynt_rc = document.createElement('div')
-yynt_rc.setAttribute('class', 'rotationc')
-let yynt_cirno = document.createElement('div')
-yynt_cirno.setAttribute('class', 'fly_cirno')
-yynt_rc.appendChild(yynt_cirno)
+const yynt_p = new DOMParser()
+const yynt_cds = '<div class="rotationc"><div class="fly_cirno"></div></div><div class="rotationd"><div class="fly_daiyousei"></div></div>'
+const yynt_cd = yynt_p.parseFromString(yynt_cds, 'text/html').body.childNodes
 
-let yynt_rd = document.createElement('div')
-yynt_rd.setAttribute('class', 'rotationd')
-let yynt_daiyousei = document.createElement('div')
-yynt_daiyousei.setAttribute('class', 'fly_daiyousei')
-yynt_rd.appendChild(yynt_daiyousei)
+yynt_header.insertBefore(yynt_cd[1], yynt_header.firstElementChild)
+yynt_header.insertBefore(yynt_cd[0], yynt_header.firstElementChild)
 
-yynt_header.insertBefore(yynt_rd, yynt_header.firstElementChild)
-yynt_header.insertBefore(yynt_rc, yynt_header.firstElementChild)
-
-yynt_cirno.addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109530208')
-yynt_daiyousei.addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109113009')
+document.getElementsByClassName('fly_cirno')[0].addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109530208')
+document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109113009')
 </script>
 #+END_EXPORT
 

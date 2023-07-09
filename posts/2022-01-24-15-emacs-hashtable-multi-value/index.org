@@ -3,9 +3,11 @@
 #+TITLE: emacs 中的哈希表与多值返回
 #+DATE: [2021-10-09 Sat 17:06]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84777976][file:0.jpg]]
+#+END_noscript
 
 本文是对 elisp manual 上 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Hash-Tables.html][Hash Tables]] 一章的学习总结。除了介绍哈希表相关函数的使用，本文也会简单介绍哈希表的一些知识。考虑到 elisp 和 common lisp 中哈希函数存在一定的差异，本文也会介绍一下 CL 中的多值返回和 cl-lib 中的对应实现。
 
@@ -1407,11 +1409,13 @@ VALUE.  In any case, return VALUE.  */)
 
 2022 新年快乐。
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/10771317][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/1429115][file:p2.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

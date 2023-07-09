@@ -19,6 +19,7 @@ function addCopyCodeButtons() {
         let button = document.createElement('button');
         button.innerText = copyLabel;
         button.classList.add('copy-code');
+	button.type = 'button'
         let details = block.closest('details');
         let summary = details && details.querySelector('summary');
         if (summary) {

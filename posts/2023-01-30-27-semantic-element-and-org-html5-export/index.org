@@ -3,9 +3,11 @@
 #+TITLE: 语义元素与 org 的 html5 导出
 #+DATE: [2023-01-26 Thu 20:16]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/62532046][file:0.jpg]]
+#+END_noscript
 
 通过前面的几篇文章，我们学习了 org 导出到 HTML 以及以 emacs 作为静态网站生成器的一些基本知识。本文将在这些知识的基础上对 ox-html 进行一些修改，以生成符合 HTML5 标准且可读的 HTML 文件。
 
@@ -918,6 +920,8 @@ contextual information."
 
 在完成了本文后，我距离弄个博客出来的目标又近了一步。在这一系列的下一篇文章中我会介绍如何设置适用于 org-mode 导出的 HTML 文件的 CSS。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/7789482][file:p1.png]]
+#+END_noscript

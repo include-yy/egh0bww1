@@ -3,9 +3,11 @@
 #+TITLE: emacs 的 abbrev 使用介绍
 #+DATE: [2022-01-31 Mon 10:59]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/10816846][file:0.jpg]]
+#+END_noscript
 
 在准备学习 company-mode 的配置和使用时，我看到了 company-abbrev 这个后端。一来这是个 emacs 内置功能，可以用来学习一下 package 的编写。二来寒假有的是时间够我用在干闲事上，要不就写篇文章介绍一下 abbrev 吧。
 
@@ -160,6 +162,8 @@ dabbrev 和 abbrev-mode 没有任何关系；使用 =M-/= 进行展开和普通�
 
 abbrev 这东西在 emacs manual 和 elisp manual 中都有，前者介绍用户界面，后者介绍代码接口。既然两份官方文档中都有，难不成这还是个比较重要的功能？之后有时间了再去看看。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/10675718][file:p1.jpg]]
+#+END_noscript

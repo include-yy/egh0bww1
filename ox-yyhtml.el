@@ -233,9 +233,9 @@
   "An alist mapping (x)html flavors to specific doctypes.")
 
 (defconst t-html5-elements
-  '("article" "aside" "audio" "canvas" "details" "figcaption"
-    "figure" "footer" "header" "menu" "meter" "nav" "output"
-    "progress" "section" "summary" "video")
+  '("article" "aside" "audio" "canvas" "details" "figcaption" "div" ;; <yynt> 添加空 div 标签
+    "figure" "footer" "header" "menu" "meter" "nav" "noscript" ;; <yynt> 添加 noscript 标签
+    "output" "progress" "section" "summary" "video")
   "New elements in html5.
 
 For blocks that should contain headlines, use the HTML_CONTAINER

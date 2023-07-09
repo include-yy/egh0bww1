@@ -4,11 +4,13 @@
 #+TITLE: emacs 的 named-let 使用和实现介绍
 #+DATE: [2023-04-30 Sun 11:40]
 
-#+YYNTRSS: 本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式
+#+DESCRIPTION: 本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/96322989][file:0.jpg]]
+#+END_noscript
 
 在重温 projecteuler 的[[https://projecteuler.net/problem=9][第 9 题]]时，我翻了翻自己之前用 Scheme 实现的代码：
 
@@ -556,11 +558,13 @@ details.
 
 五一快乐。
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/25854793][file:p1.jpg]]
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77780352][file:p2.jpg]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

@@ -3,9 +3,11 @@
 #+TITLE: Windows 窗口与消息：窗口属性
 #+DATE: [2020-07-01 Wed]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://yande.re/pool/show/5524][file:0.jpg]]
+#+END_noscript
 
 {{{toc}}}
 

@@ -3,9 +3,11 @@
 #+TITLE: Windows 的控制台和控制台应用
 #+DATE: [2020-06-17 Wed]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
+#+END_noscript
 
 {{{toc}}}
 

@@ -1,14 +1,16 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 
-#+YYNTRSS: 本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法
+#+DESCRIPTION: 本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法
 
 #+TITLE: emacs generator 使用及实现介绍
 #+DATE: [2023-03-25 Sat 20:20]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82466830][file:0.png]]
+#+END_noscript
 
 本文简单介绍了 emacs 中的 generator 的使用方法，并分析了它的实现方式。由于 generator.el 用到了 CPS，本文也就不可避免地涉及到一些 CPS 相关的知识，希望对 CPS 迷惑过的读者能通过本文理解它。
 
@@ -2092,6 +2094,8 @@ emacs 的 generator 实现位于 =emacs-lisp/generator.el= 中，总行数刚好
 
 Thanks for reading~
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/80811365][file:p1.jpg]]
+#+END_noscript

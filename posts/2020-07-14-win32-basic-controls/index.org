@@ -3,9 +3,11 @@
 #+TITLE: Win32 编程基础之控件
 #+DATE: [2020-07-14 Tue]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/53885602][file:0.jpg]]
+#+END_noscript
 
 控件是子窗口，应用将它与其他的窗口结合使用来与用户进行交互。控件多数时候都用在对话框中，但它们也可以用在其他窗口中。对话框内的控件为用户提供了文本输入、选项选择和初始化等功能。其他窗口中的控制台可以提供一系列的服务，比如让用户选择命令、观察状态以及编辑和阅读文本。
 

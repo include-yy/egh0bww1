@@ -3,9 +3,11 @@
 #+TITLE: buffer 管理和 ibuffer 的介绍与使用
 #+DATE: [2022-03-15 Tue 15:56]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/12413285][file:0.jpg]]
+#+END_noscript
 
 本文并不是用来介绍 buffer 相关的 elisp 接口函数的，而是介绍如何使用 emacs 提供的功能来使用和管理 buffer。首先我会介绍 buffer-menu 的使用，随后我会介绍更强大的 ibuffer，它已经内置到 emacs 里面了。
 
@@ -848,8 +850,9 @@ ibuffer-vc 的主要功能是提供了依据仓库的分组，以及一些 sorte
 
 /haru desu yo/
 
+#+BEGIN_noscript
 #+NAME: tailimg
-#+BEGIN_tailimgs
+#+BEGIN_div
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82271708][file:p1.png]]
 
@@ -861,4 +864,5 @@ ibuffer-vc 的主要功能是提供了依据仓库的分组，以及一些 sorte
 
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74220539][file:p4.png]]
-#+END_tailimgs
+#+END_div
+#+END_noscript

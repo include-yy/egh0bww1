@@ -34,5 +34,5 @@ RSS： https://egh0bww1.com/rss.xml
 - [X] 修正手机 css
 - [X] mathjax 超出屏幕
 - [X] 代码重构
+- [X] 改进图片隐藏
 - [ ] 完善 readme
-- [ ] 改进图片隐藏

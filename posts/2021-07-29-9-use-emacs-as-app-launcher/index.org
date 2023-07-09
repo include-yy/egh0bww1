@@ -3,9 +3,11 @@
 #+TITLE: 使用 emacs 作为 app 启动器
 #+DATE: [2021-07-29 Thu]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/58025515][file:0.jpg]]
+#+END_noscript
 
 囿于原先笔记本的孱弱性能和可怜的硬盘大小，借暑假的机会我弄了台 Redmibook Pro 15，虽说只有核显，但 i5-11300h 相对于 i5-7360u 还是有不小的提升，5000 块带来的16g 内存和 512g 固态在我看来还是挺香的。
 
@@ -190,11 +192,15 @@ app-launcher 只提供了运行方法，没有提供修改 .desktop 文件的函
 
 - [[https://stabyourself.net/nottetris2/][Stabyourself.net - Not Tetris 2]]
 
+#+BEGIN_noscript
+#+NAME: tailimg
+#+BEGIN_div
 文章最后来一张中国图，再不往下的话东方角色估计在这个专栏里面是没办法完全展示了：
 
-#+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64529008][file:p1.jpg]]
+#+END_div
+#+END_noscript
 
 * 参考资料
 

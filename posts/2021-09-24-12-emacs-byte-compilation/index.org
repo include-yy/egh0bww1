@@ -3,9 +3,11 @@
 #+TITLE: emacs 的 byte compilation
 #+DATE: [2021-09-22 Wed]
 
+#+BEGIN_noscript
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/90764594][file:0.png]]
+#+END_noscript
 
 在之前的文章中我介绍了 emacs 的 macro，这是出于两个目的，其一是学习 macro 的基本用法，其二是作为本文的前置文章，提供一些与 macro 相关的知识。本文我会参考 manual 简单介绍 emacs 中字节编译的使用，在内容上基本就是一篇笔记。下面的两段话是我从 manual 开头翻译过来的。
 
@@ -382,6 +384,8 @@ byte code:
 
 就结果上来说，经过字节编译的 fib 比原始版本快了一倍多。但这并不能说明编译函数一定会带来如此之大的性能提升，毕竟大多数函数不会这么简单，而且调用次数不会这么多（fib 的递归调用次数是指数增长的）。至于有没有必要把自己的配置文件编译一遍，我感觉是没有必要的。这样做带来的性能提升应该不会很多，不断地更新 elc 文件反而成了麻烦。
 
+#+BEGIN_noscript
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://yande.re/post/show/144715][file:p1.jpg]]
+#+END_noscript
