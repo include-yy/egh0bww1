@@ -71,7 +71,11 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 
 * FOLKS
 
-Currently nothing...
+# Currently nothing...
+
+- [[https://www.cnblogs.com/orion-orion/][猎户座]]
+  - [[https://www.cnblogs.com/orion-orion/p/17419322.html][SICP：惰性求值、流和尾递归（Python实现）]]
+  - [[https://www.cnblogs.com/orion-orion/p/17402973.html][SICP：元循环求值器（Python实现）]]
 
 * ABOUT
 
