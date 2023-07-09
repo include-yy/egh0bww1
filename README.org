@@ -149,7 +149,7 @@ Wishlist:
 
 相比于 org-publish，我没有实现基于文件时间戳的缓存功能。
 
-- =yynt-show-log= 显式生成中的 log 输出 buffer
+- =yynt-show-log= 显示生成中的 log 输出 buffer
 - =yynt-gen-all-posts-barbar= ，重新生成 posts 中的所有 org 文件
 - =yynt-gen-all-reposts-barbar= ，重新生成 reposts 中的所有 org 文件
 - =yynt-gen-all-projecteuler-barbar= ，重新生成 projecteuler 中的所有 org 文件
