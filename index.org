@@ -76,7 +76,9 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 - [[https://www.cnblogs.com/orion-orion/][猎户座]]
   - [[https://www.cnblogs.com/orion-orion/p/17419322.html][SICP：惰性求值、流和尾递归（Python实现）]]
   - [[https://www.cnblogs.com/orion-orion/p/17402973.html][SICP：元循环求值器（Python实现）]]
-
+- [[https://dongdigua.github.io/][董地瓜]]
+  - [[https://dongdigua.github.io/posts][posts]]
+  - [[https://dongdigua.github.io/internet_collections][internet collections]]
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
