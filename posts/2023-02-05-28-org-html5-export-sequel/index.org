@@ -3,11 +3,11 @@
 #+TITLE: 对 org 到 HTML5 导出的补充
 #+DATE: [2023-02-04 Sat 14:08]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/90486424][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在上一篇文章折腾过 org 的 HTML 导出后，我本以为这已经差不多了，但是在不断的搜索过程中还能找到其他博客的更好的导出效果，所以说做事尽量还是不要闭门造车（笑）。
 
@@ -339,8 +339,8 @@ hello
 
 Sacha Chua 的 emacs [[https://sachachua.com/dotemacs/index.html][配置]]值得一看，她的 org 导出设定具有借鉴意义。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50363027][file:p1.jpg]]
-#+END_noscript
+{{{end_noscript}}}

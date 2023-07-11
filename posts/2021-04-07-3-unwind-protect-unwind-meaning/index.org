@@ -3,11 +3,11 @@
 #+TITLE: unwind-protect 的 unwind 是什么意思
 #+DATE: [2021-04-07 Wed]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/69589494][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在elisp中有一个叫做 =unwind-protect= 的特殊形式（special-form），它可以在出现错误或使用 throw 时进行一些清理操作。在 Scheme 中也有一个类似的东西叫做 =dynamic-wind= ，其中也有 =wind= 这个词。在我参考的【1】 【2】文档中详细讲解了它们的用法，但是关于 =wind/unwind= 这个词的来历并没有作详细说明。
 

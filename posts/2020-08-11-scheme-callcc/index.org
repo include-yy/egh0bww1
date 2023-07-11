@@ -3,11 +3,11 @@
 #+TITLE: Scheme 的 call/cc
 #+DATE: [2020-08-11 Tue]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/17975444][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 本文是 include-yy 对 scheme 中的 call-with-current-continuation 过程相关知识的总结。内容包括对延续（continuation）的理解，对 call/cc 过程的使用用例，以及对延续传递风格（continuation-passing style, cps）的简单介绍。
 

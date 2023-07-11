@@ -6,11 +6,11 @@
 
 #+DESCRIPTION: 本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/83963903][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 说到内联，读者第一时间想到的可能是使用宏，即直接在调用处进行宏展开避免调用开销。但是编写宏或把函数改写为宏需要一些额外的工作，而且宏不能作为回调函数使用（比如用在 =funcall=, =mapcar= 或 =apply= 上）。对此，emacs 提供了一些更好的内联方法，即 =defsubst= 和 =define-inline= 。
 
@@ -1522,9 +1522,9 @@ elisp manual [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Eval-Du
 
 感谢阅读。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/98819511][file:p1.jpg]] | [[https://www.pixiv.net/artworks/104509853][file:p2.jpg]] | [[https://www.pixiv.net/artworks/95726642][file:p3.jpg]] |
 | [[https://www.pixiv.net/artworks/98176287][file:p4.jpg]] | [[https://www.pixiv.net/artworks/59648670][file:p5.jpg]] | [[https://www.pixiv.net/artworks/41731839][file:p6.jpg]] |
 | [[https://www.pixiv.net/artworks/86068876][file:p7.jpg]] | [[https://www.pixiv.net/artworks/84132594][file:p8.jpg]] | [[https://www.pixiv.net/artworks/99592247][file:p9.jpg]] |
-#+END_noscript
+{{{end_noscript}}}

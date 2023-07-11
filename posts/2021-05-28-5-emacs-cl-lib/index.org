@@ -3,11 +3,11 @@
 #+TITLE: emacs 的 cl 扩展
 #+DATE: [2021-05-28]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89040851][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在一开始学习 elisp 的时候，我想到的学习方法是把用其他语言编写的程序翻译到 elisp 中来。某日我找到了一个解二阶魔方的[[https://comwrg.github.io/2018/12/26/algorithm-solve-pocket-cube/#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0][程序]]。其他都还好说，但是抄到 bfs 的时候我被其中的嵌套循环恶心到了，由于 elisp 中没有 break 之类的局部跳转语句（在不考虑各种宏扩展的情况下），要想跳出 =while= 循环还得靠 =throw/catch= 来完成。[[https://gist.github.com/include-yy/96e35b7b4f86004be0f8a741a7936afd#file-cube-el-L130][这种写法]]可是相当地不好受。通过 google =emacs loop= 我发现了 =cl-loop= 这个神奇的宏，也顺带了解了 =cl-lib= 这个强大的包。
 

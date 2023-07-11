@@ -6,11 +6,11 @@
 
 #+DESCRIPTION: 本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/107485378][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 通过使用 emacs 自带的 url.el，我们可以使用简单的网络功能。在通过 =url-retrieve= 函数发送 HTTP 请求时，我的 emacs 中出现了如下错误：
 
@@ -210,8 +210,8 @@ HTTP 报文由请求头，HTTP 头部字段， =\r\n= 和可选的主体数据�
 
 原先在遇到问题时我还以为这是个 bug，稍稍了解后才发现是对 emacs 中的字符串理解不够深入，哈。有时间的话，我会写一篇文章介绍一下 emacs 中的字符串。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50149567][file:p1.jpg]]
-#+END_noscript
+{{{end_noscript}}}

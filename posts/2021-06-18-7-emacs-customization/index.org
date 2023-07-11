@@ -3,11 +3,11 @@
 #+TITLE: emacs 的 customization
 #+DATE: [2021-06-18 Fri]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.deviantart.com/smilocg/art/cirno-168923283][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 本文的主要内容是对 elisp 文档 中的 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Customization.html][Customization]] 一章学习的总结。之所以有总结的必要是因为文档中的示例太少，需要一些例子来对关键字和函数的用法进行补充。同时，本文也对 emacs 中的 easy customization 进行一些介绍，这里主要关注的是使用 =customize= 命令簇来配置一些选项，以及使用 =customization= 的代码对这些选项带来的影响。
 

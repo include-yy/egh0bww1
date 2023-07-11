@@ -3,11 +3,11 @@
 #+TITLE: Windows 窗口与消息：消息与消息队列
 #+DATE: [2020-06-25 Thu]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/75878595][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 {{{toc}}}
 

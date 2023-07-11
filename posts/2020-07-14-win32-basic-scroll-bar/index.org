@@ -3,11 +3,11 @@
 #+TITLE: Win32 编程基础之滚动条
 #+DATE: [2020-07-14 Tue]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 通过使用滚动条，窗口可以显示比它大的文档或图片，用户可以滚动用户区中的数据对象来看到对象超出窗口边界的部分。
 

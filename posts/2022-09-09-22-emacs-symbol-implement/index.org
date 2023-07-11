@@ -3,11 +3,11 @@
 #+TITLE: emacs 的 symbol 类型及其实现
 #+DATE: [2021-10-09 Sat 17:07]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89383520][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 本文简单介绍了 emacs 中的 symbol 类型，同时对 emacs 中的 symbol 实现进行了简单的分析。文章的内容大致可以分为两大部分：
 
@@ -1055,14 +1055,14 @@ R.I.P.
 
 就这样。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
-#+BEGIN_div
+{{{begin_div}}}
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/32555104][file:p1.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/22979773][file:p2.jpg]]
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/19559081][file:p3.jpg]]
-#+END_div
-#+END_noscript
+{{{end_div}}}
+{{{end_noscript}}}

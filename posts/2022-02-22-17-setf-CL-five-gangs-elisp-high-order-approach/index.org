@@ -3,11 +3,11 @@
 #+TITLE: setf 之 CL 的 five gangs 与 elisp 的 high-order approach
 #+DATE: [2022-02-21 Mon 9:08]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 由标题可知，本文的内容与 =setf= 这个宏有关，这里我假设你已经知道了什么是 =setq= 。本文的主要内容可认为分为两大部分，首先我会展示 =setf= 的使用方法，以及介绍 CL 中 =setf= 的扩展方法。随后我会介绍 emacs 中的 =setf= 机制。在后一部分我会简单分析 emacs 中的实现，它位于 gv.el 文件中，核心代码行数在 200 行左右。
 
@@ -1000,8 +1000,8 @@ a => (3 1 2)
 
 - /On lisp/ - Paul Graham
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/26565465][file:p1.jpg]]
-#+END_noscript
+{{{end_noscript}}}

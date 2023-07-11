@@ -3,11 +3,11 @@
 #+TITLE: Scheme 的 syntax-rules
 #+DATE: [2020-09-09 Wed]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/79337308][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 谈到 Scheme 的独特之处，除了它那极简语法的 s-expression 外，就是与众不同但又威力强大的宏，或者说是语法拓展（syntactic-extension）了。本文除了作为我对 syntax-rules 的学习总结之外，其实更多的是对宏这一机制的理解与思考。
 

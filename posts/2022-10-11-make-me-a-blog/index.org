@@ -3,11 +3,11 @@
 #+TITLE: 怎么弄个自己的 blog
 #+DATE: [2022-10-10 Mon 23:55]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/83290347][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 大概是在三年前，我在 CSDN 上发了自己写的第一篇博文，不过读者寥寥，到现在也才两三百的阅读量。二〇年上半年疫情期间，我试着在 godaddy 上使用 wordpress 创建了一个博客，然后写了一些博文，大部分应该在知乎同步发了。接着在二一年下半年我放弃了 wordpress，转而使用 emacs 的 org-mode 来通过 org 文档创建 html 页面，靠着几乎裸露的 html 和拿过来的 css 勉强糊了个个人博客。现在，是时候做个自己完全可控的 blog 出来了。
 

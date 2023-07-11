@@ -3,11 +3,11 @@
 #+TITLE: C 的字符串有哪些问题
 #+DATE: [2021-01-25 Mon]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/81644052][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 由于平时在使用字符串时遇到了诸多不便，我有必要对一些常见和普遍的问题做一个总结，并在自己将要编写的字符串库时尽量规避和解决这些问题。当然了，这些问题也可以说成 C 语言字符串的“特性”，随你喜欢。
 

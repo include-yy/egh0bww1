@@ -3,11 +3,11 @@
 #+TITLE: 我的大学四年的一个总结
 #+DATE: [2022-06-09 Thu 09:36]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/96779572][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 {{{toc}}}
 
@@ -504,8 +504,8 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 
 玩笑话说的差不多了，就这样吧。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82488792][file:p1.png]]
-#+END_noscript
+{{{end_noscript}}}

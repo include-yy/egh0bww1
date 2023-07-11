@@ -3,11 +3,11 @@
 #+TITLE: 怎么弄个自己的博客 —— 安装和使用数据库
 #+DATE: [2022-12-11 Sun 23:45]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/75674592][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在读完这篇 [[../2022-12-11-翻译-Introduction-to-Databases/index.html][Introduction to Databases]] 的翻译后，相信你对数据库是什么有了一个最基本的认识。本文将会介绍常见的数据库的安装和使用，我只装过 MySQL，本文会以它为例。一个简单的博客应用也用不着分布式数据库，本文就不介绍 NoSQL 等相关内容了。
 
@@ -576,8 +576,8 @@ REVOKE type_of_permission ON database_name.table_name FROM 'username'@'host';
 
 虽说本文介绍的是 MySQL，但当我的博客应用完成时也许最终不会使用它，有可能会用更加简单的 SQLite。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/75323183][file:p1.png]]
-#+END_noscript
+{{{end_noscript}}}

@@ -3,11 +3,11 @@
 #+TITLE: emacs 的 macro
 #+DATE: [2021-08-21 Sat 09:58]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/90367612][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在某篇文章中介绍 debug 相关的内容后，我本应该直接开始学习并记录测试相关的知识，但在 emacs-china 上读到这个帖子[fn::https://emacs-china.org/t/emacs-ci/12103]后，我觉得应该先学一下 emacs 的 byte compile。macro 和字节编译也是有关系的，所以在这篇文章中我们还是先谈谈 macro 吧。
 
@@ -712,8 +712,8 @@ Still, calling gensym every single time we want a nameless symbol is clunky and 
 | /on lisp/          | Paul Graham |
 | /ansi common lisp/ | Paul Graham |
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/47704780][file:p1.jpg]]
-#+END_noscript
+{{{end_noscript}}}

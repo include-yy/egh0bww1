@@ -3,11 +3,11 @@
 #+TITLE: C 风格字符串缺陷及改进
 #+DATE: [2020-03-02 Mon]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74372409][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 当人们谈论 C 的问题时，“字符串”的概念永远是首要缺陷之一。你已经用过它们，并且我也谈论过它们的种种缺陷，但是对为什么 C 字符串拥有缺陷，以及为什么一直是这样没有明确的解释。—— /Learn C the hard way/
 

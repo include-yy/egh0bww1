@@ -6,11 +6,11 @@
 
 #+DESCRIPTION: 本文对 JSDeferred 的实现原理进行了简单介绍并在 Emacs 中实现了一个简化版本，同时介绍了已有的实现 deferred.el
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/108536972][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 在简单阅读 [[https://github.com/kiwanami/emacs-epc][emacs-epc]] 的代码后，我发现在其中使用了一个叫做 [[https://github.com/kiwanami/emacs-deferred][emacs-deferred]] 的包，据 README 所说，它的思路来自 cho45 的 [[https://github.com/cho45/jsdeferred][JSDeferred]]。本着对 JS 的兴趣和了解 Emacs 异步编程的想法，本文会简单介绍 JSDeferred 和 deferred.el 的实现，并将 cho45 为 JSDeferred 写的[[https://cho45.stfuawsc.com/jsdeferred/][文档]]中的例子用 elisp 全部实现一遍。
 
@@ -831,10 +831,10 @@ deferred.el 中定义了许多宏来方便编写代码，不过另一方面也�
 
 哈，又是在不同思想中撕扯出的一篇文章。感谢阅读。
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/59332061][file:p4.jpg]] | [[https://www.pixiv.net/artworks/97724715][file:p2.jpg]]  | [[https://www.pixiv.net/artworks/107754268][file:p3.jpg]]  |
 | [[https://www.pixiv.net/artworks/23839947][file:p1.jpg]] | [[https://www.pixiv.net/artworks/50052145][file:p12.jpg]] | [[https://www.pixiv.net/artworks/105256151][file:p6.jpg]]  |
 | [[https://www.pixiv.net/artworks/53230026][file:p7.jpg]] | [[https://www.pixiv.net/artworks/31435475][file:p8.jpg]]  | [[https://www.pixiv.net/artworks/39419396][file:p5.jpg]]  |
 | [[https://www.pixiv.net/artworks/81199241][file:p9.jpg]] | [[https://www.pixiv.net/artworks/82664147][file:p10.jpg]] | [[https://www.pixiv.net/artworks/91412459][file:p11.jpg]] |
-#+END_noscript
+{{{end_noscript}}}

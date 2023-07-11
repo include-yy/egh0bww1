@@ -3,11 +3,11 @@
 #+TITLE: Windows 窗口与消息：钩子
 #+DATE: [2020-07-09 Thu]
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://yande.re/pool/show/5776][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 {{{toc}}}
 
