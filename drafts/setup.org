@@ -1,2 +1,1 @@
-#+HTML_LINK_RIGHT: ../../posts/index.html
 #+SETUPFILE: ../posts/setup.org

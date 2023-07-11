@@ -773,7 +773,9 @@ collect (list x y))
 
 【6】中总结了 cl-loop 的所有语法，这里直接拿过来：
 
-#+BEGIN_SRC text :summary cl-loop syntax
+{{{begin_details}}}
+{{{summary(cl-loop syntax)}}}
+#+BEGIN_SRC text
 loop is an alias for cl-loop in =cl.el.
 
 (loop CLAUSE...)
@@ -809,6 +811,7 @@ Valid clauses include:
 
 For more details, see Info node `(cl)Loop Facility'.
 #+END_SRC
+{{{end_details}}}
 
 * 延申阅读
 

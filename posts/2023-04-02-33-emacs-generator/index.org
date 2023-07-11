@@ -166,7 +166,9 @@ Generators can be implemented in terms of more expressive control flow construct
       yield c
 #+END_SRC
 
-#+BEGIN_SRC python :summary answer1
+{{{begin_details}}}
+{{{summary(answer1)}}}
+#+BEGIN_SRC python
   class hello1:
       def __init__(self, a):
 	  self.a = a
@@ -206,6 +208,7 @@ Generators can be implemented in terms of more expressive control flow construct
   print(list(c))
   print(list(d))
 #+END_SRC
+{{{end_details}}}
 
 因为要多次返回，这里我使用了类似 C 语言中的 =switch= 语句将代码“切”成了一段一段，然后根据状态变量 =self.state= 来决定要执行哪一段。
 
@@ -223,7 +226,9 @@ def fact(n):
     yield prod
 #+END_SRC
 
-#+BEGIN_SRC python :summary answer2
+{{{begin_details}}}
+{{{summary(answer2)}}}
+#+BEGIN_SRC python
 class fact1:
     def __init__(self, n):
         self.n = n
@@ -256,6 +261,7 @@ b = fact1(10)
 print(list(a))
 print(list(b))
 #+END_SRC
+{{{end_details}}}
 
 *** ③
 
@@ -293,7 +299,9 @@ print(list(b))
 
 对于上面的代码，由于不能通过 =next= 向 iterator 传递参数，我们需要定义自己的迭代函数而不是 =__next__= 来接受额外的参数，不过这样就用不了 =next= 了。
 
-#+BEGIN_SRC python :summary answer3
+{{{begin_details}}}
+{{{summary(answer3)}}}
+#+BEGIN_SRC python
   class branch1:
       def __init__(self):
 	  self.curval = False
@@ -340,6 +348,7 @@ print(list(b))
   runit(True, False)
   runit(False, None)
 #+END_SRC
+{{{end_details}}}
 
 不论是采用状态变量的方法还是函数调用的方法，在某个状态/函数的末尾我们都存储了 *下一步要干什么* 的信息，它可以是一个对象内可见的状态变量，也可以是一个将要调用的函数对象。不管是哪一种方式，我们都实现了 *状态的保存与转移* （这里的保存指的是存储在对象成员中的数据）。
 
@@ -1089,7 +1098,9 @@ CPS 变换可由如下公式给出（ =[[]]= 表示进行 CPS 变换）：
 
 call/cc 与 generator 有些类似，不过更强大，毕竟我们可以用 call/cc 来实现 generator，大约两年前我写过这样的代码：
 
-#+BEGIN_SRC scheme :summary 使用 call/cc 实现 generator
+{{{begin_details}}}
+{{{summary(使用 call/cc 实现 generator)}}}
+#+BEGIN_SRC scheme
   ;; function
   (define (make-generator procedure)
     (define last-return values)
@@ -1152,6 +1163,7 @@ call/cc 与 generator 有些类似，不过更强大，毕竟我们可以用 cal
   (define fib-s (fib-gen 0 1))
   (gen-next fib-s) ;call n times
 #+END_SRC
+{{{end_details}}}
 
 当然这一节我们的重点不在于如何使用 call/cc，而是如何使用 CPS 实现 call/cc。实际上这是非常简单的，我们只需要这样就行了：
 
@@ -1324,7 +1336,9 @@ call/cc 与 generator 有些类似，不过更强大，毕竟我们可以用 cal
 
 可能很多同学和我一样是从 yin wang 那里知道 CPS 的，这里就着纪念的心态把他的代码搬过来，如果你对上面的内容没什么疑问的话，相信这些代码你也很容易看懂：
 
-#+BEGIN_SRC elisp :summary yin wang 40 lines
+{{{begin_details}}}
+{{{summary(yin wang 40 lines)}}}
+#+BEGIN_SRC elisp
 ;; A simple CPS transformer which does proper tail-call and does not
 ;; duplicate contexts for if-expressions.
 
@@ -1457,6 +1471,7 @@ call/cc 与 generator 有些类似，不过更强大，毕竟我们可以用 cal
 ((eval fact-cps) 5 (lambda (v) v))
 ;; => 120
 #+END_SRC
+{{{end_details}}}
 
 这里顺带附上一张解释的图以及源链接：
 

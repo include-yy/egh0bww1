@@ -4,7 +4,7 @@ const copyLabel = 'Copy code';
 
 async function copyCode(block, button) {
     let code = block.querySelector('pre.src');
-    let text = code.innerText;
+    let text = code.textContent; //code.innerText;
     await navigator.clipboard.writeText(text);
     button.innerText = 'Copied';
     setTimeout(() => {

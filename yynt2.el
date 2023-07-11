@@ -18,6 +18,9 @@
 ;; 加载魔改版 html 后端
 (load-file (expand-file-name "./ox-yyhtml.el"))
 
+;;; 一些语言 mode，高亮需要
+(require 'bnf-mode)
+(require 'haskell-mode)
 ;;;; code
 
 ;; 项目根目录
@@ -60,7 +63,12 @@
   (insert "#+NAME: tailimg\n")
   (yynt-imgattr)
   (insert "\n\n#+END_noscript"))
-
+(defun yynt-details ()
+  "插入 <details> 和 <summary> 标签表示"
+  (interactive)
+  (insert "{{{begin_details}}}\n")
+  (insert "{{{summary()}}}\n\n")
+  (insert "{{{end_details}}}"))
 
 ;;; file api
 ;; 提供一些方便使用的文件操作 api

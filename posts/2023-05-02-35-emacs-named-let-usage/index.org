@@ -141,7 +141,9 @@ be called to recur; the arguments to the procedure become the new values for the
 
 可见它只是对参数做了一点处理就把任务交给 =cl-labels= 了，研究 =cl-labels= 才是本文的重点：
 
-#+BEGIN_SRC elisp :summary code of cl-labels
+{{{begin_details}}}
+{{{summary(code of cl-labels)}}}
+#+BEGIN_SRC elisp
 (defmacro cl-labels (bindings &rest body)
   "Make local (recursive) function definitions.
 +BINDINGS is a list of definitions of the form (FUNC ARGLIST BODY...) where
@@ -184,6 +186,7 @@ details.
             (macroexp-progn body)
             newenv)))))
 #+END_SRC
+{{{end_details}}}
 
 如果我们想要完全理解这个函数的作用，我们最好能够知道它具体做了什么，下面我将这个函数切成下面几个小函数来看看每一步的行为：
 
@@ -282,7 +285,9 @@ details.
 
 就结果来看，函数内的 =cl-label= binding name  =#'name= 被变换为了 =new-name= ，根据注释内容来看这是为了避免 =#'= 的错误处理，读者若有兴趣可以看看 =cl--labels-convert= ，这里我简单放放代码：
 
-#+BEGIN_SRC elisp :summary code of cl--labels-convert
+{{{begin_details}}}
+{{{summary(code of cl--labels-convert)}}}
+#+BEGIN_SRC elisp
   (defun cl--labels-convert (f)
     "Special macro-expander to rename (function F) references in `cl-labels'."
     (cond
@@ -302,6 +307,7 @@ details.
 	    (setq cl--labels-convert-cache (cons f res))
 	    res))))))
 #+END_SRC
+{{{end_details}}}
 
 注意到注释开头的 /¡¡Big Ugly Hack!!/ 了吗（笑）。总的来说这个向 =newenv= 中添加 =(function . cl--labels-convert= 的作用就是正确处理在 =cl-labels= 中定义的函数名被作为函数参数（即 =#'name= ）使用的情况。这也是为什么 =newenv= 中的函数要加上 =cl--labels-magic= 参数检查。
 
@@ -395,7 +401,9 @@ details.
 
 下面我们正式开始学习如何在 elisp 中进行尾调用优化，简单来说就是学习一下 =cl--self-tco= 的实现。 =cl--self-tco= 长约 100 行，完整内容如下：
 
-#+BEGIN_SRC elisp :summary code of cl--self-tco
+{{{begin_details}}}
+{{{summary(code of cl--self-tco)}}}
+#+BEGIN_SRC elisp
   (defun cl--self-tco (var fargs body)
     ;; This tries to "optimize" tail calls for the specific case
     ;; of recursive self-calls by replacing them with a `while' loop.
@@ -506,6 +514,7 @@ details.
 			. ,optimized-body))
 	       ,retvar)))))))
 #+END_SRC
+{{{end_details}}}
 
 在 =letrec= 的 binding forms 中， =opt-exps= 作用的是多个表达式，它对最后一个表达式调用 =opt= 做尾调用优化而不管前几个表达式。 =ofargs= 是处理后的变量名， =done= 是一个标识进行过 tco 的 flag。方便期间我们先从后面的处理过程开始：
 
