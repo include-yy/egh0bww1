@@ -17,10 +17,13 @@
 (require 'htmlize (expand-file-name "./htmlize.el"))
 ;; 加载魔改版 html 后端
 (load-file (expand-file-name "./ox-yyhtml.el"))
-
+;; 加载 ox-org，方便调试
+;; C-c C-e O O 导出 org 文件到 org，主要用于宏展开
+(require 'ox-org)
 ;;; 一些语言 mode，高亮需要
 (require 'bnf-mode)
 (require 'haskell-mode)
+
 ;;;; code
 
 ;; 项目根目录

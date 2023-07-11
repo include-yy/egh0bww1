@@ -8,12 +8,16 @@
 #+OPTIONS: html-preamble:t
 #+OPTIONS: html-postamble:t
 
-#+MACRO: toc #+TOC: headlines 2
-#+MACRO: q @@html:<q>$1</q>@@
-#+MACRO: br @@html:<br>@@
-#+MACRO: begin_details #+BEGIN_details
-#+MACRO: summary #+HTML: <summary>$1</summary>
-#+MACRO: end_details #+END_details
+#+MACRO: toc             #+TOC: headlines 2
+#+MACRO: q               @@html:<q>$1</q>@@
+#+MACRO: br              @@html:<br>@@
+#+MACRO: begin_details   #+BEGIN_details
+#+MACRO: summary         #+HTML: <summary>$1</summary>
+#+MACRO: end_details     #+END_details
+#+MACRO: begin_noscript  #+BEGIN_noscript
+#+MACRO: end_noscript    #+END_noscript
+#+MACRO: begin_div       #+BEGIN_div
+#+MACRO: end_div         #+END_div
 
 # ROBOTO
 #+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">

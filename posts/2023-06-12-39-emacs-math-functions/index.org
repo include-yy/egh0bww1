@@ -6,11 +6,11 @@
 
 #+DESCRIPTION: 本文总结了 emacs 中的一些数学函数，方便查找
 
-#+BEGIN_noscript
+{{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89729181][file:0.jpg]]
-#+END_noscript
+{{{end_noscript}}}
 
 elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数，但是内容比较分散在不同的小节中了。本文的目的是收集一下 emacs 中的一些数字函数（位运算不知道算不算），方便写代码时查找。由于 emacs 本身也不是用来进行科学计算的，我似乎很难找到以数学计算为目的的包（不算 calc 的话）。
 
