@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-07-09T17:32:13</pubDate>
+    <pubDate>2023-07-14T21:06:09</pubDate>
+    <item>
+      <title>Windows 下在 emacs 中使用 localhost 导致的连接创建卡顿以及解决方法</title>
+      <link>https://egh0bww1.com/posts/2023-07-14-40-emacs-use-127-not-localhost</link>
+      <description>本文介绍了 Windows 系统下 emacs 在创建网络连接时可能出现卡顿的原因，并给出了解决方法</description>
+      <category>emacs</category>
+      <pubDate>2023-07-14</pubDate>
+    </item>
     <item>
       <title>emacs 中的数字函数</title>
       <link>https://egh0bww1.com/posts/2023-06-12-39-emacs-math-functions</link>
@@ -68,13 +75,6 @@
       <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成</description>
       <category>emacs</category>
       <pubDate>2023-03-25</pubDate>
-    </item>
-    <item>
-      <title>如何保存 emacs 当前状态供下次打开时恢复</title>
-      <link>https://egh0bww1.com/posts/2023-03-05-31-emacs-restore-buffers</link>
-      <description>本文介绍了在 emacs 中保留打开过 buffer 在下次启动 emacs 时打开 buffer 的一些方法</description>
-      <category>emacs</category>
-      <pubDate>2023-03-05</pubDate>
     </item>
   </channel>
 </rss>

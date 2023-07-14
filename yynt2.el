@@ -55,17 +55,17 @@
 (defun yynt-headimg ()
   "插入头部图片所需内容"
   (interactive)
-  (insert "#+BEGIN_noscript\n")
+  (insert "{{{begin_noscript}}}\n")
   (insert "#+NAME: headimg\n")
   (yynt-imgattr)
-  (insert "\n\n#+END_noscript"))
+  (insert "\n\n{{{end_noscript}}}"))
 (defun yynt-tailimg ()
   "插入尾部图片所需内容"
   (interactive)
-  (insert "#+BEGIN_noscript\n")
+  (insert "{{{begin_noscript}}}\n")
   (insert "#+NAME: tailimg\n")
   (yynt-imgattr)
-  (insert "\n\n#+END_noscript"))
+  (insert "\n\n{{{end_noscript}}}"))
 (defun yynt-details ()
   "插入 <details> 和 <summary> 标签表示"
   (interactive)
