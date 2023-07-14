@@ -5,7 +5,7 @@ host = 'localhost'
 port = 11451
 
 def start_server():
-    server_start = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    server_start = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_start.bind((host, port))
     server_start.listen(1)
 
