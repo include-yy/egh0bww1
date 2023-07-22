@@ -25,9 +25,10 @@
 #+TITLE: include-yy :: blog
 
 #+ATTR_HTML: :class top-down-img :id cirno
-#+CAPTION: https://www.pixiv.net/artworks/104647968
-[[../img/post-light.jpg]]
+#+CAPTION: https://www.pixiv.net/artworks/110043831
+[[../img/post-1.png]]
 
+#+BEGIN_COMMENT
 #+BEGIN_EXPORT html
 <script>
 let cirno = document.getElementById("cirno")
@@ -47,6 +48,7 @@ cirno.onclick = () => {
 }
 </script>
 #+END_EXPORT
+#+END_COMMENT
 
 Total number of articles: {{{arch_total}}}
 
