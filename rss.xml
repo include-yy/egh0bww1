@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-07-14T21:06:09</pubDate>
+    <pubDate>2023-07-23T19:38:27</pubDate>
+    <item>
+      <title>在 Emacs 中创建和使用子进程</title>
+      <link>https://egh0bww1.com/posts/2023-07-23-41-emacs-process</link>
+      <description>本文是对 Elisp Manual 第 39 章的详细讲解，介绍了如何在 Emacs 中使用同步异步子进程，以及如何使用 elisp 创建网络连接</description>
+      <category>elisp</category>
+      <pubDate>2023-07-23</pubDate>
+    </item>
     <item>
       <title>Windows 下在 emacs 中使用 localhost 导致的连接创建卡顿以及解决方法</title>
       <link>https://egh0bww1.com/posts/2023-07-14-40-emacs-use-127-not-localhost</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客</description>
       <category>lisp</category>
       <pubDate>2023-03-27</pubDate>
-    </item>
-    <item>
-      <title>Emacs 26 Brings Generators and Threads</title>
-      <link>https://egh0bww1.com/posts/2023-03-25-32-emacs-26-generator-thread</link>
-      <description>本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成</description>
-      <category>emacs</category>
-      <pubDate>2023-03-25</pubDate>
     </item>
   </channel>
 </rss>
