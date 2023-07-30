@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-07-23T19:38:27</pubDate>
+    <pubDate>2023-07-31T01:10:32</pubDate>
+    <item>
+      <title>在 Emacs 中使用 JSON-RPC</title>
+      <link>https://egh0bww1.com/posts/2023-07-31-42-emacs-jsonrpc</link>
+      <description>本文介绍了如何在 emacs 中使用 JSON-RPC 与外部通信</description>
+      <category>elisp</category>
+      <pubDate>2023-07-31</pubDate>
+    </item>
     <item>
       <title>在 Emacs 中创建和使用子进程</title>
       <link>https://egh0bww1.com/posts/2023-07-23-41-emacs-process</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了如何使用 emacs 内置的 generator，以及简单介绍对 lambda calculus 实现 CPS 变换的方法</description>
       <category>elisp</category>
       <pubDate>2023-04-02</pubDate>
-    </item>
-    <item>
-      <title>The Lisper -- Matt Might</title>
-      <link>https://egh0bww1.com/posts/2023-03-27-the-lisper-matt-might</link>
-      <description>本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客</description>
-      <category>lisp</category>
-      <pubDate>2023-03-27</pubDate>
     </item>
   </channel>
 </rss>

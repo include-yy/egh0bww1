@@ -1,0 +1,928 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
+
+#+TITLE: 在 Emacs 中使用 JSON-RPC
+#+DATE: [2023-03-09 Thu 17:04]
+
+#+DESCRIPTION: 本文介绍了如何在 emacs 中使用 JSON-RPC 与外部通信
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/99840371][file:0.jpg]]
+{{{end_noscript}}}
+
+受 [[https://github.com/emacs-eaf/emacs-application-framework][eaf]] 和 [[https://github.com/manateelazycat/lsp-bridge][lsp-bridge]] 等使用了 RPC 功能的包的影响，我对使用 RPC *调用外部程序* 有了一定的兴趣。随着 emacs 29 即将发布正式版，我了解到 eglot 这个 LSP 实现在 29 中加入到了 emacs 中，它使用的 jsonrpc.el 在 [[https://www.gnu.org/software/emacs/news/NEWS.27.1][27]] 加入了 emacs（eglot 和 jsonrpc.el 是同一作者）。既然有现成的不如直接学学怎么用。
+
+可惜的是我没能搜索到多少使用 jsonrpc.el 的教程，只能自己摸索了。本文假设读者对什么是 RPC 有最基本的了解，如果读者不熟悉 JSON-RPC，可简单翻阅[[https://wiki.geekdream.com/Specification/json-rpc_2.0.html][规范文档]]，内容非常简单。
+
+由于使用 RPC 不可避免地涉及到进程相关的知识，如果你不太了解如何在 Emacs 中使用子进程的话，可以阅读这篇文章：[[../2023-07-23-41-emacs-process/index.org][在 Emacs 中创建和使用子进程]]。本文会简单介绍 jsonrpc.el 的实现，以及一些实际中可用的使用方法。
+
+本文使用的环境如下：
+
+- emacs 28.2 x86_64 on Windows 10
+- Python 3.11.0
+
+{{{toc}}}
+
+* jsonrpc.el 实现介绍
+
+首先请阅读[[https://www.gnu.org/software/emacs/manual/html_node/elisp/JSONRPC.html][官方文档]]，虽然其中只是一些介绍性的内容，而且也没有什么例子，但是它至少概括了一下这个库的用途和用法。
+
+** jsonrpc-connection
+
+就像你在文档中看到的那样， =jsonrpc-connection= 是一个抽象类，我们没法直接使用它。它包含如下成员：
+
+- =name= ，连接的名字
+- =-request-dispatcher= ，请求分派器，负责根据名字处理 RPC 请求
+- =-notification-dispathcer= ，通知分派器，根据名字处理 RPC 通知
+- =last-error= ，上一次错误
+- =-request-continuiations= ，所有请求的 continuation
+- =-events-buffer= ，打印 RPC 事件的 buffer
+- =-events-buffer-scrollback-size= ，events buffer 的大小，默认不限制大小
+- =-deferred-actions= ，存储延迟请求的哈希表，后文解释
+- =-next-request-id= ，存储用于下一个请求的 id
+
+在上面的成员中，我们在创建对象时可以指定的有 =name=, =-request-dispatcher=, =-notification-dispatcher= 和 =-events-buffer-scrollback-size= ，其中只有 =name= 是必须指定的。通过调用 =make-instance= 或 =jsonrpc-connection= ，我们可以创建一个该类的对象：
+
+#+BEGIN_SRC elisp
+  (make-instance 'jsonrpc-connection :name "yy")
+  (jsonrpc-connection :name "yy")
+#+END_SRC
+
+=-request-dispatcher= 是处理到来的函数调用 *请求* 的函数，它应该接受 =(CONN METHOD PARAMS)= 三个参数，分别是 jsonrpc-connection 对象，方法名 symbol 和参数对象，它应该返回 RPC 结果或引发一个 =jsonrpc-error= 错误。下面是一个 =dispatcher= 例子：
+
+#+BEGIN_SRC elisp
+  (lambda (_con method args)
+    (if (eq method '+)
+	(apply '+ args)
+      (signal 'jsonrpc-error
+	      '((jsonrpc-error-message . "Sorry, not allowed")
+		(jsonrpc-error-code . -32603)))))
+  ;; or use `jsonrpc-error'
+  (lambda (_con method args)
+    (if (eq method '+)
+	(apply '+ args)
+      (jsonrpc-error "Sorry, not allowed")))
+  (lambda (_con method args)
+    (if (eq method '+)
+	(apply '+ args)
+      (jsonrpc-error :code -32603 :message "Sorry, not allowed")))
+#+END_SRC
+
+如上所示，除了调用 =signal= 来引发一个错误外，我们还可以使用 =jsonrpc-error= ，它可以是一个格式化字符串加上各参数，也可以是 =:code=, =:message= 和 =:data= 关键字指定的参数：
+
+#+BEGIN_SRC elisp
+  (jsonrpc-error)
+  => Debugger entered--Lisp error: (jsonrpc-error "[jsonrpc] error " (jsonrpc-error-code) (jsonrpc-error-message) (jsonrpc-error-data))
+
+  (jsonrpc-error "hello%s" "world")
+  => Debugger entered--Lisp error: (jsonrpc-error "helloworld" (jsonrpc-error-code . 32603) (jsonrpc-error-message . "helloworld"))
+
+  (jsonrpc-error :code -32601 :message "method not found" :data 'foo)
+  => Debugger entered--Lisp error: (jsonrpc-error "[jsonrpc] error " (jsonrpc-error-code . -32601) (jsonrpc-error-message . "method not found") (jsonrpc-error-data . foo))
+
+  (jsonrpc-error :code -32602 :message "invalid args" :data [1 2 3])
+  => Debugger entered--Lisp error: (jsonrpc-error "[jsonrpc] error " (jsonrpc-error-code . -32602) (jsonrpc-error-message . "invalid args") (jsonrpc-error-data . [1 2 3]))
+
+  (jsonrpc-error :code -32603 :message "internal error")
+  => Debugger entered--Lisp error: (jsonrpc-error "[jsonrpc] error " (jsonrpc-error-code . -32603) (jsonrpc-error-message . "internal error") (jsonrpc-error-data))
+
+  (jsonrpc-error :code -32099 :message "server error")
+  => Debugger entered--Lisp error: (jsonrpc-error "[jsonrpc] error " (jsonrpc-error-code . -32099) (jsonrpc-error-message . "server error") (jsonrpc-error-data))
+#+END_SRC
+
+如果我们手动 =signal= ，我们需要指定 =jsonrpc-error-message=, =jsonrpc-error-code= 和 =jsonrpc-error-data= 三者组成的 alist，使用 =jsonrpc-error= 可以帮我们完成这些工作。这里附上一些标准错误码：
+
+|       code       | message                     | meaning                                                       |
+|------------------+-----------------------------+---------------------------------------------------------------|
+|       <c>        |                             |                                                               |
+|      -32700      | Parse error 语法解析错误    | 服务端接收到无效的 json。该错误发送于服务器尝试解析 json 文本 |
+|      -32600      | Invalid Request 无效请求    | 发送的 json 不是一个有效的请求对象。                          |
+|      -32601      | Method not found 找不到方法 | 该方法不存在或无效                                            |
+|      -32602      | Invalid params 无效的参数   | 无效的方法参数。                                              |
+|      -32603      | Internal error 内部错误     | JSON-RPC 内部错误。                                           |
+| -32000 to -32099 | Server error 服务端错误     | 预留用于自定义的服务器错误。                                  |
+
+如果观察地足够仔细，你会发现上面代码错误输出中的 "helloworld" 的错误码是 =32603= 而不是 =-32603= ，我认为这是一个实现 bug 并报给了 emacs-bug：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg01817.html][bug#64888]]，希望能在 Emacs 29 发布之前被修复。（[[https://github.com/emacs-mirror/emacs/commit/2af83f215ce83eda5a3eba21c352e6cd7435fbb1][Jsonrpc: fix error code in jsonrpc-error function (bug#64888)]]）
+
+=-notification-dispatcher= 是处理到来的 *通知* 的函数，它的参数列表与 =-request-dispatcher= 一致，但对返回值没有要求。毕竟 JSON-RPC 中的通知不需要响应。
+
+JSON-RPC 的消息接收都是在 =jsonrpc-connection-receive= 中完成的。如果在消息中包含了 =error= 字段，那么 =last-error= 成员会被设置为这个错误。我们可以通过 =jsonrpc-last-error= 来访问对象的该成员。
+
+=-request-continuations= 是发送请求后的 continuation，当请求响应到达时它们会被用来处理返回值。对于这一成员，没有写过异步回调代码的读者可能会有些困惑，好在讲起来并不复杂。读者在浏览器中运行如下代码即可理解回调函数这一概念：
+
+#+BEGIN_SRC js
+  setTimeout(() => console.log('hello'), 3000)
+#+END_SRC
+
+上面代码的功能是在三秒后控制台中打印 ='hello'= 。这里的 =() => console.log('hello')= 就是回调函数，它告诉 =setTimeout= 在时间到后 *应该做什么* ，而“接下来应该做什么”这个东西就是 *continuation* 。 =-request-continuations= 是以请求 =id= 为键的哈希表，键值对中的值结构如下：
+
+#+BEGIN_SRC elisp
+(ok err timer)
+#+END_SRC
+
+其中 =ok= 是调用成功后的回调函数， =err= 是调用失败后的回调函数， =timer= 是一个计时器对象，表示某次请求的 timeout 回调函数。在 jsonrpc.el 中 timeout 值由 =jsonrpc-default-request-timeout= （默认为 10 秒）或创建 RPC 请求时的 =:timeout= 参数指定，如果我们设置它为 =nil= 那请求将没有 timeout 计时器。我们可以使用 =jsonrpc-forget-pending-continuations= 来移除所有正在等待的 RPC 请求，这个函数的具体作用就是清空成员 =-request-continuations= 的哈希表。
+
+=-request-continuations= 的创建和销毁由 jsonrpc-connection 的内部实现负责，我们无需过多关注，如果读者对实现感兴趣的话可以看看 =jsonrpc-connection-receive=, =jsonrpc-request=, =jsonrpc--async-request-1= 等函数。
+
+=-events-buffer= 是一个存放 log 信息的 buffer，每当出现新的事件时其中会被写入内容。我们可以指定 =-events-buffer-scrollback-size= 值来控制这个 buffer 的大小（通过创建对象时使用 =:events-buffer-scrollback-size= ），0 表示禁止 log，nil 表示不限制 buffer 大小。根据实现来看， events buffer 主要被 =jsonrpc--debug= 使用来输出一些调试信息。
+
+=-deferred-actions= 用来存储在发起 RPC 时被延后的请求。若我们在调用 =jsonrpc-request= 或 =jsonrpc-async-request= 时指定了 =:deferred= 为非空值，在 =jsonrpc--async-request-1= （请求函数的内部实现）中该请求会得到处理：如果 =jsonrpc-connection-ready-p= 调用返回真值，那么表示该请求应该被立刻发送；如果返回 nil，那么该请求会被以 =(deferred <current buffer>)= 为键添加到对象的 =-deferred-actions= 中。这也就是说 =deferred= 和当前 buffer 共同构成了延后请求的 id，如果我们在相同的 buffer 中使用相同的 =deferred= 值发起延后请求，它将会覆盖先前的延后请求。
+
+那么，这个被延后的请求何时会被真正发送呢？根据文档说明和源代码，默认实现中当接收来自另一端的数据时 =jsonrpc-connection-receive= 会调用 =jsonrpc--call-deferred= 来尝试发送全部已有的延后请求，我们可以考虑在发送时也进行检查，这可以通过在子类的 =jsonrpc-connection-send= 方法中调用 =jsonrpc--call-deferred= 来完成。
+
+需要注意的是，存储在 =-deferred-actions= 中的调用表达式保留了所有参数，这也包括 =deferred= 标记（详见 =jsonrpc--async-request-1= ）。这就是说延迟请求还是会通过调用 =jsonrpc-connection-ready-p= 来判断是否可以发送，这样一来这些延后请求可能会再次延后。
+
+在默认实现中 =jsonrpc-connection-ready-p= 总是返回 t，也就是不存在被延后的请求。我们可以通过继承 jsonrpc-connection 重新实现这个方法来达到想要的效果。我能想到的一个应用场景是某些请求需要等待另一些请求完成（比如判断 Server 是否加载了某些服务），但这些请求发生的顺序并不固定。以下是文档中与延迟请求相关的部分：
+
+#+BEGIN_QUOTE
+The =:deferred= keyword argument to =jsonrpc-request= and =jsonrpc-async-request= is designed to let the caller indicate that the specific request needs synchronization and its actual issuance may be delayed to the future, until some condition is satisfied.
+
+Specifying =:deferred= for a request doesn’t mean it will be delayed, only that it can be. If the request isn’t sent immediately, jsonrpc will make renewed efforts to send it at certain key times during communication, such as when receiving or sending other messages to the endpoint.
+
+[[https://www.gnu.org/software/emacs/manual/html_node/elisp/JSONRPC-deferred-requests.html][33.30.4 Deferred JSONRPC requests]]
+#+END_QUOTE
+
+最后一个成员是 =-next-request-id= ，它负责生成请求的 id，每当我们发起一次请求，它就会自增 1 并使用自增后的值作为当前 id，它的初始值为 0。
+
+到了这里我们就完成了对 jsonrpc-connection 类成员的介绍，下面是子类需要实现的方法：
+
+- =jsonrpc-connection-send= ，发送请求，它会被 =jsonrpc-request= 等函数调用来进行实际的发送
+- =jsonrpc-shutdown= ，关闭 RPC 连接
+- =jsonrpc-running-p= ，判断连接是否仍存在
+- =jsonrpc-connection-ready-p= ，判断连接是否已经可以让延迟请求发送
+
+（这里提一嘴，编写 =jsonrpc-connection-send= 时最好看一看 jsonrpc 标准，注意各字段的类型）
+
+在这一节的最后我以对所有用户 API 的概括来作为结尾吧。 =jsonrpc-connection= 是 jsonrpc 的基类，里面包含了 RPC 通信所必须的状态；用户可以通过 =jsonrpc-connection= 及其子类构造函数来来创建 RPC 连接对象，并通过 =jsonrpc-request= 和 =jsonrpc-async-request= 分别发起同步和异步 RPC 请求，它们在内部使用了 =jsonrpc--async-request-1= ；用户可通过 =jsonrpc-notify= 发送通知，它会直接调用 =jsonrpc-connection-send= ； =jsonrpc-connection-receive= 是收到消息时需要被调用的回调函数，它负责处理 RPC 请求的响应，以及使用对象的 =-request-dispatcher= 和 =-notification-dispatcher= 处理远端的请求和通知。
+
+我们可以使用异步进程的 filter 来作为 =jsonrpc-connection-receive= 的调用触发器，这样就能在远端返回响应后处理数据来完成一整个 RPC，这也是 =jsonrpc-process-connection= 的做法。不过 filter 并不是 Emacs 中唯一可用的触发机制，我们完全可以手动调用 =jsonrpc-connection-receive= 嘛（笑），这也是我将在下一节展示的一种演示性的方法。
+
+** 基于手动通信的 RPC 实现
+
+在上一节中我们完成了对基类 =jsonrpc-connection= 的介绍，但这并不足以让读者明白和掌握使用和扩展它的方法。这一节我会实现一个手动进行通信的简单 RPC“系统”来展示用法。为了尽量简化代码，这里我假设只有在一条请求被处理后才会发送下一个请求。
+
+=jsonrpc-connection-receive= 的层次很高，它处理的是消息而不是字符串。对于纯 Emacs 内部的数据传输，我们没有必要使用 JSON 来序列化和反序列化，我们可以这样实现类和 =jsonrpc-connection-send= 方法：
+
+#+BEGIN_SRC elisp
+  (defclass yy-rpc (jsonrpc-connection)
+    ((place
+      :initarg :place
+      :accessor yy-place)))
+  (cl-defmethod jsonrpc-connection-send ((conn yy-rpc)
+					 &key id method params result error)
+    (setcar (yy-place conn)
+	    (append (if id `(:id ,id))
+		    (if method `(:method ,method))
+		    (if params `(:params ,params))
+		    (if result `(:result ,result))
+		    (if error  `(:error  ,error)))))
+  (setq a (cons nil nil))
+  (setq b (yy-rpc :name "1" :place a))
+
+  (jsonrpc-connection-send b :id 1 :method "a" :params 1)
+  => (:id 1 :method "a" :params 1)
+  a
+  => ((:id 1 :method "a" :params 1))
+#+END_SRC
+
+在实际使用中我们是不会调用 =jsonrpc-connection-send= 这个函数的，它会被 =jsonrpc-request=, =jsonrpc-async-request= 和 =jsonrpc-notify= 使用。由于使用 =jsonrpc-request= 会卡住（它需要等待调用返回，但我们无法在等待期间对其他表达式求值），这里我先用 =jsonrpc-async-request= 简单做个演示：
+
+#+BEGIN_SRC elisp
+(jsonrpc-async-request b "add" [2 3])
+#+END_SRC
+
+现在，切换到 =*1 events*= 这个 buffer，然后等个 10 秒钟，你应该能看到如下内容：
+
+[[./1.png]]
+
+之所以超时自然是我们没有对这个请求做出响应，我们可以手动调用 =jsonrpc-connection-receive= 来做出响应（此处我重新创建了一个 =yy-rpc= 对象，所以 id 为 1）：
+
+#+BEGIN_SRC elisp
+  (setq a (cons nil nil))
+  (setq b (yy-rpc :name "1" :place a))
+  (jsonrpc-async-request b "add" [1 2] :success-fn 'print)
+  (jsonrpc-connection-receive
+   b '(:result 3 :id 1))
+#+END_SRC
+
+在执行上面的代码后，echo area 处会显示 =3= ， =*1 events*= 会出现如下内容，这也就表示 RPC 顺利完成了：
+
+[[./2.png]]
+
+当然我们也不是不能用 =jsonrpc-request= ，但我们要怎样让 =jsonrpc-connection-receive= 在调用 =jsonrpc-request= 之前被注册为将要调用呢？使用 Timer 可以做到这一点：
+
+#+BEGIN_SRC elisp
+  (setq a (cons nil nil))
+  (setq b (yy-rpc :name "1" :place a))
+  (progn
+    (run-at-time 1 nil (lambda ()
+			 (jsonrpc-connection-receive
+			  b '(:id 1 :result 3))))
+    (jsonrpc-request b "add" [1 2]))
+  => 3
+#+END_SRC
+
+现在让我们编写一个 RPC 服务器而不是手动返回结果吧，通过指定 =:request-dispatcher= ，下面的连接对象提供了加减乘除的服务：
+
+#+BEGIN_SRC elisp
+  (setq r (cons nil nil))
+  (setq s
+	(yy-rpc :name "2"
+		:place r
+		:request-dispatcher
+		(lambda (_conn method args)
+		  (if (memq method '(+ - * /))
+		      (apply method args)
+		    (jsonrpc-error "Unknown method")))))
+  (jsonrpc-connection-receive s '(:id 1 :method "+" :params (1 2)))
+  r => ((:id 1 :result 3))
+#+END_SRC
+
+将客户端与服务端结合起来，并将我们作为传输执行者，我们可以完成一个完整的 RPC 调用过程：
+
+#+BEGIN_SRC elisp
+  (setq a (cons nil nil))
+  (setq b (yy-rpc :name "1" :place a))
+  (setq r (cons nil nil))
+  (setq s
+	(yy-rpc :name "2"
+		:place r
+		:request-dispatcher
+		(lambda (_conn method args)
+		  (if (memq method '(+ - * /))
+		      (apply method args)
+		    (jsonrpc-error "Unknown method")))))
+  (setq res nil)
+  (jsonrpc-async-request b "+" '(1 2) :success-fn (lambda (n) (setq res n)))
+  (jsonrpc-connection-receive s (car a))
+  (jsonrpc-connection-receive b (car r))
+  res => 3
+#+END_SRC
+
+*** jsonrpc-lambda 的小问题
+
+在编写示例代码时我遇到了一个问题，如果我没有为 =jsonrpc-async-request= 指定 =:success-fn= ，那么在 =:result= 为简单值时 Emacs 会报错：
+
+#+BEGIN_SRC elisp
+  (setq a (cons nil nil))
+  (setq b (yy-rpc :name "1" :place a))
+  (jsonrpc-async-request b "add" [1 2])
+  (jsonrpc-connection-receive
+   b '(:result 3 :id 1))
+  => Debugger entered--Lisp error: (wrong-type-argument listp 3)
+#+END_SRC
+
+在简单阅读 =jsonrpc--async-request-1= 的实现后，我发现默认的 success 回调函数使用了 =jsonrpc-lambda= 这个宏，它在处理简单参数时会出现问题：
+
+#+BEGIN_SRC elisp
+  (funcall (jsonrpc-lambda (&rest a) nil) 3)
+  => Debugger entered--Lisp error: (wrong-type-argument listp 3)
+#+END_SRC
+
+它在内部对单个参数使用了 =apply= ，如果单参数不是列表的话自然会出错，我的解决方法是在 =apply= 的最后添加空表。修改后的 =jsonrpc-lambda= 如下所示：
+
+#+BEGIN_SRC elisp
+  (cl-defmacro jsonrpc-lambda (cl-lambda-list &body body)
+    (declare (indent 1) (debug (sexp &rest form)))
+    (let ((e (cl-gensym "jsonrpc-lambda-elem")))
+      `(lambda (,e) (apply (cl-function (lambda ,cl-lambda-list ,@body)) ,e ()))))
+#+END_SRC
+
+这个 bug 我也发送到了邮件列表中：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg01942.html][#bug64919]]（[[https://github.com/emacs-mirror/emacs/commit/3bbe6f4abc6c1dd8f414e48af5b6ce344bce34db][Jsonrpc: fix default value of success-fn (bug#64919)]]）。不过作者的修改思路和我不太一样（笑），如果考虑到 =jsonrpc-lambda= 一般不会用于单参数情况，这也是合理的，倒不如说我的用法是 =jsonrpc-lambda= 的错误用法。
+
+** jsonrpc-process-connection
+
+只有基类 =jsonrpc-connection= 我们基本上什么也干不了，jsonrpc.el 给出了子类 =jsonrpc-process-connection= ，它提供了基于 Emacs 子进程的 RPC 实现，通过使用它我们可以比较方便地与 Emacs 子进程通信，这也包括 TCP 网络通信。 =jsonrpc-process-connection= 在基类的基础上添加了如下成员：
+
+- =-process= ，进行通信的子进程
+- =-expected-bytes= ，当前期望接收的数据字节数
+- =-on-shutdown= ，在连接断开时执行的函数
+
+这上面我们必须提供的是子进程（通过 =:process= 指定），在对象初始化时 =jsonrpc-process-connection= 会进行一些额外的操作。我们可以通过 =:on-shutdown= 添加连接结束时的清理函数。
+
+=jsonrpc-process-connection= 的 =jsonrpc-connection-send= 主要做两件事：首先它将消息序列化为 JSON 数据，并添加一些头信息；接着它调用 =process-send-string= 将数据字符串发送给另外一个进程，具体来说的话，数据格式是这样的：
+
+#+BEGIN_SRC text
+Content-Length: <base10-number>\r\n\r\n<JSON-data>
+#+END_SRC
+
+这个格式就是不完整的 HTTP 报文，毕竟它没有起始行，而且标头（Header）只有 =Content-Length= 。不过它是对 =jsonrpc-connection-send= 实现的一个示范，我们可以参考它实现我们自己的 =jsonrpc-connection-send= 。
+
+在上一节中我们采用手动调用 =jsonrpc-connection-receive= 的方式完成了数据的传输， =jsonrpc-process-connection= 对象绑定的进程的 filter 函数中会调用这个函数：当数据到达 Emacs 且 filter 检测到接收完整数据时 =jsonrpc-connection-receive= 就会被调用，接收数据的格式与发送格式一致。读者若有兴趣可以读一读 =jsonrpc--process-filter= 的实现，这是一个不错的 filter 例子。篇幅所限这里就不展开了。
+
+除 =jsonrpc-connection-ready-p= 外， =jsonrpc-process-connection= 给出了 =jsonrpc-running-p= 和 =jsonrpc-shutdown= 的实现。如果我们想使用它提供的进程通信功能，但又对某些调用有同步需求，可以考虑继承 =jsonrpc-process-connection= 并实现 =jsonrpc-connection-ready-p= 。
+
+=jsonrpc-process-connection= 提供了如下新方法：
+
+- =jsonrpc-process-type= 判断进程类型
+- =jsonrpc-stderr-buffer= 获取连接的错误输出 buffer
+
+我们在创建子进程时无需指定进程关联 buffer， =jsonrpc-process-connection= 会为我们添加 buffer, filter 和 sentinel。其中 buffer 的名字是 =_*{name} output*= （_ 是空格），错误输出 buffer 的名字是 =*{name} stderr*= ，events buffer 名字是 =*{name} events*= 。打开 output buffer 可能得费点劲，因为以空格开头的字符串作为名字的 buffer 不会在 =C-x b= 中显示。参考 [[https://www.emacswiki.org/emacs/InvisibleBuffers][Invisible Buffers]] ，我们可以使用 =C-x b C-q SPC *{name} output*= 打开它。
+
+下面让我们使用 =jsonrpc-process-connection= 编写几个与子进程 RPC 的例子，由于 Emacs 子进程支持管道和 TCP 通信，我会用两小节分别展示这两种情况下的用法。
+
+** JSON-RPC over pipe
+
+下面让我们通过标准输入输出（也就是管道）来进行 RPC 通信，方便起见我选择 Python 脚本作为子进程，Python 中的 JSON-RPC 实现可谓不可胜数，我选择的是 [[https://www.jsonrpcserver.com/en/stable/installation.html][jsonrpcserver]]。我们可以使用 =sys.stdin.buffer.read= 读取 Header 和指定字节数量的 JSON 数据：
+
+#+BEGIN_SRC python
+  import sys
+  from jsonrpcserver import method, Success, dispatch, Result
+
+  @method
+  def add(x) -> Result:
+      return Success(x+1)
+
+  while True:
+      header = ''
+      while True:
+	  r = sys.stdin.buffer.read(1)
+	  if r == b'\r':
+	      sys.stdin.buffer.read(3)
+	      break
+	  else:
+	      header = header + r.decode()
+      jslen  = int(header.split()[1])
+      jsdata = sys.stdin.buffer.read(jslen)
+      json   = jsdata.decode(encoding='utf-8')
+      response = dispatch(json)
+      redata = response.encode(encoding='UTF-8')
+      rheader = ('Content-Length: {}\r\n\r\n'.format(len(redata))).encode(encoding='UTF-8')
+      sys.stdout.buffer.write(rheader)
+      sys.stdout.buffer.write(redata)
+      sys.stdout.flush()
+#+END_SRC
+
+下面是创建 =jsonrpc-process-connection= 对象和发送请求的代码：
+
+#+BEGIN_SRC elisp
+  (setq a (make-instance 'jsonrpc-process-connection
+			 :name "py1"
+			 :process (make-process
+				   :name "yy"
+				   :command '("python" "1.py")
+				   :coding 'utf-8-unix)))
+  (jsonrpc-request a 'add [114514])
+#+END_SRC
+
+在编写 elisp 端代码时，我尝试使用 =(jsonrpc-request a 'add 3)= 发送 RPC 请求并遇到了非法请求错误。在仔细阅读 JSON-RPC 2.0 标准后我发现标准中对 =params= 字段的要求是结构化值（Structed value），这也就是说它要么是 JSON 数组，要么是 JSON 对象，编写 JSON-RPC 请求时请注意这一点。我看了看规范文档中给出的例子，确实没有单个值作为 =params= 字段值的情况。
+
+在这样的非法请求调用失败后 elisp 端应该立刻报错，但我得到的却是超时错误，有意思的是 Debugger 显示超时错误，但 =*{name} event*= buffer 显示非法请求：
+
+[[./3.png]]
+
+之所以会有这样的结果是因为 =jsonrpc-process-connection= 在遇到错误时统一交给 =jsonrpc-connection-receive= 处理，而它会根据 id 找到对应的处理函数，麻烦的地方就在这里：因为是非法请求，服务端此时应该返回为 =null= 的 id 值（笑），在连接对象的 =-request-continuations= 中不可能找到对应的 continuation。
+
+要想规避这个问题，我们可以考虑继承 =jsonrpc-process-connection= 并重新实现 =jsonrpc-connection-send= 让它对参数进行检查；或是实现一个新的进程 filter，让它对收到的数据进行检查来及时发现非法请求错误。我认为前者更靠谱一点。
+
+我把上面的循环代码简单包装一下再加些注释，方便复制和复用：
+
+{{{begin_details}}}
+{{{summary(jsonrpc_serve)}}}
+#+BEGIN_SRC python
+import sys
+from jsonrpcserver import method, Success, dispatch, Result
+
+def jsonrpc_serve(disp):
+    """disp should accept JSON string as input
+    and return JSON-RPC response JSON string"""
+    while True:
+        clen = ''
+        sys.stdin.buffer.read(16) # length of 'Content-Length: ' is 16
+        while True:
+            r = sys.stdin.buffer.read(1)
+            if r == b'\r':
+                sys.stdin.buffer.read(3) # read rest \n\r\n
+                break
+            else:
+                clen = clen + r.decode()
+        jslen  = int(clen) # number of json byte
+        jsdata = sys.stdin.buffer.read(jslen).decode(encoding='utf-8') # get json string
+        resdata = disp(jsdata).encode(encoding='utf-8')
+        rheader = ('Content-Length: {}\r\n\r\n'.format(len(resdata))).encode(encoding='utf-8')
+        resdata = rheader + resdata
+        sys.stdout.buffer.write(resdata)
+        sys.stdout.flush()
+
+## example
+# @method
+# def add(x) -> Result:
+#     return Success(x+1)
+
+# def main():
+#     jsonrpc_serve(dispatch)
+
+# if __name__ == '__main__':
+#     main()
+#+END_SRC
+{{{end_details}}}
+
+最后需要说明一下的就是编码问题了，我曾在几个月前尝试用 Python 中的另一个 JSON-RPC 实现与 Emacs 中的 jsonrpc.el 完成 RPC 通信，但是非常奇怪地失败了：我能够在 process buffer 中看到来自 Python 端的响应，但是每次调用 =jsonrpc-request= 都会超时。如果你读过 filter 的实现，你会发现在处理完一条输入后 filter 会删除 buffer 中的内容，所以有内容留存在 process buffer 中肯定不是正常现象。
+
+现在我才知道这是因为 Emacs 在接收来自 Python 输出时将 =\r\n= 转换为了 =\n= ，这样一来 filter 就无法通过带有 =\r\n= 的正则匹配结果了。在上面的 Python 代码中我直接使用 =buffer= 读取输入和发送输出，这样就规避了换行符的问题。因为 Python 端使用了 UTF-8 编码，在 Emacs 端创建进程时也要使用它：在 =make-process= 的参数中指定 =:coding= 为 =utf-8-unix= 。这里的 =unix= 表示不将 =\n= 转换为平台特定的换行符而是直接输出。
+
+** JSON-RPC over TCP
+
+相比于通过 pipe 进行通信，我认为使用 TCP 的优点有这些：
+
+- 服务端不限于本地，可以做到真正意义上的远程（Remote）
+- 与 Emacs 之间不要求有父子关系
+- 使用字节流而不是文本流，指定好编码即可，无需关注平台特点（比如换行符）
+
+在 Python 中我们可以轻松使用如下代码创建一个 TCP socket 服务器：
+{{{begin_details}}}
+{{{summary(MyTCPHandler)}}}
+#+BEGIN_SRC python
+import socketserver
+from jsonrpcserver import method, Success, dispatch, Result
+
+@method
+def add(x) -> Result:
+    return Success(x+1)
+
+class MyTCPHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        while True:
+            bytes_recd = 0
+            while bytes_recd < 16: # 'Content-Length: '
+                tmp = self.request.recv(16 - bytes_recd)
+                if not tmp:
+                    return
+                bytes_recd = bytes_recd + len(tmp)
+            num = ''
+            while True:
+                tmp = self.request.recv(1)
+                if tmp == b'\r':
+                    break
+                else:
+                    num = num + tmp.decode()
+            num = int(num)
+            bytes_recd = 0
+            while bytes_recd < 3: #\n\r\n
+                tmp = self.request.recv(3 - bytes_recd)
+                bytes_recd = bytes_recd + len(tmp)
+            bytes_recd = 0
+            chunks = []
+            while bytes_recd < num: # json data
+                chunk = self.request.recv(min(num - bytes_recd, 1024))
+                chunks.append(chunk)
+                bytes_recd = bytes_recd + len(chunk)
+            json = b''.join(chunks).decode(encoding='utf-8')
+            rbody = dispatch(json).encode(encoding='utf-8')
+            rhead = 'Content-Length: {}\r\n\r\n'.format(len(rbody)).encode(encoding='utf-8')
+            self.request.sendall(rhead + rbody)
+
+if __name__ == '__main__':
+    HOST, PORT = '127.0.0.1', 11451
+    with socketserver.TCPServer((HOST, PORT), MyTCPHandler) as server:
+        server.serve_forever()
+#+END_SRC
+{{{end_details}}}
+
+在启动 Python 脚本后使用下面的代码，我们可以创建 Python 进程与 Emacs 之间的 TCP 连接：
+
+#+BEGIN_SRC elisp
+  (setq a (jsonrpc-process-connection
+	   :name "yynet"
+	   :process (open-network-stream
+		     "yytcp"
+		     nil "127.0.0.1" 11451
+		     :coding 'utf-8-unix)))
+  (jsonrpc-request a 'add [114514])
+  (jsonrpc-shutdown a)
+#+END_SRC
+
+如果一切正常，在执行 =jsonrpc-request= 后你将得到 114515。与 pipe 通信有些不同，TCP 是面向字节流的，而且它的接收和发送函数是 =recv= 和 =send= 或 =sendall= 。代码的编写我参考了以下链接：
+
+- [[https://stackoverflow.com/questions/8627986/how-to-keep-a-socket-open-until-client-closes-it][How to keep a socket open until client closes it?]]
+- [[https://stackoverflow.com/questions/59017085/socket-recv-receives-less-bytes-than-expected][socket.recv() receives less bytes than expected]]
+
+此前我一直不知道 Socket 怎么用，还真是“老鸟眼中的一颗土坷垃就是小白面前的一座大山”（笑）。通过 =socket.makefile= 我们可以将 socket 当作文件来读写，不过这里我就不展示了，这里有一篇文章进行了简单的介绍：
+
+- [[https://erlerobotics.gitbooks.io/erle-robotics-python-gitbook-free/content/udp_and_tcp/using_tcp_streams_like_files.html][Using TCP Streams like Files]]
+
+我们可以在 Emacs 中创建一个使用 TCP 的子进程 RCP 服务器，然后再连接这个服务器来做到 RPC over TCP，做起来很容易，这里就不展示了。
+
+** example of deferred actions
+
+如果我们想将 1 到 10 按顺序发送给服务端，让它将这些数字按顺序串起来，并在最后返回这个数组，但是我们的请求是无序的。这该怎么做呢？我们可以考虑实现 =jsonrpc-connection-ready-p= 来让某个请求只能在条件满足后发送：
+
+{{{begin_details}}}
+{{{summary(py 服务端)}}}
+#+BEGIN_SRC python
+import sys
+from jsonrpcserver import method, Success, dispatch, Result
+
+def jsonrpc_serve(disp):
+    """disp should accept JSON string as input
+    and return JSON-RPC response JSON string"""
+    while True:
+        clen = ''
+        sys.stdin.buffer.read(16) # length of 'Content-Length: ' is 16
+        while True:
+            r = sys.stdin.buffer.read(1)
+            if r == b'\r':
+                sys.stdin.buffer.read(3) # read rest \n\r\n
+                break
+            else:
+                clen = clen + r.decode()
+        jslen  = int(clen) # number of json byte
+        jsdata = sys.stdin.buffer.read(jslen).decode(encoding='utf-8') # get json string
+        resdata = disp(jsdata).encode(encoding='utf-8')
+        rheader = ('Content-Length: {}\r\n\r\n'.format(len(resdata))).encode(encoding='utf-8')
+        resdata = rheader + resdata
+        sys.stdout.buffer.write(resdata)
+        sys.stdout.flush()
+
+
+a = []
+@method
+def insert(x) -> Result:
+    a.append(x)
+    return Success(None)
+@method
+def get() -> Result:
+    return Success(a)
+
+def main():
+    jsonrpc_serve(dispatch)
+
+if __name__ == '__main__':
+    main()
+#+END_SRC
+{{{end_details}}}
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'jsonrpc)
+  (defclass myc (jsonrpc-process-connection) ())
+  (setq flags (make-vector 11 nil))
+  (aset flags 0 t)
+  (cl-defmethod jsonrpc-connection-ready-p ((conn myc) deferred)
+    (aref flags (1- deferred)))
+
+  (setq con (make-instance 'myc
+			   :name "def"
+			   :process (make-process
+				     :name "pydef"
+				     :command '("python" "1.py")
+				     :coding 'utf-8-unix)))
+
+  (cl-loop for i from 10 downto 1
+	   do (jsonrpc-async-request con 'insert `[,i] :deferred i
+				     :success-fn (let ((i i))
+						   (lambda (x) (aset flags i t)))))
+
+  ;; wait a second
+  (jsonrpc-request con 'get [])
+  => [1 2 3 4 5 6 7 8 9 10]
+#+END_SRC
+
+比较有意思的是，即使这些延迟请求都被成功触发了，它们仍然有 timeout 消息：
+
+[[./4.png]]
+
+这里的 timeout 是 =jsonrpc-async-request= 的默认 timeout，它们没有任何作用（在外部看来）且不会在延迟请求成功后被销毁。需要注意的是它不是请求的超时回调，而是延迟请求在等待被发送时的超时回调。我们可以在发起延迟请求时指定 =:timeout= 为 nil 来取消掉它的等待超时回调，但这样一来当延迟请求真正触发时也没有 timeout 了。想了想我发现它主要是为了处理同步调用的超时问题，毕竟同步调用即使 =deferred= 了我们也不可能等上很久。
+
+** 小结
+
+通过上面的讲解和例子，相信你应该在一定程度上已经知道 jsonrpc.el 该怎么用了，这里简单总结一些要点
+
+- =jsonrpc-connection= 是基类，实现了 JSON-RPC 核心功能， =jsonrpc-process-connection= 可用于与子进程或使用 TCP 的远程子进程进行 RPC 通信
+- 实现自己的 RPC 类时必须实现 =jsonrpc-connection-send= ，同时考虑处理来自远端的输入以及何时调用 =jsonrpc-connection-receive=
+- 可以通过 =jsonrpc-request= 发起同步调用，通过 =jsonrpc-async-request= 发起异步调用。若为异步调用注意指定回调函数，否则结果会被丢弃
+- 创建 =jsonrpc-process-connection= 对象时，要注意进程的编码
+- 理解 JSON-RPC 标准，规避一些可能的问题
+
+虽然我已经介绍了一些需要注意的 API，但是关于它们的参数我还没有做非常清楚的说明，这里也做个总结：
+
+- =jsonrpc-conection= ，可创建一个 =jsonrcp-connection= 对象，它需要以下关键字参数
+  - =:name= ，作为连接对象名字的 *字符串*
+  - =:request-dispatcher= ，处理 RPC 请求的函数，以 =(conn method args)= 为参数列表
+    - =conn= 是连接对象， =method= 是方法 *符号* ， =args= 是参数 *向量* 或 *plist*
+    - 函数的返回值必须是可被 JSON 序列化的值
+  - =:notification-dispatcher= ，处理 RPC 通知的函数，与 =:request-dispatcher= 参数一致，无返回值要求
+  - =:events-buffer-scrollback-size= ，事件 buffer 的大小类型为 *整数* 。默认不限制大小，为 0 表示禁止
+- =jsonrpc-connection-send= ，发送 RPC 请求，参数列表为 =(conn &key id method params result error)=
+  - =conn= 为 =jsonrpc-connection= *对象*
+  - =id= 为 *整数* ， =method= 为 *符号* 或 *关键字* ， =params= 和 =result= 为可 JSON 序列化的对象，其中 =params= 必须是结构对象。 =error= 为含 =code=, =message= 和 =data= （可忽略）字段的的 *plist* ， =code= 为 *整数* 且 =message= 为 *字符串*
+- =jsonrpc-shutdown= ，关闭 RPC 连接，接受 =jsonrpc-connection= 对象
+- =jsonrpc-running-p= ，判断连接是否仍存在，接受 =jsonrpc-connection= 对象
+- =jsonrpc-connection-ready-p= ，判断某个延迟请求当前是否可以发送，参数列表为 =(connection what)=
+  - 其中 =connection= 是 =jsonrpc-connection= 对象， =what= 是发起请求时的 =:deferred= 值
+- =jsonrpc-lambda= ，创建一个方便处理关键字参数的匿名函数
+  #+BEGIN_SRC elisp
+    (funcall (jsonrpc-lambda (&key a b c) (+ a b c)) '(:a 1 :b 2 :c 3)) => 6
+    (funcall (jsonrpc-lambda (a b) (+ a b)) (append [1 2] ())) => 3
+  #+END_SRC
+- =jsonrpc-events-buffer= ，创建或返回一个 =jsonrpc-connection= 对象的事件 buffer
+- =jsonrpc-forget-pending-continuations= ，清空 =jsonrpc-connection= 对象的 =-request-continuations= 哈希表
+- =jsonrpc-connection-receive= ，接受并处理 JSON-RPC 消息，参数列表为 =(connection message)=
+- =jsonrpc-error= ，引发一个 =jsonrpc-error= 错误
+  - 可类似 =error= 用法，使用格式化字符串和参数来创建错误字符串
+  - 可指定 =:code= =:message= 和 =:data= 创建错误
+- =jsonrpc-async-request= ，发起异步 RPC 请求，参数列表为 =(connection method params &rest args &key _success-fn _error-fn _timeout-fn _timeout _deferred)=
+  - =connection= 为 =jsonrpc-connection= 对象， =method= 为方法名 *符号* ， =params= 为可 JSON 序列化的向量或 plist
+  - 可指定的关键字参数包括 =:success-fn=, =:error-fn=, =:timeout-fn=, =:timeout= 和 =:deferred=
+  - =:success-fn= 接受单个返回值参数， =:error-fn= 接受错误消息，为包括 =:code= ， =:message= 以及 =:data= （可忽略）的 *plist* ， =:timeout-fn= 为无参函数
+  - =:timeout= 指定 timeout 时间值，为 *数字* ， =:deferred= 为非空值表示该请求被延迟，且该值会作为延迟请求对象的 id 的一部分，也会作为 =jsonrpc-connection-ready-p= 被调用时的第二参数
+- =jsonrpc-request= ，发起同步 RPC 请求，参数列表为 =(connection method params &key deferred timeout cancel-on-input cancel-on-input-retval)=
+  - 参数中与 =jsonrpc-request= 同名参数的含义基本一致
+  - 若 =:cancel-on-input= 为非空，在等待调用返回时的输入将使该调用立刻结束，并以 =:cancel-on-input-retval= 的值作为返回值
+- =jsonrpc-notify= ，发送 RPC 通知，参数列表为 =(connection method params)=
+  - 参数含义与 =jsonrpc-request= 一致
+- =jsonrpc-process-connection= ，使用进程实现 RPC 通信的 =jsonrpc-connection= 子类，在父类基础上添加了如下初始化参数
+  - =:process= 指定进行通信的子进程，可以是异步子进程或网络进程
+  - =:on-shutdown= ，指定连接关闭时执行的清理函数，函数接受 =jsonrpc-process-connection= 对象
+- =jsonrpc-process-type= ，返回 =jsonrpc-process-connection= 使用的进程的类型
+- =jsonrpc-stderr-buffer= ，返回 =jsonrpc-process-connection= 使用的标准错误输出 buffer
+
+需要注意的是，上面我说到 =jsonrpc-request=, =jsonrpc-async-request= 和 =jsonrpc-connection-send= 的 =method= 参数都是符号或关键字是不太准确的。当我们调用 =jsonrpc-*-request= 时，它们会在内部调用 =jsonrpc-connection-send= ，在这个过程中 =method= 参数毫无改变地传递给了 =jsonrpc-connection-send= ，我们并不是非得让 =method= 为符号类型，只要我们实现处理字符串类型的 =method= 的 =jsonrpc-connection-send= 函数即可。不过既然 =jsonrpc-process-connection= 已经把 =jsonrpc-connection-send= 实现为接受符号参数了，我们也遵守吧。
+
+在与 João Távora 的[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg01972.html][交流过程]]中，我得知他在 emacs 的测试代码中编写了一个简单的例子：[[https://github.com/emacs-mirror/emacs/blob/master/test/lisp/jsonrpc-tests.el][jsonrpc-test.el]]。如果你对如何在 Emacs 中实现 JSON-RPC 服务器感兴趣的话可以看一看，由于本文的主要目的是 *调用外部程序* ，这里我就懒得看了（笑）。
+
+下面让我们了解一下 jsonrpc.el 的 JSON 序列化和反序列化是如何实现的，这方便我们在编写 RPC 请求和处理函数时判断返回值或参数是否合法。
+
+* JSON 序列化/反序列化
+
+所谓序列化就是将对象转化为可以存储或传输的形式的过程，反序列化则是将字节还原为对象的过程。从我们开始使用 =scanf= & =printf= 或 =input= & =print= 时，我们就在不知不觉中做着序列化和反序列化的事了。JSON 序列化就是将对象转化为 JSON 数据格式，JSON 反序列化就是将 JSON 数据还原为对象。在 JavaScript 中，我们可以通过 =JSON.stringify= 和 =JSON.parse= 完成序列化和反序列化：
+
+#+BEGIN_SRC js
+  JSON.stringify({a:1}) => '{"a":1}'
+  JSON.parse('{"a":1}') => {a: 1}
+#+END_SRC
+
+在 Python 中，我们可以使用内置 =json= 模块的 =dumps= 和 =loads= 方法来进行序列化/反序列化：
+
+#+BEGIN_SRC python
+  import json
+  json.dumps(None) => 'null'
+  json.dumps(1) => '1'
+  json.dumps([True, False]) => '[true, false]'
+  json.dumps({'a': 'hello', 'b': 2}) => '{"a": "hello", "b": 2}'
+  json.loads('{"number": 1, "string": "abc", "true and false": [true, false], "null": null, "object": {"a": 1, "b": "a"}}')
+  => {'number': 1, 'string': 'abc', 'true and false': [True, False], 'null': None, 'object': {'a': 1, 'b': 'a'}}
+#+END_SRC
+
+对 JavaScript 来说，JSON 转换就像喝水那么简单，Python 也差不多，有和 =true false= 对应的 =True False= ，以及和 =null= 对应的 =None= ，有和对象对应的字典。elisp 情况稍微复杂一些，JSON 对象的可表达方式可以有多种： =plist=, =alist= 和 =hashtable= ；elisp 中没有 =false= 只有 =nil= 。这一节我的主要目的是介绍 Emacs 内置的 JSON 功能，以及 jsonrpc.el 的使用方式。
+
+json.el 很早之前就加入到了 Emacs 中，通过使用 =json-read= 和 =json-read-from-string= ，我们可以将 JSON 字符串转化为 elisp 对象；通过 =json-encode= 我们可以将 elisp 对象转化为 JSON 字符串，我们可以通过变量 =json-object-type=, =json-array-type= 和 =json-false= 分别指定对象类型，数组类型和 False 在 elisp 中的值：
+
+#+BEGIN_SRC elisp
+  (json-encode '((a . 1) (b . 2)))
+  "{\"a\":1,\"b\":2}"
+  (json-encode '(:a 1 :b 2))
+  "{\"a\":1,\"b\":2}"
+  (json-encode #s(hash-table data (a 1 b 2)))
+  "{\"a\":1,\"b\":2}"
+  (json-encode nil)
+  "null"
+  (let ((json-false :false)) (json-encode :false))
+  "false"
+  (json-encode :json-false)
+  "false"
+  (json-encode t)
+  "true"
+  (json-read-from-string "[1,2,3]")
+  [1 2 3]
+  (let ((json-array-type 'list))
+    (json-read-from-string "[1,2,3]"))
+  (1 2 3)
+  (json-read-from-string "{\"a\":1, \"b\":2}")
+  ((a . 1) (b . 2))
+  (let ((json-object-type 'plist))
+    (json-read-from-string "{\"a\":1, \"b\":2}"))
+  (:a 1 :b 2)
+  (let ((json-object-type 'hash-table))
+    (json-read-from-string "{\"a\":1, \"b\":2}"))
+  #s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8125 data ("a" 1 "b" 2))
+#+END_SRC
+
+虽然 json.el 早就有了，但 jsonrpc.el 更倾向于使用 =json-serailize= 和 =json-parse-buffer= ，它们使用 C 实现（[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Parsing-JSON.html][Parsing and generating JSON values]]）。与 json.el 中通过 dynamic variable 指定 JSON 对应表示不同，我们需要在参数中指定类型：
+
+#+BEGIN_SRC elisp
+  (json-parse-string "{\"a\":1, \"b\":2}")
+  #s(hash-table size 2 test equal rehash-size 1.5 rehash-threshold 0.8125 data ("a" 1 "b" 2))
+
+  (json-parse-string "{\"a\":1, \"b\":2}"
+		     :object-type 'plist)
+  (:a 1 :b 2)
+  (json-parse-string "{\"a\":1, \"b\":2}"
+		     :object-type 'alist)
+  ((a . 1) (b . 2))
+  (json-parse-string "[1,2,3]")
+  [1 2 3]
+  (json-parse-string "[1,2,3]"
+		     :array-type 'list)
+  (1 2 3)
+  (json-parse-string "false")
+  :false
+  (json-parse-string "false"
+		     :false-object :json-false)
+  :json-false
+#+END_SRC
+
+jsonrpc.el 中使用的 parser 会将对象解析为 plist，将数组解析为向量，将 false 解析为 =:json-false= 。在编码过程中， =:json-false= 会成为 =false= ， =nil= 会成为 =null= 。这样一来 RPC 中的 =params= 只能是 elisp 中的向量或 plist，我们可以通过下面的代码将向量参数表转化为列表，从而方便 apply：
+
+#+BEGIN_SRC elisp
+  (cl-coerce [1 2 3] 'list)
+  (1 2 3)
+  (append [1 2 3] ())
+  (1 2 3)
+#+END_SRC
+
+jsonrpc.el 中提供的 =jsonrpc-lambda= 估计是为了方便处理 plist 参数。
+
+* JSON-RPC over HTTP and WebSocket
+
+下面两小节分别介绍了使用 HTTP 和 Websokcet 来进行 JSON-RPC 通信的方法。借用已有的成熟实现，我们很快就能做出一个可用的东西来。
+
+** HTTP
+
+Emacs 已经为我们提供了发起 HTTP 请求的方法，通过 =url-retrive= 或 =url-retrieve-synchronously= 我们可以发起异步或同步 HTTP 请求。下面是一个简单的 HTTP JSON-RPC 服务器：
+
+#+BEGIN_SRC python
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from jsonrpcserver import method, Success, dispatch, Result
+
+class MyHTTPHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        json = post_data.decode(encoding='utf-8')
+        resdata = dispatch(json).encode(encoding='utf-8')
+        self.send_response(200)
+        self.send_header('Content-Length', len(resdata))
+        self.end_headers()
+        self.wfile.write(resdata)
+
+@method
+def add(x):
+    return Success(x+1)
+
+if __name__ == '__main__':
+    httpd = HTTPServer(('127.0.0.1', 11451), MyHTTPHandler)
+    httpd.serve_forever()
+#+END_SRC
+
+我们可以使用下面的代码发送 RPC 请求并获取结果：
+
+#+BEGIN_SRC elisp
+  (switch-to-buffer
+   (let* ((url-request-data "{\"jsonrpc\": \"2.0\", \"method\": \"add\", \"params\": [114], \"id\": 1}")
+	  (url-request-method "POST"))
+    (url-retrieve-synchronously "http://127.0.0.1:11451")))
+#+END_SRC
+
+[[./5.png]]
+
+由于 =url-retrive= 已经帮助我们完成了网络通信的工作，我们可以直接继承 =jsonrpc-connection= 来完成我们的类，而不必手动管理 process：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (defclass jsonrpc-http-connection (jsonrpc-connection)
+    ((uri :initarg :uri
+	  :accessor jsonrpc-http-uri)))
+
+  (cl-defmethod jsonrpc-connection-send ((conn jsonrpc-http-connection)
+					 &rest args
+					 &key _id method _params _result _error _partial)
+    "copied from jsonrpc-process-connection's implementation"
+    (when method
+      (plist-put args :method
+		 (cond ((keywordp method) (substring (symbol-name method) 1))
+		       ((and method (symbolp method)) (symbol-name method)))))
+    (let* ((message `(:jsonrpc "2.0" ,@args))
+	   (json (string-as-unibyte
+		  (encode-coding-string (jsonrpc--json-encode message) 'utf-8))))
+      (let* ((url-request-data json)
+	     (url-request-method "POST"))
+	(with-temp-message ""
+	  (url-retrieve (string-as-unibyte
+			 (url-encode-url (jsonrpc-http-uri conn)))
+			(lambda (&rest _arg)
+			  (goto-char (point-min))
+			  (search-forward "\n\n")
+			  (backward-char)
+			  (jsonrpc-connection-receive conn (jsonrpc--json-read))
+			  (kill-buffer (current-buffer))))))))
+#+END_SRC
+
+通过下面的代码，我们可以与 Python 服务器连接并发送 RPC 请求：
+
+#+BEGIN_SRC elisp
+  (setq a (jsonrpc-http-connection
+	   :name "yyhttp"
+	   :uri "http://127.0.0.1:11451"))
+  (jsonrpc-request a 'add [1])
+  => 2
+#+END_SRC
+
+当然了，相比保持连接的 pipe 或 TCP，使用 HTTP 进行 JSON-RPC 需要每次都重新连接，调用开销相应地会大一些。除了使用 Python 自带的 HTTP 服务器外，一些成熟的框架也是可以用的，比如 fastapi，flask 等等，这里就不测试了。关于如何使用这些框架来进行 JSON-RPC，可以简单参考 jsonrpcserver 的[[https://www.jsonrpcserver.com/en/stable/examples.html][文档]]。
+
+** WebSocket
+
+WebSocket 可以保持连接打开，直到客户端或服务器关闭。相比 HTTP 每次都要打开一个连接省去了连接创建开销，也就更适合做 RPC。同时，WebSocket 是基于消息而不是流，这样我们只需调用 =recv= 就能接收到一条完整的消息，用起来相比 TCP 更方便。最后一点，WebSocket 强制使用 UTF-8 编码，对于使用 UTF-8 作为 buffer 和 string 编码的 emacs 来说是很不错的。
+
+在 Emacs 中已经有人实现了 WebSocket 协议：[[https://github.com/ahyatt/emacs-websocket][emacs-websocket]]，我们可以在它的基础上实现与外部进程的 WebSocket 通信。至于 Python 端，拿 jsonrpc 和 websocket 作关键字一搜一大把。这里我选择使用 [[https://websockets.readthedocs.io/en/stable/][websockets]] 和上面的 jsonrpcserver 搓一个基于 websocket 的 JSON-RPC 出来，下面是代码：
+
+#+BEGIN_SRC python
+import asyncio
+from websockets.server import serve
+from jsonrpcserver import method, Success, dispatch, Result
+
+@method
+def add(x):
+    return Success(x+1)
+
+async def jsonrpc(websocket):
+    async for message in websocket:
+        await websocket.send(dispatch(message))
+
+async def main():
+    async with serve(jsonrpc, "127.0.0.1", 11451):
+        await asyncio.Future()
+
+if __name__ == '__main__':
+    asyncio.run(main())
+#+END_SRC
+
+下面是 elisp 端的代码，这里使用 websocket 包实现了 =jsonrpc-ws-connection= 类：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding: t; -*-
+  (require 'websocket)
+
+  (defclass jsonrpc-ws-connection (jsonrpc-connection)
+    ((ws :accessor jsonrpc-ws-ws)
+     (uri :initarg :uri
+	  :accessor jsonrpc-ws-uri)))
+
+  (cl-defmethod initialize-instance ((conn jsonrpc-ws-connection) slots)
+    (cl-call-next-method)
+    (cl-destructuring-bind (&key ((:uri uri)) &allow-other-keys) slots
+      (setf (jsonrpc-ws-ws conn)
+	    (websocket-open uri :on-message
+			    (lambda (_ws frame)
+			      (let* ((json
+				      (with-temp-buffer
+					(insert (websocket-frame-payload frame))
+					(goto-char (point-min))
+					(jsonrpc--json-read))))
+				(jsonrpc-connection-receive conn json)))))))
+
+  (cl-defmethod jsonrpc-connection-send ((connection jsonrpc-ws-connection)
+					 &rest args
+					 &key _id method _params _result _error _partial)
+    "copy from jsonrpc-process-connection's implementation"
+    (when method
+      (plist-put args :method
+		 (cond ((keywordp method) (substring (symbol-name method) 1))
+		       ((and method (symbolp method)) (symbol-name method)))))
+    (let* ((message `(:jsonrpc "2.0" ,@args))
+	   (json (jsonrpc--json-encode message)))
+      (websocket-send-text (jsonrpc-ws-ws connection) json)
+      (jsonrpc--log-event connection message 'client)))
+
+  (cl-defmethod jsonrpc-shutdown ((conn jsonrpc-ws-connection))
+    (websocket-close (jsonrpc-ws-ws conn)))
+  (cl-defmethod jsonrpc-running-p ((conn jsonrpc-ws-connection))
+    (websocket-openp (jsonrpc-ws-ws conn)))
+#+END_SRC
+
+以下是测试代码：
+
+#+BEGIN_SRC elisp
+(setq a (jsonrpc-ws-connection
+	 :name "yyws"
+	 :uri "ws://127.0.0.1:11451"))
+(jsonrpc-request a 'add [11451])
+#+END_SRC
+
+一切正常的话应该能得到 11452。当然，上面的代码实现的非常粗糙，还有很多可以改进的地方，也许我之后会做个包来规范化一下代码。
+
+* 后记
+
+原本我打算在 node 和 GO 中把 pipe, TCP, HTTP 和 WebSocket 都做一遍（GO 内置了 jsonrpc 支持），但想了想似乎没什么必要，以这些 Python 代码为例很容易就能在其他语言中写出来。
+
+昨天（2023/07/30）Emacs 29.1 发布了，再过几天应该就能用上志愿者编译的 Windows 版了。可惜我提的两个 bug 得等到 Emacs 30（笑）。
+
+还是和上篇文章一样的感想，某些问题等到要做的时候就不是那么困难了。
+
+感谢阅读。
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+{{{begin_div}}}
+| [[https://www.pixiv.net/artworks/59465812][file:p1.jpg]] | [[https://www.pixiv.net/artworks/107931451][file:p2.jpg]]  |
+| [[https://www.pixiv.net/artworks/100789840][file:p3.jpg]] | [[https://www.pixiv.net/artworks/98671388][file:p4.jpg]]  |
+
+| [[https://www.pixiv.net/artworks/7611463][file:p5.jpg]] | [[https://www.pixiv.net/artworks/5303429][file:p7.jpg]]  |
+| [[https://www.pixiv.net/artworks/10469436][file:p6.jpg]] | [[https://www.pixiv.net/artworks/58779807][file:p8.jpg]]  |
+# https://yande.re/post/show/122686
+| [[https://www.pixiv.net/artworks/91079382][file:p9.jpg]] | [[https://www.pixiv.net/artworks/109860686][file:p10.jpg]] |
+{{{end_div}}}
+{{{end_noscript}}}
