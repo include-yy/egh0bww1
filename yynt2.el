@@ -21,8 +21,8 @@
 ;; C-c C-e O O 导出 org 文件到 org，主要用于宏展开
 (require 'ox-org)
 ;;; 一些语言 mode，高亮需要
-(require 'bnf-mode)
-(require 'haskell-mode)
+(require 'bnf-mode nil t)
+(require 'haskell-mode nil t)
 
 ;;;; code
 
