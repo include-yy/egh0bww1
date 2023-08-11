@@ -1,0 +1,139 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 21
+#+DATE: [2019-05-21 Tue 15:00]
+
+* Problem
+
+*[[https://projecteuler.net/problem=21][Amicable Numbers]]*
+
+Let \(d(n)\) be defined as the sum of proper divisors of \(n\) (numbers less than \(n\) which divide evenly into \(n\)).
+
+If \(d(a) = b\) and \(d(b) = a\), where \(a \neq b\), then \(a\) and \(b\) are an amicable pair and each of \(a\) and \(b\) are called amicable numbers.
+
+For example, the proper divisors of \(220\) are \(1,2,4,5,10,11,20,22,44,55\) and \(110\); therefore \(d(220) = 284\). The proper divisors of \(284\) are \(1,2,4,71\) and \(142\); so \(d(284) = 220\).
+
+Evaluate the sum of all the amicable numbers under \(10000\).
+
+*亲和数*
+
+记 \(d(n)\) 为 \(n\) 的所有真约数（小于 \(n\) 且整除 \(n\) 的正整数）之和。
+
+如果 \(d(a) = b\) ， \(d(b) = a\) ，而且 \(a \neq b\), 那么 \(a\) 和 \(b\) 构成一个亲和数对， \(a\) 和 \(b\) 都被称为亲和数。
+
+例如， \(220\) 的真因数包括 \(1,2,4,5,10,11,20,22,44,55\) 和 \(110\) ，因此 \(d(220) = 284\) ；而 \(284\) 的真因数包括 \(1,2,4,71\) 和 \(142\) ，因此 \(d(284) = 220\) 。
+求所有小于 \(10000\) 的亲和数之和。
+
+* Solution
+
+用非常 naive 的实现就可以解决了，问题规模太小了：
+
+#+BEGIN_SRC elisp
+  (defun eu21-d (n)
+    (let ((sum 0)
+	  (i 1))
+      (while (< i n)
+	(when (zerop (% n i))
+	  (cl-incf sum i))
+	(cl-incf i))
+      sum))
+
+  (cl-loop for i from 2 below 10000
+	   sum (let* ((now (eu21-d i)))
+		 (if (and (not (= i now))
+			  (= i (eu21-d now)))
+		     i 0)))
+#+END_SRC
+
+一个非常简单的优化是 =eu21-d= 寻找到 =sqrt(n)= 就停止，不用数到 =n= ，这样 =eu21-d= 的效率大大提高了。由于亲和数一定成对而且有一大一小，我们在从小到大遍历的过程中，如果某个数的 =eu21-d= 小于它，那就不用考虑了，在找到亲和数对时将它们一起：（注意， =eu21-d1= 在参数为 1 时会返回 1，但正确结果应该是 0，不过我们不会传递 1 给 =eu21-d1= ）
+
+#+BEGIN_SRC elisp
+  (defun eu21-d1 (n)
+    (let ((sum 1)
+	  (bound (floor (sqrt n)))
+	  (i 2))
+      (while (< i bound)
+	(and (zerop (% n i)) (cl-incf sum (+ i (/ n i))))
+	(cl-incf i))
+      (if (= n (* bound bound))
+	  (+ sum bound)
+	sum)))
+
+  (cl-loop for i from 2 below 10000
+	   sum (let* ((a (eu21-d1 i)))
+		 (if (and (> a i)
+			  (= i (eu21-d1 a)))
+		     (+ a i) 0)))
+#+END_SRC
+
+由于奇数的因数不可能是偶数， =eu21-d= 还可以对奇数和偶数分别处理：
+
+#+BEGIN_SRC elisp
+  (defun eu21-d2 (n)
+    (let* ((step (if (zerop (% n 2)) 1 2))
+	   (bound (floor (sqrt n)))
+	   (sum (if (= (* bound bound) n)
+		    (prog1 (1+ bound) (cl-decf bound)) 1))
+	   (i (if (= step 1) 2 3)))
+      (while (<= i bound)
+	(when (zerop (% n i)) (cl-incf sum (+ i (/ n i))))
+	(cl-incf i step))
+      sum))
+
+  (cl-loop for i from 2 below 10000
+	   sum (let* ((a (eu21-d2 i)))
+		 (if (and (> a i)
+			  (= i (eu21-d2 a)))
+		     (+ a i) 0)))
+#+END_SRC
+
+根据题解 pdf 中提供的[[https://mathschallenge.net/index.php?section=faq&ref=number/sum_of_divisors][链接]]，运算 \(\sigma\) （这里的和包括数字本身）满足以下性质：
+
+- \(\sigma(p^a) = 1 + p + p^2 + ... + p^a = (p^{a+1} - 1)/(p - 1) \ \ (p\ is\ prime)\)
+- \(\sigma(a \cdot b ) = \sigma(a) \cdot \sigma(b)\ (a⊥b)\)
+
+题解中给出的终极解答的 elisp 实现如下：
+
+#+BEGIN_SRC elisp
+  (defun eu21-d3 (n)
+    (let ((sum 1)
+	  (p 2)
+	  (org n))
+      (while (and (<= (* p p) n)
+		  (> n 1))
+	(when (zerop (% n p))
+	  (let ((j (* p p)))
+	    (setq n (/ n p))
+	    (while (zerop (% n p))
+	      (setq j (* j p))
+	      (setq n (/ n p)))
+	    (setq sum (* (1- j) sum))
+	    (setq sum (/ sum (1- p)))))
+	(if (= p 2) (setq p 3) (cl-incf p 2)))
+      (when (> n 1) (setq sum (* sum (1+ n))))
+      (- sum org)))
+
+  (cl-loop for i from 2 below 10000
+	   sum (let* ((a (eu21-d3 i)))
+		 (if (and (> a i)
+			  (= i (eu21-d3 a)))
+		     (+ a i) 0)))
+#+END_SRC
+
+在未编译的情况下，使用相同的如下 =cl-loop= 代码，不同的 =d= 实现用时分别是（以秒计）：
+
+#+BEGIN_SRC elisp
+  (defun eu21-test (f)
+    (cl-loop for i from 2 below 10000
+	     sum (let* ((a (funcall f i)))
+		   (if (and (> a i)
+			    (= i (funcall f a)))
+		       (+ a i) 0))))
+#+END_SRC
+
+| fun     |     time |
+|---------+----------|
+| eu21-d  | 6.502833 |
+| eu21-d1 | 0.984389 |
+| eu21-d2 | 0.100675 |
+| eu21-d3 | 0.055917 |
