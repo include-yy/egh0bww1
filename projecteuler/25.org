@@ -1,0 +1,79 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 25
+#+DATE: [2019-05-21 Tue 16:04]
+
+* Problem
+
+*[[https://projecteuler.net/problem=25][1000-digit Fibonacci Number]]*
+
+The Fibonacci sequence is defined by the recurrence relation:
+
+\(F_n = F_{n-1} + F_{n-2}\), where \(F_1 = 1\) and \(F_2 = 1\).
+
+Hence the first 12 terms will be:
+
+#+BEGIN_CENTER
+F_{1} = 1 {{{br}}}
+F_{2} = 1 {{{br}}}
+F_{3} = 2 {{{br}}}
+F_{4} = 3 {{{br}}}
+F_{5} = 5 {{{br}}}
+F_{6} = 8 {{{br}}}
+F_{7} = 13 {{{br}}}
+F_{8} = 21 {{{br}}}
+F_{9} = 34 {{{br}}}
+F_{10} = 55 {{{br}}}
+F_{11} = 89 {{{br}}}
+F_{12} = 144
+#+END_CENTER
+
+The 12th term, \(F_{12}\), is the first term to contain three digits.
+
+What is the index of the first term in the Fibonacci sequence to contain 1000 digits?
+
+*1000位斐波那契数*
+
+斐波那契数列是按如下递归定义的数列：
+
+\(F_n = F_{n-1} + F_{n-2}\), 其中 \(F_1 = 1\)， \(F_2 = 1\).
+
+在斐波那契数列中，第一个包含三位数字的是第 12 项。
+
+在斐波那契数列中，第一个包含 1000 位数字的是第几项？
+
+* Solution
+
+对于支持大数运算的 Elisp 来说，我们只需找到第一个大于 =(expt 10 999)= 的数字的序号即可：
+
+#+BEGIN_SRC elisp
+  (let ((index 2)
+	(a 1)
+	(b 1)
+	(bound (expt 10 999)))
+    (while (< b bound)
+      (cl-psetq a b
+		b (+ a b))
+      (cl-incf index))
+    index)
+#+END_SRC
+
+当然，如果你知道斐波那契数列的通项公式的话，也可以这样解：
+
+\[Fib(n) = \frac{1}{\sqrt{5}}[(\frac{1 + \sqrt{5}}{2})^n - (\frac{1 - \sqrt{5}}{2})^n]\]
+
+当 n 非常大时，上面公式的后一项可以忽略，从而只需要解以下不等式即可：
+
+\[1.618...^n \le \sqrt{5} \cdot 10^{999}\]
+
+两边取常用对数，有：
+
+\[n \cdot lg(1.618...) \le 0.5\cdot lg(5) + 999\]
+
+使用如下代码易得结果：
+
+#+BEGIN_SRC elisp
+  (ceiling
+   (/ (+ 999 (* 0.5 (log 5 10)))
+      (log (/ (+ 1 (sqrt 5)) 2) 10)))
+#+END_SRC

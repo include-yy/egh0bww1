@@ -1,0 +1,75 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 24
+#+DATE: [2019-05-21 Tue 16:28]
+
+* Problem
+
+*[[https://projecteuler.net/problem=24][Lexicographic Permutations]]*
+
+A permutation is an ordered arrangement of objects. For example, 3124 is one possible permutation of the digits 1, 2, 3 and 4. If all of the permutations are listed numerically or alphabetically, we call it lexicographic order. The lexicographic permutations of 0, 1 and 2 are:
+
+#+BEGIN_CENTER
+012   021   102   120   201   210
+#+END_CENTER
+
+What is the millionth lexicographic permutation of the digits 0, 1, 2, 3, 4, 5, 6, 7, 8 and 9?
+
+*字典序排列*
+
+排列指的是将一组对象放置为特定的顺序。例如，3124 是数字 1 2 3 4 的一个排列。将所有排列按照数字大小或字母先后进行排序称为字典序。数字 0 1 2 的字典序排列是：
+
+#+BEGIN_CENTER
+012   021   102   120   201   210
+#+END_CENTER
+
+在数字 0 1 2 3 4 5 6 7 8 9的字典序排列中，处于第一百万位的排列是什么？
+
+* Solution
+
+这一题完全不需要通过编程来计算，我们只需要不断计算确定前几位数后的剩余数字全排列数量，然后观察它是否超过一百万再就接着迭代就行，比如以 0 开头的数字排列共有 =fact(9) -> 362880= 种，我们可以以 0 或 1 开头，但不 *全* 能以 2 开头（362880 * 3 > 1000000）：
+
+#+BEGIN_SRC text
+  0 ~ 362880 -> 637120
+  1 ~ 362880 -> 274240
+  2 ~ 362880 [2]
+    0 1 3 4 5 6 ~ 40320 * 6 -> 32320 [7]
+		0 1 3 4 5 6 ~ 5040 * 6 -> 2080 [8]
+#+END_SRC
+
+通过简单的迭代，我们可知第一百万个数字的前三位是 278，剩下的七个数字由 =0 1 3 4 5 6 9= 组成，而 =fact(7)= 为 5040，只有 5040 种排列了，这就大大减少了计算量，剩下的可以这样做：
+
+#+BEGIN_SRC elisp
+  (defun eu24-arrange (ls)
+    (if (null ls) '(())
+      (cl-loop for i in ls
+	       append (mapcar (lambda (x) (cons i x))
+			       (eu24-arrange (remove i ls))))))
+
+  (concat "278"
+	  (apply 'string (mapcar (lambda (x) (+ x ?0))
+				 (nth 2079 (eu24-arrange '(0 1 3 4 5 6 9))))))
+#+END_SRC
+
+当然我们也有全自动的方法，思路就是上面的，通过排列函数逐渐逼近正确结果：
+
+#+BEGIN_SRC elisp
+  (defun eu24-fact (n)
+    (pcase n
+      (0 1)
+      (_ (* n (eu24-fact (1- n))))))
+
+  (let ((cnt 0)
+	(lst (list 0 1 2 3 4 5 6 7 8 9))
+	(res))
+    (while lst
+      (let* ((e 0)
+	     (len (1- (length lst)))
+	     (fac (eu24-fact len)))
+	(while (< (+ cnt fac) 1000000)
+	  (cl-incf cnt fac)
+	  (cl-incf e))
+	(push (nth e lst) res)
+	(setq lst (delete (nth e lst) lst))))
+    (reverse res))
+#+END_SRC
