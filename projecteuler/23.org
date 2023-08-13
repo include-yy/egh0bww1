@@ -1,0 +1,75 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 23
+#+DATE: [2019-05-22 Wed 01:33]
+
+* Problem
+
+*[[https://projecteuler.net/problem=23][Non-Abundant Sums]]*
+
+A perfect number is a number for which the sum of its proper divisors is exactly equal to the number. For example, the sum of the proper divisors of 28 would be 1 + 2 + 4 + 7 + 14 = 28, which means that 28 is a perfect number.
+
+A number n is called deficient if the sum of its proper divisors is less than n and it is called abundant if this sum exceeds n.
+
+As 12 is the smallest abundant number, 1 + 2 + 3 + 4 + 6 = 16, the smallest number that can be written as the sum of two abundant numbers is 24. By mathematical analysis, it can be shown that all integers greater than 28123 can be written as the sum of two abundant numbers. However, this upper limit cannot be reduced any further by analysis even though it is known that the greatest number that cannot be expressed as the sum of two abundant numbers is less than this limit.
+
+Find the sum of all the positive integers which cannot be written as the sum of two abundant numbers.
+
+*非盈数和*
+
+完全数是指真约数之和等于自身的数。例如，28 的真约数之和为 1 + 2 + 4 + 7 + 14 = 28，因此 28 是一个完全数。
+
+若一个数 n 的真约数之和小于 n，则称之为亏数；反之，则称之为盈数。
+
+由于 12 是最小的盈数（它的真约数之和为 1 + 2 + 3 + 4 + 6 = 16），所以能够表示成两个盈数之和的最小数是 24。通过数学分析可以得出，所有大于 28123 的数都可以被表示成两个盈数的和。但是，这仅仅是通过数学分析所能得到的最好上界，而实际上不能被表示成两个盈数之和的最大数要小于这个值。
+
+求所有不能被表示成两个盈数之和的正整数之和。
+
+* Solution
+
+在问题 [[file:21.org][21]] 中我们已经得到了可以快速求取真约数之和的函数：
+
+#+BEGIN_SRC elisp
+  (defun eu21-d3 (n)
+    (let ((sum 1)
+	  (p 2)
+	  (org n))
+      (while (and (<= (* p p) n)
+		  (> n 1))
+	(when (zerop (% n p))
+	  (let ((j (* p p)))
+	    (setq n (/ n p))
+	    (while (zerop (% n p))
+	      (setq j (* j p))
+	      (setq n (/ n p)))
+	    (setq sum (* (1- j) sum))
+	    (setq sum (/ sum (1- p)))))
+	(if (= p 2) (setq p 3) (cl-incf p 2)))
+      (when (> n 1) (setq sum (* sum (1+ n))))
+      (- sum org)))
+#+END_SRC
+
+题目已经给出了最大不可表示为两盈数之和的上界：28123，我们也可以考虑直接取 30000。首先，求取 30000 以下的盈数：
+
+#+BEGIN_SRC elisp
+  (setq eu23-nums
+	(cl-loop for i from 2 to 30000
+		 if (> (eu21-d3 i) i)
+		 collect i))
+#+END_SRC
+
+然后简单打个表就可以了，把 =eu23-nums= 中的数字两两相加，将数字对应位置置 t 即可：
+
+#+BEGIN_SRC elisp
+  (setq eu23-table (make-vector 30001 nil))
+
+  (cl-loop for a on eu23-nums
+	   do (cl-loop for b in a
+		       if (<= (+ (car a) b) 30000)
+		       do (aset eu23-table (+ (car a) b) t)
+		       end))
+
+  (cl-loop for i from 1 to 30000
+	   if (not (aref eu23-table i))
+	   sum i)
+#+END_SRC
