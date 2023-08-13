@@ -134,6 +134,6 @@ Evaluate the sum of all the amicable numbers under \(10000\).
 | fun     |     time |
 |---------+----------|
 | eu21-d  | 6.502833 |
-| eu21-d1 | 0.984389 |
+| eu21-d1 | 0.098438 |
 | eu21-d2 | 0.100675 |
 | eu21-d3 | 0.055917 |
