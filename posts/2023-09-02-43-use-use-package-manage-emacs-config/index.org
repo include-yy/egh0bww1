@@ -1,0 +1,693 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 使用 use-package 管理 emacs 配置
+#+DATE: [2023-08-29 Tue 13:24]
+
+#+DESCRIPTION: 本文参考了 use-package 文档，简要介绍了 use-package 的使用方式
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/99989038][file:0.jpg]]
+{{{end_noscript}}}
+
+随着 emacs 29 于 2023 年 7 月 30 日发布，懒得自己编译的人总算有了内置的 =use-package= ，这下不得不用了（笑）。本文参考了相关文档，对 =use-package= 的一些主要的关键字进行了简单的介绍。
+
+本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+- use-package v2.4.5
+
+{{{toc}}}
+
+* 什么是 use-package
+
++use-package 最大的作用就是给不同包的配置代码提供一个缩进，这样看上去舒服多了（雾）。+
+
+按我的理解， =use-package= 将一些配置中常用的模板提取了出来，通过使用它提供的一些功能，我们只需要简单的代码即可管理好配置。许多包都在 README 中给出了使用 =use-package= 进行配置的方法，只要用 =use-package= 我们就能复用这些代码。
+
+将原先的配置转化为 =use-package= 形式是非常容易的，在 =require= 之后执行的代码只需要加上 =:config= ，在 =require= 之前执行的代码只需要加上 =:init= 即可：
+
+#+BEGIN_SRC elisp
+  ;; before
+  (require 'display-line-numbers)
+  (setq line-number-display-limit large-file-warning-threshold)
+  ;;(setq line-number-display-limit-width 1000)
+  (defun yy/display-line () (display-line-numbers-mode 1))
+  (add-hook 'prog-mode-hook 'yy/display-line))
+  ;; after
+  (use-package display-line-numbers
+    :config
+    (setq line-number-display-limit large-file-warning-threshold)
+    ;;(setq line-number-display-limit-width 1000)
+    (defun yy/display-line () (display-line-numbers-mode 1))
+    (add-hook 'prog-mode-hook 'yy/display-line))
+#+END_SRC
+
+当然 =use-package= 的作用远不止缩进，通过合理地使用它的其他功能，我们可以加快配置文件的加载时间，管理包之间的依赖，等等。本文的目标是介绍当前 =use-package= 中所有关键字的用法，并给出一些较重要的使用建议。下面是我对 =use-package= [[https://elpa.gnu.org/devel/doc/use-package.html#Basic-Concepts][文档]]中作用描述的翻译：
+
+1. 将某个包的所有配置聚集在一起，方便复制，禁用或移动
+2. 减少重复代码，将常见做法作为既简单又直观的关键字使用
+3. 尽可能缩短 emacs 启动时间而不牺牲使用的包的数量
+4. 确保在启动期间的错误只影响发生错误的包而尽可能少地影响其他内容，使 emacs 接近完全功能
+5. 可对配置文件进行字节编译，以便在启动时看到的任何警告或错误都是有意义的。即使字节编译不是为了速度而使用，也可作为一个完整性检查
+
+由于 =use-package= 已并入 emacs，github 上的代码可能不会再更新了，我没有看到仓库中关于 =:vc= 关键字的相关[[https://github.com/emacs-mirror/emacs/commit/2ce279680bf9c1964e98e2aa48a03d6675c386fe][提交]]。在下面的内容中我主要参考的是 github 上的 README 和 emacs 中的 user manual（可以直接在 emacs 里用 info 读）。
+
+* 使用 use-package
+
+根据 =use-package-keywords= 的长度来看， =use-package= 共有 32 个关键字（不过有些功能上有重叠），这一节我将根据用途对这些关键字做一个分类。
+
+** 包加载前/后执行的配置代码
+
+上面我们提到了 =:init= 和 =:config= ，它们提供了最基础的在包加载前执行配置表达式的功能。以下代码可以说明它们的执行顺序：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :config (+ 1 2)
+	 :init (+ 3 4)
+	 :config (+ 5 6)
+	 :init (+ 7 9)))))
+  =>
+  (progn
+    (+ 3 4) (+ 7 9)
+    (require 'foo nil nil)
+    (+ 1 2) (+ 5 6)
+    t)
+#+END_SRC
+
+与 =:init= 不同，如果某个包不是立刻加载，那么 =:config= 中的代码会等到包在加载后才会被加载。当我们显式或隐式标记某个包为延后加载时， =:config= 生成的代码如下：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :defer t
+	 :config
+	 (+ 1 2)))))
+  =>
+  (eval-after-load 'foo
+    #'(lambda ()
+	(progn
+	  (+ 1 2)
+	  t)))
+#+END_SRC
+
+除了 =:init= 和 =:config= 外， =use-package= 还为我们提供了 =:preface= 关键字，根据文档的说法，它的主要用途是消除字节编译的警告，以及为 =:if= 关键字提供判断条件，应该不怎么常用。 =:preface= 的求值是在任意其他关键字之前的，文档要求我们不要在其中使用带有副作用的表达式，而应该只有对符号的声明或定义。
+
+比较有意思的是，文档建议我们应该尽量避免在配置中使用 =:preface=, =:config= 和 =:init= ，而应该尽量通过一些 autoload 机制，这样可以减少启动时间。这也就是我们接下来要介绍的内容。
+
+** 包的延迟加载
+
+如果某些包的加载能等到真正使用包的时候再进行，那 emacs 启动时就无需加载它们了。通过使用 =:defer= 关键字，我们可以不加载某个包：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :defer t))))
+  => nil
+#+END_SRC
+
+如果某个包的一些 autoload 函数已在 emacs 启动时载入了（通过 package.el 安装的包一般会自动帮你处理好包中的 autoload），那么它们会在函数被调用时自动被加载。就像上面代码展示的，只有 =:defer t= 等于什么也不做，我们可以添加 =:config= 来在包被载入后执行一些初始化操作。
+
+如果某些包并没有在 emacs 中预先载入它们的 autoload，那么 =:defer t= 用了等于没用，因为我们没有除了 =require= 的方法来载入这个包。如果我们仅仅是不想在 emacs 启动时加载某个包，我们可以为 =:defer= 指定一个数字参数，它会导致 emacs 在启动后的对应秒数时加载这个包：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :defer 30))))
+  => (run-with-idle-timer 30 nil #'require 'foo nil t)
+#+END_SRC
+
+如果我们指定 =use-package-always-defer= 为非空值的话，那么 =use-package= 中会默认 =:defer t= ，我们可以通过使用 =:defer nil= 或 =:demand t= 来覆盖这一行为。与 =:defer= 相反， =:demand= 会强制包在 emacs 启动时进行加载，它的优先级低于 =:defer= 。
+
+除了通过 =:defer t= 来延后包的加载外， =use-package= 为我们提供了一系列的 *隐式* 延迟加载关键字，它们包括： =:commands=, =:bind=, =:bind*=, =:bind-keymap=, =:bind-keymap*=, =:mode=, =:interpreter= ，我们会在下面分别介绍。
+
+** 包的条件加载
+
+我们可以使用 =:if= 接一条条件表达式来让 =use-package= 仅在表达式结果非空时才加载，就像这样：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :if t
+	 :config (1+ 1)
+	 :init (1- 1)))))
+  =>
+  (if t (progn
+	  (1- 1)
+	  (require 'foo nil nil)
+	  (1+ 1)
+	  t))
+#+END_SRC
+
+除 =:if= 外我们也可以用 =:when= ，另外还有一个表达相反意思的 =:unless= ，它会对表达式使用 =not= ：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :unless t))))
+  =>
+  (if (not t) (progn
+		(require 'foo nil nil)))
+#+END_SRC
+
+文档中给出的例子是通过 =(display-graphic-p)= 判断是 GUI 还是 TUI 来加载某些包。其他的例子还有判断操作系统类型，判断桌面系统类型，等等：
+
+#+BEGIN_SRC elisp
+;; Operating System
+:if (eq system-type 'gnu/linux)
+;; Window system
+:if (memq window-system '(ns x))
+;; Installed package
+:if (package-installed-p 'foo)
+;; Libraries in load-path
+:if (locate-library "foo.el")
+#+END_SRC
+
+当 =use-package= 中有多条 =:if=, =:when= 或 =:unless= 时，它们会被连接起来：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :if 1
+	 :if 2
+	 :if 3))))
+  =>
+  (if (and 1 (and 2 3)) (progn
+			  (require 'foo nil nil)))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :if 1
+	 :unless t))))
+  =>
+  (if (and 1 (not t))
+      (progn
+	(require 'foo nil nil)))
+#+END_SRC
+
+需要注意的是， =:ensure= 和 =:preface= 不被 =:if= 影响，文档建议我们直接在 =use-package= 外面使用条件表达式来绝对是否加载某个包：
+
+#+BEGIN_SRC elisp
+  (when (memq window-system '(mac ns))
+    (use-package foo
+      :ensure t))
+#+END_SRC
+
+如果当前的包只有在某些 feature 存在情况下才能被加载，我们也可以使用 =:requires= 关键字，它仅在所指定的 feature 都存在的情况下才会进行加载：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :requires bar))))
+  =>
+  (if (featurep 'bar) (progn
+			(require 'foo nil nil)))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :requires (bar baz))))) ; can also be :requires bar :requires baz
+  =>
+  (if (not (member nil (mapcar #'featurep '(bar baz)))) (progn
+							  (require 'foo nil nil)))
+#+END_SRC
+
+** 包的顺序加载
+
+一般来说，如果一个包使用了另一个包，它一定会在内部进行 =require= 。从这个意义上来说保证某个包必须在其他包加载后才能加载的机制似乎没什么用，不过我倒是想到了一种可能性：某些配置会依赖之前求值过的配置，也就是说配置与配置之间存在依赖。
+
+通过使用 =:after= 关键字，我们可以让某个包在指定的包被加载后才被加载：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :after bar))))
+  =>
+  (eval-after-load 'bar
+    #'(lambda ()
+	(require 'foo nil nil)))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :after (bar baz)))))
+  =>
+  (eval-after-load 'baz
+    #'(lambda ()
+	(eval-after-load 'bar
+	  #'(lambda ()
+	      (require 'foo nil nil)))))
+#+END_SRC
+
+=:after= 为我们提供了 =:all= 和 =:any= 两个 selector，前者表示全都需要满足，后者表示只需满足其中的任意一个，文档给出的例子如下：
+
+#+BEGIN_SRC elisp
+  :after (foo bar)
+  :after (:all foo bar)
+  :after (:any foo bar)
+  :after (:all (:any foo bar) (:any baz quux))
+  :after (:any (:all foo bar) (:all baz quux))
+#+END_SRC
+
+** 管理手动安装的包
+
+如果我们没有使用 package.el 安装某些包，那么我们需要将包的路径添加到 =load-path= 中，并手动管理一些 autoload。 =use-package= 考虑到了这种情况，为我们提供了 =:load-path= 和 =:autoload= 关键字。通过 =:load-path= 我们可以指定包的位置，如果路径为相对路径的话，它会根据 =user-emacs-directory= 展开。具体来说的话就是 =(expand-file-name <path> user-emacs-directory)= 。在宏的 *展开* 期间，该路径就会被添加到 =load-path= 中去。
+
+通过使用 =:autoload= 和 =:commands= 关键字， =use-package= 会为我们生成 autoload 表达式，这样就不用自己写了。一般来说 =:autoload= 用于非交互的函数，而 =:commands= 用于命令：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :autoload hello
+	 :commands world))))
+  =>
+  (progn
+    (if (fboundp 'world) ()
+      (autoload #'world "foo"
+	nil
+	t))
+    (if (fboundp 'hello) ()
+      (autoload #'hello "foo")))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :autoload (hello baz)))))
+  =>
+  (progn
+    (if (fboundp 'hello) ()
+      (autoload #'hello "foo"))
+    (if (fboundp 'baz) ()
+      (autoload #'baz "foo")))
+#+END_SRC
+
+** 为包创建 key binding
+
+通过使用 =global-set-key= 和 =global-unset-key= 我们可以创建或移除某个全局绑定。（看了下注释，这是个老函数了，现在更加推荐使用 =keymap-global-set= 和 =keymap-global-unset= ）。 =use-package= 通过 =:bind= 关键字为我们提供了更加方便的方法：
+
+#+BEGIN_SRC elisp
+  ;; examples from document
+  (use-package ace-jump-mode
+    :bind ("C-." . ace-jump-mode))
+
+  (use-package hi-lock
+    :bind (("M-o l" . highlight-lines-matching-regexp)
+	   ("M-o r" . highlight-regexp)
+	   ("M-o w" . highlight-phrase)))
+
+  (use-package helm
+    :bind (("M-x" . helm-M-x)
+	   ("M-<f5>" . helm-find-files)
+	   ([f10] . helm-buffers-list)
+	   ([S-f10] . helm-recentf)))
+
+  (use-package unfill
+    :bind ([remap fill-paragraph] . unfill-toggle))
+#+END_SRC
+
+=:bind= 的展开式有些复杂，这里就只展开一个比较简单的表达式做展示：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :bind ("C-." . bar)))))
+  =>
+  (progn
+    (if (fboundp 'bar) ()
+      (autoload #'bar "foo"
+	nil
+	t))
+    (let* ((name "C-.")
+	   (key [67108910])
+	   (kmap (or (if (and nil (symbolp nil))
+			 (symbol-value nil)
+		       nil)
+		     global-map))
+	   (kdesc (cons (if (stringp name) name
+			  (key-description name))
+			(if (symbolp nil) () 'nil)))
+	   (binding (lookup-key kmap key)))
+      (let ((entry (assoc kdesc personal-keybindings))
+	    (details (list #'bar (if (numberp binding) () binding))))
+	(if entry (setcdr entry details)
+	  (add-to-list 'personal-keybindings (cons kdesc details))))
+      (define-key kmap key #'bar)))
+#+END_SRC
+
+相比于在 =:init= 或 =:config= 中使用绑定函数，使用 =:bind= 可以让我们不必在加载配置文件时即时载入包，而是进行 autoload，这就像上面的展开式所展示的那样。对于非全局的 keymap，我们可以使用 =:map= 关键字来指定：
+
+#+BEGIN_SRC elisp
+  (use-package helm
+    :bind (:map helm-command-map
+	   ("C-c h" . helm-execute-persistent-action)))
+
+  (use-package term
+    :bind (("C-c t" . term) ; global map
+	   :map term-mode-map
+	   ("M-p" . term-send-up) ; term-mode-map
+	   ("M-n" . term-send-down)
+	   :map term-raw-map
+	   ("M-o" . other-window) ; term-raw-map
+	   ("M-p" . term-send-up)
+	   ("M-n" . term-send-down)))
+#+END_SRC
+
+如果我们想要将按键绑定到某个 keymap 而不是命令上，我们可以使用 =:bind-keymap= 关键字：
+
+#+BEGIN_SRC elisp
+  (use-package foo
+    :bind-keymap ("C-c p" . foo-command-map))
+#+END_SRC
+
+通过命令 =describe-personal-keybidnings= 我们可以看到所有由 =:bind= 和 =:bind-keys= 定义的 key binding，这样可以方便地了解到定义了哪些按键。
+
+文档中还提到了定义 repeat-maps 的方法，不过我不认为这个功能很常用，这里就不介绍了：[[https://elpa.gnu.org/devel/doc/use-package.html#Binding-to-repeat_002dmaps][4.2.4 Binding to repeat-maps]]。
+
+** 根据 hook 启动包的 minor-mode
+
+如果我们想要将 =company-mode= 在 =prog-mode= 触发时启动，我们可以这样做：
+
+#+BEGIN_SRC elisp
+(add-hook 'prog-mode-hook #'company-mode)
+#+END_SRC
+
+而 =use-package= 的 =:hook= 关键字允许我们这样做：
+
+#+BEGIN_SRC elisp
+  (use-package company
+    :hook (prog-mode . company-mode))
+
+  ;; even this...
+  (use-package company
+    :hook prog-mode)
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :hook prog-mode))))
+  =>
+  (progn
+    (if (fboundp 'foo-mode) ()
+      (autoload #'foo-mode "foo"
+	nil
+	t))
+    (add-hook 'prog-mode-hook #'foo-mode))
+#+END_SRC
+
+文档中提到，以下形式是等价的：
+
+#+BEGIN_SRC elisp
+  (use-package company
+    :hook (prog-mode text-mode))
+
+  (use-package company
+    :hook ((prog-mode text-mode) . company-mode))
+
+  (use-package company
+    :hook ((prog-mode . company-mode)
+	   (text-mode . company-mode)))
+
+  (use-package company
+    :commands company-mode
+    :init
+    (add-hook 'prog-mode-hook #'company-mode)
+    (add-hook 'text-mode-hook #'company-mode))
+#+END_SRC
+
+不过要达到上面的第一种代码就要求 mode 启动函数名是包名加上 =-mode= ，而且 hook 名要省略掉 =-hook= 。
+
+我们可以通过 =use-package-hook-name-suffix= 来修改添加在类似 =prog-mode= 后面的字符串，它的默认值是 ="-hook"= 。从作用上来说，这个关键字应该是用来开启各种 minor mode 的。
+
+** 根据扩展名启动包的 major-mode
+
+在安装 markdown-mode 后，我使用如下的代码将 markdown-mode 与 MD 文件进行了关联：
+
+#+BEGIN_SRC elisp
+(use-package markdown-mode
+  :init
+  (add-to-list 'auto-mode-alist
+	       '("\\.\\(?:md\\|markdown\\|mkd\\|mdown\\|mkdn\\|mdwn\\|mdx\\)\\'" . markdown-mode)))
+#+END_SRC
+
+现在看了一遍 use-package 文档，我还可以这样做：
+
+#+BEGIN_SRC elisp
+  (use-package markdown-mode
+    :mode "\\.\\(?:md\\|markdown\\|mkd\\|mdown\\|mkdn\\|mdwn\\|mdx\\)\\'"))))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package markdown-mode
+	 :mode "\\.\\(?:md\\|markdown\\|mkd\\|mdown\\|mkdn\\|mdwn\\|mdx\\)\\'"))))
+  =>
+  (progn
+    (if (fboundp 'markdown-mode) ()
+      (autoload #'markdown-mode "markdown-mode"
+	nil
+	t))
+    (add-to-list 'auto-mode-alist
+		 '("\\.\\(?:md\\|markdown\\|mkd\\|mdown\\|mkdn\\|mdwn\\|mdx\\)\\'"
+		   . markdown-mode)))
+#+END_SRC
+
+相比于前一种做法，使用 =:mode= 可以充分利用 autoload，这样一来在没有打开 markdown 文件的情况下就不会加载 markdown-mode 这个包了。
+
+现在就有一个问题，如果包名不是启动 minor-mode 的函数名该怎么做呢？此时可以使用 =:mode (<regexp> . xxx-mode)= ：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :mode ("\\.foo\\'" . foo-mode)))))
+  =>
+  (progn
+    (if (fboundp 'foo-mode) ()
+      (autoload #'foo-mode "foo"
+	nil
+	t))
+    (add-to-list 'auto-mode-alist '("\\.foo\\'" . foo-mode)))
+#+END_SRC
+
+除了用于文件扩展名的 =:mode= ， =use-package= 还提供了判断文件首行 =#!= （shell-bang）命令的 =:interpreter= 关键字，可以用来识别某些脚本：
+
+#+BEGIN_SRC elisp
+(let ((use-package-expand-minimally t))
+  (pp-emacs-lisp-code
+   (macroexpand-all
+    '(use-package foo
+       :interpreter "python"))))
+=>
+(progn
+  (if (fboundp 'foo) ()
+    (autoload #'foo "foo"
+      nil
+      t))
+  (add-to-list 'interpreter-mode-alist '("python" . foo)))
+#+END_SRC
+
+不过这个功能对 Windows 用户来说就没啥用了......
+
+除了 =:mode= 和 =:interpreter= 外， =use-package= 还提供了 =:magic= 和 =:magic-fallback= 来根据正则是否匹配文件内容判断是否使用某些 mode：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :magic ("%PDF". foo-mode)))))
+  =>
+  (progn
+    (if (fboundp 'foo-mode) ()
+      (autoload #'foo-mode "foo"
+	nil
+	t))
+    (add-to-list 'magic-mode-alist '("%PDF" . foo-mode)))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :magic-fallback ("%PDF". foo-mode)))))
+  =>
+  (progn
+    (if (fboundp 'foo-mode) ()
+      (autoload #'foo-mode "foo"
+	nil
+	t))
+    (add-to-list 'magic-fallback-mode-alist '("%PDF" . foo-mode)))
+#+END_SRC
+
+=magic-mode-alist= 具有高于 =auto-mode-alist= 的优先级，而 =auto-mode-alist= 比 =magic-fallback-mode-alist= 优先级要高。
+
+** 包的用户选项和外观设定
+
+#+BEGIN_QUOTE
+It is worth noting that use-package is not intended to replace the standard customization command M-x customize (see Easy Customization in GNU Emacs Manual). On the contrary, it is designed to work together with it, for things that Customize cannot do.
+#+END_QUOTE
+
+通过使用 =:custom= 关键字，我们可以设定某些 User options，就像这样：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :custom
+	 (bar 1 "hello")))))
+  =>
+  (progn
+    (let ((custom--inhibit-theme-enable nil))
+      (if (memq 'use-package custom-known-themes) ()
+	(custom-declare-theme 'use-package 'use-package-theme nil (list))
+	(enable-theme 'use-package)
+	(setq custom-enabled-themes (remq 'use-package custom-enabled-themes)))
+      (custom-theme-set-variables 'use-package '(bar 1 nil nil "hello")))
+    (require 'foo nil nil))
+#+END_SRC
+
+不过这个展开式我不怎么看得懂，我还是老老实实用 =:config= 配合 =setopt= 算了。
+
+通过 =:custom-face= 关键字，我们可以设置某些包的外观，就像这样：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :custom-face
+	 (face ((t (:slant italic))))))))
+  =>
+  (progn
+    (apply #'face-spec-set '(face ((t (:slant italic)))))
+    (require 'foo nil nil))
+
+  ;; examples from doc
+
+  (use-package eruby-mode
+    :custom-face
+    (eruby-standard-face ((t (:slant italic)))))
+
+  (use-package example
+    :custom-face
+    (example-1-face ((t (:foreground "LightPink"))))
+    (example-2-face ((t (:foreground "LightGreen"))) face-defspec-spec))
+#+END_SRC
+
+也许 =:custom= 和 =:custom-face= 不是什么常用的关键字。
+
+** 使用 :ensure 安装插件
+
+#+BEGIN_QUOTE
+use-package can interface with ‘package.el’ to install packages on Emacs start. See Installing packages, for details.
+#+END_QUOTE
+
+通过使用 =:ensure t= ，如果包未在当前系统上安装，那么 =use-package= 会使用包管理器进行安装：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :ensure t))))
+  =>
+  (progn
+    (use-package-ensure-elpa 'foo '(t) 'nil)
+    (require 'foo nil nil))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :ensure bar))))
+  =>
+  (progn
+    (use-package-ensure-elpa 'foo '(bar) 'nil)
+    (require 'foo nil nil))
+#+END_SRC
+
+如果我们设置 =use-package-always-ensure= 为非空值，那么它会尝试保证所有使用 =use-package= 的包，如果对某个包不想用则可以使用 =:ensure nil= 来覆盖这一默认规则。
+
+=use-package= 还提供了一些额外的管理机制，比如指定包来源，设置第三方包管理器等等。由于我不使用 =use-package= 进行包管理，这里我就不详细介绍了。
+
+** 小结
+
+以上，我们就差不多介绍完了 =use-package= 的大部分功能，但正如我在这一节开头说到的， =use-package= 一共有 32 个关键字，某些可能废弃了，某些可能不常用，这里简单做个总结吧：
+
+- 可通过 =:config= 和 =:init= 指定一般的配置表达式
+- 可通过 =:defer= 指定延迟加载，使用 =:demand t= 则表示立刻加载， =:defer= 优先级更高
+- 可使用 =:if=, =:unless= 以及 =:requires= 实现包的条件加载
+- 可通过 =:after= 配合 =:any= 和 =:all= 指定包之间的加载顺序
+- 可通过 =:load-path= 指定加载路径，通过 =:autoload= 创建 autoload
+- 可通过 =:bind= 和 =:bind-keymap= 指定按键绑定，通过 =:map= 指定要改变的 keymap
+- 可通过 =:hook= 指定要开启包中 minor-mode 的钩子
+- 可通过 =:magic=, =:mode=, =interpreter= 和 =:magic-fallback= 指定某文件对应的 major-mode
+- 可通过 =:custom= 和 =:custom-face= 指定用户选项以及一些外观
+- 可通过 =:ensure= 确保包的安装
+
+需要说明的是，这一节并未完全覆盖文档，我认为某些功能平时可能用不上：
+
+- [[https://elpa.gnu.org/devel/doc/use-package.html#Binding-to-repeat_002dmaps][4.2.4 Binding to repeat-maps]]
+- [[https://elpa.gnu.org/devel/doc/use-package.html#Hiding-minor-modes][4.8 Hiding minor modes with diminish and delight]]
+- [[https://elpa.gnu.org/devel/doc/use-package.html#Byte_002dcompiling][6 Byte-compiling your init file]]
+- [[https://elpa.gnu.org/devel/doc/use-package.html#Troubleshooting][7 Troubleshooting]]
+- [[https://elpa.gnu.org/devel/doc/use-package.html#Keyword-extensions][Appendix A Keyword extensions]]
+
+最后提一下 =:disabled= 关键字，它具有最高优先级，会将某个包禁用掉：
+
+#+BEGIN_SRC elisp
+  (macroexpand-all
+   '(use-package foo
+      :disabled))
+  => nil
+#+END_SRC
+
+* 后记
+
+我原本打算在文章开头分析一下单文件配置与多文件项目配置的优劣，然后吹一波单文件配置，不过这样的分析没什么用，用户应该自己根据喜好来选择。
+
+在 Emacs 30 中我们应该能通过 =:vc= 关键字安装某些来自代码仓库的包，不过我只打算用 =use-package= 做配置管理而不是包管理，本文就不介绍了。
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+#+BEGIN_div
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/107972093][file:p1.jpg]]
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/43275278][file:p2.jpg]]
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/51871646][file:p3.jpg]]
+#+END_div
+{{{end_noscript}}}
