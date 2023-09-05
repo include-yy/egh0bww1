@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-09-02T00:35:13</pubDate>
+    <pubDate>2023-09-05T15:27:02</pubDate>
+    <item>
+      <title>使用 igist 管理 github gist</title>
+      <link>https://egh0bww1.com/posts/2023-09-05-44-use-igist-manage-gist</link>
+      <description>本文介绍了 emacs igist 插件的用法，并对其实现进行了简单的分析</description>
+      <category>emacs</category>
+      <pubDate>2023-09-05</pubDate>
+    </item>
     <item>
       <title>使用 use-package 管理 emacs 配置</title>
       <link>https://egh0bww1.com/posts/2023-09-02-43-use-use-package-manage-emacs-config</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式</description>
       <category>elisp</category>
       <pubDate>2023-05-02</pubDate>
-    </item>
-    <item>
-      <title>调用 url-retrieve 时出现的 multibyte text 错误</title>
-      <link>https://egh0bww1.com/posts/2023-04-24-34-emacs-url-retrieve-multibyte-error</link>
-      <description>本文对调用 url-retrieve 时出现 multibyte error 的原因进行了简要分析，并对 url-retrieve 给出了使用建议</description>
-      <category>emacs</category>
-      <pubDate>2023-04-24</pubDate>
     </item>
   </channel>
 </rss>

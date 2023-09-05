@@ -1,0 +1,211 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 使用 igist 管理 github gist
+#+DATE: [2023-09-04 Mon 15:09]
+
+#+DESCRIPTION: 本文介绍了 emacs igist 插件的用法，并对其实现进行了简单的分析
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/87678063][file:0.jpg]]
+{{{end_noscript}}}
+在重构 emacs 配置后，我发现实际上我只需要一个文件就可以管理整个配置了，似乎没有必要专门用一个 github repo，使用 gist 管理更加方便。igist 就是在这个思路下被我找到并使用的包。
+
+本文介绍了一个 emacs 中的 gist 客户端实现 -- igist，主要内容是 igist 的用法介绍，以及对实现的简单分析。本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+- igist v1.4.1
+
+{{{toc}}}
+
+* 什么是 gist
+
+gist 可以是 Gastrointestinal stromal tumor（胃肠道间质瘤），不过这里我们指的是 github 提供的一项服务。即使不注册 github 账号，我们也可以使用 gist 来创建和分享一些代码片段（code snippets）。下面是 [[https://docs.github.com/en/get-started/writing-on-github/editing-and-sharing-content-with-gists/creating-gists#about-gists][About gists]] 的部分文档：
+
+#+BEGIN_QUOTE
+gist 提供了一种与他人共享代码片段的简单方法。 每个 gist 都是一个 git 仓库，意即可以复刻和克隆。 如果您在创建 gist 时登录了 GitHub，则该 gist 将与您的帐户相关联， 当您导航到 gist 主页时，您会在 gist 列表中看到它。
+
+gist 可以是公开或私密的。公开 gist 在 Discover 中显示，其他人可以在新 gist 创建时查看这些 gist。它们也可供搜索，因此，如果您希望其他人查找和查看您的工作，便可使用公共 gists。
+
+私密（secret） gist 不会显示在 Discover 中，并且不可搜索，除非你已登录并且是机密 gist 的作者。秘密 gist 不是私有（private）gist。如果您将秘密 gist 的 URL 发送给朋友，他们将能够看到它。但是，如果您不认识的人发现了该 URL，他们也能够看到您的 gist。如果需要将代码保密，可能需要改为创建专用存储库。
+#+END_QUOTE
+
+通过访问 https://gist.github.com/ 我们可以创建新的 gist，在该 url 后添加用户名即可访问某用户的 gist，比如 https://gist.github.com/include-yy。
+
+[[./1.png]]
+
+就像文档中说的，gist 就是一个 git 仓库，具有一般 repo 都有的能力（比如可以存放多个文件）。我们可以直接进行 clone，如果某一 gist 的 URL 为 gist.github.com/xxx，那么我们可以在最后添加 =.git= 并使用 =git clone= 命令：
+
+#+BEGIN_SRC text
+  # https://gist.github.com/include-yy/e70dcbfc1a80403814d0b7a7357971d9
+  git clone https://gist.github.com/include-yy/e70dcbfc1a80403814d0b7a7357971d9.git
+#+END_SRC
+
+在网页中我们可以进行 gist 的创建、编辑和删除操作，但这并不是很方便，每次修改 gist 都需要复制代码然后粘贴到浏览器中。emacs 中已经有了一大票的 gist 客户端：
+
+- [[https://github.com/defunkt/gist.el][gist.el -- Yet another Emacs paste mode, this one for Gist]]
+- [[https://github.com/emacs-pe/jist.el][jist.el -- Yet another gist client for Emacs]]
+- [[https://github.com/mhayashi1120/yagist.el][yagist.el]]
+- [[https://github.com/rmuslimov/browse-at-remote][browse-at-remote -- Browse target page on github/bitbucket from emacs buffers]]
+
+考虑到上面的大部分包都很久没有更新了，这里我选择了最近都在更新的 [[https://github.com/KarimAziev/igist][igist]]，它是一个功能齐全的 gist 客户端，提供了创建、编辑、删除，star、取消 star、fork 等功能，而且作者非常 [[https://github.com/KarimAziev/igist/issues/6][nice]]（笑）。下面让我们简单了解一下 gist 的用法和具体实现。关于基础用法，项目的 README 已经写的很清楚了，这里更多的还是简单对用法做个总结。
+
+* 安装与使用 igist
+
+** 安装与配置
+
+igist 已经存在于 MELPA 了，配置好源后安装起来非常简单：
+
+#+BEGIN_SRC text
+  <M-x> package-refresh-contents
+  <M-x> package-install igist
+#+END_SRC
+
+作者将打开操作菜单的命令绑定到了 =M-o= 上，使用以下 =use-package= 即可：
+
+#+BEGIN_SRC elisp
+  (use-package igist
+    :bind (("M-o" . igist-dispatch)))
+#+END_SRC
+
+但是，完成了以上操作后我们还不能使用 igist，为了从非浏览器界面访问 gist，我们需要 github Personal access token。通过 https://github.com/settings/tokens 可访问 token 管理界面，点击 Generate new token，并创建带有 gist 权限的 token 即可：
+
+[[./2.png]]
+
+（注意，关闭网页后就无法得到 token 了，先复制好）
+
+获取 token 后，我们有两种方法来使用它，其一是直接将 token 使用 Emacs 的 customize 系统保存，将 =igist-current-user-name= 设置为自己的 github 用户名，将 =igist-auth-marker= 设置为获取的 token 字符串（当然直接 =setq= 也行，但我不建议把 token 放在配置文件中）：
+
+[[./3.png]]
+
+如果你能记住 custom 选项保存的位置，而且不担心机器被其他人使用的话，这种方法就可以了。但这种方式不是很安全，另一种比较安全的方式是使用 emacs 的 =auth-sources= ，在 home 目录创建 .authinfo.gpg 并添加如下内容：
+
+#+BEGIN_SRC text
+  machine api.github.com login YOUR-GITHUB-USERNAME^igist password YOUR-GITHUB-TOKEN
+#+END_SRC
+
+此时的 =igist-auth-marker= 需要设定为 symbol =igist= 。这种方式的好处是可以管理多个用户的 token，但一般用户应该只有一个 github 账户就是了。
+
+对于 Windows 用户，如果懒得折腾直接使用第一种方法就可以，我们可以通过 msys2 安装 gpg 或是安装 [[https://www.gpg4win.org/][Gpg4win]] 。安装完成后需要配置 gpg 的一些可执行文件位置与配置文件位置：
+
+#+BEGIN_SRC elisp
+  ;; https://emacs.stackexchange.com/questions/21699/how-to-configure-easypg-with-gpg4win-or-any-other-windows-gpg-version
+  (setopt epg-gpg-home-directory "path/to/gpg/config/dir")
+  (setopt epg-gpg-program "path/to/gpg.exe")
+  (setopt epg-gpgconf-program "path/to/gpgconf.exe")
+#+END_SRC
+
+如此配置完成后就可以在 Emacs 中创建 =.authinfo.gpg= 并保存密码了。如果读者对 GPG 加密和 Emacs 的 auth-source 不是很熟悉的话我不太建议立刻上手这种 igist 配置方法，可能要踩不少的坑。读者感兴趣的话可以先去看看 [[https://www.emacswiki.org/emacs/GnusEncryptedAuthInfo][Gnus Encrypted Auth Info]] 这个页面，虽然它已经过时了，但是它的操作是可用的。
+
+在完成上面两种配置之一后我们可以通过 =M-x igist-dispatch l= 来查看自己的所有 gist：
+
+[[./4.png]]
+
+如此，就算是完成了 igist 的安装与配置。
+
+** 使用 igist
+
+就我来看的话，这个界面还是挺直观的，按下 =M-o= （或者是其他 keybind，反正是 =igist-dispatch= 命令）可以看到如下命令面板：
+
+[[./5.png]]
+
+面板中的描述非常直观，按下 =l= 可以列出用户的所有 gist，按下 =m= 可以列出用户 star 的 gist，按下 =E= 则可以探索 github 上的 gist，此时 buffer 拉到底了还会自动刷新新的 gist。按下 =o= 并输入其他用户的用户名可以列出该用户的公开 gist。按下 =X= 则会关闭面板 buffer。
+
+=n=, =b=, =p= 这三个命令负责创建新的 gist，按下 =n= 后，我们需要依次输入文件名，选择 gist 是否公开，输入文件的内容，按下 =C-c C-c= 确定，最后添加 gist 描述。完成这些步骤后 igist 会向 github 发送请求来完成 gist 的创建，并最后在 echo area 显示 gist saved 表示提交完成。使用 =b= 则表示将当前 buffer 作为 gist 文件提交，可以省去输入文件名和填充文件内容的步骤。使用 =p= 则会从某个目录中选择文件并上传至 github。读者可以都试一试。
+
+上面的 =igist-dispatch= 运行于不在 =*igist-<username>*= buffer 时的环境中，当我们位于 igist buffer 时它是这样的：
+
+[[./6.png]]
+
+将光标移动到某个 gist 所在位置并按下 =D= 我们就可以删除先前创建的实验 gist。按下 =v= 可以浏览某个 gist 中光标所在位置的文件内容。按下 =w= 可获取 gist 的 URL 并存储到剪贴板中。按下 =r= 则可以在浏览器中打开这个 gist。使用 =d= 我们可以修改某个 gist 的 description。通过 =+= 和 =-= 我们可以对某个 gist 进行文件的增加和删除操作。
+
+通过 =S= 和 =U= 我们可以 star 或 unstar 某个 gist。按下 =C= 我们可以打开界面配置，具体如何配置这里我就不介绍了，文本说的非常清楚：
+
+[[./7.png]]
+
+按下 =s= 可以显示 gist 的语言统计信息，它会通过 emasc 内置的柱状图功能画出各语言在所有 gist 中的占比，我的是这样的：
+
+[[./8.png]]
+
+当我们位于 =*igist-<username>*= buffer 时，即使不使用 =igist-dispatch= 我们也能使用这些快捷键， =igist-dispatch= 只是提供了一个更好的用户界面。如果实在弄不清楚哪些键有哪些功能，我们可以去读 igist 的 readme。
+
+当然，在 igist 提供的这些功能中对我来说最重要的还是修改 gist 的功能，我们将光标移动到某一 gist 的文件名上并按下回车键，igist 会下载该文件并在另一 buffer 中打开来供我们修改，当完成修改后，我们可以通过 =C-c C-c= ， =C-c '= 或 =C-x C-s= 向 github 提交修改。
+
+** 使用中的一些小问题
+
+这是我在使用 igist 中遇到的一些小坑，如果你也是刚刚尝试使用的话希望有所帮助：
+
+1. 当在用户名或 token 有问题时调用 =igist-dispatch l= ， buffer =*igist-<username>*= 的存在将会导致随后 =igist-dispatch l= 的调用失败，这是因为该操作总会创建 =*igist*= buffer ，而当 buffer 存在时 igist 默认先前的请求是成功的，故而不会向 github 发起新的请求
+
+   出现这种情况时，只需杀死 =*igist-<usernmae>*= buffer 即可，不用重新启动 emacs
+2. 通过 =p= 命令创建新 gist 时似乎不会在 echo area 中显示创建成功的相关信息，还得去 github 上看看成功了没有
+3. 谨慎使用删除相关的命令，不要不看提示直接按键，我已经丢了一个两年前的 gist 了( ´_ゝ`)
+4. 似乎时不时会出现 503 问题，这应该是 github 服务器过载了，等一等再试试吧
+5. 如果你使用了一些自动保存 buffer 的插件，记得关闭对编辑 gist buffer 的自动保存，目前 igist 的文件修改判定还过于简单
+
+* igist 是如何实现编辑 gist 的
+
+igist.el 的实现大约有 4000 多行，我简单花了些时间读了读实现，可以说是质量挺不错的，对当前的 emasc 29 来说只引入了 ghub 这一个依赖，按键面板直接使用了内置的 transient.el 来实现，也许可以作为一个不错的 transient.el 教程来阅读学习。
+
+虽然 igist 为我们提供了一个非常棒的 gist 用户界面，但我们有时也许需要直接通过命令来操控某些 gist。这一节我对 igist 的编辑功能实现做了一点点分析。
+
+通过在 igist buffer 中的某个文件上按下 RET，我们即可下载它并进行编辑后上传。当我们按下 =RET= 时执行的命令是 =igist-list-edit-gist-at-point= ，而它会在内部调用 =igist-list-gist-to-fetch= 从 buffer 中获取必要的文件信息，并通过 =igist-setup-edit-buffer= 下载文件，并进行初始化操作以提供 gist 编辑功能。 =igist-list-gist-to-fetch= 会通过 =igist-tabulated-gist-file-at-point= 从 =*igist-<username>*= buffer 中获取文件信息，它会返回一个非常大的对象。随后 =igist-setup-edit-buffer= 使用这个对象来创建 buffer：
+
+#+BEGIN_SRC elisp
+  (defun igist-list-edit-gist-at-point (&optional _entry)
+    "Edit the gist at the current point in a new window."
+    (interactive)
+    (when-let ((gist (igist-list-gist-to-fetch)))
+      (let ((buff (igist-setup-edit-buffer gist)))
+	(switch-to-buffer-other-window buff))))
+#+END_SRC
+
+只要获取了某个文件对应的 gist 对象，我们就能对其进行完整的编辑操作了。但是 igist 只为我们提供了从 =*igist*= buffer 中获取 gist 对象的方法，而 =*igist*= buffer 是由 =igist-list-gists= 命令得到的，它会在内部调用 =igist-list-load-gists= ，而后者会调用 =igist-list-request= ：
+
+#+BEGIN_SRC elisp
+  (defun igist-list-load-gists (user &optional background callback callback-args)
+    "List USER's gists sorted by most recently updated to least recently updated.
+  Then execute CALLBACK with CALLBACK-ARGS.
+  To stop or pause loading use command `igist-list-cancel-load'.
+  If BACKGROUND is nil, don't show user's buffer."
+    (igist-list-request
+     (concat "/users/" user "/gists") user background callback callback-args))
+#+END_SRC
+
+我们可以考虑使用 github gist [[https://docs.github.com/en/free-pro-team@latest/rest/gists/gists?apiVersion=2022-11-28#get-a-gist][api]] 文档中给出的获取 Gist 方法，但它与列出用户 gist 的 api 返回结构并不完全一致，且它会返回 gist 的全部内容。如果想要不从 =*igist*= buffer 选择 gist 才能进行编辑的话，我们可以考虑编写一个新的 api 用于直接 get gist，也许我写完并测试后会考虑给 igist 提一个相关的 pr。
+
+目前来说，我感觉这样做也是可行的，直接使用 buffer 搜索功能找到对应的文件，并启动编辑命令：
+
+#+BEGIN_SRC elisp
+  (defun yy/get-gist-init-file ()
+    "获取来自 gist 的 init.el 文件，可直接复制其中内容，也可修改并 C-c C-c 提交
+  建议在 init.el 文件中运行该命令，方便对比修改"
+    (interactive)
+    (igist-list-load-gists
+     "include-yy" t
+     (lambda ()
+       (with-current-buffer (igist-get-user-buffer-name
+			     igist-current-user-name)
+	 (goto-char (point-min))
+	 (search-forward "init.el")
+	 (igist-list-edit-gist-at-point))
+       (kill-buffer (igist-get-user-buffer-name
+		     igist-current-user-name)))))
+#+END_SRC
+
+* 后记
+
+原本我只打算使用 igist 的功能来管理我对 emacs 配置，但用着用着居然发现意外的好用，随后就有了这篇文章。
+
+祝使用愉快。
+
+（顺带今天有个朋友暂时是看不到了，正巧碰上刚刚完成这篇文章，以此作为纪念（笑））
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+| [[https://www.pixiv.net/artworks/79263238][file:p1.jpg]] | [[https://www.pixiv.net/artworks/84808107][file:p4.jpg]] | [[https://www.pixiv.net/artworks/33191277][file:p3.jpg]] |
+| [[https://www.pixiv.net/artworks/108179039][file:p6.jpg]] | [[https://www.pixiv.net/artworks/90867242][file:p5.jpg]] | [[https://www.pixiv.net/artworks/101846104][file:p2.jpg]] |
+| [[https://www.pixiv.net/artworks/16295072][file:p7.jpg]] | [[https://www.pixiv.net/artworks/105272071][file:p8.jpg]] | [[https://www.pixiv.net/artworks/100142563][file:p9.jpg]] |
+{{{end_noscript}}}
