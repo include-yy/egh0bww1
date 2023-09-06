@@ -94,6 +94,8 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
   - [[https://rakhim.org/coding-vs-dot-programming-vs-dot-software-engineering/][Coding vs. Programming vs. Software Engineering]]
   - [[https://rakhim.org/process-of-learning/][Process of Learning]]
   - [[https://rakhim.org/the-price-of-complexity/][The price of complexity]]
+- [[https://xiaohanyu.me/archive/][Hanyu -- 行者无疆 始于足下]]
+
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
