@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-09-05T15:27:02</pubDate>
+    <pubDate>2023-09-09T23:25:49</pubDate>
+    <item>
+      <title>使用 emacs 进行 Python 编程</title>
+      <link>https://egh0bww1.com/posts/2023-09-09-45-use-emacs-do-python-programming</link>
+      <description>本文介绍了如何配置 emacs 使之适应 Python 编程</description>
+      <category>emacs</category>
+      <pubDate>2023-09-09</pubDate>
+    </item>
     <item>
       <title>使用 igist 管理 github gist</title>
       <link>https://egh0bww1.com/posts/2023-09-05-44-use-igist-manage-gist</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline</description>
       <category>elisp</category>
       <pubDate>2023-05-07</pubDate>
-    </item>
-    <item>
-      <title>emacs 的 named-let 使用和实现介绍</title>
-      <link>https://egh0bww1.com/posts/2023-05-02-35-emacs-named-let-usage</link>
-      <description>本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式</description>
-      <category>elisp</category>
-      <pubDate>2023-05-02</pubDate>
     </item>
   </channel>
 </rss>

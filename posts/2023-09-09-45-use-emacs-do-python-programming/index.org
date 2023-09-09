@@ -1,0 +1,608 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 使用 emacs 进行 Python 编程
+#+DATE: [2023-09-02 Sat 22:56]
+
+#+DESCRIPTION: 本文介绍了如何配置 emacs 使之适应 Python 编程
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/104835794][file:0.jpg]]
+{{{end_noscript}}}
+
+在无数次想要用 Emacs 写一些小包但每次都去用 PyCharm 或 VSCode 后，我终于有了足够的兴趣和时间在 Emacs 中搭建一个足够好用的 Python 开发环境。我会尽量选择成熟的、活跃的插件，并尽可能详细地介绍这些插件的用法。
+
+本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+- Python 3.11 on Windows 10
+
+{{{toc}}}
+
+* 来点 Python 豆知识
+
+这一部分的知识一直以来我都没怎么关注过，我也没怎么把 Python 当一门严肃的编程语言，不过人的思想总是会发生变化的。如果你对这些标题不怎么感兴趣，可以直接快进到 Emacs 相关的内容。
+
+** Python 的安装位置
+
+=C:\Users\<Username>\AppData\Local\Programs\Python\Python<version>\= 是在 Windows 中 Python 的默认安装路径，不过也可以装到其他地方。Python 可执行文件就位于该目录下，而 pip.exe 则位于 Scripts 文件夹中。如果在 Python 安装过程中选择了添加环境变量的话，那么 Python 安装目录以及其 Scripts 子目录都会在 =PATH= 中。在安装目录下存在以下内容：
+
+- DLLs, 包含 Python 所需的动态链接库
+- Doc, 包含 Python 文档
+- include, 包含编译 Python 扩展模块时需要的 C 头文件
+- Lib, 包含所有标准库 Python 模块和包
+  - 子目录 site-packages 是第三方包和模块安装位置
+- libs, 包含编译扩展模块时需要的库文件
+- Scripts, 包含可执行脚本，例如 pip
+- tcl, 包含 Tcl/Tk 相关文件
+- Tools, 包含一些有用的脚本和工具
+  - demo, python 带有的一些示例脚本
+  - scripts, 一些实用程序
+  - i18n, 与国际化和本地化相关的工具
+- python.exe, Python 主可执行文件
+- pythonw.exe, 无控制台窗口版本的 Python，适用于不需要控制台的 GUI 程序
+- LICENSE.txt, NEWS.txt, 提供许可证和其他信息
+- 以及一些动态链接库文件，比如 vsruntime140.dll, python3.dll 等等
+
+如果想要卸载 Python，我们可以在 Settings 中选择 Apps，然后找到 Python 并选择卸载。
+
+相比 Windows 来说 Ubuntu 上的 Python 要更加零散一些。通过 =which python3= 我们可以找出 Python 可执行文件的位置，一般来说它都在 =/usr/bin/= 中。在 Ubuntu 上可能同时存在多个版本的 Python，可以通过明确指定版本号来选择运行哪个版本的 Python。在 Ubuntu 上通过 =update-alternatives= 可以切换系统的 Python3 版本：
+
+#+BEGIN_SRC shell
+  # https://stackoverflow.com/a/57642085
+  sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1
+  sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2
+  sudo update-alternatives --config python3
+#+END_SRC
+
+通过 dpkg，我们可以列出和 Python3 相关的所有安装文件的位置：
+
+#+BEGIN_SRC shell
+  dpkg -S python3.10 > log.txt
+#+END_SRC
+
+经过简单的观察，我发现 Python 的标准库位于 =/usr/lib/python<version>= 目录中，头文件位于 =/usr/include/python<version>= 中，似乎是用于使用 C/C++ 编写 Python 扩展模块或与解释器直接交互。
+
+在 Ubuntu 上，pip3 一般位于 =/usr/bin/pip3= ，而 pip3 安装的包的位置可以有以下三种
+
+- =~/.local/lib/python<version>/site-packages=
+- =/usr/lib/python3/dist-packages=
+- =/usr/local/lib/python<version>/dist-packages=
+
+它们的区别在于[fn::https://stackoverflow.com/a/54239729]： =/usr/lib/python3/dist-package= 包含的是由系统包管理器安装的包，比如 =sudo apt-get install python-numpy= ； =/usr/local/lib/python<version>/dist-package= 包含的是在系统范围内通过 pip 安装的包，比如 =sudo pip3 install something= ；而 =~/.local/lib/python<version>/site-packages= 是用户为自己安装的包。
+
+在通过 =sudo pip3= 安装或卸载包时，我们能看到如下的提示：
+
+#+BEGIN_SRC text
+  WARNING: Running pip as the 'root' user can result in broken permissions and conflicting
+  behaviour with the system package manager. It is recommended to use a virtual environment
+  instead: https://pip.pypa.io/warnings/venv
+#+END_SRC
+
+** Python 的命令行参数与环境变量
+
+老实说到现在除了在执行 =python x.py <args>= 时提供过命令行参数外我就没用过其他功能了，这一节我会介绍能通过 =python --help= 列出的一些我认为有用的命令行参数，同时我也会介绍一些影响 Python 行为的环境变量。
+
+在我的体验中，用的最多的可能时 =-m= ，比如 =python3 -m http.server= 可以用来启动一个简单的 HTTP 服务器。它会在 =sys.path= 中搜索指定的模块，并以 =__main__= 执行。
+
+我们可以使用 =-c= 执行代码，代码可以是以换行符分隔的多条语句。我们可以这样写出 Hello world：
+
+#+BEGIN_SRC shell
+  python3 -c "print('hello world')"
+  hello world
+#+END_SRC
+
+在 Windows 上的 Emacs =*shell*= 内使用 Python 时你会遇到输入无反应的情况，这并不是 Python 出问题了，而是因为此时调用 Python 的不是终端而是另一个程序（指 Emacs），此时我们需要指定 =-i= 选项，它能让 Python 即使不在终端环境中也能进行正常的行交互。
+
+通过使用 =-q= ，启动 Python 解释器时不会显示 Python 版本和版权信息；使用 =-u= 将会强制 stdout 和 stderr 流是无缓冲的，这会让数据的输出更及时； =-v= 可在启动时显示一些 =import= 细节； =-V= 只会打印 Python 版本号并直接退出； =-x= 会让 Python 跳过第一行（shellbang 行）。
+
+Python 的 site 模块能确保 Python 正常找到和加载在不同位置安装的包和模块，它会在 Python 启动时被加载，而我们可以通过 =-S= 选项阻止它的加载，另外，我们也可以通过 =-s= 来不将用户包目录添加到 =sys.path= 中。
+
+通过 =python --help-env= 我们可以列出与 PYTHON 相关的环境变量，我从结果中摘取一些简单介绍一下：
+
+- =PYTHONSTARTUP=, 在启动 Python 时执行的 py 文件
+- =PYTHONPATH=, 以 =;= （Ubuntu 上是 =:= ）分隔的添加到模块搜索路径前面目录列表
+- =PYTHONSAFEPATH=, 相比于 =PYTHONPATH= 更加安全，不会添加潜在不安全的路径
+- =PYTHONHOME=, 更改标准 Python 库的位置
+- =PYTHONENCODING=, 覆盖通过 =encodingname:errorhandler= 语法设置的 stdin/stdout/stderr 所用编码
+- =PYTHONUTF8=, 若为 1 则启动 Python UTF-8 模式，为 0 则禁用该模式。所谓 UTF-8 模式就是会使用 UTF-8 作为文件系统编码、stdin/stdout/stderr 编码
+  - 通过 =-X utf8= 也可启用 UTF-8 模式
+
+完整的命令行参数和环境变量可以参考 Python 文档 [[https://docs.python.org/zh-cn/3.11/using/cmdline.html][1. 命令行与环境]]。
+
+** 小结
+
+原本这一节的内容应该还包括如何使用 pip、Python 项目结构与模块打包、Python 虚拟环境的使用以及 Python 的类型标注，我甚至还想提一嘴如何在 Python 中进行函数式编程，但不论是我上面介绍的东西还是我没有介绍的东西都能很轻松地在网络上找到相关的资料。文档看不懂可以找教程，如果不会写搜索关键字现在还能直接问 ChatGPT。
+
+这就是大众语言的好处啊（笑）。
+
+- [[https://pip.pypa.io/en/stable/getting-started/][pip -- get started]]
+- [[https://docs.python.org/zh-cn/3/tutorial/modules.html][模块 -- Python 3.11.5 文档]]
+- [[https://virtualenv.pypa.io/en/latest/][Virtualenv]]
+- [[https://docs.python.org/zh-cn/3.7/library/typing.html][typing -- 类型标注支持]]
+- [[https://docs.python.org/zh-cn/3/howto/functional.html][函数式编程指引]]
+
+* 和 ChatGPT 聊聊 Python 开发
+
+赞美 ChatGPT，我不用一个个去翻各路大神的体会和总结了，G 门！这一节是我和 ChatGPT 关于 Python 开发的一些对话，我稍微做了一些整理。
+
+** 进行 Python 开发需要哪些东西
+
+#+BEGIN_QUOTE
+在一个简单的个人项目中，作为唯一开发者的你，使用 Python 进行编程。你对你的编程环境有什么要求吗
+#+END_QUOTE
+
+ChatGPT 的回答：
+
+- 安静的工作环境: 一个安静的工作环境可以帮助你集中精力进行开发。
+- 硬件: 一个性能良好的计算机可以提高你的开发效率。根据你的项目需求，可能需要考虑计算机的 CPU、内存、硬盘、显卡等硬件配置。
+- 系统环境: 确保你的操作系统、Python 解释器和必要的系统库是最新的，并且和你的项目兼容。
+- 网络: 一个稳定的网络环境是必要的，这可以确保你能够顺利地下载依赖包、查找资料和使用在线服务。
+
+上面是最基本的要求。
+
+- 开发工具: 选择一个适合自己的集成开发环境（IDE）。常用的 Python IDE 有 PyCharm, VSCode, Jupyter Notebook 等。选择适合自己的 IDE 可以提高开发效率。
+- 虚拟环境: 使用 Python 的虚拟环境，如 virtualenv, conda 等，可以帮助你管理项目的依赖包，避免不同项目之间的依赖包版本冲突。
+- 代码风格和质量检查: 使用代码风格检查工具，如 PEP8, Flake8, PyLint 等，可以确保你的代码具有良好的可读性和一致性。
+- 测试: 使用自动化测试工具，如 pytest, unittest 等，可以帮助你确保代码的质量和稳定性。
+- 性能监控和调试: 使用性能监控和调试工具，如 Py-Spy, cProfile 等，可以帮助你找到代码的性能瓶颈并进行优化。
+- 代码版本控制: 使用版本控制系统如 Git 可以帮助你管理项目的历史版本，同时也方便你回滚到之前的版本。
+- 代码文档: 写清晰、完整的代码文档是很重要的，这不仅能帮助别人理解你的代码，也能帮助你自己在将来更容易地维护和更新代码。可以考虑使用自动化文档工具，如 Sphinx。
+
+上面的列表是我和 ChatGPT 过了几个回合后整理得到的结果。从结果上来说，主要是这几个关键字：开发环境，代码检查，调试，测试，调优，版本控制和文档。本文将尝试在 Emacs 中以较方便的方式来实现它们。
+
+** 版本选择问题
+
+#+BEGIN_QUOTE
+在选择 Python 版本时，是根据包来确定 Python 版本还是根据 Python 版本确定使用哪些包
+#+END_QUOTE
+
+选择 Python 版本和确定使用哪些包是一个相互影响的双向过程。下面我将描述两种情况及其策略：
+
+1. 根据包来确定 Python 版本
+
+   在这种策略中，你首先确定你需要用到的特定 Python 包和库，然后选择支持这些包和库的 Python 版本。这种策略通常在以下情境下适用：
+
+   - 项目需求明确：你清楚地知道项目需要使用到哪些包和库。
+   - 依赖特定包：你的项目依赖于特定的包，这些包只在特定版本的 Python 中可用或最优化。
+
+   这种方法可以确保兼容性，选择的 Python 版本与你需要使用的所有包和库兼容。但你可能会被限制在一个较旧的 Python 版本中，无法利用更新版本的 Python 的功能和优化。
+
+2. 根据 Python 版本确定使用哪些包
+
+   在这种策略中，你首先选择一个 Python 版本，然后基于该版本选择可用的包和库。这种策略通常在以下情境下适用：
+
+   - 新项目：你正在启动一个新项目，有更多的灵活性来选择 Python 版本和包。
+   - 利用新功能：你希望利用一个新版本的 Python 中的新功能和优化。
+
+   这样做可以利用最新版本的 Python 中的新功能和优化。而且新版本的 Python 通常支持更多的包和库。但你可能会遇到一些只在旧版本的 Python 中可用的包和库的兼容性问题。
+
+在实际应用中，你可能会找到一个平衡点，选择一个既能满足你的包和库需求，又能提供你需要的 Python 功能和优化的版本。实施一个良好的依赖管理策略，例如使用虚拟环境，可以帮助你更好地管理 Python 版本和包依赖，使得选择 Python 版本和包变得更加灵活和可控。
+
+** Python 的类型标注有什么用处
+
+#+BEGIN_QUOTE
+使用 Python 的类型标注以及一些检查工具，我们能够做到像是编译型语言那样的检查效果吗
+#+END_QUOTE
+
+Python 的类型标注和类型检查工具确实可以让你在一定程度上实现类似编译型语言的类型检查效果。通过使用 Python 的类型标注功能，你可以指定变量、函数参数和返回值的预期类型。这样可以增加代码的可读性和维护性，同时也可以让你在开发过程中更清晰地理解代码的行为。
+
+有一些工具可以帮助你检查代码中的类型错误。其中最著名的是 mypy。这些工具可以在你运行代码之前发现类型错误，从而让你更早地捕捉到可能的问题。通过结合类型标注和类型检查工具，你可以实现类似编译型语言的类型检查效果。这包括：
+
+- 提前发现类型错误：你可以在运行代码之前发现类型错误，而不是在运行时才发现。
+- 更好的代码质量：类型标注可以帮助你编写更清晰、更可维护的代码。
+- 提高开发效率：通过提前发现错误，你可以避免在运行时才发现错误，从而节省时间和精力。
+
+类型检查工具可以帮助你提前发现类型错误，但 Python 仍然是一种动态类型语言，这意味着类型检查实际上是在运行时进行的。同时，Python 的类型标注是可选的，这意味着你可以选择不使用它们，或只在代码的某些部分使用它们。
+
+就我个人体验来看，使用类型标注的话 LSP 能提供更好的补全和错误提示。在后文中我也会考虑类型检查工具与 Emacs 的集成。
+
+* 香草味的 Emacs 牌 Python 冰淇淋
+
+在这一节中我会介绍 Emacs 为 Python 开发提供的一些支持，“香草味”（vanilla）指的是不安装任何其他的包。
+
+** python.el
+
+在 Emacs 中有个 python.el 模块为编写 Python 代码提供了一些支持，最开始的时候我以为它就是 [[https://wiki.python.org/moin/EmacsEditor][python-mode.el]]，经过一些了解我才发现两者完全不是一个东西，它似乎与 python.el 不是同一时代的产物：
+
+- [[https://github.com/fgallina/python.el][python.el -- Python's flying circus support for Emacs]]
+  - [[https://github.com/fgallina/python.el/commit/e6de1fbdc30f11eddfea3ba874eefd218781a2d7][first commit on Oct 16, 2010]]
+- [[https://github.com/emacsmirror/python-mode/][python-mode.el -- Edit, debug, develop, run Python programs]]
+  - [[https://github.com/emacsmirror/python-mode/commit/88a09ddd81ca88fba3a7669667818aee0a4976d4][first commit on Dec 13, 1994]]
+
+关于它俩的讨论也有一些：
+
+1. [[https://www.reddit.com/r/emacs/comments/2sjzen/pythonel_vs_pythonmodeel/][python.el vs python-mode.el]]
+2. *[[https://www.reddit.com/r/emacs/comments/sshhdi/difference_between_inbuild_python_and_pythonmode/][Difference between inbuild `python` and `python-mode`]]*
+3. [[https://stackoverflow.com/questions/362522/switching-from-python-mode-el-to-python-el][Switching from python-mode.el to python.el]]
+4. [[https://github.com/jorgenschaefer/elpy/issues/359][Elpy: python-mode.el or python.el ? #359]]
+5. [[https://emacs.stackexchange.com/questions/12787/two-python-modes][Two Python modes]]
+
+{{{begin_details}}}
+{{{summary((对 python.el 和 python-mode.el 的评论))}}}
+#+BEGIN_QUOTE
+---1
+
+Agree with other posters, python.el. I was a longtime python-mode.el user, but after upgrading to 24.4, found out that python.el has dramatically improved since last time I used it.
+
+I also replaced my home-built configuration with elpy, which has been wonderful. flake8 checking, refactoring, etc.
+
+---2
+
+Yes, this is confusing. python.el (which implements python-mode, sigh) was created by Emacs users for python. The separate package python-mode.el also implements its own python-mode, but was written and is maintained by people connected to the python project. The former is shipped with Emacs. The latter includes a bunch of custom python modules to aid with completion and other things, which it does by interrogating a live python process (python.el also does this, but to a lesser extent).
+#+END_QUOTE
+{{{end_details}}}
+
+总的来说，现在的 python.el 应该是优于 python-mode.el 的，而且 python.el 已经内置到了 Emacs 中，这里我们选择对 python.el 进行简单的介绍。python.el 似乎没有成文档的说明，以下内容大多来自源代码中的文档注释。
+
+python.el 提供了语法高亮、缩进、移动、shell 交互和补全、virtualenv 支持，Shell package 支持、Shell 语法高亮、pdb 追踪、符号补全、模板（Skeleton）、 FFAP（Find File At Point）、代码检查、ElDoc、Imenu、Flymake 和 =import= 管理支持。下面我们来一项一项地介绍。
+
+*** 语法高亮与编辑功能
+
+目前 python.el 应该是支持了 Python 最新的 =match= 和 =case= 关键字的高亮，我在使用 Emacs 28 时还没有这个功能。
+
+使用 =C-M-a= (beginning-of-defun) 可以移动到函数定义的开头，使用 =C-M-e= (end-of-defun) 可以移动到函数定义的结尾。使用 =M-a= (python-nav-forward-block) 可以移动到代码块开头，使用 =M-e= (python-nav-backward-block) 可以移动到代码块结尾。除了这四个函数外 python.el 还提供了这些没有键绑定的命令：
+
+- =python-nav-forward-statement=, 移动到下一条语句
+- =python-nav-backward-statement=, 移动到上一条语句
+- =python-nav-beginning-of-statement=, 移动到语句的开头
+- =python-nav-end-of-statement=, 移动到语句的结尾
+- =python-nav-beginning-of-block=, 移动到代码块开头
+- =python-nav-end-of-block=, 移动到代码块结尾
+- =python-nav-if-name-main=, 移动到 =__main__= 所在位置
+
+如果我们开启了 =electric-indent-mode= （默认是开启的），那么当我们输入 =:= 时会对当前行进行必要的缩进。通过 =TAB= 我们可以调整某一行语句的缩进级别，除此之外我们也可以使用 =C-c<= (python-indent-shift-left) 来左移缩进和 =C-c>= (python-indent-shift-right) 来右移缩进。
+
+我们可以通过 =python-indent-offset= 设置代码的缩进空格数，默认值是 4。
+
+*** Shell 交互
+
+这里的 Shell 指的不是系统 Shell，而是与在 Emacs 中打开的 Python 解释器进行交互。读者如果使用过 slime 或者写过一些 elisp 插件的话会发现 python.el 的思路与它们很像，即 REPL 交互式开发。
+
+python.el 只对标准的 CPython和 IPython 提供了开箱即用的支持。我们可以通过 =python-shell-interpreter= 设置默认的解释器程序，通过 =python-shell-interpreter-args= 设置解释器的启动参数。比如：
+
+#+BEGIN_SRC elisp
+  (setq python-shell-interpreter "ipython"
+	python-shell-interpreter-args "--simple-prompt")
+#+END_SRC
+
+虽说 python.el 提供了对 IPython 的支持，但我看注释里全是各种各样的 bug 说明，还是尽量不要在 Windows 上的 Emacs 中使用 IPython 了。
+
+我们可以通过命令 =run-python= 来启动一个 Python 解释器，如果调用命令时带有 =C-u= 前缀，那么它会运行我们输入启动命令，以及选择 Python 进程依附的 buffer 或 project。直接在开启 python-mode 的 buffer 中使用 =C-c C-p= 也能打开 Python 解释器。在 py buffer 中可以通过 =C-c C-z= 移动到对应 Python 解释器 buffer。
+
+在完成解释器与 buffer 或 project 的关联后，我们在 buffer 中可以使用以下这些按键来向 Python 解释器发送需要执行的代码：
+
+- =C-c C-c= (python-shell-send-buffer), 将整个 buffer 的内容发送给对应 Python 进程
+- =C-c C-s= (python-shell-send-string), 发送字符串给 Python 进程
+- =C-c C-e= (python-shell-send-statement), 发送语句给 Python 进程
+- =C-c C-r= (python-shell-send-region), 发送 region 内代码给 Python 进程
+- =C-c C-l= (python-shell-send-file), 发送一个文件给 Python 进程
+- =C-M-x= (python-shell-send-defun), 发送当前位置函数定义给 Python 进程
+
+python.el 为启动的 python shell 提供了补全功能，要使用补全 =python-shell-completion-native-enable= 需要开启，且当前的 =python-shell-interpreter= 不在 =python-shell-completion-native-disabled-interpreters= 列表中。比较有意思的是该列表在 Windows 下为 ='("")= ，而它会匹配任意的 python 解释器，这就意味着 Windows 下补全功能是默认关闭的。这是因为 readline 在 Windows 中不能正常工作。
+
+在 Windows 上我们需要安装 =pyreadline3= 来启用补全功能，在我们启动 Python Shell 时可以在 echo area 看到 =Shell native completion is disabled, using fallback= 的提示，随后使用 "fallback" 方案进行补全。在 Python Shell 中按下 =TAB= 即可进行补全，随着我们在 Python Shell 中执行越来越多的代码，补全的效果也会越来越好。
+
+通过 =python-shell-extra-pythonpaths= 我们可以添加额外的 =PYTHONPATH= ，当这个变量不为空时，其中的值会在启动 Python 进程时被添加到 =PYTHONPATH= 的开头。通过 =python-shell-package-enable= 命令我们可以在 Python Shell 中 =import= 新的包，这需要我们指定目录和包名，该命令会帮我们在 =sys.path= 中添加路径并调用 =import= 。
+
+通过 =C-c C-d= (python-describe-at-point) 可以获取当前光标位置的一些信息。通过 =C-c C-f= (python-eldoc-at-point) 可以获取当前位置的一些文档。但似乎不怎么好用。
+
+*** 虚拟环境支持
+
+python.el 为虚拟环境（virtualenv）提供了支持。我们可以通过 =python-shell-process-environment= 设置一些环境变量，通过 =python-shell-exec-path= 设置 Python 解释器的路径。前者里的环境变量会覆盖默认的环境变量，而后者会被添加到 python 解释器启动环境的环境变量 =PATH= 最前面，这就相当于覆盖了先前的路径。注释中给出了如下的示例代码：
+
+#+BEGIN_SRC elisp
+  (setq python-shell-process-environment
+	(list
+	 (format "PATH=%s" (mapconcat
+			    #'identity
+			    (reverse
+			     (cons (getenv "PATH")
+				   '("/path/to/env/bin/")))
+			    ":"))
+	 "VIRTUAL_ENV=/path/to/env/"))
+  (python-shell-exec-path . ("/path/to/env/bin/"))
+#+END_SRC
+
+（顺带一提， Linux 上的 =PATH= 分隔符是 =:= ，但 Windows 上是 =;= ）
+
+由于上面的操作要连在一起而且很麻烦，python.el 还提供了一个 =python-shell-virtualenv-root= 变量，只需设置它为虚拟环境路径我们也能达到上面的效果：
+
+#+BEGIN_SRC elisp
+  (setq python-shell-virtualenv-root "/path/to/env/")
+#+END_SRC
+
+*** 一些杂项
+
+python.el 通过 emacs 内置的模板功能（指 abbrev-mode 和 skeleton）提供了一些基础的模板，如果我们在 python 文件中开启了 abbrev-mode 且 =python-skeleton-autoinsert= 为真，那么就会通过 abbrev 展开一些缩写。不过老实说这些机制还是太老旧了，不如直接用 yasnippet。通过 =C-c C-t [cdfimtw]= 我们可以使用一系列的 skeleton ，分别是 class, def, for, if, import, try, while。
+
+python.el 为 imenu 提供了一些支持，和 Imenu 相关的东西有可用作 =imenu-create-index-function= 的 =python-imenu-create-flat-index= 和 =python-imenu-create-flat-index= ，以及控制 label 格式的选项 =python-imenu-format-item-label-function=, =python-imenu-format-parent-item-label-function= 和 =python-imenu-format-parent-item-jump-label-function= 变量。我们可以通过 =C-c C-j= 启动 imenu。
+
+通过 =python-sort-imports=, =python-add-import=, =python-remove-import= 和 =python-fix-imports= 我们可以方便地在文件的头部添加或删除 import ，这对大文件比较方便。不过这需要我们通过 pip 安装 isort。和 =import= 管理相关的命令有这些：
+
+- =C-c C-i a= 添加导入
+- =C-c C-i f= 修复导入
+- =C-c C-i r= 移除导入
+- =C-c C-i s= 对导入排序
+
+通过使用 =python-check= ，我们也能够对文件进行检查，这是通过 =python-check-command= 中指定的命令来进行的。它的默认值是 =pyflakes= 。我们可以通过 =C-c C-v= 来执行 =python-check= 命令。
+
+通过设置 =python-flymake-command= ，我们可以设置 flymake 后端。
+
+python.el 为 pdb 提供了支持，不过我现在不知道 pdb 是什么东西。
+
+** eglot and pyright
+
+你可能听说过 LSP 是为了解决语言工具与编程语言之间的 M * N 问题而出现的，当然也有[[https://matklad.github.io/2022/04/25/why-lsp.html][不同的看法]]，但不管怎样 LSP 对我们这些编辑器用户来说是个好东西，只要编辑器提供了 LSP 支持我们就能方便地使用各种 LSP 服务器提供的语言支持。LSP 提供的最显著的特性可能是代码补全、悬停提示、跳转到定义、查找引用、符号搜索、自动重构、代码格式化和诊断和错误检查。如果编程体验满分是 100，那么编辑器 + LSP 至少是够及格线了。
+
+通过 [[https://microsoft.github.io/language-server-protocol/implementors/servers/][Implementations -- Language Servers]] 或 https://langserver.org/ 我们可以查看有哪些已经实现 LSP 服务的语言。我们也可以在这两个网站上查看有哪些实现 LSP 客户端的编辑器，你能够在这两个页面上找到三个 Emacs 的 LSP 实现，它们分别是 [[https://github.com/emacs-lsp/lsp-mode/][lsp-mode]]，[[https://github.com/joaotavora/eglot][eglot]] 和 [[https://github.com/manateelazycat/lsp-bridge/][lsp-bridge]]。其中 lsp-mode 和 lsp-bridge 我都没有使用经验，不过听说 lsp-bridge 是目前最快的 Emacs 端 LSP 实现，之后有机会去试试。下面我们只对 eglot 进行介绍，如果你有兴趣你可以去读一读 eglot 的[[https://www.gnu.org/software/emacs/manual/html_node/eglot/index.html][文档]]或是项目的 [[https://github.com/joaotavora/eglot][README]]，我不打算在这里做一个大而全的介绍，而只是告诉读者如何简单使用。
+
+现在让我们看看 LSP 服务端，Python 的 LSP Server 实现非常多：
+
+- [[https://github.com/palantir/python-language-server][(unmaintained) python-language-server -- An implementation of the Language Server Protocol for Python]]
+- [[https://github.com/sourcegraph/python-langserver][(unmaintained) python-langserver -- Language server which talks LSP via JSONRPC for Python]]
+- [[https://github.com/Microsoft/python-language-server][(unmaintained) -- Microsoft Language Server for Python]]
+- [[https://github.com/python-lsp/python-lsp-server][python-lsp-server -- Fork of the python-language-server project]]
+- [[https://github.com/pappasam/jedi-language-server][jedi-language-server -- A Python language server exclusively for Jedi]]
+- [[https://github.com/microsoft/pyright][pyright -- Static Type Checker for Python]]
+
+这样来看似乎是主流的 Python LSP 实现形成了三足鼎立的局面？（笑）目前 VSCode 下载量最大的 Python 扩展是 Pylance，而 Pylance 内部使用的就是 Pyright。高使用量应该能说明这东西的可用性，所以本文选择了使用 Pyright。我们可以通过 =python -m pip install pyright= 来安装 Pyright。
+
+下面让我们正式开始 eglot + pyright 的使用介绍吧。eglot 已经内置到 Emacs 29 中了，这意味着我们只需要在 buffer 中使用 =eglot= 即可开启 LSP 服务。eglot 已经添加了 Pyright 相关的规则，如果我们已经安装了 Pyright 那么它会使用 Pyright 来为我们提供 LSP 服务。如果我们安装了其他 Python LSP Server，那么 eglot 会让我们从 minibuffer 中选一个，如果想要覆盖默认规则而只是用特定的 LSP Server，我们可以向 =eglot-server-programs= 中添加规则，就像这样：（可以查看 =eglot-server-programs= 的文档来查看所有可用的格式）
+
+#+BEGIN_SRC elisp
+  (add-to-list 'eglot-server-programs
+	       '(python-mode . ("pyright-langserver" "--stdio")))
+#+END_SRC
+
+如果我们想要在打开 buffer 时自动开启 LSP 而不是手动调用 =eglot= ，我们可以添加 =eglot-ensure= 到 major-mode 的 hook 中。这里同样使用 Python 来做例子：
+
+#+BEGIN_SRC elisp
+  (add-hook 'python-mode 'eglot-ensure)
+#+END_SRC
+
+我们可以通过 =eglot-shutdown= 来管理 LSP 服务，通过 =eglot-reconnect= 来重启 eglot。完整的命令列表可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/eglot/Eglot-Commands.html][3.3 Eglot Commands]]，关于工作空间与 LSP 的说明可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/eglot/Eglot-and-Buffers.html][3.2 Buffers, Projects, and Eglot]]。
+
+关于 Pyright 我没什么好说的，这里就贴一下配置文档吧，如果我们需要一些额外的功能可能需要自己编写 toml 配置文件：[[https://microsoft.github.io/pyright/#/configuration][Pyright Configuration]]。
+
+** treesit
+
+tree-sitter 支持的加入可以说是 Emacs 29 的大变更之一。treesit 模块的编写者和维护者是付禹安，这是他写过的和 treesit 相关的文章：
+
+- [[https://archive.casouri.cc/note/2021/emacs-tree-sitter/index.html][RFC: Emacs tree-sitter integration]]
+- [[https://archive.casouri.cc/note/2023/tree-sitter-in-emacs-29/index.html][Tree-sitter in Emacs 29 and Beyond]]
+- [[https://archive.casouri.cc/note/2023/tree-sitter-starter-guide/index.html][Tree-sitter Starter Guide]]
+
+tree-sitter 是一个 parser generator，它的与众不同之处在于它可以 *增量* 地解析源代码，这意味着它可以在源代码被修改时只解析被修改的部分而不是每次等重新解析整个文件，而这大大提高了解析的速度和效率，非常适合编辑器。
+
+在用上 treesitter 后编辑器可以使用语法树而不是正则表达式来更准确地确定如何高亮代码，而且有了语法树某些编辑操作将会更加准确且实现起来更加容易，我非常期待大量使用 treesit 的插件出现，不过这可能需要一段时间，毕竟这对 Emacs 和 Emacser 来说是个全新的东西。
+
+在 tree-sitter 官网我们可以看到现有的使用 tree-sitter 实现的各语言 parser，这是 Python 的 parser：[[https://github.com/tree-sitter/tree-sitter-python][tree-sitter-python]]。你可以按照文档中的[[https://tree-sitter.github.io/tree-sitter/creating-parsers][教程]]来编译和安装它，或是通过 emacs 命令 =treesit-install-language-grammar= 进行安装，它会一步步引导你完成某个语言 parser 的编译。在 Linux 上做起来很容易，在 Windows 上我建议读者在 MSYS2 SHELL 环境中启动 Emacs 后再执行 =treesit= 安装命令。
+
+在完成 tree-sitter-python 的安装后我们就可以使用 =python-ts-mode= 了，它是 python-mode 的 treesit 版，提供了基于 treesit 的语法高亮、缩进和 imenu 功能。我们可以通过以下代码来默认使用 python-ts-mode：
+
+#+BEGIN_SRC elisp
+  ;; 默认使用 python-ts-mode，需要安装 python 的 treesitter
+  (add-to-list 'major-mode-remap-alist '(python-mode . python-ts-mode))
+#+END_SRC
+
+目前 python.el 对 treesit 的支持并不完全，我在 python.el 中找到了一个与 treesit 相关的 =TODO= ，希望 Emacs 30 能进一步完善。目前 python-ts-mode 给我的感受就是代码更加鲜艳了。
+
+** project.el
+
+在看到 [[https://github.com/emacs-mirror/emacs/commit/8cbd4a02a2b9823a6aa7e722af6e3d204f881aed][Delete comment saying that project.el is experimental]] 这个 commit 后，我觉得是时候学一波 project.el 的用法了。也许你听说过一个类似的包：[[https://github.com/bbatsov/projectile][projectile]]，根据作者的评论来看 project.el 应该已经从 projectile “吸收”了不少特性，现在两者在功能上应该没有太大的差距了：
+
+{{{begin_details}}}
+{{{summary(projectile's author's comment on project.el)}}}
+#+BEGIN_QUOTE
+Both projects are very similar these days, although this wasn't always the case, and still Projectile has an edge when it comes to overall functionality and level of configuration. project.el started out small and I recall the original vision for it was to be a barebone library that provides only essential project-management functionality. However, project.el has been slowly been copying many of Projectile's features over the years (and added a few of its own like the xref integration) and now it probably covers the use-case of most people.
+
+For me (the author of Projectile), Projectile's biggest advantage will always be that it's more community-friendly (e.g. the development happens on GitHub), as it's not restricted by the FSF contributor agreement and everyone can easily contribute to the project. Of course, it's hard to compete with a built-in package and maybe Projectile significance will diminish over time. At any rate - Projectile's not going away any time soon and I hope that we'll keep coming up with fun new ideas for it going forward.
+
+P.S. One under-appreciated advantage of Projectile is that it has way more documentation (see https://docs.projectile.mx/projectile/index.html) :-)
+
+[[https://www.reddit.com/r/emacs/comments/nf2k5y/comment/gyo3skj/?utm_source=share&utm_medium=web2x&context=3][bozhidarb -- How does projectile compare to the built-in project.el?]]
+#+END_QUOTE
+{{{end_details}}}
+
+当然，作者在 README 中也提到了 projectile 与内置的 project.el 进行了集成，而且 projectile 的[[https://melpa.org/#/?q=projectile][生态]]看上去还不错的样子，读者有兴趣可以试试 projectile，这里我只对 project.el 进行介绍，毕竟是 vanilla。
+
+*** 如何确定项目的根目录
+
+在我的日常使用中，git 仓库的 .git 目录所在位置就是项目的根目录。当我们在某个 git 目录下的文件中执行 =project-current= 时我们能够得到类似这样的结果：
+
+#+BEGIN_SRC elisp
+  (project-current)
+  => (vc Git "d:/Onedrive/yynotes/")
+#+END_SRC
+
+=project-current= 内部会调用 =project-find-functions= 钩子中的函数来查找项目的根目录，默认情况下该钩子只有一个函数： =project-try-vs= ，它会使用 vc.el 作为后端来查找 VCS 工具的根目录。
+
+*** 文件操作和 buffer 操作
+
+文档的大部分内容都是对命令的介绍，这里我们也简单列举一下吧：
+
+- =C-x p f= (project-find-file), 访问当前项目中的某个文件
+- =C-x p g= (project-find-regexp), 在项目所有文件中进行正则匹配
+- =C-x p r= (project-query-replace-regexp), 在项目所有文件中进行查找替换
+- =C-x p d= (project-dired), 在项目根目录执行 dired
+- =C-x p v= (project-vc-dir), 在项目根目录执行 vc-dir 命令
+- =C-x p s= (project-shell), 在项目根目录启动 Shell
+- =C-x p e= (project-eshell), 在项目根目录启动 Eshell
+- =C-x p c= (project-compile), 在项目根目录运行 compile 命令
+- =C-x p &= (project-async-shell-command), 在项目根目录执行异步 Shell 命令
+- =C-x p != (project-shell-command), 在项目根目录同步执行 Shell 命令
+- =C-x p b= (project-switch-to-buffer), 切换到当前项目的另一 buffer
+- =C-x p C-b= (project-list-buffers), 列出属于当前项目的所有 buffer
+- =C-x p k= (project-kill-buffers), 关闭属于当前项目的所有 buffer
+- =C-x p p= (project-switch-prject), 切换当前 project
+- project-search, 在整个项目中使用正则表达式搜索文本
+
+老实说这些命令都没什么好说的，读者只要试一试就知道怎么用了。网上关于 project.el 的折腾我没有找到多少，只有这一篇：[[https://zhuanlan.zhihu.com/p/438190734][project.el 使用说明]]。
+
+如果你觉得这些按键很难记的话，可以考虑使用 =which-key= 来显示按键，这是一份简单的配置，以及截图示例：
+
+#+BEGIN_SRC elisp
+(use-package which-key
+  :config
+  ;; 通过 C-h 或 ? 才显示 which-key buffer
+  (setopt which-key-show-early-on-C-h t)
+  ;; 仅通过 C-h 触发
+  (setopt which-key-idle-delay 10000)
+  ;; 在随后的按键中迅速响应
+  (setopt which-key-idle-secondary-delay 0.05)
+  ;; 启动全局 which-key-mode
+  (which-key-mode))
+#+END_SRC
+
+[[./1.png]]
+
+** 一些小玩意
+
+（好吧，可能不是那么小...）
+
+通过开启 hs-minor-mode，我们可以使用 python.el 提供的代码折叠功能。它提供了如下按键：
+
+- =C-c @ C-h=, =C-c @ C-d= (hs-hide-block) 折叠当前代码块
+- =C-c @ C-s= (hs-show-block) 展开当前代码块
+- =C-c @ C-c=, =C-c @ C-e=, =S-mouse-2= (hs-toggle-hiding) 切换折叠状态
+- =C-c @ C-M-h=, =C-c @ C-t= (hs-hide-all) 折叠所有代码
+- =C-c @ C-M-s=, =C-c @ C-a= (hs-show-all) 展开所有代码
+- =C-u n C-c @ C-l= (hs-hide-level) 折叠当前块之下的 n 级代码块
+
+如你所见，这些快捷键就不是人按的，而且一般我们一次只会折叠或展开一个函数。我建议直接绑定 =hs-toggle-hiding= 到一个比较容易按的键上，比如 =C-+= 或 =C-c TAB= 。
+
+如果我们打开了 prettify-symbol-mode，那么某些字符序列会显示为另一个符号，比如 =lambda= -> =λ= ，python.el 对 =lambda=, =and= 和 =or= 提供了这样的支持：
+
+#+BEGIN_SRC elisp
+  (defvar python-prettify-symbols-alist
+    '(("lambda"  . ?λ)
+      ("and" . ?∧)
+      ("or" . ?∨))
+    "Value for `prettify-symbols-alist' in `python-mode'.")
+#+END_SRC
+
+imenu 提供了函数或变量跳转功能，在 Python-mode 中我们可以通过 =C-c C-j= 调用 =imenu= ，并选择想要的函数或变量名进行跳转。
+
+我原本打算介绍一下 vc.el，不过 magit 可能更好用，读者有兴趣可以去读读[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Version-Control.html][文档]]。Emacs 同样提供了非常强大的 diff 可视化功能，不过我还没学会，有时间去[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Emerge.html][看看]]。dired 可以用来方便地管理项目中的文件，同样读者如果有兴趣可以学学。
+
+现在我们基本完成了对 Emacs 内置编程支持功能的介绍，下面我会根据具体的任务来选择一些插件进行介绍和推荐。
+
+* 设置虚拟环境
+
+关于虚拟环境的原理，这里有一篇不错的文章：[[https://note.qidong.name/2019/03/python-virtualenv/][Python中的虚拟环境（Virtualenv）及其工作原理]]，我就不赘述了。在虚拟环境管理这个功能实现上， Emacs 有一堆的包：
+
+- [[https://github.com/jorgenschaefer/pyvenv][(unmaintained) pyvenv -- Python virtual environment interface for Emacs]]
+- [[https://github.com/Rokutann/npy.el][(unmaintained) npy.el -- Extensions to Python development support in Emacs]]
+- [[https://github.com/porterjamesj/virtualenvwrapper.el][(unmaintained) virtualenvwrapper.el -- virtualenv tool for emacs]]
+- [[https://github.com/robert-zaremba/auto-virtualenvwrapper.el][auto-virtualenvwrapper.el -- Automatically activate python virtualenv using virtualenvwrapper.el]]
+- [[https://github.com/necaris/conda.el][conda.el -- Emacs helper library (and minor mode) to work with conda environments]]
+- [[https://github.com/pwalsh/pipenv.el][pipenv.el -- A Pipenv porcelain inside Emacs]]
+- [[https://github.com/pythonic-emacs/pyenv-mode][pyenv-mode -- Integrate pyenv with python-mode]]
+- https://github.com/jorgenschaefer/pyvenv
+
+我使用的包管理器是 [[https://github.com/pdm-project/pdm][pdm]]，它提供了一些非常不错的功能。我们可以通过 =pdm run file= 来在 pdm 生成的虚拟环境中执行 Python 代码。这一节我们的任务就是让在 Emacs 中启动的 Python 解释器也能用上 pdm 的虚拟环境，方便我们在虚拟环境中进行开发。
+
+原本我打算从上面选一个来用，后来想了想似乎没有必要弄得这么复杂，结合 emacs 自己的 .dir-locals.el 就可以设置某个项目所使用的虚拟环境，就像这样：
+
+#+BEGIN_SRC elisp
+  ((python-base-mode . ((eval . (setq-local python-shell-virtualenv-root
+					    (file-name-concat
+					     (project-root (project-current))
+					     ".venv")))
+			(eval . (setq-local python-shell-extra-pythonpaths
+					    nil))
+			(eval . (setq-local python-shell-process-environment
+					    nil))
+			)))
+#+END_SRC
+
+通过修改位于 .dir-locals.el 中的 =python-shell-extra-pythonpaths= 和 =python-shell-process-environment= 我们就能添加额外的路径和环境变量给 Emacs 中启动的 Python 解释器。
+
+参考 pyright 的文档，我们可以在 pyproject.toml 中添加 pyright LSP 的配置项。我们可以通过如下配置让它识别当前的虚拟环境：
+
+#+BEGIN_SRC toml
+  [tool.pyright]
+  venvPath = "."
+  venv = ".venv"
+#+END_SRC
+
+我简单制作了一个可以直接 clone 来开始新 Python pdm 项目的 repo：[[https://github.com/include-yy/pdm-template/][pdm-template]]。除了上面的那些包，我还发现了一个泛用的环境管理插件 [[https://github.com/astoff/buffer-env][buffer-env]]，可惜 Windows 上的支持不佳，现就这样凑合着用吧。也许我之后会尝试一下 pyvenv。
+
+关于 Python 包管理器的对比，这里有一篇不错的文章：[[https://dev.to/frostming/a-review-pipenv-vs-poetry-vs-pdm-39b4][A Review: Pipenv vs. Poetry vs. PDM]]。
+
+* 代码检查与格式化
+
+LSP 提供了代码格式化的接口，不过 pyright 没有实现它：[[https://github.com/microsoft/pyright/issues/213][Support Code Formating]]。我们可以考虑使用一些其他的工具来实现它，比如 [[https://black.readthedocs.io/en/stable/integrations/editors.html][black]]。Emacs 中也有进行集成的插件 [[https://github.com/wbolster/emacs-python-black][emacs-python-black]] 和 [[https://github.com/pythonic-emacs/blacken][blacken]]。在安装 blacken 后我们可以使用 =blacken-buffer= 来进行格式化。如果开启了 =baclken-mode= blacken 将会在我们每次保存 buffer 时尝试使用 black 格式化代码，如果开启了一些自动保存插件而且代码中存在错误的话可能会频繁弹出 Error buffer，这里我选择不开启。
+
+既然我们已经在上面使用了 pyright 作为 LSP server，某种意义上来说就没必要专门安装代码检查工具了，LSP 能够提供足够好的错误提示。不过如果我们要检查整个项目的话专门的检查工具还是更好一些。[[https://inventwithpython.com/blog/2022/11/19/python-linter-comparison-2022-pylint-vs-pyflakes-vs-flake8-vs-autopep8-vs-bandit-vs-prospector-vs-pylama-vs-pyroma-vs-black-vs-mypy-vs-radon-vs-mccabe/][这篇文章]]对常用的工具进行了一些介绍。
+
+在对 python.el 的介绍中我们提到了一个命令 =C-c C-v= ，它会调用 =python-check-command= 指定的程序对当前文件进行检查，默认是 pyflakes。我们在按下 C-c C-v 后可以通过修改命令行参数达到指定检查文件的目的。如果想要使用 flake8，mypy 或 pyright 我们可以直接输入，这也算是 Emacs 对“编译” Python 代码提供的最基础的支持了。
+
+我目前找到的这类检查工具与 Emacs 的集成大多是通过 flymake 或 flycheck 集成的，但 LSP 已经提供了大部分的功能，不如考虑增强一下 Emacs 的 Compile 功能。我的想法是添加一个选项菜单来选择各种工具对当前文件或项目进行检查，不过感觉功能太弱，还是留到以后再想想吧。
+
+* 测试工具
+
+Python 有成吨的测试工具，这里我只对用过的 [[https://docs.pytest.org/en/7.4.x/][pytest]] 尝试一下 Emacs 集成。随手一搜我就找到了这些：
+
+- [[https://github.com/wbolster/emacs-python-pytest/][emacs-python-pytest -- run pytest inside emacs]]
+- [[https://github.com/keewis/pytest.el][pytest.el -- Emacs mode for running pytest]]
+- [[https://github.com/ionrock/pytest-el][pytest-el -- Run py.test on testing functions, classes, modules and entire suites in Emacs]]
+
+嗯...... 似乎与 project.el 集成的不错的包还没多少，等到我真正开始重度使用 pytest 的时候再继续吧。
+
+* 在 Emasc 中阅读文档
+
+遇到不会的函数或者问题时我会通过 =webjump= 进行谷歌搜索并在浏览器中浏览文档或问答：
+
+#+BEGIN_SRC elisp
+  (add-to-list 'webjump-sites
+	       '("Google" .
+		 [simple-query "www.google.com"
+			       "www.google.com/search?q=" ""]))
+#+END_SRC
+
+如果仅仅是读函数文档的话在 Emacs 里就能读是最好的，而且文档一般都是纯文本，不需要一些 js 动态特性。[[https://github.com/astoff/devdocs.el][devdocs.el]] 为阅读 [[https://devdocs.io/][devdocs]] 上的文档提供了相当便利的功能，我们可以通过 =devdocs-install= 安装文档，通过 =devdocs-lookup= 阅读文档，这有点像是 =C-h f= 。通过以下代码我们可以为某个 major-mode 指定文档：
+
+#+BEGIN_SRC elisp
+  (add-hook 'python-mode-hook
+	    (lambda () (setq-local devdocs-current-docs '("python~3.9"))))
+#+END_SRC
+
+我现在将 python-mode 的 =C-c C-f= 绑定到了 =devdocs-lookup= 上。
+
+使用 [[https://github.com/chenyanming/shrface][shrface]] 我们可以对 devdocs 显示的文档进行一些美化，不然实在有些难看：
+
+#+BEGIN_SRC elisp
+(use-package shrface
+  :config
+  (shrface-basic)
+  (shrface-trial)
+  (shrface-default-keybindings)
+  (setq shrface-href-versatile t))
+#+END_SRC
+
+[[./2.png]]
+
+（buffer 顶部的提示来自 [[https://github.com/joaotavora/breadcrumb][breadcrumb]]）
+
+* 后记
+
+在本文开始之前我想在 Emacs 中实现类似 PyCharm 相当的效果，为此我还花了一两个小时做完了 PyCharm 的入门教程。现在看来这个目标有些过于不自量力了。某种意义上来说这也算是一种技术选型，从数不尽的 Emacs 包中找到适合自己使用的，要完全覆盖个人需求需要付出不少的精力。感谢 [[https://github.com/jorgenschaefer/elpy][elpy]], [[https://develop.spacemacs.org/layers/+lang/python/README.html][python layer]] 和 [[https://www.emacswiki.org/emacs/PythonProgrammingInEmacs][emacs wiki]] 给我的启发，其中可以说是饱含了过去人的经验。
+
+原本我还打算介绍一下 magit 和 yasnippet，不过它们本身过于庞大，也许最好专门进行介绍。
+
+本文算是我在 Emacs 中写 Python 的第一次正式尝试，如果之后还有进展我应该会继续记录，下一步也许是彻底弄懂 project.el 的功能来方便将其他插件与它集成。
+
+感谢阅读，顺便忆山东兄弟（笑）
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+{{{begin_div}}}
+| [[https://www.pixiv.net/artworks/75976961][file:p2.jpg]] | [[./p3.jpg]] |
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/60575451][file:p1.jpg]]
+{{{end_div}}}
+{{{end_noscript}}}
