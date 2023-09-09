@@ -501,7 +501,6 @@ imenu 提供了函数或变量跳转功能，在 Python-mode 中我们可以通�
 - [[https://github.com/necaris/conda.el][conda.el -- Emacs helper library (and minor mode) to work with conda environments]]
 - [[https://github.com/pwalsh/pipenv.el][pipenv.el -- A Pipenv porcelain inside Emacs]]
 - [[https://github.com/pythonic-emacs/pyenv-mode][pyenv-mode -- Integrate pyenv with python-mode]]
-- https://github.com/jorgenschaefer/pyvenv
 
 我使用的包管理器是 [[https://github.com/pdm-project/pdm][pdm]]，它提供了一些非常不错的功能。我们可以通过 =pdm run file= 来在 pdm 生成的虚拟环境中执行 Python 代码。这一节我们的任务就是让在 Emacs 中启动的 Python 解释器也能用上 pdm 的虚拟环境，方便我们在虚拟环境中进行开发。
 
