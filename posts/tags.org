@@ -76,3 +76,5 @@ Total number of tag is {{{arch_total}}}.
 {{{arch_tag(git)}}}
 ** rescript {{{arch_num(rescript)}}}
 {{{arch_tag(rescript)}}}
+** robot {{{arch_num(robot)}}}
+{{{arch_tag(robot)}}}
