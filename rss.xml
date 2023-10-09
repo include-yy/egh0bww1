@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-09-09T23:46:52</pubDate>
+    <pubDate>2023-10-10T03:20:02</pubDate>
+    <item>
+      <title>在 Emacs 中进行分离式项目环境变量管理 -- direnv</title>
+      <link>https://egh0bww1.com/posts/2023-10-10-46-manage-project-environment-use-direnv</link>
+      <description>本文介绍 direnv 及其 Emacs 集成，来方便地在 Emacs 中分离不同项目的开发环境</description>
+      <category>emacs</category>
+      <pubDate>2023-10-10</pubDate>
+    </item>
     <item>
       <title>使用 emacs 进行 Python 编程</title>
       <link>https://egh0bww1.com/posts/2023-09-09-45-use-emacs-do-python-programming</link>
@@ -68,13 +75,6 @@
       <description>本文是对 Evolution of Emacs Lisp 这篇论文的翻译，这篇文章详细介绍了 Emacs Lisp 语言近 30 年的发展历程</description>
       <category>elisp</category>
       <pubDate>2023-05-21</pubDate>
-    </item>
-    <item>
-      <title>在 emacs 中进行内联</title>
-      <link>https://egh0bww1.com/posts/2023-05-07-36-emacs-inlining</link>
-      <description>本文介绍了使用 emacs 内联机制进行函数内联的方法，主要是基于编译期内联的 defsubst 和宏展开内联的 define-inline</description>
-      <category>elisp</category>
-      <pubDate>2023-05-07</pubDate>
     </item>
   </channel>
 </rss>

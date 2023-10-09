@@ -1,0 +1,398 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 在 Emacs 中进行分离式项目环境变量管理 -- direnv
+#+DATE: [2023-10-07 Sat 21:15]
+
+#+DESCRIPTION: 本文介绍 direnv 及其 Emacs 集成，来方便地在 Emacs 中分离不同项目的开发环境
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/100936088][file:0.jpg]]
+{{{end_noscript}}}
+
+如果我们想要在 VS IDE 外的环境中中执行 MSVC 提供的一系列工具，我们需要找到 msdevcmd.bat 这个文件并在命令行中运行来配置一些必要的环境变量；如果我们想要进入 ROS 环境则需要执行 =source /opt/ros/<distro>/setup.bash= 以及工作空间中的 bash 脚本；如果我们想要进入 Python venv 环境，我们需要执行 Script 或 bin 目录下的 activate 脚本......
+
+要想继承这些环境，我们只需在执行脚本后的 SHELL 中启动 Emacs 即可，但每次都得运行一堆脚本很麻烦，而且 Emacs 中打开的所有文件都会共享这个环境，可能会造成一些奇怪的冲突（虽然现在还没碰到过）。那么有没有方法能够通过一些局部配置文件让某个项目中的文件具有专属环境呢？这也就是本文将要介绍的工具：direnv。通过合理的使用我们可以让 Emacs 中的 buffer 自动获取它的所属环境并正确执行对应的操作。我写这篇介绍文章的主要目的也是为了能够让 Emacs 应付不同的 ROS workspace，而不用在 .bashrc 中添加 =source ~/catkin_ws/devel/setup.bash= 。
+
+本文的内容包括对 Emacs 利用环境变量的具体细节介绍、对环境管理工具 direnv 的介绍，以及具体的使用介绍。如果读者只对使用感兴趣可以直接移步至文章后半段。由于 direnv 只对 Linux 下的 SHELL 提供了比较好的支持，关于工具的部分本文将在 Ubuntu 环境中完成。本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+- Windows 10
+- GNU Emacs 29.1 (build 2, x86_64-pc-linux-gnu, GTK+ Version 3.24.20, cairo version 1.16.0) of 2023-09-22
+- Ubuntu 20.04
+
+{{{toc}}}
+
+* Emacs 提供的基础设施
+
+这一节中我会介绍一些和本文内容相关的 Emacs 功能，算是我自己对资料的一些整理，对读者的帮助可能不是很大，可以跳过。
+
+** 各种各样的 local 变量
+
+在 Emacs 中除了全局变量和局部变量外还有其他作用域的变量，根据范围的不同可以分为 buffer-local 变量，file-local 变量，directory-local 变量等等。下面我会对它们进行简单的介绍，并给出一些例子。
+
+buffer-local 变量指的是与某个特定 buffer 关联的变量，它仅在该 buffer 中生效。在其他位置的同名变量则是全局绑定，它也被称为 /default binding/ 。一般来说 buffer-local 变量被 major-mode 用来控制一些命令的行为，比如在 c-mode 和 lisp-mode 中的 =paragraph-start= 就被设置为了不同的值来达到不同的效果：
+
+#+BEGIN_SRC elisp
+  ;; paragraph-start in c-mode
+  "[ 	]*\\(//+\\|\\**\\)[ 	]*$\\|^"
+  ;; paragraph-start in lisp-mode
+  "\\|[ 	]*$"
+#+END_SRC
+
+我们可以通过 =make-local-variable= 来使某个变量成为当前 buffer 的局部变量，或者使用 =make-variable-buffer-local= 来让变量在所有 buffer 被创建时自动成为 bufer-local 变量。buffer-local 变量在创建时与它同名的全局变量有相同的 *值* 。如果我们要在已有局部变量的 buffer 中修改同名的全局变量，我们需要使用 =setq-default= 而不是 =setq= 。
+
+除了上面这些函数，Emacs 还为我们提供了一些更加方便的函数或宏，可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Buffer_002dLocal.html][Creating and Deleting Buffer-Local Bindings]]，这里就不一一介绍了。
+
+所谓的 file-local 变量其实就是 buffer-local 变量，只不过我们可以通过文件中的文本来直接指定它，而不是通过函数或命令调用。如果你写过一点 elisp 你可能会知道要在 el 文件的开头添加 =;; -*- lexical-binding:t; -*-= 来开启词法作用域，这就是一种指定 file-local 变量的方式。
+
+除了在开头通过 =var:val;= 的形式添加 file-local 变量外，我们也可以在文件结尾处添加，比如通过 =C-h h= 打开的各语言 Hello 文件的末尾就有如下内容：
+
+#+BEGIN_SRC text
+  ;;; Local Variables:
+  ;;; tab-width: 42
+  ;;; bidi-display-reordering: t
+  ;;; coding: utf-8
+  ;;; inhibit-compacting-font-caches: t
+  ;;; End:
+#+END_SRC
+
+关于 file-local 变量还有一些额外的内容，这里我也不进行介绍，感兴趣的同学可以读读 Elisp Manual，尤其是对一些特殊形式的[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html][说明]]。
+
+至于 directory-local 变量本质上也是 buffer-local 变量，只不过相比于在文件中指定的 file-local 变量，我们需要在目录中的 =.dir-local.el= 中指定它。所有在该目录及其子目录中的文件在 Emacs 中打开时将会设置这些变量为 buffer-local 变量，从而达到设置特定于目录的变量的目的。 =.dir-local.el= 文件需要遵守以下格式：
+
+#+BEGIN_SRC elisp
+  ((nil . ((indent-tabs-mode . t)
+	   (fill-column . 80)
+	   (mode . auto-fill)))
+   (c-mode . ((c-file-style . "BSD")
+	      (subdirs . nil)))
+   ("src/imported"
+    . ((nil . ((change-log-default-name
+		. "ChangeLog.local"))))))
+#+END_SRC
+
+它会建立 major-mode 到 =(var . val)= alist 映射关系，其中 mode 处的 =nil= 表示用于所有的 major-mode，它为子目录字符串则表示仅用于某子目录。在 alist 中我们也可以使用 eval 来表示进行一些求值，以下是我用来设置 python.el 中的目录对应虚拟环境的代码：
+
+#+BEGIN_SRC elisp
+  ((python-base-mode . ((eval . (setq-local python-shell-virtualenv-root
+					    (file-name-concat
+					     (project-root (project-current))
+					     ".venv")))
+			(eval . (setq-local python-shell-extra-pythonpaths
+					    nil))
+			(eval . (setq-local python-shell-process-environment
+					    nil))
+			)))
+#+END_SRC
+
+关于 directory-local 变量的详细说明可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Directory-Variables.html][Per-Directory Local Variables]]。
+
+通过使用各种 local 变量我们能够在局部创建出不同于全局的选项或设定，从而达到不同环境设定的目的。但光是这些基础功能用起来肯定是不够方便直白的，尤其是对于不懂 elisp 的人来说。
+
+关于局部变量的介绍，这里有个不错的视频：[[https://www.youtube.com/watch?v=tw2-rI2bxSg][Emacs Tips - How to Use File and Directory Local Variables]]。
+
+** 环境变量管理
+
+当 Emacs 启动时它会继承当前环境并将它们存储在 =process-environment= 中，它是一个包含各环境变量的列表，格式为 =ENVVARNAME=VALUE= ：
+
+#+BEGIN_SRC elisp
+  process-environment
+  =>
+  ("TERM=dumb" "windir=C:\\WINDOWS" "USERPROFILE=C:\\Users\\biped"
+  "USERNAME=biped" "USERDOMAIN_ROAMINGPROFILE=DESKTOP-CTNLMV4"
+  "USERDOMAIN=DESKTOP-CTNLMV4"
+  "TMP=C:\\Users\\biped\\AppData\\Local\\Temp"
+  "TEMP=C:\\Users\\biped\\AppData\\Local\\Temp" "SystemRoot=C:\\WINDOWS"
+  "SystemDrive=C:" "SESSIONNAME=Console" "PUBLIC=C:\\Users\\Public" ...)
+#+END_SRC
+
+这些环境变量也会被 Emacs 的子进程继承。我们可以通过 =getenv= 获取某个环境变量，并通过 =setenv= 来设置某个环境变量， =setenv= 会修改 =process-envronment= ：
+
+#+BEGIN_SRC elisp
+  (setenv "YY" "hello-world") => "hello-world"
+  (getenv "YY") => "hello-world"
+
+  (setenv "YY" "goodbye-world") => "goodbye-world"
+  (getenv "YY") => "goodbye-world"
+
+  (setenv "YY") => nil
+  (getenv "YY") => nil
+#+END_SRC
+
+Emacs 在启动子进程（通过 =call-process= 或 =start-process= ）时，会使用 =exec-path= 来搜索可执行文件，它是一个包含可执行文件目录的列表。简单比对 =process-environment= 和 =exec-path= 的值很容易注意到 =exec-path= 就是 =process-environment= 中的 =PATH= （前提是不在 Emacs 内修改它们的值）。
+
+我们可以使用 =with-environment-variables= 创建临时的环境变量来遮蔽 =process-environment= 中的一些变量，这是官方文档中给出的例子：
+
+#+BEGIN_SRC elisp
+  (with-environment-variables (("LANG" "C")
+			       ("LANGUAGE" "en_US:en"))
+    (call-process "ls" nil t))
+#+END_SRC
+
+除此之外，直接 =let= 动态绑定 =process-environment= 也可。我们可以通过 =getenv= 和 =setenv= 来获取或修改 Emacs 的 =process-environment= 来影响创建的子进程的行为，通过修改 =exec-path= 来影响 Emacs 查找可执行文件的搜索目录。
+
+*** 创建“局部”环境
+
+如果我们想要让每个 buffer 都具有独立的环境，那么可以考虑将 =process-environment= 设为 buffer-local 并添加或删除变量，这样在该 buffer 中执行的命令会位于 buffer-local 环境之下（由于修改 =process-environment= 不会影响 =exec-path= ，我们也许同时需要对 =exec-path= 进行相同的操作）。stackoverflow 上的一条[[https://stackoverflow.com/questions/16786831/how-can-i-set-environment-variables-to-a-buffer-local-scope-in-emacs][问答]]给出了如下的示例代码，它可用于为不同 bufffer 设定不同的环境：
+
+#+BEGIN_SRC elisp
+  ;; https://stackoverflow.com/questions/16786831/how-can-i-set-environment-variables-to-a-buffer-local-scope-in-emacs
+  ;; You can do this by making process-environment buffer-local:
+
+  (defun setup-some-mode-env ()
+    (make-local-variable 'process-environment)
+    ;; inspect buffer-file-name and add stuff to process-environment as necessary
+    ...)
+  (add-hook 'some-major-mode 'setup-some-mode-env)
+
+  ;; A more elaborate example is this code that imports the Guile
+  ;; environment setup created by an external script. The script is
+  ;; designed to be "sourced" in the shell, but here its result gets
+  ;; imported into a single Emacs buffer:
+
+  (defun my-guile-setup ()
+    (make-local-variable 'process-environment)
+    (with-temp-buffer
+      (call-process "bash" nil t nil "-c"
+	    "source ~/work/guileenv; env | egrep 'GUILE|LD_LIBRARY_PATH'")
+      (goto-char (point-min))
+      (while (not (eobp))
+	(setq process-environment
+	  (cons (buffer-substring (point) (line-end-position))
+	    process-environment))
+	(forward-line 1))))
+
+  (add-hook 'guile-hook 'my-guile-setup)
+#+END_SRC
+
+这里需要说明的是，创建的 buffer-local 变量与原变量具有相同的 *值* ，这也就意味着不同 buffer 中的 local =process-environment= 会共享一个列表。因此在让 =process-environment= 成为 buffer-local 后不要直接使用 =setenv= 对它进行修改，而是创建一个副本后修改或者在不修改原有结构的基础上添加新变量，后者就像上面的代码展示的那样。这算是我在搜索过程中的小小收获：[[https://emacs.stackexchange.com/questions/35964/how-can-i-get-buffer-local-environment-variables-via-dir-locals][How can I get buffer-local environment variables via .dir-locals?]]
+
+#+BEGIN_SRC elisp
+  ;; Both the buffer-local and the global variable are initially
+  ;; pointing to the same cons cell / list. If setenv pushes a new value
+  ;; to the front of the list, that would only be reflected in the local
+  ;; list value (the global value would effectively point to the cdr of
+  ;; the local value) in which case your code should work as desired;
+  ;; however if setenv is modifying an existing element further down the
+  ;; list, that change will be reflected in both values.
+
+  ;; You can avoid this by making a copy of the list.
+  (eval . (progn
+	    (make-local-variable 'process-environment)
+	    (setq process-environment (copy-sequence process-environment))
+	    (setenv "gna" "gnagna3")))
+#+END_SRC
+
+如果我们将上面的代码添加到某一目录中的 .dir-local.el 文件中，那么该目录以及子目录中的文件在 Emacs 中被打开时都会执行这一设定，这样一来目录中的所有文件都将具有新的 =process-environment= 。某种意义上来说 .dir-local.el 实现了最基本的项目配置。
+
+** 一些管理环境的插件
+
+我可不认为只有我一个人想要在 Emacs 中打开多个项目中的多个文件时还能保有它们的项目环境信息。这一节中我会介绍一些搜罗到的插件或代码片段，关于 direnv 的插件不在此列，我会在后文对它们专门进行介绍。
+
+需要说明的是，我可能没有试用下面的某些插件，因此读者可能会碰到一些使用上的问题，从而与我的叙述不一致。
+
+*** dotenv
+
+[[https://github.com/motdotla/dotenv][dotenv]] 是一种用来管理环境变量的工具，我们只需在项目中添加 =.env= 就可以配置环境了。文档中给出的例子如下：
+
+#+BEGIN_SRC js
+  // code in .env
+  S3_BUCKET="YOURS3BUCKET"
+  SECRET_KEY="YOURSECRETKEYGOESHERE"
+
+  // index.js
+  require('dotenv').config()
+  console.log(process.env['S3_BUCKET'])
+  console.log(process.env['SECRET_KEY'])
+
+  // output
+  YOURS3BUCKET
+  YOURSECRETKEYGOESHERE
+#+END_SRC
+
+通过解析并加载当前目录（或者说项目）下的 =.env= 文件，我们可以在 node 实例中使用 =.env= 中指定的环境变量，这样就实现了环境的分别设定。
+
+在 Emacs 中有这样一个包 [[https://github.com/pkulev/dotenv.el][dotenv.el]]，它能够将通过 =.env= 指定的环境加载到 Emacs 中。它主要通过 =dotenv-update-project-env= 来实现环境加载的功能，而该函数在内部调用了 =dotenv-update-env= ：
+
+#+BEGIN_SRC elisp
+  (defun dotenv-update-env (env-pairs &optional override)
+    "Update env with values from ENV-PAIRS.
+
+  If OVERRIDE is true then override variables if already exists."
+    (dolist (pair env-pairs)
+      (cl-destructuring-bind (key value) (dotenv-transform-pair pair)
+	(when (or override (null (getenv key)))
+	  (setenv key value)))))
+#+END_SRC
+
+可见它的基本原理是通过载入的环境变量键值对来修改 =process-environment= ，而且它进行的修改是全局的，从效果上来说它和 js 中的 dotenv 很像，都实现了当前实例的环境变量设定，但这与我的目标还有些差距：我希望实现每个项目拥有各自的环境。
+
+除了 dotenv.el 我还找到了一个叫做 [[https://github.com/amodelbello/dot-env.el][dot-env.el]] 的包，它只实现了对 =.env= 内容的提取而没有修改当前的 Emacs 环境；还有一个叫做 [[https://github.com/preetpalS/emacs-dotenv-mode][emacs-dotenv-mode]] 的包，它提供了编辑 =.env= 的 major-mode；还有一个叫做 [[https://github.com/diasjorge/emacs-load-env-vars][load-env-vars]] 的包，似乎是使用了一种自创格式的环境变量文本。
+
+*** nix
+
+如果你对一些比较小众的 Linux 比较感兴趣的话，你应该听说过 Nix 的大名。Nix 是一个声明式的包管理器，而 NixOS 是基于 Nix 构建的 Linux 发行版。我当时了解到 Nix 是因为它所谓的纯函数式包管理，可以y通过配置文件“还原”整个系统，听起来非常牛逼（那么代价是什么呢），通过 Nix 可以非常方便地控制开发环境：[[https://nix.dev/tutorials/first-steps/dev-environment][Set up a development environment]]。
+
+我目前只在虚拟机上安装过 Nix，而且还没有写过一行 Nix 代码，只是尝鲜试了试安装 KDE 和 GNome。因此我没法给读者提供什么有用的 Nix 教程，这里推荐一些不错的文章：
+
+- [[https://zhuanlan.zhihu.com/p/631692442][包构建/管理系统简史]]
+- [[https://nixos-and-flakes.thiscute.world/zh/introduction/][Nix 与 NixOS 简介 | NixOS 与 Flakes]]
+- [[https://www.zhihu.com/question/279855101/answer/475896416][如何评价 Nix ？]]
+
+有一个叫做 [[https://github.com/shlevy/nix-buffer][nix-buffer]] 的和 Nix 配合的 Emacs 包，它可以使用 dir-local.nix 文件控制 buffer 的环境，由于我对 Nix 一窍不通这里也只是告诉读者有这个包。下面是仅有的和这个包有关的两篇博客：
+
+- [[https://blog.jethro.dev/posts/nix_buffer_emacs/][Using nix-buffer with Emacs]]
+- [[https://matthewbauer.us/blog/nix-buffer.html][nix-buffer: nix-shell in Emacs]]
+
+其中一篇中作者还吐槽 direnv 不够细...
+
+#+BEGIN_QUOTE
+In this case direnv doesn’t let me load different environments for different files.
+
+https://blog.jethro.dev/posts/nix_buffer_emacs/
+#+END_QUOTE
+
+*** exec-path-from-shell
+
+[[https://github.com/purcell/exec-path-from-shell][exec-path-from-shell]] 是 purcell 写的一个包，用来从脚本执行后的环境中获取需要的环境变量。它会将环境添加到 Emacs 全局中，因此这里我就不详细介绍了。
+
+*** dir-local-env.el
+
+（在搜索 =dir-local.nix= 时这玩意从我对搜索列表中蹦了出来，算是意外收获吧，这是关于它的讨论帖子：[[https://www.reddit.com/r/emacs/comments/t7tyhk/announcing_dirlocalenvel_set_directorylocal/][Announcing "dir-local-env.el", set directory-local variables without a ".dir-locals.el" file (for example from within "init.el")]]）
+
+如前文所述，我们可以使用 =.dir-locals.el= 设置某个目录内所有 buffer 的 buffer-local 变量，并以此达到控制项目环境的目的，而这个包在某种意义上提供了增强操作。此包目前还是实验状态，源文件里甚至没有 =provide= 还得手动 =load= 。如果我在测试过程中发现它可堪一用，也许我会在之后的文章中对它进行改进以及介绍，由于本文的重点不在这里，让我们就此打住吧。
+
+* direnv 的 Emacs 集成
+
+关于 direnv 的介绍，我认为[[https://direnv.net/][官方文档]]说的已经够清楚了，就是在进入目录时查找 =.envrc= 文件并进行激活，在退出目录时撤销掉对环境的修改，这样我们就不用手动运行激活脚本了。这里也有一篇[[https://www.jianshu.com/p/efbc215f65ef][中文教程]]。
+
+在 Ubuntu 上我们只需要如下命令即可安装 direnv：
+
+#+BEGIN_SRC text
+  sudo apt install direnv
+#+END_SRC
+
+我们可以通过在 =.bashrc= 中添加如下内容来启动 direnv：
+
+#+BEGIN_SRC bash
+  eval "$(direnv hook bash)"
+#+END_SRC
+
+在完成以上操作并跟着官方文档中的 [[https://direnv.net/#quick-demo][quick demo]] 体验一遍 direnv 的作用后，你就基本掌握了它的使用。[[https://github.com/direnv/direnv/blob/master/man/direnv-stdlib.1.md][这里]]还有 direnv 提供的一些方便函数可供使用。 =.envrc= 本质上就是一个 SHELL 脚本，而 direnv 可以获取脚本执行后的环境，并将其设定为当前 SHELL 的环境。
+
+目前我能找到的 Emacs 插件有以下这几个：
+
+- [[https://github.com/wbolster/emacs-direnv][emacs-direnv -- direnv integration for emacs]]
+- [[https://github.com/purcell/envrc][envrc -- Emacs support for direnv which operates buffer-locally]]
+- [[https://github.com/astoff/buffer-env][buffer-env -- Buffer-local process environments for Emacs]]
+
+下面让我们分别介绍一下。
+
+** emacs-direnv
+
+整个 direnv.el 只有 300 多行，分析起来并不复杂，读者如果有兴趣可以去读一读。根据文档的说法， =direnv-update-environment= 会根据当前文件对 Emacs 环境进行更新，而且如果我们打开 =direnv-mode= 这个全局 minor-mode，那么 Emacs 环境总会与当前文件所在位置的环境匹配。当环境发生改变时，direnv.el 会像 direnv 一样输出变更信息。我原本设想每个 buffer 都有自己的 =process-environment= 和 =exec-path= 变量，现在看来这种做法也不错（笑）。
+
+除了提供环境切换功能，direnv.el 还提供了编辑 =.envrc= 文件的极简 major-mode，叫做 direnv-envrc-mode，当我们打开 =.envrc= 文件时它会自动成为 major-mode：
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (define-derived-mode direnv-envrc-mode
+    sh-mode "envrc"
+    "Major mode for .envrc files as used by direnv.
+
+  Since .envrc files are shell scripts, this mode inherits from ‘sh-mode’.
+  \\{direnv-envrc-mode-map}"
+    (font-lock-add-keywords
+     nil `((,(regexp-opt direnv-envrc-stdlib-functions 'symbols)
+	    (0 font-lock-keyword-face)))))
+
+  ;;;###autoload
+  (add-to-list 'auto-mode-alist '("\\.envrc\\'" . direnv-envrc-mode))
+#+END_SRC
+
+direnv.el 还提供了一些配置选项，README 已经讲的非常清楚了，这里我就不再赘述了。
+
+*** 用于 ROS 的 .envrc
+
+总所周知，开启 ROS1 环境需要执行两个脚本，分别是 ROS1 全局脚本和 ROS1 的工作区脚本，前者将 ROS1 中的各种库路径添加到环境中，后者将当前工作区的库路径添加到环境中：
+
+#+BEGIN_SRC bash
+  source /opt/ros/noetic/setup.bash
+  source ~/catkin_ws/devel/setup.bash
+#+END_SRC
+
+（感谢 KZK 的[[https://qiita.com/kazuki21057/items/fe40192beced06b2e723][教程]]。）
+
+将以上两行代码添加到 ROS 工作区所在目录的 =.envrc= 文件中，并执行 =direnv allow= ，随后在 Emacs 中开启 =direnv-mode= ，当我们进入到工作区项目时 direnv-mode 会提示我们加入的变量，当我们移动到其他非工作区目录内文件时 direnv-mode 会提示我们移除的变量，就像这样：
+
+| [[./1.png]] | [[./2.png]] |
+
+如果我们只想在某个 Python 虚拟环境中执行这段 Python 代码，我们还可以添加 venv 激活脚本的 source 命令到 =.envrc= 中。如果我们不想在变更 buffer 时显示 direnv 修改的环境，我们可以设置 =direnv-always-show-summary= 为 =nil= 。
+
+** envrc
+
+老实说 direnv.el 给我带来的体验非常惊艳，我再也不需要一遍遍敲这些脑残命令或者添加到 =.bashrc= 中了。但是既然其他的包是存在的，也许有必要货比三家一下。下面让我们看看 envrc。
+
+与 direnv.dl 不同的是，envrc 采取了将环境变量设为 buffer-local 的思路：
+
+#+BEGIN_QUOTE
+This library is like the direnv.el package, but sets all environment variables buffer-locally, while direnv.el changes the global set of environment variables after each command.
+
+direnv.el switches that global environment using values from direnv when the user performs certain actions, such as switching between buffers in different projects.
+
+In practice, this is simple and mostly works very well. But there are some quirks, and it feels wrong to me to mutate the global environment in order to support per-directory environments.
+
+https://github.com/purcell/envrc#envrcel---buffer-local-direnv-integration-for-emacs
+#+END_QUOTE
+
+如果 .envrc 中的指令执行速度较慢这种 buffer-local 思路显然在时间上更加划算，空间换时间了属于是，不过我并不是太清楚具体的实现，此处也没法做出比较详细的对比。在 envrc 中我们需要使用 =envrc-global-mode= 来开启 global minor mode。以下是 envrc 在不生效和生效时 modeline 的显示效果：
+
+[[./3.png]]
+
+envrc 提供了 =envrc-reload= （重新加载环境）， =envrc-allow= （允许当前环境下的 .envrc 文件生效）和 =envrc-deny= （和 =envrc-allow= 作用相反）等命令，我们可以将这些命令绑定在某个按键上：
+
+#+BEGIN_SRC elisp
+  (with-eval-after-load 'envrc
+    (define-key envrc-mode-map (kbd "C-c e") 'envrc-command-map))
+#+END_SRC
+
+由于没有环境切换时弹出的 minibuffer，它给我的观感似乎比 direnv.el 还要更好一些。
+
+** buffer-env
+
+buffer-env 是一个比较新的包，在我观察时它似乎总是在更新（现在是 2023 年 10 月 10 日）。以下内容来自 README 的开头：
+
+#+BEGIN_QUOTE
+With this package, you can teach Emacs to call the correct version of external programs such as linters, compilers and language servers on a per-project basis. Thus you can work on several projects in parallel with no undue interference and switch seamlessly between them.
+#+END_QUOTE
+
+相比 direnv.el 和 envrc 与 direnv 的强绑定， =buffer-env= 在 README 中强调它与 direnv 是独立的，我们也可以使用其他的环境指定，比如 Python 的 venv， =.env= 文件或其他构建工具。这也就意味着我们甚至可以在 Windows 上使用它，如果之后有机会我可能会详细介绍一下它的实现。
+
+同样，buffer-env 也提供了可见的 modeline，如下所示：
+
+[[./4.png]]
+
+通过点击这个 Env 我们可以在 =*Help*= buffer 中显示局部环境（内部调用了 =buffer-env-describe= ）：
+
+[[./5.png]]
+
+就我个人来看 direnv.el, envrc 和 buffer-env 三个包之间还是有比较清晰的发展脉络的，目前 buffer-env 的版本才到 v0.5，功能还不是很多，希望它能继续发展下去，目前我还是先用着 envrc 吧。
+
+* 后记
+
+在 direnv README 的 [[https://direnv.net/#related-projects][Related projects]] 处提到了一些具有类似功能的包，其中我比较感兴趣的是 [[https://shopify.github.io/shadowenv/][shallowenv]]，它使用了一种 LISP 来编写配置文件，不过这可能和现有的脚本配合的不是很好，但我也没试过，这里就不妄下断言了。它似乎还提供了 Emacs 集成，有时间去试试。
+
+通过这一通折腾，我总算是不用在 Ubuntu 下敲 ROS1 那狗屎的 setup.bash 了，感谢 Emacs 生态，感谢 purcell 和在此方向做出过努力的人。
+
+/Thanks for reading~/
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+| [[https://www.pixiv.net/artworks/22804322][file:f1.jpg]]  | [[https://www.pixiv.net/artworks/6194788][file:f8.jpg]] | [[https://www.pixiv.net/artworks/75784680][file:f9.jpg]] |
+| [[https://www.pixiv.net/artworks/96264245][file:f12.jpg]] | [[https://www.pixiv.net/artworks/30535734][file:f5.jpg]] | [[https://www.pixiv.net/artworks/98964721][file:f6.jpg]] |
+| [[https://www.pixiv.net/artworks/47083826][file:f11.jpg]] | [[https://www.pixiv.net/artworks/40238587][file:f2.jpg]] | [[https://www.pixiv.net/artworks/45795267][file:f3.jpg]] |
+| [[https://www.pixiv.net/artworks/68390656][file:f10.jpg]] | [[https://www.pixiv.net/artworks/57915026][file:f7.jpg]] | [[https://www.pixiv.net/artworks/103270896][file:f4.jpg]] |
+{{{end_noscript}}}
