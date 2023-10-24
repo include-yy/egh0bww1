@@ -5,7 +5,21 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-10-10T03:20:02</pubDate>
+    <pubDate>2023-10-25T00:42:11</pubDate>
+    <item>
+      <title>Compilation of Unitree GO1 Information, Simulation Environment Construction, and Physical Robot Dog Control via ROS</title>
+      <link>https://egh0bww1.com/posts/2023-10-25-unitree-go1-collection-en</link>
+      <description>This article compiles various resources about the Unitree GO1 robotic dog, providing a comprehensive guide to setting up the simulation environment, as well as methods for controlling the Unitree GO1 robot via ROS</description>
+      <category>robot</category>
+      <pubDate>2023-10-25</pubDate>
+    </item>
+    <item>
+      <title>unitree GO1 资料整理、仿真环境搭建、以及通过 ROS 控制实体机器狗</title>
+      <link>https://egh0bww1.com/posts/2023-10-24-unitree-go1-collection</link>
+      <description>本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法</description>
+      <category>robot</category>
+      <pubDate>2023-10-24</pubDate>
+    </item>
     <item>
       <title>在 Emacs 中进行分离式项目环境变量管理 -- direnv</title>
       <link>https://egh0bww1.com/posts/2023-10-10-46-manage-project-environment-use-direnv</link>
@@ -61,20 +75,6 @@
       <description>本文总结了 emacs 中的一些数学函数，方便查找</description>
       <category>elisp</category>
       <pubDate>2023-06-12</pubDate>
-    </item>
-    <item>
-      <title>JSDeferred in Emacs</title>
-      <link>https://egh0bww1.com/posts/2023-06-11-38-emacs-async-emacs-deferred</link>
-      <description>本文对 JSDeferred 的实现原理进行了简单介绍并在 Emacs 中实现了一个简化版本，同时介绍了已有的实现 deferred.el</description>
-      <category>elisp</category>
-      <pubDate>2023-06-11</pubDate>
-    </item>
-    <item>
-      <title>【翻译】Evolution of Emacs Lisp</title>
-      <link>https://egh0bww1.com/posts/2023-05-21-37-tr-evolution-of-emacs-lisp</link>
-      <description>本文是对 Evolution of Emacs Lisp 这篇论文的翻译，这篇文章详细介绍了 Emacs Lisp 语言近 30 年的发展历程</description>
-      <category>elisp</category>
-      <pubDate>2023-05-21</pubDate>
     </item>
   </channel>
 </rss>

@@ -1,0 +1,619 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: robot
+
+#+TITLE: unitree GO1 资料整理、仿真环境搭建、以及通过 ROS 控制实体机器狗
+#+DATE: [2023-09-29 Fri 20:41]
+
+#+DESCRIPTION: 本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法
+
+我对于折腾 ROS 没有非常狂热的兴趣，只知道它是个用的很多的机器人通信框架（当然这个认识肯定不准确），一直以来也就知道 =source= 一下 setup.bash 和敲个 =catkin_make= ，仅仅读完了 Wiki 上的 tutorial 的水平。某天同学要在 unitree GO1 上验证一下一个轨迹生成算法，但他对 Linux 和 ROS 一窍不通，遂向我寻求合作。正好刚刚完成了 Emacs 上 Python 和 C++ 环境的配置，不如试试这玩意怎么弄，顺便学学 ROS 知识。
+
+虽说整个过程实际上并不怎么复杂，但对我这个半吊子来说土坑基本等于陷阱，整个过程弄完还是费了不少劲。本文总结了一些关于 unitree GO1 的官方或非官方资料，详细介绍了如何使用官方提供的包在 ROS 上进行仿真，以及如何使用 ROS 控制真正的 GO1 机器狗。除了这些外，本文还简单介绍了如何从源码编译 ROS，这也许可以用于在非 Ubuntu 20.04 的 Linux 系统上运行 GO1 相关代码。
+
+本文使用的基本环境如下：
+
+- ROS noetic
+- Ubuntu 20.04 LTS
+
+{{{toc}}}
+
+* 一些文档和资源
+
+本文并不假设读者具有非常专业的 ROS 技能，但至少还是得有一点。如果读者完全没有用过 ROS，那么希望下面的链接能有助于你开始学习 ROS：
+
+- [[http://wiki.ros.org/ROS/Tutorials][ROS Tutorials -- ROS.org]]
+  - 这应该是最权威的入门教程了（毕竟是 Wiki），但对编程或 Linux 初学者来说可能并不是很好，如果读者对 Linux 不熟悉的话可以看看 Wiki 给出的[[http://www.ee.surrey.ac.uk/Teaching/Unix/][教程]]
+- [[https://www.mathworks.com/help/ros/getting-started-with-ros-toolbox.html?s_tid=CRUX_lftnav][Get Start with ROS Toolbox -- Mathworks]]
+  - Matlab 的文档质量一般都非常高，都是非常不错的学习资料。尤其是考虑到可能会使用 simulink 的情况下，此时能够从 Matlab 中直接进行 ROS 通信显然是非常方便的
+- [[https://github.com/sychaichangkun/ROS_Resources][ROS_Resources -- A collection of ROS teaching materials]]
+  - 一个收集了一些 ROS 入门参考资料的 repo，其中有一些比较有名的学校的教程，但是我都没有看过，在此不做评价
+- 一些社区
+  - [[https://www.guyuehome.com/][古月居 -- ROS机器人知识分享社区]]，似乎是一个综合性的机器人/ROS 社区，没怎么仔细逛过
+  - [[https://fishros.com/][鱼香 ROS 机器人]]，似乎是一个提供 ROS 资料以及安装工具的社区，没有仔细了解过
+- [[https://crascit.com/professional-cmake/][Professional CMake]]
+  - 由于 ROS 的构建工具是基于 CMake 的，多了解一些知识没什么坏处，当然完整地读完这本书没有什么意义，花几个小时翻翻差不多得了
+
+本文假设读者具有基础的 Python/C++ 编程知识和经验，毕竟这应该是 ROS 编程的两门主流语言。如果没有的话，希望下面的资料有助于入门：
+
+- [[https://docs.python.org/3/tutorial/index.html][The Python Tutoral -- Python 3.12.0 documentation]]
+  - Python 的官方入门教程，学一遍应该就会 Python 了
+- [[https://en.wikipedia.org/wiki/Core_Python_Programming][Core Python Programming(Python 核心编程)]]
+  - 也许可以算作进阶用书
+- [[https://www.oreilly.com/library/view/c-primer-fifth/9780133053043/][C++ Primer 5th edition]]
+  - 经典 C++ 入门书籍
+
+关于 unitree GO1 机器狗的文档大部分可以在 [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1][YushuTechUnitreeGo1]] 这个 Repo 中找到，此 repo 几乎搜集了所有 GO1 机器狗的相关资料：可以在 GO1 的售后（AfterSalesSupport）文件夹中找到相关的 PDF 资料。这里贴几个比较重要的文档：
+
+- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/Go1%20User%20Manual%201.4.pdf][Go1 User Manual 1.4]]，介绍了机器狗的组成与使用方法
+- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/Go1%20datasheet%203.0.pdf][Go1 datasheet 3.0]]，介绍了机器人组成机构的详细参数
+- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/AfterSalesSupport/Go1/EDUseries/Go1_Software_Manual_202112/software_manual_20211201.pdf][software_manual]]，GO1 的开发手册
+- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/AfterSalesSupport/Go1/EDUseries/Go1_Software_Manual_202112/unitree_legged_sdk_manual_20211204.pdf][unitree_legged_sdk_manual]]，控制 GO1 机器人的软件开发包文档
+
+可以在 [[https://github.com/unitreerobotics][unitreerobotics]] 中找到所有的 unitree 官方 SDK 或示例代码。和本文关系比较大的只有 [[https://github.com/unitreerobotics/unitree_ros][unitree_ros]], [[https://github.com/unitreerobotics/unitree_guide][unitree_guide]], [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]] 和 [[https://github.com/unitreerobotics/unitree_legged_sdk][unitree_legged_sdk]]。
+
+我相信读者应该有足够的财力 *或者* 能力来获取上面的资源（笑）。
+
+* unitree GO1 代码包及其提供的功能
+
+虽说我们只需要把包准备好开始跑仿真就行了，不过如果需要进一步的二次开发的话，我们还是有必要了解一下包提供的功能，这一节我简单给出各个包与文档的对应关系，方便查找。
+
+- unitree_legged_sdk 提供直接控制机器狗 GO1 的方法，具体内容可以参考 /software_manual/ 的第 2 节
+
+- unitree_ros 提供 gazebo 仿真环境，可通过其他 ROS 节点向 gazebo 发送控制信号来达到控制机器狗的目的。但是 unitree_ros 仅提供低级控制功能，这意味着我们必须同时协同控制机器狗上的 12 个电机才能实现正常的移动，而这需要我们编写一个完整的控制器
+
+  #+BEGIN_QUOTE
+  Here are the ROS simulation packages for Unitree robots, You can
+  load robots and joint controllers in Gazebo, so you can perform
+  low-level control (control the torque, position and angular
+  velocity) of the robot joints. *Please be aware that the Gazebo
+  simulation cannot do high-level control, namely walking.* Aside from
+  these simulation functions, you can also control your real robots in
+  ROS with the unitree_ros_to_real packages. For real robots, you can
+  do high-level and low-level control using our ROS packages.
+
+  [[https://github.com/unitreerobotics/unitree_ros][Readme -- unitree_ros]]
+  #+END_QUOTE
+
+- unitree_ros_to_real 提供 ROS 消息到真实机器人控制指令的转换，通过将它与 unitree_ros 联合使用我们可以通过 ROS 消息控制真正的机器人。原先我以为 GO1 机器狗上会有一个 ROS 节点，但实际上是没有的。下图展示了错误的理解和正确的理解：unitree_ros_to_real 会将 ROS 消息转换为 UDP 数据包发送给真正的机器狗，如果我们执行的 ROS 控制代码不位于与 GO1 直接进行网络通信 Ubuntu 机器上，我们需要这样的一台 Ubuntu 进行消息转换
+
+  [[./1.png]]
+
+- unitree_guide 在 unitree_ros 的基础上，编写了一套 GO1 的控制算法，从而可以在仿真环境中进行高级控制，以下是具体的控制效果动图：
+
+
+  #+BEGIN_EXPORT html
+  <style type="text/css">
+    video {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 100%;
+    max-height: auto;
+    }
+  </style>
+
+  <video controls>
+    <source src="2.mp4" type="video/mp4">
+  </video>
+  #+END_EXPORT
+
+在视频中我能够使用键盘的 WASD 控制机器狗的前后左右运动，通过数字键 =1=, =2=, =4= 等切换机器人的运动状态，详细的控制方法可以参考 [[https://github.com/unitreerobotics/unitree_guide#usage][usage]]。
+
+下面，让我们详细介绍如何在 Ubuntu 20.04 上安装上面视频所示的仿真环境，以及如何编写不使用键盘的控制方法。
+
+* 基础仿真环境的安装：unitree_guide
+
+我们需要 unitree_guide 来进行简单的高级仿真，而 unitree_guide 依赖 unitree_ros，因此这一节我会介绍如何安装 unitree_guide 和 unitree_ros。
+
+为了能够成功安装 unitree_ros 我还是参考了不少资料，比如[[https://qiita.com/devemin/items/1708176248a1928f3b88][这个]]，但似乎不怎么行。现在看来最可行的方法就是直接使用 github 上的组织方式，这也是下面我要介绍的方法。
+
+在 catkin workspace 文件夹的 =src= 目录下，依次执行以下命令可完成 unitree_ros 及其依赖的下载，这些命令的作用是从 github 上拉下来整个项目的代码：
+
+#+BEGIN_SRC shell
+  git clone https://github.com/unitreerobotics/unitree_ros --depth 1
+  cd unitree_ros
+  git submodule update --init --recursive --depth 1
+#+END_SRC
+
+对于 ubuntu 20，在安装 ROS noetic 后还需要安装如下项（当然这些项可能已经随 noetic 已安装了）：
+
+#+BEGIN_SRC shell
+  sudo apt update
+  sudo apt-get install ros-noetic-controller-interface  \
+       ros-noetic-gazebo-ros-control \
+       ros-noetic-joint-state-controller \
+       ros-noetic-effort-controllers \
+       ros-noetic-joint-trajectory-controller \
+       liblcm-dev
+#+END_SRC
+
+随后，进入到文件 =unitree_gazebo/worlds/starts.world= ，将文件末尾的 <uri> 修改为真实路径（也就是将 home 后面的名字改成自己的用户名，如果 workspace 目录名字对不上也得改改）：
+
+#+BEGIN_SRC xml
+  <include>
+    <uri>model:///home/unitree/catkin_ws/src/unitree_ros/unitree_gazebo/worlds/building_editor_models/stairs</uri>
+  </include>
+#+END_SRC
+
+随后回到 catkin workspace 路径，执行 catkin_make，即可完成安装。
+
+在此步骤后，我们实际上将如下包添加到了当前的 catkin workspace 中：
+
+- =unitree_controller= ，似乎是与仿真相关的控制功能，比如比较简单的外力
+- =unitree_gazebo= ，提供基础 gazebo 仿真环境
+- =unitree_legged_control= ，提供 low level 关节控制功能
+- =unitree_ros_to_real= ，与真机通信的包
+  - =unitree_legged_msgs= ，消息定义
+  - =unitree_legged_real= ，真机通信
+  - =unitree_legged_sdk= ，机器人 SDK
+
+通过在 =src= 目录中执行以下命令可以在 workspace 中下载 [[https://github.com/unitreerobotics/unitree_guide][unitree_guide]]：
+
+#+BEGIN_SRC shell
+  git clone https://github.com/unitreerobotics/unitree_guide --depth 1
+#+END_SRC
+
+如果在编译过程中出现了找不到 =move_base_msgs= 的相关信息，可以通过如下命令进行下载：
+
+#+BEGIN_SRC shell
+  sudo apt install ros-noetic-move-base-msgs
+  sudo apt install ros-noetic-move-base
+#+END_SRC
+
+当前，unitree_guide 提供了一个非常基本的 GO1 仿真运动控制器以及[[https://support.unitree.com/home/zh/Algorithm_Practice/about_unitreeguide][教程]]。也许可以用来做一些比较实际的工作。在完成以上步骤后，读者可以尝试以下命令来运行仿真环境和控制器：
+
+#+BEGIN_SRC shell
+  roslaunch unitree_guide gazeboSim.launch
+  # another terminal and under catkin_ws
+  ./devel/lib/unitree_guide/junior_ctrl
+#+END_SRC
+
+** 更换仿真的 Control Panel
+
+（本节需要一些 C++ 知识，至少得知道什么是继承和回调。）
+
+此处的 Control Panel 指的不是控制算法，而是更像手柄之类的玩意。unitree_guide 只为我们提供了键盘，如果我们想要通过外部的进程发送 ROS 消息来控制仿真中机器人的运动的话需要对原有的代码做出一些小修小改。这一节中我会介绍一个我实现的消息 Control Panel，顺带介绍一些 unitree_guide 的实现细节。
+
+=junior_ctrl= 的源码位于 =unitree_guide/unitree_guide/src= 目录的 =main.cpp= 中。它首先创建 =IOROS= 类完成 IO 接口的初始化，随后将它作为 =CtrlComponents= 类的实例化参数来创建 =CtrlComponents= 对象，并指定一些仿真参数，如仿真时间单位等等。随后该对象将作为 =ControlFrame= 类的实例化参数创建 =ControlFrame= 对象，并在最后持续调用该对象的 =run= 方法来不断运行。
+
+当然这些细节对我们来说并不重要，我们只是想要修改控制界面而已。在 =IOROS= 的构造函数中我们可以找到键盘对象的初始化：
+
+#+BEGIN_SRC cpp
+  // unitree_guide/unitree_guide/src/interface/IOROS.cpp
+
+  IOROS::IOROS():IOInterface(){
+	  std::cout << "The control interface for ROS Gazebo simulation" << std::endl;
+	  ros::param::get("/robot_name", _robot_name);
+	  std::cout << "robot_name: " << _robot_name << std::endl;
+
+	  // start subscriber
+	  initRecv();
+	  ros::AsyncSpinner subSpinner(1); // one threads
+	  subSpinner.start();
+	  usleep(300000);     //wait for subscribers start
+	  // initialize publisher
+	  initSend();
+
+	  signal(SIGINT, RosShutDown);
+
+	  cmdPanel = new KeyBoard();
+  }
+#+END_SRC
+
+由于我们无法为 =IOROS= 提供 Panel 参数来选择自定义的 Panel，这里我定义了自己的 =YYROS= 类，它会释放掉已生成的 =KeyBoard= 对象，并用构造参数作为真正使用的 =Panel= 对象：
+
+#+BEGIN_SRC cpp
+// new class inherited from IOROS
+
+class YYROS : public IOROS {
+public:
+	YYROS(CmdPanel *myCmdPanel);
+	~YYROS();
+};
+// use another control pannel instead of Keyboard
+YYROS::YYROS(CmdPanel *myCmdPanel):IOROS::IOROS() {
+	delete cmdPanel;
+	cmdPanel = myCmdPanel;
+}
+// do nothing
+YYROS::~YYROS() {}
+#+END_SRC
+
+根据 =cmdPanel= 的类型以及 =KeyBoard= 的父类不难看出 =KeyBoard= 继承了 =CmdPanel= 类，这里我参考 =KeyBoard= 重新实现了自己的 =CmdPanel= ：
+
+#+BEGIN_SRC cpp
+class YYPanel : public CmdPanel {
+public:
+	YYPanel();
+	~YYPanel();
+private:
+	void* run (void *arg);
+	static void* runyy(void *arg);
+	pthread_t _tid;
+	void checkCmdCallback(const std_msgs::Int32 i);
+	void changeValueCallback(const geometry_msgs::Point p);
+
+	// ros specified variable
+	// state change listener;
+	ros::Subscriber yycmd;
+	// velocity change listener;
+	ros::Subscriber yyvalue;
+};
+#+END_SRC
+
+=KeyBoard= 通过新的线程来接受用户输入并更新变量来做到指令或速度信息的更新，这里我也采用相同的方式，通过 =pthread_create= 在新线程中调用 =spin()= 方法读取来自其他 ROS 节点发布的信息：
+
+#+BEGIN_SRC cpp
+YYPanel::YYPanel() {
+	userCmd = UserCommand::NONE;
+	userValue.setZero();
+	ros::NodeHandle n;
+	// register message callback functions
+	yycmd = n.subscribe("yycmd", 1, &YYPanel::checkCmdCallback, this);
+	yyvalue = n.subscribe("yyvalue", 1, &YYPanel::changeValueCallback, this);
+	pthread_create(&_tid, NULL, runyy, (void*)this);
+}
+
+YYPanel::~YYPanel() {
+	pthread_cancel(_tid);
+	pthread_join(_tid, NULL);
+}
+
+void* YYPanel::runyy(void *arg) {
+	((YYPanel*)arg)->run(NULL);
+	return NULL;
+}
+
+void* YYPanel::run(void *arg) {
+	ros::MultiThreadedSpinner spinner(4);
+	spinner.spin();
+	return NULL;
+}
+#+END_SRC
+
+此处的 =yycmd= 是机器狗的状态值，而 =yyvalue= 的 =x=, =y= 分量表示平面上沿坐标方向的速度分量， =z= 表示绕 z 轴旋转的角速度。
+
+以下是完整的代码：
+
+{{{begin_details}}}
+{{{summary(yy.cpp)}}}
+#+BEGIN_SRC cpp
+/**********************************************************************
+ Copyright (c) 2020-2023, Unitree Robotics.Co.Ltd. All rights reserved.
+***********************************************************************/
+#include <iostream>
+#include <unistd.h>
+#include <csignal>
+#include <sched.h>
+
+#include "control/ControlFrame.h"
+#include "control/CtrlComponents.h"
+
+#include "Gait/WaveGenerator.h"
+
+#include "interface/KeyBoard.h"
+#include "interface/IOROS.h"
+
+#include <std_msgs/Int32.h>
+#include <geometry_msgs/Point.h>
+
+// new class inherited from IOROS
+
+class YYROS : public IOROS {
+public:
+	YYROS(CmdPanel *myCmdPanel);
+	~YYROS();
+};
+// use another control pannel instead of Keyboard
+YYROS::YYROS(CmdPanel *myCmdPanel):IOROS::IOROS() {
+	delete cmdPanel;
+	cmdPanel = myCmdPanel;
+}
+// do nothing
+YYROS::~YYROS() {}
+
+class YYPanel : public CmdPanel {
+public:
+	YYPanel();
+	~YYPanel();
+private:
+	void* run (void *arg);
+	static void* runyy(void *arg);
+	pthread_t _tid;
+	void checkCmdCallback(const std_msgs::Int32 i);
+	void changeValueCallback(const geometry_msgs::Point p);
+
+	// ros specified variable
+	// state change listener;
+	ros::Subscriber yycmd;
+	// velocity change listener;
+	ros::Subscriber yyvalue;
+};
+
+YYPanel::YYPanel() {
+	userCmd = UserCommand::NONE;
+	userValue.setZero();
+	ros::NodeHandle n;
+	// register message callback functions
+	yycmd = n.subscribe("yycmd", 1, &YYPanel::checkCmdCallback, this);
+	yyvalue = n.subscribe("yyvalue", 1, &YYPanel::changeValueCallback, this);
+	pthread_create(&_tid, NULL, runyy, (void*)this);
+}
+
+YYPanel::~YYPanel() {
+	pthread_cancel(_tid);
+	pthread_join(_tid, NULL);
+}
+
+void* YYPanel::runyy(void *arg) {
+	((YYPanel*)arg)->run(NULL);
+	return NULL;
+}
+
+void* YYPanel::run(void *arg) {
+	ros::MultiThreadedSpinner spinner(4);
+	spinner.spin();
+	return NULL;
+}
+
+void YYPanel::checkCmdCallback(std_msgs::Int32 i) {
+	ROS_INFO("%d", i.data);
+	//*
+	UserCommand tmp;
+	switch (i.data){
+	case 1:
+		tmp = UserCommand::L2_B;
+		break;
+	case 2:
+		tmp = UserCommand::L2_A;
+		break;
+	case 3:
+		tmp = UserCommand::L2_X;
+		break;
+	case 4:
+		tmp = UserCommand::START;
+		break;
+#ifdef COMPILE_WITH_MOVE_BASE
+	case 5:
+		tmp = UserCommand::L2_Y;
+		break;
+#endif  // COMPILE_WITH_MOVE_BASE
+	case 6:
+		tmp = UserCommand::L1_X;
+		break;
+	case 9:
+		tmp = UserCommand::L1_A;
+		break;
+	case 8:
+		tmp = UserCommand::L1_Y;
+		break;
+	case 0:
+		userValue.setZero();
+		tmp = UserCommand::NONE;
+		break;
+	default:
+		tmp = UserCommand::NONE;
+		break;
+	}
+	userCmd = tmp;
+	//*/
+}
+
+void YYPanel::changeValueCallback(const geometry_msgs::Point p)
+{
+	//ROS_INFO("speed: %f, %f, %f", p.x, p.y, p.z);
+	// (x, y, z)
+	// x for x-axis speed, y for y-axis speed, z for rotate speed
+	//*
+	  userValue.lx = p.x;
+	  userValue.ly = p.y;
+	  userValue.rx = p.z;
+	//*/
+}
+
+/*
+ */
+
+bool running = true;
+
+// over watch the ctrl+c command
+void ShutDown(int sig)
+{
+	std::cout << "stop the controller" << std::endl;
+	running = false;
+}
+
+int main(int argc, char **argv)
+{
+	/* set the print format */
+	std::cout << std::fixed << std::setprecision(3);
+
+	ros::init(argc, argv, "unitree_gazebo_servo");
+
+	IOInterface *ioInter;
+	CtrlPlatform ctrlPlat;
+
+	ioInter = new YYROS(new YYPanel());
+	ctrlPlat = CtrlPlatform::GAZEBO;
+
+	CtrlComponents *ctrlComp = new CtrlComponents(ioInter);
+	ctrlComp->ctrlPlatform = ctrlPlat;
+	ctrlComp->dt = 0.002; // run at 500hz
+	ctrlComp->running = &running;
+
+	ctrlComp->robotModel = new Go1Robot();
+
+	ctrlComp->waveGen = new WaveGenerator(0.45, 0.5, Vec4(0, 0.5, 0.5, 0)); // Trot
+	// ctrlComp->waveGen = new WaveGenerator(1.1, 0.75, Vec4(0, 0.25, 0.5, 0.75));  //Crawl, only for sim
+	//ctrlComp->waveGen = new WaveGenerator(0.4, 0.6, Vec4(0, 0.5, 0.5, 0));  //Walking Trot, only for sim
+	//ctrlComp->waveGen = new WaveGenerator(0.4, 0.35, Vec4(0, 0.5, 0.5, 0));  //Running Trot, only for sim
+	// ctrlComp->waveGen = new WaveGenerator(0.4, 0.7, Vec4(0, 0, 0, 0));  //Pronk, only for sim
+
+	ctrlComp->geneObj();
+
+	ControlFrame ctrlFrame(ctrlComp);
+
+	// deal with Ctrl+C
+	signal(SIGINT, ShutDown);
+
+	while (running)
+	{
+		ctrlFrame.run();
+	}
+
+	delete ctrlComp;
+	return 0;
+}
+#+END_SRC
+{{{end_details}}}
+
+将 =yy.cpp= 放入与 =main.cpp= 相同目录下，并在下图所示的位置修改位于 =/unitree_guide/unitree_guide= 目录下的 =CMakeLists.txt= ，随后重新 =catkin_make= ，我们就得到了可接受 ROS 消息控制的仿真控制器：
+
+[[./3.png]]
+
+读者可自行编写向 =yycmd= 和 =yyvalue= 发送数据的 ROS 节点，在启动 =yy_ctrl= （ =./devel/lib/unitree_guide/yy_ctrl= ）后它们发送的消息会被发送给仿真环境。以下是我在测试时用到的代码：
+
+#+BEGIN_SRC python
+import rospy
+from geometry_msgs.msg import Point
+
+pub = rospy.Publisher('yyvalue', Point, queue_size=10)
+rospy.init_node('yytry', anonymous=True)
+rate = rospy.Rate(10)
+
+i = 0.0
+
+while not rospy.is_shutdown():
+    pub.publish( Point(x=i, y=i, z=i))
+    rospy.loginfo(i)
+    i = i + 1
+    rate.sleep()
+#+END_SRC
+
+#+BEGIN_SRC python
+import rospy
+from std_msgs.msg import Int32
+
+pub = rospy.Publisher('yycmd', Int32, queue_size=10)
+rospy.init_node('yytry', anonymous=True)
+rate = rospy.Rate(10)
+
+i = 0
+
+while not rospy.is_shutdown():
+    pub.publish(i)
+    rospy.loginfo(i)
+    i = i + 1
+    rate.sleep()
+#+END_SRC
+
+最后需要说明的是，尽量不要在虚拟机环境下运行仿真，由于性能问题，它与真实时间的偏差会比较大，从而可能得到意想不到的效果。
+
+* 使用 ROS 控制 GO1 机器人
+
+如前所述，我们可以通过 [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]] 达到将 ROS 消息转换为 UDP 数据的目的，正当我准备在这上面做些研究时，同学找到了一个直接使用 SDK 的包：[[https://github.com/dbaldwin/go1-math-motion][go1-math-motion]]。这是演示视频：[[https://www.youtube.com/watch?app=desktop&v=1f_5smH_AYM][Go1 High Level Control with ROS and Turtlesim]]。在完成包的安装和编译后，我们只需启动 =twist_sub= 节点并向 =/cmd_vel= 发送 =geometry_msgs/Twist= 类型的消息即可控制真正的 GO1 机器狗的运动。
+
+至于如何建立 Ubuntu 机器与 GO1 的网络连接，我们可以考虑使用网线（尽量长一点）或者连接 GO1 上的路由器（SSID 记不太清了，肯定有 unitree），路由的密码是 8 个 8： =88888888= 。如果要使用有线连接，我们可以使用如下命令：
+
+#+BEGIN_SRC shell
+sudo ifconfig eth0 down # eth0 is your PC Ethernet port
+sudo ifconfig eth0 192.168.123.162/24
+sudo ifconfig eth0 up
+ping 192.168.123.161
+#+END_SRC
+
+其中的 =eth0= 是你的机器上的有线网卡名。
+
+在一切连接都完成后，我们就可以通过代码控制 GO1 的运动了，就像 go1-math-motion 中的 =circle_walk.cpp= 一样：
+
+#+BEGIN_SRC cpp
+  #include "ros/ros.h"
+  #include <geometry_msgs/Twist.h>
+
+  int main(int argc, char **argv)
+  {
+	  ros::init(argc, argv, "circle_walk");
+
+	  ros::NodeHandle nh;
+
+	  ros::Rate loop_rate(500);
+
+	  ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+
+	  geometry_msgs::Twist twist;
+
+	  while (ros::ok())
+	  {
+		  twist.linear.x = 0.5; // radius (meters)
+		  twist.linear.y = 0;
+		  twist.linear.z = 0;
+		  twist.angular.x = 0;
+		  twist.angular.y = 0;
+		  twist.angular.z = 1; // direction (positive = left, negative = right)
+
+		  pub.publish(twist);
+
+		  ros::spinOnce();
+		  loop_rate.sleep();
+	  }
+
+	  return 0;
+  }
+#+END_SRC
+
+* 附录：在 Ubuntu 22.04 上从源代码编译 ROS noetic
+
+通过本文我们完成了 Ubuntu 20.04 上 GO1 的仿真环境的搭建与实际控制的实现。那么如果我们的系统是 Ubuntu 22.04 或其他不受 ROS noetic 官方支持的 Linux 系统呢？这时候也许我们需要从源代码编译 ROS 以及其他组件。
+
+自然，[[http://wiki.ros.org/Installation/Source][Wiki]] 上提供了如何从源代码编译 ROS 的详细步骤，但是它并不能直接用于 Ubuntu 22.04，我们需要做出一些修改。[[https://github.com/tatsuyai713/build_ros_noetic_on_jammy][build_ros_noetic_on_jammy]] 提供了修改后的安装脚本，这里我直接拿过来免得仓库被删除：
+
+{{{begin_details}}}
+{{{summary(build_noetic_on_jammy.sh)}}}
+#+BEGIN_SRC shell
+#!/bin/bash
+
+rm -rf ~/ros_catkin_ws
+
+ROS_DISTRO=noetic
+
+sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstools python3-vcstool build-essential
+sudo rosdep init
+rosdep update
+
+mkdir ~/ros_catkin_ws
+cd ~/ros_catkin_ws
+rosinstall_generator desktop --rosdistro noetic --deps --tar > noetic-desktop.rosinstall
+mkdir ./src
+vcs import --input noetic-desktop.rosinstall ./src
+
+#hddtemp disable patch
+sed -i -e s/"<run_depend>hddtemp<\/run_depend>"/"<\!-- <run_depend>hddtemp<\/run_depend> -->"/g ./src/diagnostics/diagnostic_common_diagnostics/package.xml
+
+rosdep install --from-paths ./src --ignore-packages-from-source --rosdistro noetic -y
+
+sed -i -e s/"COMPILER_SUPPORTS_CXX11"/"COMPILER_SUPPORTS_CXX17"/g ./src/geometry/tf/CMakeLists.txt
+sed -i -e s/"c++11"/"c++17"/g ./src/geometry/tf/CMakeLists.txt
+sed -i -e s/"CMAKE_CXX_STANDARD 14"/"CMAKE_CXX_STANDARD 17"/g ./src/kdl_parser/kdl_parser/CMakeLists.txt
+sed -i -e s/"CMAKE_CXX_STANDARD 11"/"CMAKE_CXX_STANDARD 17"/g ./src/laser_geometry/CMakeLists.txt
+sed -i -e s/"c++11"/"c++17"/g ./src/resource_retriever/CMakeLists.txt
+sed -i -e s/"COMPILER_SUPPORTS_CXX11"/"COMPILER_SUPPORTS_CXX17"/g ./src/robot_state_publisher/CMakeLists.txt
+sed -i -e s/"c++11"/"c++17"/g ./src/robot_state_publisher/CMakeLists.txt
+sed -i -e s/"c++11"/"c++17"/g ./src/rqt_image_view/CMakeLists.txt
+sed -i -e s/"CMAKE_CXX_STANDARD 14"/"CMAKE_CXX_STANDARD 17"/g ./src/urdf/urdf/CMakeLists.txt
+
+rm -rf ./src/rosconsole
+cd src
+git clone https://github.com/tatsuyai713/rosconsole
+cd ..
+
+./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release
+#+END_SRC
+{{{end_details}}}
+
+至于为啥需要将编译标准从 11 变为 14 或 17，这里有一条 [[https://github.com/Livox-SDK/livox_ros_driver/pull/110][issue]] 可以参考。
+
+* 后记
+
+在本文的最后推荐一个 repo：[[https://github.com/macc-n/ros_unitree][ros_unitree]]，这是我在 reddit 上的意外收获。
+
+如果文中内容在给定环境中出现了问题，欢迎提出。
