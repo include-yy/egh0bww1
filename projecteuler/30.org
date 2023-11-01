@@ -1,0 +1,55 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 30
+#+DATE: [2019-05-23 Thu 10:32]
+
+* Problem
+
+*[[https://projecteuler.net/problem=30][Digit Fifth Powers]]*
+
+Surprisingly there are only three numbers that can be written as the sum of fourth powers of their digits:
+
+\[1634 = 1^4 + 6^4 + 3^4 + 4^4 \\
+  8208 = 8^4 + 2^4 + 0^4 + 8^4 \\
+  9474 = 9^4 + 4^4 + 7^4 + 4^4\]
+
+As 1^{4} is not a sum it is not included.
+
+The sum of these numbers is 1634 + 8208 + 9474 = 19316.
+
+Find the sum of all the numbers that can be written as the sum of fifth powers of their digits.
+
+*各位数字的五次幂*
+
+令人惊讶的是，只有三个数可以写成其各位数字的四次幂之和：
+
+\[1634 = 1^4 + 6^4 + 3^4 + 4^4 \\
+  8208 = 8^4 + 2^4 + 0^4 + 8^4 \\
+  9474 = 9^4 + 4^4 + 7^4 + 4^4\]
+
+由于 1^{4} 并不是求和，所以这里不计入内。
+
+上面这三个数的和是 1634 + 8208 + 9474 = 19316。
+
+找出所有可以写成其各位数字的五次幂之和的数，并求这些数的和。
+
+* Solution
+
+考虑到 9^5 * 5 = 295245 而 9^5 * 6 = 354294，满足条件的数字最多只可能是六位数了：
+
+#+BEGIN_SRC elisp
+  (let ((ls '()))
+    (cl-loop for i from 2 to 999999
+	     do (let ((numls (mapcar (lambda (x) (- x ?0))
+				     (string-to-list (number-to-string i)))))
+		  (when (= (cl-reduce (lambda (s a) (+ s (expt a 5)))
+				      numls
+				      :initial-value 0)
+			   i)
+		    (push i ls))))
+    ls)
+  => (194979 93084 92727 54748 4151 4150)
+
+  (+ 194979 93084 92727 54748 4151 4150)
+  => 443839
+#+END_SRC

@@ -1,0 +1,118 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 27
+#+DATE: [2019-06-09 Sun 04:17]
+
+* Problem
+
+*[[https://projecteuler.net/problem=27][Quadratic Primes]]*
+
+Euler discovered the remarkable quadratic formula:
+
+\[n^2 + n + 41\]
+
+It turns out that the formula will produce \(40\) primes for the consecutive integer values \(0 \le n \le 39\). However, when \(n = 40\), \(40^{2} + 40 + 41 = 40(40 + 1) + 41\) is divisible by \(41\), and certainly when \(n = 41\), \(41^{2} + 41 + 41\) is clearly divisible by \(41\).
+
+The incredible formula \(n^{2} - 79n + 1601\) was discovered, which produces \(80\) primes for the consecutive values \(0 \le n \le 79\). The product of the coefficients, \(-79\) and \(1601\), is \(-126479\).
+
+Considering quadratics of the form:
+
+\(n^2 + an + b\), where \(|a| \lt 1000\) and \(|b| \le 1000\)
+
+where \(|n|\) is the modulus/absoulte value of \(n\) e.g. \(|11| = 11\) and \(|−4| = 4\)
+
+Find the product of the coefficients, \(a\) and \(b\), for the quadratic expression that produces the maximum number of primes for consecutive values of \(n\), starting with \(n = 0\).
+
+*素数生成二次多项式*
+
+欧拉发现了这个著名的二次多项式：
+
+\[n^2 + n + 41\]
+
+对 \(0 \le n \le 39\) 范围内的所有整数，这个多项式可以连续生成 \(40\) 个质数。但是，当 \(n = 40\) 时，\(40^{2} + 40 + 41 = 40(40 + 1) + 41\) 能够被 \(41\) 整除，而当 \(n=41\)，\(41^{2} + 41 + 41\) 显然也能够被 \(41\) 整除。
+
+之后，人们又发现了一个神奇的多项式 \(n^{2} - 79n + 1601\)，这个多项式能够对 \(0 \le n \le 79\) 范围内的所有整数连续生成 \(80\) 个质数。这个二次多项式的系数分别是 \(−79\) 和 \(1601\)，其乘积为 \(−126479\)。
+
+考虑所有如下形式的二次多项式：
+
+\(n^2 + an + b\)，其中 \(|a| \lt 1000\)，\(|b| \le 1000\)。
+
+这里 \(|n|\) 表示 \(n\) 的绝对值，例如，\(|11| = 11\), \(|−4| = 4\)。
+
+找出其中能够从 \(n=0\) 开始连续生成最多素数的二次多项式，求其系数 \(a\) 和 \(b\) 的乘积。
+
+* Solution
+
+当 \(a \lt 0\) 时，根据 \(\Delta = a^2 - 4b \lt 0\) 可得 \(a^2 \lt 4b\)，当然由于我们面对的是离散问题，这个公式应该变成如下形式：在最小值左或右 \(0.5\) 格（\(a\)为奇数）/ 最小值位置（\(a\)为偶数）时的公式值应该大于等于 \(2\)（最小的素数）：
+
+\[\left\{\begin{align} (\frac{a+1}{2})^2 + a(\frac{a+1}{2}) + b &\ge 2 \ \ a = 2k + 1\notag \\ \frac{a^2}{4} + a \frac{-a}{2} + b &\ge 2 \ \ a = 2k \notag \end{align} \ \ (k \lt 0)\right.\]
+
+当 \(a \ge 0\) 时，为了在 \(n = 0\) 时让结果为素数，必定有 \(b\) 为大于等于 \(2\) 的素数，这一点对 \(a \lt 0\) 时也是成立的，因此无论 \(a\) 的取值如何必有 \(b \ge 2\) 且 \(b\) 为素数。1000 以内有 393 个素数，这样我们就将 \(b\) 的规模从 2000 缩小到了大概 400。
+
+将上面 \(a \lt 0\) 的两个式子化简可得：
+
+\[\left\{\begin{align} a &\ge -\sqrt{4b-7} \ \ a = 2k + 1\notag \\ a &\ge -\sqrt{4b-8} \ \ a = 2k \notag \end{align} \ \ (k \lt 0)\right.\]
+
+当然我们比较懒的话完全可以取个下界（\(n=1\)时式子的值大于最小素数 \(2\)），综合一下，我们就得到了针对不同 \(b\) 的 \(a\) 取值：
+
+\[a \ge 1-b \ \ (a \lt 0) \\ a = 2k + 1 (a \gt 0)\]
+
+（这里省去了一些推导步骤，不过易得当 \(b \gt 3\) 时有 \(|1 - b| \gt \sqrt{4b - 7} \gt \sqrt{4b - 8}\)）
+
+现在，可以开始遍历了：
+
+#+BEGIN_SRC elisp
+  (defun eu7-isprime (n)
+    (cond
+     ((<= n 1) nil)
+     ((< n 4) t)
+     ((zerop (% n 2)) nil)
+     ((< n 9) t)
+     ((zerop (% n 3)) nil)
+     (t (let ((bound (floor (sqrt n))))
+	  (named-let f ((i 5))
+	    (cond
+	     ((> i bound) t)
+	     ((zerop (% n i)) nil)
+	     ((zerop (% n (+ i 2))) nil)
+	     (t (f (+ i 6)))))))))
+
+  (my-time
+   (let ((bs (cl-remove-if-not 'eu7-isprime
+			       (number-sequence 3 1000)))
+	 ma mb (max 0))
+     (cl-loop for b in bs
+	      do (cl-do ((a (- 1 b) (if (< a 1) (1+ a) (+ a 2))))
+		     ((>= a 1000))
+		   (let ((n (cl-loop for n from 0
+				     if (not (eu7-isprime (+ (* n (+ n a)) b)))
+				     return n)))
+		     (when (> n max)
+		       (setq ma a
+			     mb b
+			     max n)))))
+     `(,ma ,mb ,max)))
+  ;;0.7850699424743652s
+  => (-61 971 71)
+
+  (* -61 971)
+  => -59231
+#+END_SRC
+
+老实说，这和直接暴力算没什么太大区别，数据太小了：
+
+#+BEGIN_SRC elisp
+  (my-time
+   (let (ma mb (max 0))
+     (cl-loop for a from -999 to 999
+	      do (cl-loop for b from -999 to 999
+			  do (let ((n (cl-loop for n from 0
+					       if (not (eu7-isprime (+ (* n (+ n a)) b)))
+					       return n)))
+			       (when (> n max)
+				 (setq ma a
+				       mb b
+				       max n)))))
+     `(,ma ,mb ,max)))
+  ;;3.5303640365600586s
+#+END_SRC

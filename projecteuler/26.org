@@ -1,0 +1,162 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 26
+#+DATE: [2019-05-22 Wed 01:53]
+
+* Problem
+
+*[[https://projecteuler.net/problem=26][Reciprocal Cycles]]*
+
+A unit fraction contains 1 in the numerator. The decimal representation of the unit fractions with denominators 2 to 10 are given:
+
+#+BEGIN_CENTER
+1/2 = 0.5 {{{br}}}
+1/3 = 0.(3) {{{br}}}
+1/4 = 0.25 {{{br}}}
+1/5 = 0.2 {{{br}}}
+1/6 = 0.1(6) {{{br}}}
+1/7 = 0.(142857) {{{br}}}
+1/8 = 0.125 {{{br}}}
+1/9 = 0.(1) {{{br}}}
+1/10 = 0.1
+#+END_CENTER
+
+Where 0.1(6) means 0.166666···, and has a 1-digit recurring cycle. It can be seen that 1/7 has a 6-digit recurring cycle.
+
+Find the value of d < 1000 for which 1/d contains the longest recurring cycle in its decimal fraction part.
+
+*倒数的循环节*
+
+单位分数指分子为 1 的分数。分母为 2 至 10 的单位分数的十进制表示如下所示：
+
+#+BEGIN_CENTER
+1/2 = 0.5 {{{br}}}
+1/3 = 0.(3) {{{br}}}
+1/4 = 0.25 {{{br}}}
+1/5 = 0.2 {{{br}}}
+1/6 = 0.1(6) {{{br}}}
+1/7 = 0.(142857) {{{br}}}
+1/8 = 0.125 {{{br}}}
+1/9 = 0.(1) {{{br}}}
+1/10 = 0.1
+#+END_CENTER
+
+其中，括号表示循环节，如 0.1(6) 就是指 0.166666···，循环节的长度为 1。可以看出，1/7 的循环节长度为 6。
+
+在所有满足 d < 1000 的数中，求使得其倒数 1/d 的十进制表示中循环节最长的 d。
+
+* Solution
+
+当我们使用整数 a 除以非零整数 b 时，若 a 不能被 b 整除就会产生余数 c。如果我们持续使用 b 除 10c，那要么最后能够整除，要么产生循环节。对于本题有 a = 1。
+
+由于余数不可能大于等于除数，很显然有 c < b。因此在不可除尽的情况下，除数的范围应该是 1 ≤ c < b，在不断除运算中最多可能产生 b - 1 个不同的除数，这也就是说自然数 n 对应的 *单位分数循环节的最大可能长度为 n - 1* 。如果我们知道了某个余数 c 和 b ，那么我们很容易知道下一个余数，下下一个，下下下一个......这也就意味着如果我们在这个过程中发现得到的某个余数和之前得到的余数相等，我们就得到了循环节。
+
+通过 1/6 可以注意到余数并不一定参与循环节（在除运算过程中得到的余数分别是 1, 4, 4, 4, 4, ...）。为了获取参与循环的余数，我们可以考虑多算几次除法，比如算到某个数的最大可能循环节长度（由于长度足够，最后必然得到参与循环的余数）：
+
+#+BEGIN_SRC elisp
+  (my-time
+   (let ((val 0) (len 0))
+     (cl-do ((i 1 (1+ i))) ((>= i 1000))
+       (let ((r0 1) r (l 1))
+	 (dotimes (_ i) (setq r0 (% (* r0 10) i)))
+	 (when (/= r0 0)
+	   (setq r (% (* r0 10) i))
+	   (while (/= r r0)
+	     (setq r (% (* r 10) i)
+		   l (1+ l)))
+	   (when (> l len)
+	     (setq val i
+		   len l)))))
+     `(,val ,len))
+   )
+  => (983 982)
+  ;;0.09464406967163086s
+#+END_SRC
+
+上面的代码很明显有很大的改进空间，不是每个数字 n 都有 n - 1 长度的循环节，而且容易注意到数字 n 的因数 2 和 5 对循环节的长度没用贡献：
+
+\[\begin{align}\frac{1}{24} &= \frac{1}{2^3} \cdot \frac13 = 0.41\dot6 \notag \\ \frac16 &= \frac12 \cdot \frac13 = 0.1\dot6 \notag \\ \frac{1}{15} &= \frac15 \cdot \frac13 = 0.0\dot6 \notag \end{align}\]
+
+在查找资料的过程中，我发现小数可以分为两种，分别是 *纯循环小数* 和 *混循环小数* ，前者是循环节从十分位开始的小数，而后者是从十分位之后开始循环的小数。若最简分数 a/b 的分母的质因数不含 2 和 5，那么它可以化为纯循环小数，否则只能化为混循环小数。如果分母的质因数只有 2 或 5，那么数字可化为有限小数。
+
+对于本题来说，单位分数自然是最简分数，我们只需跳过 2 或 5 的倍数即可略过有限小数和混循环小数，由于纯循环小数的循环节从十分位开始，它首个参与循环的余数必为 1（毕竟是 1 / n），我们可以这样对上面的代码进行简化：
+
+#+BEGIN_SRC elisp
+  (my-time
+  (let ((val 0) (len 0))
+    (cl-do ((i 3 (+ i 2))) ((>= i 1000))
+      (when (/= (% i 5) 0)
+	(let ((r (% 10 i))
+	      (l 1))
+	  (while (/= r 1)
+	    (setq r (% (* r 10) i)
+		  l (1+ l)))
+	  (when (> l len)
+	    (setq val i
+		  len l)))))
+    `(,val ,len))
+  )
+  ;;0.013844013214111328s
+#+END_SRC
+
+你也许学过一种将循环小数转换为整数的方法：找出刚好大于循环节的 10^{k} - 1，然后将它作为循环节的分母组成分数，随后与数字的不循环部分相加，即可得到循环小数得到的分数：
+
+\[0.04166666··· = \frac{41}{1000} + \frac{6}{9} \cdot \frac{1}{1000} = \frac{1}{16} \cdot \frac69= \frac18 \cdot \frac13 =\frac{1}{24}\]
+
+对于 1/24，显然 k 取 1，而这正好就是它的循环节长度。由于纯循环小数循环节从十分位开始，循环节 X 除以 10^{k} - 1 的这个数的倒数必然是整数 n，因此我们找到使 (10^{k} - 1) / X 为整数（即 10^{k} - 1 mod n = 0）的最小 k 即可：
+
+#+BEGIN_SRC elisp
+  (my-time
+   (let ((val 0) (len 0))
+     (cl-do ((i 3 (+ i 2))) ((>= i 1000))
+       (when (/= (% i 5) 0)
+	 (let ((k 0))
+	   (while (/= (% (expt 10 (cl-incf k)) i) 1))
+	   (when (> k len)
+	     (setq val i
+		   len k)))))
+     `(,val ,len))
+   )
+  ;;0.04072403907775879s
+#+END_SRC
+
+自然，我们可以实现自己的快速幂算法：
+
+#+BEGIN_SRC elisp
+(defun eu26-pow-mod (a b m)
+  "calc a^b % m
+https://oi-wiki.org/math/binary-exponentiation/"
+  (let ((res 1))
+    (setq a (% a m))
+    (while (> b 0)
+      (when (= (logand b 1) 1)
+	(setq res (% (* res a) m)))
+      (setq a (% (* a a) m))
+      (setq b (ash b -1)))
+    res))
+#+END_SRC
+
+但很可惜还是不如 emacs 自带的（在没有编译的情况下）：
+
+#+BEGIN_SRC elisp
+  (my-time
+   (dotimes (_ 100000)
+     (eu26-pow-mod 10 982 983)
+   ))
+  ;;0.3025960922241211s
+
+
+  (my-time
+   (dotimes (_ 100000)
+   (% (expt 10 982) 983)
+   ))
+  ;;0.09729909896850586s
+
+  (byte-compile 'eu26-pow-mod)
+
+  (my-time
+   (dotimes (_ 100000)
+     (eu26-pow-mod 10 982 983)
+   ))
+  ;;0.07678389549255371s
+#+END_SRC
