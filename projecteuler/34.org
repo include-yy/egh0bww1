@@ -1,0 +1,80 @@
+#+SETUPFILE: ./setup.org
+gi
+#+TITLE: Problem 34
+#+DATE: [2019-06-01 Sat 06:51]
+
+* Problem
+
+*[[https://projecteuler.net/problem=34][Digit Factorials]]*
+
+145 is a curious number, as 1! + 4! + 5! = 1 + 24 + 120 = 145.
+
+Find the sum of all numbers which are equal to the sum of the factorial of their digits.
+
+Note: As 1! = 1 and 2! = 2 are not sums they are not included.
+
+*数字阶乘和*
+
+145 是个有趣的数，因为 1! + 4! + 5! = 1 + 24 + 120 = 145。
+
+找出所有各位数字的阶乘和等于其本身的数，并求它们的和。
+
+注意：因为 1! = 1 和 2! = 2 不是和的形式，所以它们并不在讨论范围内。
+
+* Solution
+
+9 的阶乘为 362880，假设数字的位数为 n，那么可由 \(n \cdot 9! \gt 10^n - 1\) 来确定 n 的范围。易知当 n 约为 5.2 时指数函数的导数大于 9!，即 \(ln10 \cdot 10^n > 9!\)。我们只需要找到 n 在大于等于 6 时使得第一个不等式不成立即可。
+
+\[6 \cdot 9! = 2177280 \gt 999999\]
+
+\[7 \cdot 9! = 2540160 \lt 9999999\]
+
+因此，满足题目要求的数必小于 9999999，也就是说最大只能是 7 位数。
+
+#+BEGIN_SRC elisp
+  (defun eu34-getfac (n)
+    (let ((digls))
+      (while (/= n 0)
+	(push (% n 10) digls)
+	(setq n (/ n 10)))
+      (cl-reduce
+       '+
+       (mapcar (lambda (n)
+		 (let ((res 1))
+		   (while (/= n 0)
+		     (setq res (* res n))
+		     (cl-decf n))
+		   res))
+	       digls))))
+  (let ((res))
+    (cl-loop
+     for i from 3 to 9999999
+     do (when (= i (eu34-getfac i))
+	  (push i res)))
+    res)
+  => (40585 145)
+
+  (+ 40585 145) => 40730
+#+END_SRC
+
+由于本题只涉及到 1 到 9 阶乘的运算，上面的代码还可以稍作改进：
+
+#+BEGIN_SRC elisp
+  (defun eu34-getfac-2 (n)
+    (let ((fv [1 1 2 6 24 120 720 5040 40320 362880 3628800])
+	  (res 0))
+      (while (/= n 0)
+	(cl-incf res (aref fv (% n 10)))
+	(setq n (/ n 10)))
+      res))
+
+  (let ((res))
+    (cl-loop
+     for i from 3 to 9999999
+     do (when (= i (eu34-getfac-2 i))
+	  (push i res)))
+    res)
+  => (40585 145)
+#+END_SRC
+
+当然正如答案可见，不超过五位数，也许还能进行进一步的分析。
