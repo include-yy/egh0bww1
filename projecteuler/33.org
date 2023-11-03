@@ -1,0 +1,105 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 33
+#+DATE: [2019-06-01 Sat 06:28]
+
+* Problem
+
+*[[https://projecteuler.net/problem=33][Digit Cancelling Fractions]]*
+
+The fraction 49/98 is a curious fraction, as an inexperienced mathematician in attempting to simplify it may incorrectly believe that 49/98 = 4/8, which is correct, is obtained by cancelling the 9s.
+
+We shall consider fractions like, 30/50=3/5, to be trivial examples.
+
+There are exactly four non-trivial examples of this type of fraction, less than one in value, and containing two digits in the numerator and denominator.
+
+If the product of these four fractions is given in its lowest common terms, find the value of the denominator.
+
+*消去数字的分数*
+
+49/98 是一个有趣的分数，因为缺乏经验的数学家可能在约简时错误地认为，等式 49/98 = 4/8 之所以成立，是因为在分数线上下同时消去了 9 的缘故。
+
+显然，存在诸如 30/50 = 3/5 这样的平凡解。
+
+除此之外，在所有值小于 1 且分子和分母都是两位数的分数中，恰好有四个非平凡解。
+
+将这四个分数的乘积写成最简分数，并求此时分母的值。
+
+* Solution
+
+由于要求的分数是两位数的真分数，我们可以让分子从 11 开始，且分母必大于分子。如此一来，分子的范围就是 11 到 99，且要排除十位为 0 的数字（0 不可能作为十位数，且不应该被消去）。
+
+对于给定的分子，我们可以指定要被消去的数字（如果分子的两个数字相同则只需取一个数字），然后根据它来生成分母，比如对于 12，取 2 为要消去的数字则可生成 21~29 和 12~92。下面的 =eu33-getnum= 函数生成消去数字后剩余的个位数与分母组成的列表的列表：
+
+#+BEGIN_SRC elisp
+  (defun eu33-getnum (n min)
+    (cl-loop
+     for i from 1 to 9
+     if (> (+ (* i 10) n) min)
+     collect (list i (+ (* i 10) n))
+     if (and (> (+ (* n 10) i) min) (/= i n))
+     collect (list i (+ (* n 10) i))))
+
+  (eu33-getnum 2 12)
+  =>
+  ((1 21) (2 22) (3 32) (3 23)
+   (4 42) (4 24) (5 52) (5 25)
+   (6 62) (6 26) (7 72) (7 27)
+   (8 82) (8 28) (9 92) (9 29))
+#+END_SRC
+
+通过以下代码，我们可以对给定分子生成所有可能的分子分母组合：
+
+#+BEGIN_SRC elisp
+  (defun eu33-gen (n)
+    (let* ((nums (delete-dups (list (% n 10) (/ n 10))))
+	   (denos (mapcar (lambda (x) (eu33-getnum x n))
+			  (reverse nums)))
+	   (combo (cl-mapcar (lambda (num deno)
+			       (mapcar (lambda (l)
+					 (append `(,num ,n) l))
+				       deno))
+			     nums denos)))
+      (apply 'append combo)))
+
+  (eu33-gen 11)
+  =>
+  ((1 11 2 21) (1 11 2 12) (1 11 3 31)
+   (1 11 3 13) (1 11 4 41) (1 11 4 14)
+   (1 11 5 51) (1 11 5 15) (1 11 6 61)
+   (1 11 6 16) (1 11 7 71) (1 11 7 17)
+   (1 11 8 81) (1 11 8 18) (1 11 9 91)
+   (1 11 9 19))
+#+END_SRC
+
+若将表中的各数字标为 \(a, b, c, d\)，若满足 \(ad = bc\) 则说明它满足题目要求的消去规则：
+
+#+BEGIN_SRC elisp
+  (defun eu33-check (ls)
+    (cl-remove-if-not
+     (lambda (x)
+       (let ((a (nth 0 x))
+	     (b (nth 1 x))
+	     (c (nth 2 x))
+	     (d (nth 3 x)))
+	 (= (* a d) (* b c))))
+     ls))
+
+  (eu33-check (eu33-gen 49))
+  => ((4 49 8 98))
+#+END_SRC
+
+通过以下代码，我们可以获取最终的结果：
+
+#+BEGIN_SRC elisp
+(let (res)
+  (cl-loop for i from 11 to 99
+	   do (when (/= (% i 10) 0)
+		(let ((r (eu33-check (eu33-gen i))))
+		  (when r (push r res)))))
+  res)
+=> (((4 49 8 98)) ((2 26 5 65)) ((1 19 5 95)) ((1 16 4 64)))
+#+END_SRC
+
+分母值为 \(2 \cdot 5 \cdot 5 \cdot 4 = 100\)。
+
