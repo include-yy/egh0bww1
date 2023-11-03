@@ -1,0 +1,119 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 32
+#+DATE: [2019-06-01 Sat 05:53]
+
+* Problem
+
+*[[https://projecteuler.net/problem=32][Pandigital Products]]*
+
+We shall say that an n-digit number is pandigital if it makes use of all the digits 1 to n exactly once; for example, the 5-digit number, 15234, is 1 through 5 pandigital.
+
+The product 7254 is unusual, as the identity, 39 * 186 = 7254, containing multiplicand, multiplier, and product is 1 through 9 pandigital.
+
+Find the sum of all products whose multiplicand/multiplier/product identity can be written as a 1 through 9 pandigital.
+
+HINT: Some products can be obtained in more than one way so be sure to only include it once in your sum.
+
+*全数字的乘积*
+
+如果一个 n 位数包含了 1 至 n 的所有数字恰好一次，我们称它为全数字的；例如，五位数 15234 就是 1 至 5 全数字的。
+
+7254 是一个特殊的乘积，因为在等式 39 * 186 = 7254 中，被乘数、乘数和乘积恰好是 1 至 9 全数字的。
+
+找出所有被乘数、乘数和乘积恰好是 1 至 9 全数字的乘法等式，并求出这些等式中乘积的和。
+
+注意：有些乘积可能从多个乘法等式中得到，但在求和的时候只计算一次。
+
+* Solution
+
+根据数字的特点，这个乘积必为四位数，原因如下：
+
+- 如果它为三位数，那么另外六个数字构成的乘积（考虑 11111 * 1）必定大于它
+- 如果它为五位数，那么另外四个数字构成的乘积（考虑 99 * 99 = 9801）必定小于它
+
+同时，乘数只可能是 14 或 23 组合，也就是说我们对于给定的四位数只需要在 0 ~ 100 内寻找因数，然后根据因数判断是否符合条件即可。
+
+#+BEGIN_SRC elisp
+  (defun eu32-nums2str (i j p)
+    (mapconcat
+     'char-to-string
+     (sort (append (concat (number-to-string i)
+			   (number-to-string j)
+			   (number-to-string p))
+		   nil)
+	   '<)
+     ""))
+  (my-time
+   (let ((res))
+     (cl-loop
+      for i from 1000 to 9999
+      do (cl-loop
+	  for j from 2 to 99
+	  do (when (= 0 (% i j))
+	       (let ((k (/ i j)))
+		 (when (string= "123456789" (eu32-nums2str i j k))
+		   (push i res)
+		   (cl-return))))))
+     res))
+  ;;0.23797607421875s
+  => (7852 7632 7254 6952 5796 5346 4396)
+
+  (+ 7852 7632 7254 6952 5796 5346 4396)
+  => 45228
+#+END_SRC
+
+当然，判断部分可以优化一下（好像没什么用）：
+
+#+BEGIN_SRC elisp
+  (defun eu32-isok (a b c)
+    (let ((s (mapconcat 'number-to-string `(,a ,b ,c))))
+      (when (not (cl-find ?0 s))
+	(let ((v (make-vector 9 0)))
+	  (cl-loop for a across s
+		   do (cl-incf (aref v (- a ?1))))
+	  (cl-loop for a across v
+		   if (/= a 1)
+		   return nil
+		   finally return t)))))
+
+  (my-time
+   (let ((res))
+     (cl-loop
+      for i from 1000 to 9999
+      do (cl-loop
+	  for j from 2 to 99
+	  do (when (= 0 (% i j))
+	       (let ((k (/ i j)))
+		 (when (eu32-isok i j k)
+		   (push i res)
+		   (cl-return))))))
+     res))
+  (7852 7632 7254 6952 5796 5346 4396)
+  ;;0.24508309364318848s
+#+END_SRC
+
+当然了，判断可能还有更高效的方法，以下方法来自问题 32 的讨论区：
+
+#+BEGIN_SRC elisp
+  (defun eu32-isok2 (a b c)
+    (let ((v (make-vector 10 0)))
+      (cl-block nil
+	(while (/= a 0)
+	  (when (or (= (% a 10) 0)
+		    (> (cl-incf (aref v (% a 10))) 1))
+	    (cl-return nil))
+	  (setq a (/ a 10)))
+	(while (/= b 0)
+	  (when (or (= (% b 10) 0)
+		    (> (cl-incf (aref v (% b 10))) 1))
+	    (cl-return nil))
+	  (setq b (/ b 10)))
+	(while (/= c 0)
+	  (when (or (= (% c 10) 0)
+		    (> (cl-incf (aref v (% c 10))) 1))
+	    (cl-return nil))
+	  (setq c (/ c 10)))
+	(cl-incf (aref v 0))
+	(equal [0 1 1 1 1 1 1 1 1 1] v))))
+#+END_SRC
