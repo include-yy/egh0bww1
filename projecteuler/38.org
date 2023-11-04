@@ -1,0 +1,65 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 38
+#+DATE: [2019-06-09 Sun 04:00]
+
+* Problem
+
+*[[https://projecteuler.net/problem=38][Pandigital Multiples]]*
+
+Take the number 192 and multiply it by each of 1, 2, and 3, and:
+
+\[\begin{align}192 \cdot 1 = 192 \notag \\ 192 \cdot 2 = 384 \notag \\ 192 \cdot 3 = 576 \notag \end{align}\]
+
+
+By concatenating each product we get the 1 to 9 pandigital, 192384576. We will call 192384576 the concatenated product of 192 and (1, 2, 3).
+
+The same can be achieved by starting with 9 and multiplying by 1, 2, 3, 4, and 5, giving the pandigital, 918273645, which is the concatenated product of 9 and (1, 2, 3, 4, 5).
+
+What is the largest 1 to 9 pandigital 9-digit number that can be formed as the concatenated product of an integer with (1, 2, ..., n) where n > 1?
+
+*全数字的倍数*
+
+将 192 分别与 1、2、3 相乘：
+
+\[\begin{align}192 \cdot 1 = 192 \notag \\ 192 \cdot 2 = 384 \notag \\ 192 \cdot 3 = 576 \notag \end{align}\]
+
+将这些乘积拼接起来，可以得到一个 1 至 9 全数字的数 192384576，因此称 192384576 为 192 和 (1, 2, 3) 的拼接乘积。
+
+类似地，将 9 分别与 1、2、3、4、5 相乘，可以得到 1 至 9 全数字的数 918273645，并称之为 9 和 (1, 2, 3, 4, 5) 的拼接乘积。
+
+考虑所有 n > 1 时某个整数和 (1, 2, ..., n) 的拼接乘积，其中最大的 1 至 9 全数字的数是多少？
+
+* Solution
+
+既然题目给出了以 9 开头的 9 位数作为例子，那么最大的数就一定是以 9 开头，且比题目给出的要大。由于 9 已经试过了，我们只能使用以 9 开头的两位数或四位数（9 开头的三位数乘 2 或 3 得到的是 4 位数，但 3 + 4 + 4 > 9）。
+
+对于两位数，由于 95 * 2 = 190 会产生 1 和 9，故只能在 92~94 之间取值。92 * 2 = 184，92 * 3 = 276，得到了重复的 2；94 * 2 = 188，得到了重复的 8；93 * 3 = 279，得到了重复的 9 。故两位数直接排除。
+
+对于四位数，我们只需考察原数字和原数字乘 2 的结果。这个四位数中不能含有 1 和 8。将 234567 塞到三位数中有 \(A^{3}_{6} = \frac{6!}{3!} = 120\) 种方法。但实际上 9 的后一位也只能是 2 或 3 ，原因和两位数时的一样。我们将问题转化成了求满足由 2 或 3 开头的满足 2ab * 2 = cde 或 3ab * 2 = cde 的由 (2|3)4567 组成 abcde 的数字组合。
+
+- 如果取 2 且 c 为 4，那么 2ab 必小于 250。ab 只可能是 (35 36 37)，35 和 36 可以轻松排除，而 237 * 2 = 474，7 重复了。
+- 如果取 2 且 c 为 5，那么 2ab 必大于 250。ab 可以是 (67 73 76)，267 得 534，273 得 546，276 得 552，排除。最后有 9267 和 9273 两种
+- 如果取 3 且 c 为 6，那么 3ab 必小于 350。ab 只可能是 (27 47)，327 得 654，347 得 694，排除。最后有 9327
+- 如果取 3 且 c 为 7，那么 3ab 必大于 350。ab 取不到满足条件的值
+
+故最后我们可以得到 9327 * 2 = 18654，结果为 932718654。
+
+这一题不需要使用编程解决。不过实际上在我们分析到开头必为 92 或 93 后，我们就可以进行穷举了：
+
+#+BEGIN_SRC elisp
+(defun eu38-sortstr (str)
+  (mapconcat
+   'string
+   (sort (append str nil) '<)))
+
+(cl-loop for i from 9200 to 9399
+	 for x = (eu38-sortstr
+		  (concat (number-to-string i)
+			  (number-to-string (* i 2))))
+	 if (string= x "123456789")
+	 collect i)
+(9267 9273 9327)
+(* 9327 2) => 18654
+=> 932718654
+#+END_SRC
