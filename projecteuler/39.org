@@ -1,0 +1,49 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 39
+#+DATE: [2019-06-09 Sun 03:39]
+
+* Problem
+
+*[[https://projecteuler.net/problem=39][Integer Right Triangles]]*
+
+If p is the perimeter of a right angle triangle with integral length sides, {a, b, c}, there are exactly three solutions for p = 120.
+
+\[\{20, 48, 52\}, \{24, 45, 51\}, \{30, 40, 50\}\]
+
+For which value of p ≤ 1000, is the number of solutions maximised?
+
+*整数边长直角三角形*
+
+考虑三边长 {a, b, c} 均为整数的直角三角形，并记其周长为 p，当 p = 120 时，恰好存在三个不同的解：
+
+\[\{20, 48, 52\}, \{24, 45, 51\}, \{30, 40, 50\}\]
+
+在所有的 p ≤ 1000 中， p 取何值时有最多个解？
+
+* Solution
+
+容易注意到，对于总长度为 p 的三角形，最短边的最大长度不得超过 p/3，否则三边相加的长度会超过 p。因此对于本题来说，最小边的最大长度就是 333。
+
+我们可以让最小边从 3 到 333 遍历搜索，并把找到的结果存到哈希表里，最后选出值最大的键即可：
+
+#+BEGIN_SRC elisp
+  (let ((res (make-hash-table)))
+    (cl-loop for a from 3 to 333
+	     do (cl-loop
+		 for b from (1+ a) to 500
+		 do (let ((squ (+ (* a a) (* b b))))
+		      (when (= (sqrt squ) (cl-isqrt squ))
+			(let* ((sum (+ a b (cl-isqrt squ)))
+			       (v (gethash sum res)))
+			  (if v (puthash sum (1+ v) res)
+			    (puthash sum 1 res)))))))
+    (let ((max 0) (key 0))
+      (maphash (lambda (k v)
+		 (if (> v max)
+		     (setq key k
+			   max v)))
+	       res)
+      key))
+  => 840
+#+END_SRC
