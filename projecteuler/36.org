@@ -1,0 +1,145 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 36
+#+DATE: [2019-06-02 Sun 16:04]
+
+* Problem
+
+*[[https://projecteuler.net/problem=36][Double-base Palindromes]]*
+
+The decimal number, 585 = 1001001001_{2} (binary), is palindromic in both bases.
+
+Find the sum of all numbers, less than one million, which are palindromic in base 10 and base 2.
+
+(Please note that the palindromic number, in either base, may not include leading zeros.)
+
+*双进制回文数*
+
+十进制数 585 = 1001001001_{2}（二进制表示），因此它在这两种进制下都是回文数。
+
+找出所有小于一百万，且在十进制和二进制下均回文的数，并求它们的和。
+
+（请注意，无论在哪种进制下，回文数均不考虑前导零。）
+
+* Solution
+
+根据题意，回文数不考虑前导 0，这意味着二进制回文数必为奇数。
+
+一种比较简单的思路是分别生成二进制和十进制下的回文数，然后求交集，当然我们也可以获取十进制回文数后对每个数字逐个判断是否为二进制回文数。小于 1000000 的最大数 999999 是六位数，大概包括这些组合： =a=, =aa=, =axa=, =abba=, =abcba=, =abccba= 。
+
+注意上面的排列，可注意到三位回文数就是一位加上相同的前缀和后缀，五位则是三位加上前后缀，四位和六位同理。我们可以编写如下程序生成十进制回文数：
+
+#+BEGIN_SRC elisp
+(defun eu36-gen (n)
+  (cond
+   ((<= n 0) '())
+   ((= n 1) '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9"))
+   ((= n 2) '("00" "11" "22" "33" "44" "55" "66" "77" "88" "99"))
+   (t (let ((gen-2 (eu36-gen (- n 2))))
+	(cl-loop
+	 for a in gen-2 append
+	 (cl-loop
+	  for i from ?0 to ?9 collect
+	  (concat (string i)
+		  a
+		  (string i))))))))
+
+(setq eu36-numstr
+      (cl-loop
+       for i from 1 to 6
+       append (eu36-gen i)))
+
+(setq eu36-nums
+      (cl-remove-if
+       'cl-evenp
+       (mapcar 'string-to-number
+	       eu36-numstr)))
+#+END_SRC
+
+接着，我们使用回文判断函数和十进制转二进制字符串函数配合即可获取本题的结果：
+
+#+BEGIN_SRC elisp
+  (defun eu4-papstr (str)
+    (let* ((len (length str)))
+      (named-let f ((i 0) (j (1- len)))
+	(cond
+	 ((>= i j) t)
+	 ((= (aref str i) (aref str j))
+	  (f (1+ i) (1- j)))
+	 (t nil)))))
+
+  (defun eu36-dec2binstr (n)
+    (let ((res))
+      (while (/= n 0)
+	(push (% n 2) res)
+	(setq n (/ n 2)))
+      (mapconcat (lambda (x) (string (+ x ?0)))
+		 res)))
+
+  (cl-loop for a in eu36-nums
+	   if (eu4-papstr (eu36-dec2binstr a))
+	   collect a)
+  => (1 3 5 7 9 33 99 313 717 585 9009 7447 32223 53235 15351 73737 53835 39993 585585)
+
+  (+ 1 3 5 7 9 33 99 313 717 585 9009 7447 32223 53235 15351 73737 53835 39993 585585)
+  => 872187
+#+END_SRC
+
+当然了，如果你参考了这一题的 overflow pdf，pdf 中的回文数生成算法还要更精巧一点，我们可以通过三位数 =xyz= 分别确定五位和六位回文数 =xyzyx= 和 =xyzzyx= 。同理，两位数 =xy= 可以确定三位和四位回文数 =xyx= 和 =xyyx=...... 也就是说，根据 n 位数我们可以确定 2n 和 2n-1 位的回文数。
+
+按照文档的说法，根据 base^{n} 的以下的自然数可以生成 base^{2n} 以下的回文数，它给出的生成算法如下，该算法可以根据一个数生成它对应的奇数长度或偶数长度回文数：
+
+#+BEGIN_SRC elisp
+  (defun eu36-makep (n base oddp)
+    (let ((res n))
+      (when oddp (setq n (/ n base)))
+      (while (> n 0)
+	(setq res (+ (* base res) (% n base)))
+	(setq n (/ n base)))
+      res))
+
+  (eu36-makep 123 10 t)
+  => 12321
+  (eu36-makep 123 10 nil)
+  => 123321
+#+END_SRC
+
+对于二进制数，使用位移和位与操作效率更高：
+
+#+BEGIN_SRC elisp
+  (defun eu36-makep2 (n oddp)
+    (let ((res n))
+      (when oddp (setq n (ash n -1)))
+      (while (> n 0)
+	(setq res (+ (ash res 1) (logand n 1)))
+	(setq n (ash n -1)))
+      res))
+
+  (eu36-makep2 5 t)
+  => 21 (101 => 10101)
+  (eu36-makep2 5 nil)
+  => 45 (101 => 101101)
+#+END_SRC
+
+这个生成算法想必读者应该能看懂，就是一位一位地把数加到原来的数的后面，这里就不过多解释了，下面是文档中的解法：
+
+#+BEGIN_SRC elisp
+(let* ((limit 1000000)
+       (sum 0)
+       (i 1)
+       (p (eu36-makep2 i t)))
+  (while (< p limit)
+    (when (eu4-papstr (number-to-string p))
+      (cl-incf sum p))
+    (cl-incf i)
+    (setq p (eu36-makep2 i t)))
+  (setq i 1)
+  (setq p (eu36-makep2 i nil))
+  (while (< p limit)
+    (when (eu4-papstr (number-to-string p))
+      (cl-incf sum p))
+    (cl-incf i)
+    (setq p (eu36-makep2 i nil)))
+  sum)
+=> 872187
+#+END_SRC
