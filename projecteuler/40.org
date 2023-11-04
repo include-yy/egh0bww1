@@ -1,0 +1,51 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 40
+#+DATE: [2019-06-08 Sat 16:51]
+
+* Problem
+
+*[[https://projecteuler.net/problem=40][Champernowne's Constant]]*
+
+An irrational decimal fraction is created by concatenating the positive integers:
+
+\[0.12345678910\color{red}{1}112131415161718192021...\]
+
+It can be seen that the 12^{th} digit of the fractional part is 1.
+
+If d_{n} represents the n^{th} digit of the fractional part, find the value of the following expression.
+
+\[d_1 \cdot d_{10} \cdot d_{100} \cdot d_{1000} \cdot d_{10000} \cdot d_{100000} \cdot d_{1000000}\]
+
+*钱珀瑙恩数*
+
+将所有正整数连接起来构造的一个十进制无理数如下所示：
+
+\[0.12345678910\color{red}{1}112131415161718192021...\]
+
+可以看出小数点后第 12 位数字是 1。
+
+如果 d_{n} 表示上述无理数小数点后的第 n 位数字，求下式的值：
+
+\[d_1 \cdot d_{10} \cdot d_{100} \cdot d_{1000} \cdot d_{10000} \cdot d_{100000} \cdot d_{1000000}\]
+
+* Solution
+
+易知从 1 到 9 有 9 个数，从 10 到 99 有 90 个数，从 100 到 999 有 900 个数，从 1000 到 9999 有 9000 个数，从 10000 到 99999 有 90000 个数。
+
+这一题不需要通过编程语言来解决，我们很容易找到数字与位置的对应关系：（下面的下标表示从左到右取数字的位置，从 0 开始）
+
+- \(A_n = n\), \(1 \le n \le 9\)
+- \(A_n = \{10 + \lfloor\frac{n-10}{2}\rfloor\}_{[(n - 10)\%2]}\), \(10 \le n \le 189\)
+- \(A_n = \{100 + \lfloor\frac{n-190}{3}\rfloor\}_{[(n - 190)\%3]}\), \(190 \le n \le 2889\)
+- \(A_n = \{1000 + \lfloor\frac{n-2890}{4}\rfloor\}_{[(n - 2890)\%4]}\), \(2890 \le n \le 38889\)
+- \(A_n = \{10000 + \lfloor\frac{n-38890}{5}\rfloor\}_{[(n - 38890\%5]}\), \(38890 \le n \le 488889\)
+- \(A_n = \{100000 + \lfloor\frac{n-488890}{6}\rfloor\}_{[(n - 488890)\%6]}\), \(488890 \le n \le 5888889\)
+
+根据上面的公式有：
+
+- \(d_1 = 1\), \(d_{10} = 1\), \(d_{100} = 5\)
+- \(d_{1000} = 3\), \(d_{10000} = 7\), \(d_{100000} = 2\)
+- \(d_{1000000} = 1\)
+
+结果为 \(1 \cdot 1 \cdot 5 \cdot 3 \cdot 7 \cdot 2 \cdot 1 = 210\)
