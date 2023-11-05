@@ -1,0 +1,70 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 47
+#+DATE: [2019-06-08 Sat 08:39]
+
+* Problem
+
+*[[https://projecteuler.net/problem=47][Distinct Primes Factors]]*
+
+The first two consecutive numbers to have two distinct prime factors are:
+
+\[14 = 2 \times 7\]
+\[15 = 3 \times 5\]
+
+The first three consecutive numbers to have three distinct prime factors are:
+
+\[644 = 2^2 \times 7 \times 23\]
+\[645 = 3 \times 5 \times 43\]
+\[646 = 2 \times 17 \times 19\]
+
+Find the first four consecutive integers to have four distinct prime factors each. What is the first of these numbers?
+
+*不同的质因数*
+
+首次出现连续两个数均有两个不同的质因数是在：
+
+\[14 = 2 \times 7\]
+\[15 = 3 \times 5\]
+
+首次出现连续三个数均有三个不同的质因数是在：
+
+\[644 = 2^2 \times 7 \times 23\]
+\[645 = 3 \times 5 \times 43\]
+\[646 = 2 \times 17 \times 19\]
+
+首次出现连续四个数均有四个不同的质因数时，其中的第一个数是多少？
+
+* Solution
+
+我们可以获取数字的质因数组成的列表然后求交集进行判断：
+
+#+BEGIN_SRC elisp
+(defun eu47-pfactor (n)
+  (let ((res))
+    (when (= (% n 2) 0)
+      (push 2 res)
+      (while (= (% n 2) 0)
+	(setq n (/ n 2))))
+    (named-let f ((i 3))
+      (cond
+       ((> i n))
+       (t (if (= (% n i) 0)
+	      (progn
+		(push i res)
+		(while (= (% n i) 0)
+		  (setq n (/ n i)))
+		(f (+ i 2)))
+	    (f (+ i 2))))))
+    res))
+
+(cl-loop
+ for i from 1
+ with counter = 0
+ if (= (eu47-pfactor i) 3)
+ do (cl-incf counter)
+ else do (setq counter 0) end
+ if (= counter 3)
+ return (- i 3))
+=> 134043
+#+END_SRC

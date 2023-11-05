@@ -1,0 +1,30 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 48
+#+DATE: [2019-06-08 Sat 08:01]
+
+* Problem
+
+*[[https://projecteuler.net/problem=48][Self Powers]]*
+
+The series, \(1^1 + 2^2 + 3^3 + ... + 10^{10} = 10405071317\).
+
+Find the last ten digits of the series, \(1^1 + 2^2 + 3^3 + ... + 1000^1000).
+
+*自幂*
+
+自幂级数的前十项求和为 \(1^1+2^2+3^3 +\ldots + 10^{10} = 10405071317\)。
+
+求自幂级数的前一千项求和，即 \(1^1+2^2+3^3 +\ldots + 1000^{1000}\)，并给出其最后十个数字作为答案。
+
+* Solution
+
+在计算过程中不断对 10^{10} 取模即可：
+
+#+BEGIN_SRC elisp
+  (let ((res 0))
+    (cl-loop for i from 1 to 1000
+	     do (setq res (% (+ res (expt i i)) (expt 10 10))))
+    res)
+  => 9110846700
+#+END_SRC
