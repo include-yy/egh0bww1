@@ -1,0 +1,102 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 43
+#+DATE: [2019-06-09 Sun 03:23]
+
+* Problem
+
+*[[https://projecteuler.net/problem=43][Sub-string Divisibility]]*
+
+The number, 1406357289, is a 0 to 9 pandigital number because it is made up of each of the digits 0 to 9 in some order, but it also has a rather interesting sub-string divisibility property.
+
+Let d_{1} be the 1^{st} digit, d_{2} be the 2^{nd} digit, and so on. In this way, we note the following:
+
+- d_{2}d_{3}d_{4} is divisible by 2
+- d_{3}d_{4}d_{5} is divisible by 3
+- d_{4}d_{5}d_{6} is divisible by 5
+- d_{5}d_{6}d_{7} is divisible by 7
+- d_{6}d_{7}d_{8} is divisible by 11
+- d_{7}d_{8}d_{9} is divisible by 13
+- d_{8}d_{9}d_{10} is divisible by 17
+
+Find the sum of all 0 to 9 pandigital numbers with this property.
+
+*子串的可整除性*
+
+1406357289 是一个 0 至 9 全数字数，因为它由 0 到 9 这十个数字排列而成；但除此之外，它还有一个有趣的性质：子串的可整除性。
+
+记 d_{1} 是它的第 1个数字，d_{2} 是第 2个数字，依此类推，注意到：
+
+- d_{2}d_{3}d_{4} 能被 2 整除
+- d_{3}d_{4}d_{5} 能被 3 整除
+- d_{4}d_{5}d_{6} 能被 5 整除
+- d_{5}d_{6}d_{7} 能被 7 整除
+- d_{6}d_{7}d_{8} 能被 11 整除
+- d_{7}d_{8}d_{9} 能被 13 整除
+- d_{8}d_{9}d_{10} 能被 17 整除
+
+找出所有满足同样性质的 0 至 9 全数字数，并求它们的和。
+
+* Solution
+
+由于子串之间的强约束性（相邻的两个字串有两个相同的数字），我们可以考虑从头部或尾部字串作为起始推得其他字串的可行值，比如 1000 以下能被 17 整除的仅有 58 个数字，筛去含有相同数字的则仅有以下这些：
+
+#+BEGIN_SRC elisp
+  (defun eu43-num2ls (n)
+    (let ((res '())
+	  (tmp n))
+      (while (/= n 0)
+	(push (% n 10) res)
+	(setq n (/ n 10)))
+      (when (< tmp 100)
+	(push 0 res))
+      res))
+
+  (defun eu43-check (ls)
+    (and (= (length ls) 3)
+	 (= (length (delete-dups ls)) 3)))
+
+  (setq eu43-ini
+	(cl-remove-if-not
+	 'eu43-check
+	 (mapcar 'eu43-num2ls
+		 (cl-loop for i from 1 to 1000
+			  if (zerop (% i 17))
+			  collect i))))
+
+  (length eu43-ini) => 44
+#+END_SRC
+
+接下来一遍一遍筛就行了：
+
+#+BEGIN_SRC elisp
+  (let ((divs '(13 11 7 5 3 2))
+	(facs '(0 1 2 3 4 5 6 7 8 9))
+	(nums eu43-ini))
+    (while divs
+      (setq nums
+	    (cl-loop
+	     for a in nums append
+	     (cl-loop
+	      for b in (cl-set-difference facs a)
+	      with a1 = (nth 0 a)
+	      with a2 = (nth 1 a)
+	      for newnum = (eu43-ls2num (list b a1 a2))
+	      if (zerop (% newnum (car divs)))
+	      collect (cons b a))))
+      (setq divs (cdr divs)))
+    (mapcar (lambda (x) (cons (car (cl-set-difference facs x))
+			      x))
+	    nums))
+  => ((4 1 6 0 3 5 7 2 8 9) (1 4 6 0 3 5 7 2 8 9)
+      (4 1 0 6 3 5 7 2 8 9) (1 4 0 6 3 5 7 2 8 9)
+      (4 1 3 0 9 5 2 8 6 7) (1 4 3 0 9 5 2 8 6 7))
+
+
+  (cl-reduce (lambda (a b) (+ a (eu43-ls2num b)))
+	     '((4 1 6 0 3 5 7 2 8 9) (1 4 6 0 3 5 7 2 8 9)
+	       (4 1 0 6 3 5 7 2 8 9) (1 4 0 6 3 5 7 2 8 9)
+	       (4 1 3 0 9 5 2 8 6 7) (1 4 3 0 9 5 2 8 6 7))
+	     :initial-value 0)
+  => 16695334890
+#+END_SRC

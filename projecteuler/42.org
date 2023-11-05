@@ -1,0 +1,71 @@
+#+SETUPFILE: ./setup.org
+
+#+TITLE: Problem 42
+#+DATE: [2019-06-08 Sat 16:03]
+
+* Problem
+
+*[[https://projecteuler.net/problem=42][Coded Triangle Numbers]]*
+
+The n^{th} term of the sequence of triangle numbers is given by, t_{n} = 0.5n(n+1); so the first ten triangle numbers are:
+
+#+BEGIN_CENTER
+1,3,6,10,15,21,28,36,45,55,...
+#+END_CENTER
+
+By converting each letter in a word to a number corresponding to its alphabetical position and adding these values we form a word value. For example, the word value for SKY is 19 + 11 + 25 = 55 = t_{10}. If the word value is a triangle number then we shall call the word a triangle word.
+
+Using [[https://projecteuler.net/resources/documents/0042_words.txt][words.txt]] words.txt (right click and 'Save Link/Target As...'), a 16K text file containing nearly two-thousand common English words, how many are triangle words?
+
+*编码三角形数*
+
+三角形数序列的第 n 项由公式 t_{n} = 0.5n(n+1) 给出。前十个三角形数是：
+
+#+BEGIN_CENTER
+1,3,6,10,15,21,28,36,45,55,...
+#+END_CENTER
+
+将一个单词的每个字母分别转化为其在字母表中的顺序并相加，所得结果即为这个单词的价值。例如，单词 SKY 的价值是 19 + 11 + 25 = 55 = t_{10}。如果一个单词的价值是一个三角形数，称这个单词为三角形单词。
+
+在文本文件 words.txt 中包含有将近两千个常用英文单词，其中有多少个三角形单词？
+
+* Solution
+
+首先使用如下代码获取并处理来自文本的单词：
+
+#+BEGIN_SRC elisp
+  (defun eu42-get-names ()
+    (with-current-buffer
+	(url-retrieve-synchronously
+	 "https://projecteuler.net/resources/documents/0042_words.txt")
+      (goto-char (point-min))
+      (search-forward "\"A\"")
+      (move-beginning-of-line 1)
+      (insert "(")
+      (replace-string "," " ")
+      (goto-char (point-max))
+      (insert ")")
+      (goto-char (point-min))
+      (search-forward "\"A\"")
+      (move-beginning-of-line 1)
+      (prog1 (read (current-buffer))
+	(kill-buffer))))
+
+  (setq eu42-wordls (eu42-get-names))
+#+END_SRC
+
+然后直接无脑算就行了：
+
+#+BEGIN_SRC elisp
+  (defun eu42-word2num (str)
+    (cl-reduce (lambda (s a)
+		 (+ s 1 (- a ?A)))
+	       str
+	       :initial-value 0))
+
+  (let ((tri-tbl (cl-loop for n from 1 to 100
+			  collect (/ (* n (1+ n)) 2))))
+    (cl-loop for a in (mapcar 'eu42-word2num eu42-wordls)
+	     count (member a tri-tbl)))
+  => 162
+#+END_SRC
