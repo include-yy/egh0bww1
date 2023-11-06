@@ -21,6 +21,40 @@
 #+ATTR_HTML: :class top-down-img
 [[../img/euler_portrait.png]]
 
+{{{toc}}}
+
+* What is Project Euler
+
+#+BEGIN_CENTER
+/"Project Euler exists to encourage, challenge, and develop the skills and enjoyment of anyone with an interest in the fascinating world of mathematics."/
+
+https://projecteuler.net/
+#+END_CENTER
+
+简单来说，欧拉计划提供了一系列和数学相关性较大的编程问题，用户可以注册账户并向网站直接提交答案而不是代码，它和一般的在平台运行代码并检测运行时间和空间有所不同。这意味着我们在解决问题时无需时刻考虑时间或空间开销，不过一般情况下程序的运行时间应该小于一分钟。我们甚至无需编写代码而是搜索学习题目背后的数学知识来通过纸笔解决。
+
+欧拉计划始于 2001 年的 10月，由 Colin Hughes 发起，在我完成第一题时离项目的启动已经过去了 18 年。现在差不多四五年过去了，我也断断续续地完成了前一百题和一些难度较低的其他题目，也许是时候做个总结了。在 About 页面中，欧拉计划对前一百题的答案或题解发表并没有什么限制，所以我也没什么道德上的心理负担（笑）：
+
+#+BEGIN_QUOTE
+There is nothing quite like that "Aha!" moment when you finally beat a problem which you have been working on for some time. It is often through the best of intentions in wishing to share our insights so that others can enjoy that moment too. Sadly, that will rarely be the case for your readers. Real learning is an active process and seeing how it is done is a long way from experiencing that epiphany of discovery. Please do not deny others what you have so richly valued yourself.
+
+However, the rule about sharing solutions outside of Project Euler does not apply to the *first one-hundred problems*, as long as any discussion clearly aims to instruct methods, not just provide answers, and does not directly threaten to undermine the enjoyment of solving later problems. Problems 1 to 100 provide a wealth of helpful introductory teaching material and if you are able to respect our requirements, then we give permission for those problems and their solutions to be discussed elsewhere.
+
+/I learned so much solving problem XXX, so is it okay to publish my solution elsewhere?/
+#+END_QUOTE
+
+这一系列的文章并不是简单地给出欧拉计划一到一百题的答案或可运行的代码，而是试图解释清楚每一题的思路，并不断迭代直到给出我认为足够好的代码。同时，我也会摘录一些有价值的讨论或题解来帮助更加全面地认识问题。如果你是第一次做这些题目，我建议首先尝试自己解决问题；如果花了几小时或几天仍然无法找出解决方法，希望这些题解能对你有所帮助。
+
+以下题解使用的编程语言是 Emacs Lisp，一种 Lisp 方言。如果你觉得这些代码不是那么容易读懂，可以去搜索其他使用大众语言编写的题解。
+
+*GOOK LUCK AND HAVE FUN!!!*
+
+* Problems 1~100 solved by myself
+
 {{{eu_init}}}
 {{{eu_table}}}
 {{{eu_clr}}}
+
+* Summary
+
+这里是对前一百题中的一些我比较感兴趣的知识点的总结，相同的知识可能出现在多个题目中，因此这样的总结还是有一定价值的。
