@@ -843,6 +843,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 	   "\
 #+SETUPFILE: ../setup.org
 #+FILETAGS: %s\n
+#+TMP: 0（未完成的草稿） 1（长期笔记）2（垃圾）
 #+TITLE: %s
 #+DATE: %s\n
 #+DESCRIPTION:"
