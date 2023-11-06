@@ -1,0 +1,56 @@
+#+SETUPFILE: ../cfg.org
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+
+#+OPTIONS: num:nil
+
+#+HTML_HEAD_FUNC: yynt-post-index-head
+#+HTML_SUFFUNC: yynt-post-index-postamble
+
+#+HTML_LINK_FUNC: yynt-repost-home/up-func
+
+#+MACRO: dr_init (eval (yynt-draft-init))
+#+MACRO: dr_clr  (eval (yynt-draft-clr))
+#+MACRO: dr_tag  (eval (yynt-draft-tag-titlelists $1))
+#+MACRO: dr_num  (eval (length yynt--draft-tmp))
+
+#+TITLE: include-yy :: drafts
+
+#+ATTR_HTML: :class top-down-img :id fig
+#+CAPTION: https://www.pixiv.net/artworks/108217855
+[[file:0.jpg]]
+
+#+BEGIN_EXPORT html
+<script>
+let cirno = document.getElementById("fig")
+let flag = 0;
+
+cirno.onclick = () => {
+    if (flag == 0) {
+	cirno.src = "./1.jpg"
+	flag = 1
+    } else if (flag == 1) {
+	cirno.src = "./0.jpg"
+	flag = 0
+    }
+}
+</script>
+#+END_EXPORT
+
+{{{dr_init}}}
+
+Total Number of draft is {{{dr_num}}}.
+
+* Working On
+
+{{{dr_tag(0)}}}
+
+* Long Term
+
+{{{dr_tag(1)}}}
+
+* Garbage
+
+{{{dr_tag(2)}}}
+
+{{{dr_clr}}}

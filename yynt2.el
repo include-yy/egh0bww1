@@ -424,7 +424,7 @@ alist 为提取得到的属性值"
      (yynt-html-gen-js (yynt-html-r yynt-d-js "img_hideshow.js" ".."))
      (yynt-html-google-font-roboto))))
 
-(defalias 'yynt-post-index-head 'yynt-normal-head
+(defalias 'yynt-post-index-head (yynt-normal-head yynt-sb-post nil)
   "生成用于 post index 的 html Head")
 
 (defun yynt-get-all-post-files ()
@@ -582,6 +582,47 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 (defun yynt-post-tag-total ()
   "获取 post 的 tag 总数"
   (number-to-string (length (yynt--post-read-tags))))
+
+
+;;; draft
+;; 二层结构；可视作 post 的补充
+;; 可以用来保存一些暂时没有完成的文章，或者是长期的本地笔记
+;; 在 tag 中，0 表示普通草稿，1 表示长期草稿，2 表示废材
+;; 可以直接利用 post 的 head 和 postamble 等模板
+
+(defun yynt-draft-get-title-tags ()
+  "获取 draft 目录下的所有标题和标签
+此处的标签与 post 区分，使用 #+TMP: "
+  (yynt-p-get-info
+   (yynt-get-dated-2xxx-under-dir "drafts")
+   '("title" "tmp")))
+
+(yynt-resource-gen-macro
+ yynt--draft-tmp
+ yynt-draft-init
+ yynt-draft-clr
+ (reverse (yynt-draft-get-title-tags)))
+
+(defun yynt--draft-tag-filter (tagstr dir-titles)
+  "根据 #+TMP 筛选文章"
+  (seq-filter (lambda (x)
+		(string= (cdr (assoc "tmp" (cdr x)))
+			 tagstr))
+	      dir-titles))
+
+(defun yynt-draft-tag-titlelists (tag &optional prefix)
+  "生成某一 tag 的草稿列表"
+  (yynt-generate-titlelists
+   (yynt--draft-tag-filter
+    tag yynt--draft-tmp)
+   prefix))
+
+(defun yynt-draft-tag-titlelists (tag &optional prefix)
+  "生成某一 tag 的所有文章列表"
+  (yynt-generate-titlelists
+   (yynt--draft-tag-filter
+    tag yynt--draft-tmp)
+   prefix))
 
 
 ;;; repost

@@ -57,6 +57,7 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 #+BEGIN_nav
 | [[./posts/index.org][POSTS]] | [[file:posts/tags.org][TAGS]]  | [[./republish/index.org][REPOSTS]] |
 | [[./projecteuler/index.org][EULER]] | [[*FOLKS][FOLKS]] | [[*ABOUT][ABOUT]]   |
+| DON'T | CLICK | [[file:drafts/index.org][DRAFT]]   |
 #+END_nav
 
 * Recent [[./posts/index.org][Posts]]
