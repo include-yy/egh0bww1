@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 22
 #+DATE: [2019-05-21 Tue 15:35]
+#+DESCRIPTION: 获取文件中的名字的加权和
 
 * Problem
 

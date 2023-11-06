@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 15
 #+DATE: [2019-05-21 Tue 12:02]
+#+DESCRIPTION: 求从边长为 n 的网格左上角移动到右下角的路径总数
 
 * Problem
 

@@ -10,6 +10,7 @@
 ;; - ...
 
 ;; 请使用 `eval-buffer' 加载 yynt，且保证 yynt.el 在项目根目录上
+;; 在 emacs 29 中，可以通过 C-c C-e 调用 `elisp-eval-region-or-buffer'
 
 ;;; requests
 ;; 加载自带的 htmlize
@@ -193,145 +194,10 @@
 				t-dir)
 	      name))
 
-;;;; 一些固定的元素
-;;; post
-;; 博客的发表目录，为二层结构，即 posts/*/index.org
-(defvar yynt-sb-post "posts"
-  "子构建 posts 的相对目录名")
-
-(defun yynt-post-postamble (_info)
-  "用于 post 文章的 postamble"
-  "<hr>
-<div id=\"cc-container\">
-<div>
-<p>Created: %d</p>
-<p>Updated: %C</p>
-<p class=\"creator\">Creator: %c</p>
-</div>
-<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
-<img alt=\"CC-BY-SA 4.0\" src=\"../../img/by-sa.svg\"></a>
-</div>")
-
-(defun yynt-post-index-postamble (_info)
-  "用于 post index 的 postamble"
-  "<hr>
-<div id=\"cc-container\">
-<div>
-<p>Updated: %C</p>
-</div>
-<a href=\"https://erkin.party/emacs/\"><img src=\"../img/made4.gif\" alt=\"⑨\"></a>
-<img src=\"../img/made10.png\" alt=\"⑨\">
-<img src=\"../img/made8.png\" alt=\"⑨\">
-<img src=\"../img/sink_white.png\" alt=\"⑨\">
-</div>")
-
-(defun yynt-post-head (_info)
-  "生成用于 post 中文章的 http <head>"
-  (let ((yynt--rela-current-path yynt-sb-post))
-    (yynt-html-concat-newline
-     (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css" ".."))
-     (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico" ".."))
-     (yynt-html-gen-js (yynt-html-r yynt-d-js "copycode.js" ".."))
-     (yynt-html-gen-js (yynt-html-r yynt-d-js "img_hideshow.js" ".."))
-     (yynt-html-google-font-roboto))))
-
-(defun yynt-post-index-head (_info)
-  "生成用于 post index 的 http <head>"
-  (let ((yynt--rela-current-path yynt-sb-post))
-    (yynt-html-concat-newline
-     (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css"))
-     (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico"))
-     (yynt-html-google-font-roboto))))
-
-;;; homepage
-(defun yynt-homepage-postamble (_info)
-  "用于主页的 postamble"
-  "<hr><p style=\"text-align:center;\"><i>homepage ends here~</i></p><br>")
-
-;;; repost
-;; repost 发表目录，二层结构，republish/*/index.org
-(defvar yynt-sb-repost "republish"
-  "repost 的目录")
-
-(defun yynt-repost-home/up-func (_info)
-  "用于 repost 的 home/up 元素生成函数"
-  "<div id=\"org-div-home-and-up\">
-<a href=\"../index.html\"> HOME </a>
-</div>\n")
-
-;; 直接使用 post 的 index head 生成
-(defalias 'yynt-repost-index-head 'yynt-post-index-head)
-
-(defun yynt-repost-head (_info)
-  "生成用于 repost 中文章的 http <head>"
-  (let ((yynt--rela-current-path yynt-sb-repost))
-    (yynt-html-concat-newline
-     (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css" ".."))
-     (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico" ".."))
-     (yynt-html-gen-js (yynt-html-r yynt-d-js "copycode.js" ".."))
-     (yynt-html-google-font-roboto))))
-
-(defun yynt-repost-index-postamble (_info)
-  "repost index 页面的 postamble"
-  "<hr>
-<div id=\"cc-container\">
-<div>
-<p>Updated: %C</p>
-</div>
-<a href=\"https://erkin.party/emacs/\"><img src=\"../img/made4.gif\" alt=\"⑨\"></a>
-</div><br>
-")
-
-(defun yynt-repost-postamble (_info)
-  "repost 文章的 postamble"
-  "<hr>
-<div>
-<p>Author: %a</p>
-<p>Created: %d</p>
-<p>Updated: %C</p>
-<p class=\"creator\">Creator: %c</p>
-</div>")
-
-;;; euler
-;; euler 发表目录，一层结构，projecteuler/*.org
-(defvar yynt-sb-euler "projecteuler"
-  "euler 文章的相对路径")
-
-(defun yynt-euler-postamble (_info)
-  "euler 文章的 postamble"
-  "\
-<hr>
-<div id=\"cc-container\">
-<div>
-<p>Created: %d</p>
-<p>Updated: %C</p>
-<p class=\"creator\">Creator: %c</p>
-</div>
-<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
-<img alt=\"CC-BY-SA 4.0\" src=\"../img/by-sa.svg\"></a>
-</div>")
-
-;; 直接使用 repost index 的 postamble
-(defalias 'yynt-euler-index-postamble 'yynt-repost-index-postamble)
-;; 直接使用 repost index 的 home/up
-(defalias 'yynt-euler-home/up-func 'yynt-repost-home/up-func)
-
-(defun yynt-euler-head (_info)
-  "用于 euler 文章和 index 的 <head>"
-  (let ((yynt--rela-current-path yynt-sb-euler))
-    (yynt-html-concat-newline
-     (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css"))
-     (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico"))
-     (yynt-html-gen-js  (yynt-html-r yynt-d-js  "copycode.js"))
-     (yynt-html-google-font-roboto))))
-
-;;; 404
-(defun yynt-404-postamble (_info)
-  "<hr><div style=\"text-align:center;\"><i>404~</i></div>")
-
-
-;;;; 针对单层目录和双层目录做一下抽象，分为 p1 和 p2 系列函数
-;;;; 提供一些通用的函数
+;;; 提供一些通用的函数
+;;; 同时针对单层目录和双层目录做一下抽象，分为 p1 和 p2 系列函数
+;;; - 单层目录指的是目录下有很多 org 文件
+;;; - 多层目录指目录下有很多子目录，子目录内有 index.org 作为主文件
 
 (defun yynt-get-file-info (filename infos)
   "获取文件头的一些以 #+NAME: value 为格式的属性
@@ -380,15 +246,6 @@ regexp-or-pred 用来匹配目录，pred 用来判断二级目录是否符合条
 	(push (cons (yynt-fbase a) p) res)))
     (reverse res)))
 
-(defun yynt-p-get-info (list klist)
-  "根据 klist 中的关键字从 list 中的文件中获取信息
-list 的格式为 ((dir . fullname)...)
-返回值为 (((dir . fullname) . ((p1 . v1) (p2 . v2))) ...)"
-  (cl-mapcar 'cons list
-	     (mapcar (lambda (x)
-		       (yynt-get-file-info (cdr x) klist))
-		     list)))
-
 ;; 对于一级目录的子项，所有项都在这一层目录里，相比二级目录比较简单
 ;; 可能存在一些统一存放资源的文件夹，以及少数汇总式文件
 (defun yynt-p1-getfiles (path regexp-or-pred)
@@ -407,9 +264,52 @@ regexp-or-pred 用来匹配文件，若为函数，则非 `nil' 表示匹配
 				    (funcall regexp-or-pred (yynt-fname x)))))
 			    all)))
     (mapcar (lambda (x) (cons (yynt-fbase x) x)) files)))
-
-;;; post starts here
-;;; 用于 posts 的内容获取函数系列
+
+(defun yynt-p-get-info (list klist)
+  "根据 klist 中的关键字从 list 中的文件中获取信息
+list 的格式为 ((dir . fullname)...)
+返回值为 (((dir . fullname) . ((p1 . v1) (p2 . v2))) ...)"
+  (cl-mapcar 'cons list
+	     (mapcar (lambda (x)
+		       (yynt-get-file-info (cdr x) klist))
+		     list)))
+
+(defun yynt-p-mapcar (fn list)
+  "为形如 `yynt-p-get-info' 返回值的 list 提供方便的 map 函数
+fn 的参数列表为 (name path alist)，其中 name 为键，path 为绝对路径
+alist 为提取得到的属性值"
+  (mapcar (lambda (x)
+	    (let* ((pair (car x))
+		   (name (nth 0 pair))
+		   (path (nth 1 pair))
+		   (alist (cdr x)))
+	      (funcall fn name path alist)))
+	  list))
+
+(defun yynt-p-lift (fn)
+  "将接受 (name path alist) 为参数的函数提升为能处理 ((name . path) . alist)
+的单参函数，让我们能够方便地使用一系列 map, reduce 函数"
+  (pcase-lambda (`((,name . ,path) . ,alist))
+    (funcall fn name path alist)))
+
+(defun yynt-p-highorder-gen (fn)
+  "生成能处理多参版本的 map 或 reduce 系列函数"
+  (lambda (f &rest args)
+    (apply fn (yynt-p-lift f) args)))
+
+(defalias 'yynt-p-mapcar (yynt-p-highorder-gen 'mapcar)
+  "mapcar 的 yynt 版本，接受的函数参数列表为 (name path alist)")
+
+(defalias 'yynt-p-mapconcat (yynt-p-highorder-gen 'mapconcat)
+  "mapconcat 的 yynt 版本")
+
+(defalias 'yynt-p-remove-if (yynt-p-highorder-gen 'cl-remove-if)
+  "cl-remove-if 的 yynt 版本")
+
+(defalias 'yynt-p-remove-if-not (yynt-p-highorder-gen 'cl-remove-if-not)
+  "cl-remove-if-not 的 yynt 版本")
+
+;; 对于博客而言，我使用 time-title 来作为文件夹名
 (defun yynt-get-dated-2xxx-under-dir (dirname)
   "获取某目录下的所有以 2xxx 开头的目录，以及其中的 index.org|html 文件绝对路径"
   (yynt-p2-getdirs
@@ -420,13 +320,120 @@ regexp-or-pred 用来匹配文件，若为函数，则非 `nil' 表示匹配
 		(ret (cl-find-if 'file-exists-p (list org htm))))
        ret))))
 
+
+;;;; 一些固定的元素，可用作编写新元素的参考
+(defun yynt-normal-head (base prefix)
+  "生成一般 html 文件的 Head"
+  (lambda (_)
+    (let ((yynt--rela-current-path base))
+      (yynt-html-concat-newline
+       (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css" prefix))
+       (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico" prefix))
+       (yynt-html-google-font-roboto)))))
+
+(defun yynt-normal-code-head (base prefix)
+  "生成支持代码复制的 html Head"
+  (lambda (_)
+    (let ((yynt--rela-current-path base))
+      (yynt-html-concat-newline
+       (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css" prefix))
+       (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico" prefix))
+       (yynt-html-gen-js (yynt-html-r yynt-d-js "copycode.js" prefix))
+       (yynt-html-google-font-roboto)))))
+
+(defun yynt-normal-postamble (prefix)
+  "生成一般的 html postamble"
+  (lambda (_)
+    (concat "\
+<hr>
+<div id=\"cc-container\">
+<div>
+<p>Updated: %C</p>
+</div>
+<a href=\"https://erkin.party/emacs/\"><img src=\""prefix"/img/made4.gif\" alt=\"⑨\"></a>
+</div><br>")))
+
+
+;;;; 为不同类的文章提供设定不同的模板，宏和项目描述
+
+;;; 用于生成处理资源函数的宏
+;; 在生成 post 的 index 文件时，我们首先需要获取所有文章及其标题和 tag。
+;; 为此涉及到这些数据的获取与释放（我们需要通过这些数据生成页面的内容，
+;; 并在使用完毕后删除而不影响下一次生成）。这个宏对这一过程进行了抽象，
+;; 可以用来生成获取与释放的代码。
+(defmacro yynt-resource-gen-macro (tmpvar create-fn release-fn create-code)
+  "生成资源的暂存变量、初始化函数和释放函数"
+  `(progn
+     (defvar ,tmpvar nil)
+     (defun ,create-fn ()
+       (setq ,tmpvar ,create-code)
+       "")
+     (defun ,release-fn ()
+       (setq ,tmpvar nil))))
+
+;;; homepage starts here
+(defun yynt-homepage-postamble (_info)
+  "用于主页的 postamble"
+  "<hr><p style=\"text-align:center;\"><i>homepage ends here~</i></p><br>")
+
+;;; 404
+(defun yynt-404-postamble (_info)
+  "<hr><div style=\"text-align:center;\"><i>404~</i></div>")
+
+
+;;; post starts here
+;; 二层结果 posts/*/index.org
+(defvar yynt-sb-post "posts"
+  "子构建 posts 的相对目录名")
+
+(defun yynt-post-postamble (_info)
+  "用于 post 文章的 postamble"
+  "\
+<hr>
+<div id=\"cc-container\">
+<div>
+<p>Created: %d</p>
+<p>Updated: %C</p>
+<p class=\"creator\">Creator: %c</p>
+</div>
+<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
+<img alt=\"CC-BY-SA 4.0\" src=\"../../img/by-sa.svg\"></a>
+</div>")
+
+(defun yynt-post-index-postamble (_info)
+  "用于 post index 的 postamble"
+  "\
+<hr>
+<div id=\"cc-container\">
+<div>
+<p>Updated: %C</p>
+</div>
+<a href=\"https://erkin.party/emacs/\"><img src=\"../img/made4.gif\" alt=\"⑨\"></a>
+<img src=\"../img/made10.png\" alt=\"⑨\">
+<img src=\"../img/made8.png\" alt=\"⑨\">
+<img src=\"../img/sink_white.png\" alt=\"⑨\">
+</div>")
+
+(defun yynt-post-head (_info)
+  "生成用于 post 中文章的 http <head>"
+  (let ((yynt--rela-current-path yynt-sb-post))
+    (yynt-html-concat-newline
+     (yynt-html-gen-css (yynt-html-r yynt-d-css "style.css" ".."))
+     (yynt-html-gen-ico (yynt-html-r yynt-d-img "rin.ico" ".."))
+     (yynt-html-gen-js (yynt-html-r yynt-d-js "copycode.js" ".."))
+     (yynt-html-gen-js (yynt-html-r yynt-d-js "img_hideshow.js" ".."))
+     (yynt-html-google-font-roboto))))
+
+(defalias 'yynt-post-index-head 'yynt-normal-head
+  "生成用于 post index 的 html Head")
+
 (defun yynt-get-all-post-files ()
   "获取 posts 目录下的所有文章源文件绝对路径 (目录名 . 绝对路径)"
   (yynt-get-dated-2xxx-under-dir "posts"))
 
 (defun yynt-get-all-post-titles-tags (dir-fnames)
   "获取 dir-fnames 下所有文章的标题和 tag
-格式为 ((目录名 . 绝对路径) . ((\"title\" . 标题) (\"filtag\" . tag)))
+格式为 ((目录名 . 绝对路径) . ((\"title\" . 标题) (\"filetag\" . tag)))
 注意 alist 顺序并不一定是 title 在前，请使用 assoc 访问"
   (yynt-p-get-info dir-fnames '("title" "filetags")))
 
@@ -577,7 +584,34 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   (number-to-string (length (yynt--post-read-tags))))
 
 
-;;; repost starts here
+;;; repost
+;; 二层结构，republish/*/index.org
+(defvar yynt-sb-repost "republish"
+  "repost 的目录")
+
+(defun yynt-repost-home/up-func (_info)
+  "用于 repost 的 home/up 元素生成函数"
+  "<div id=\"org-div-home-and-up\">
+<a href=\"../index.html\"> HOME </a>
+</div>\n")
+
+(defalias 'yynt-repost-index-head (yynt-normal-head yynt-sb-repost nil)
+  "生成用于 repost index 的 html head")
+(defalias 'yynt-repost-head (yynt-normal-code-head yynt-sb-post "..")
+  "生成用于 repost 中文章的 html head")
+(defalias 'yynt-repost-index-postamble (yynt-normal-postamble "..")
+  "repost index 页面的 postamble")
+
+(defun yynt-repost-postamble (_info)
+  "repost 文章的 postamble"
+  "<hr>
+<div>
+<p>Author: %a</p>
+<p>Created: %d</p>
+<p>Updated: %C</p>
+<p class=\"creator\">Creator: %c</p>
+</div>")
+
 (defun yynt-get-all-repost-files ()
   "获取 republish 目录下的所有文章源文件绝对路径 (目录名 . 绝对路径)"
   (yynt-get-dated-2xxx-under-dir "republish"))
@@ -612,45 +646,64 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
     (yynt-generate-titlelists
      (seq-take yynt--repost-dir-title-tag num)
      "republish/")))
+
 
-;; 一些写作模板
-;; some template for posts, reposts and euler
-;; [YYYY-MM-DD DAY HH:MM]
-(defun yynt-temp-current-time ()
-  (format-time-string "[%Y-%m-%d %a %H:%M]"))
-(defun yynt-temp-post (title tag)
-  (insert (format
-	   "\
-#+SETUPFILE: ../setup.org
-#+FILETAGS: %s\n
-#+TITLE: %s
-#+DATE: %s\n
-#+DESCRIPTION:"
-	   tag title
-	   (yynt-temp-current-time))))
+;;; projecteuler
+;; 一层结构，projecteuler/*.org
+(defvar yynt-sb-euler "projecteuler"
+  "euler 文章的相对路径")
 
-(defun yynt-temp-repost ()
-  (insert "\
-#+SETUPFILE: ../setup.org
-#+FILETAGS:\n
-#+TITLE:
-#+DATE:
-#+AUTHOR:\n
-#+BEGIN_aside\n
-#+END_aside\n"))
+(defun yynt-euler-postamble (_info)
+  "euler 文章的 postamble"
+  "\
+<hr>
+<div id=\"cc-container\">
+<div>
+<p>Created: %d</p>
+<p>Updated: %C</p>
+<p class=\"creator\">Creator: %c</p>
+</div>
+<a rel=\"license\" href=\"https://creativecommons.org/licenses/by-sa/4.0/\">
+<img alt=\"CC-BY-SA 4.0\" src=\"../img/by-sa.svg\"></a>
+</div>")
 
-(defun yynt-temp-euler (num)
-  (insert (format
-	   "\
-#+SETUPFILE: ./setup.org\n
-#+TITLE: Problem %s
-#+DATE:\n
-* Problem\n
-*[[https://projecteuler.net/problem=%s]]*\n
-*中文题目*\n
-https://pe-cn.github.io/%s
-* Solution"
-	   num num num)))
+(defalias 'yynt-euler-index-postamble (yynt-normal-postamble "..")
+  "用于 euler index 页面的 postamble")
+(defalias 'yynt-euler-home/up-func 'yynt-repost-home/up-func
+  "用于 euler index 页面的 home/up 生成函数")
+(defalias 'yynt-euler-head (yynt-normal-code-head yynt-sb-euler nil)
+  "用于 euler 文章和 index 的 head")
+
+;; 生成用于 euler index 文件中的宏的函数和变量
+(yynt-resource-gen-macro
+ yynt--euler-tmp
+ yynt-euler-init
+ yynt-euler-clr
+ (yynt-p-get-info
+  (sort (yynt-p1-getfiles
+	 (yynt-fjoin yynt-basedir "projecteuler")
+	 "^[0-9]+\\.org")
+	(lambda (a b)
+	  (let ((a0 (string-to-number (car a)))
+		(b0 (string-to-number (car b))))
+	    (< a0 b0))))
+  '("DATE" "FILETAGS" "DESCRIPTION")))
+
+(defun yynt-euler-table (&optional prefix)
+  (concat "|Problem|Description|TAG|TIME|\n"
+	  "|-+-+-+-|\n"
+	  (yynt-p-mapconcat
+	   (lambda (name path alist)
+	     (format "|[[file:%s][%s]]|%s|%s|[%s]|"
+		     (yynt-fjoin (or prefix "")
+				 (yynt-fname path))
+		     name
+		     (or (cdr (assoc "DESCRIPTION" alist)) " ")
+		     (or (cdr (assoc "FILETAGS" alist)) " ")
+		     (substring (cdr (assoc "DATE" alist)) 1 11)))
+	   yynt--euler-tmp
+	   "\n")))
+
 
 ;; 生成 RSS
 ;; 也许可以考虑添加多个 channel，不过现在没什么必要
@@ -735,9 +788,50 @@ https://pe-cn.github.io/%s
     (save-buffer)
     (kill-buffer))
   (message "update rss fin"))
+
 
+;; 一些写作模板
+;; some template for posts, reposts and euler
+;; [YYYY-MM-DD DAY HH:MM]
+(defun yynt-temp-current-time ()
+  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+(defun yynt-temp-post (title tag)
+  (insert (format
+	   "\
+#+SETUPFILE: ../setup.org
+#+FILETAGS: %s\n
+#+TITLE: %s
+#+DATE: %s\n
+#+DESCRIPTION:"
+	   tag title
+	   (yynt-temp-current-time))))
+
+(defun yynt-temp-repost ()
+  (insert "\
+#+SETUPFILE: ../setup.org
+#+FILETAGS:\n
+#+TITLE:
+#+DATE:
+#+AUTHOR:\n
+#+BEGIN_aside\n
+#+END_aside\n"))
+
+(defun yynt-temp-euler (num)
+  (insert (format
+	   "\
+#+SETUPFILE: ./setup.org\n
+#+TITLE: Problem %s
+#+DESCRIPTION: 最好小于二十汉字。。汉字汉字汉字汉字汉字
+#+FILETAGS: 如有必要可添加标签，如 #prime#
+#+DATE:\n
+* Problem\n
+*[[https://projecteuler.net/problem=%s]]*\n
+*中文题目*\n
+https://pe-cn.github.io/%s
+* Solution"
+	   num num num)))
+
 ;; 一些方便的新建文件夹功能
-;; 也行应该和上面的模板放在一起
 
 ;; 直接在对应目录创建文件夹和 org 文件
 (defun yynt-create-draft (dirname title tag)
@@ -791,6 +885,7 @@ https://pe-cn.github.io/%s
     (unless (file-exists-p filepath)
       (set-buffer-file-coding-system 'utf-8)
       (yynt-temp-euler number))))
+
 
 ;;; 区别于 org-publish 的构建功能
 ;;; 待 emacs 29 发布再实现带缓存的构建，可以考虑用 sqlite3
@@ -1071,22 +1166,4 @@ https://pe-cn.github.io/%s
 			 "posts/index.html" "posts/tags.html"))))
 	(_ (error "yynt-publish: never happends"))))))
 
-;;; sacha chua 的 src block 强化功能，之后详细了解一下
-
-;; https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/
-;; (setq org-babel-exp-code-template "#+begin_src %lang :summary %summary\n%body\n#+end_src")
-;; (defun t-org-html-src-block (src-block _contents info)
-;;   (let* ((result (org-html-src-block src-block _contents info))
-;;          (block-info
-;;           (org-with-point-at (org-element-property :begin src-block)
-;;             (org-babel-get-src-block-info)))
-;;          (summary (assoc-default :summary (elt block-info 2))))
-;;     (if (member summary '("%summary" ""))
-;;         result
-;;       (format "<details><summary>%s</summary>%s</details>"
-;;               summary
-;;               result))))
-;; (with-eval-after-load 'ox-html
-;;   (map-put!
-;;    (org-export-backend-transcoders (org-export-get-backend 'html))
-;;    'src-block 't-org-html-src-block))
+;; yynt2.el ends here

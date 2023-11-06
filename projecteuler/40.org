@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 40
 #+DATE: [2019-06-08 Sat 16:51]
+#+DESCRIPTION: 求钱珀瑙恩数在所有指定位置的数字之积
 
 * Problem
 

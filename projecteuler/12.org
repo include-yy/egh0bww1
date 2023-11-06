@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 12
 #+DATE: [2019-05-21 Tue 10:05]
+#+DESCRIPTION: 求约数数量超过 500 的第一个三角形数
 
 * Problem
 

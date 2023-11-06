@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 29
 #+DATE: [2019-05-23 Thu 11:17]
+#+DESCRIPTION: 求不同 ab 得到 a^{b} 结果去重后的个数
 
 * Problem
 

@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 3
 #+DATE: [2019-02-20 Web 01:24]
+#+DESCRIPTION: 求某数的最大质因数
 
 * Problem
 

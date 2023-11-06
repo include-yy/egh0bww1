@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 21
 #+DATE: [2019-05-21 Tue 15:00]
+#+DESCRIPTION: 求 10000 以内的亲和数之和
 
 * Problem
 

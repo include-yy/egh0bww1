@@ -2,6 +2,8 @@
 
 #+TITLE: Problem 27
 #+DATE: [2019-06-09 Sun 04:17]
+#+DESCRIPTION: 求使 n^{2} + an + b 生成最长连续素数的 ab 取值
+#+FILETAGS: #prime#
 
 * Problem
 

@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 24
 #+DATE: [2019-05-21 Tue 16:28]
+#+DESCRIPTION: 求 0-9 这十个数字从小到大排列的第 100 万个
 
 * Problem
 

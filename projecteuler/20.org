@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 20
 #+DATE: [2019-05-21 Tue 14:45]
+#+DESCRIPTION: 求 100! 的各位数字和
 
 * Problem
 

@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 33
 #+DATE: [2019-06-01 Sat 06:28]
+#+DESCRIPTION: 求形如 49/98=4/8 的所有两位数真分数
 
 * Problem
 
@@ -102,4 +103,3 @@ If the product of these four fractions is given in its lowest common terms, find
 #+END_SRC
 
 分母值为 \(2 \cdot 5 \cdot 5 \cdot 4 = 100\)。
-

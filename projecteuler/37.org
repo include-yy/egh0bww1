@@ -2,6 +2,8 @@
 
 #+TITLE: Problem 37
 #+DATE: [2019-06-09 Sun 05:55]
+#+DESCRIPTION: 求所有“可截素数”之和
+#+FILETAGS: #prime#
 
 * Problem
 

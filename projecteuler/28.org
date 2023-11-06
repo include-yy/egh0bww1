@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 28
 #+DATE: [2019-05-22 Wed 02:13]
+#+DESCRIPTION: 求螺旋数阵对角线和
 
 * Problem
 

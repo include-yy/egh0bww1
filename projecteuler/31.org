@@ -2,6 +2,8 @@
 
 #+TITLE: Problem 31
 #+DATE: [2019-05-24 Fri 14:04]
+#+DESCRIPTION: 根据小面值硬币的不同组合构造一定的数额
+#+FILETAGS: #dp#
 
 * Problem
 

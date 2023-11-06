@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 17
 #+DATE: [2019-05-21 Tue 14:13]
+#+DESCRIPTION: 获取 1 到 1000 的数字英文表达
 
 * Problem
 

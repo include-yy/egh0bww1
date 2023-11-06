@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 36
 #+DATE: [2019-06-02 Sun 16:04]
+#+DESCRIPTION: 求一百万以下同时为二/十进制回文数的数之和
 
 * Problem
 

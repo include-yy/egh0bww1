@@ -2,6 +2,7 @@
 
 #+TITLE: Problem 6
 #+DATE: [2019-02-20 Web 02:56]
+#+DESCRIPTION: 前 100 个自然数平方和与和平方之差
 
 * Problem
 
