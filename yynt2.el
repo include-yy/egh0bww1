@@ -597,7 +597,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
 
 (defalias 'yynt-repost-index-head (yynt-normal-head yynt-sb-repost nil)
   "生成用于 repost index 的 html head")
-(defalias 'yynt-repost-head (yynt-normal-code-head yynt-sb-post "..")
+(defalias 'yynt-repost-head (yynt-normal-code-head yynt-sb-repost "..")
   "生成用于 repost 中文章的 html head")
 (defalias 'yynt-repost-index-postamble (yynt-normal-postamble "..")
   "repost index 页面的 postamble")
@@ -690,6 +690,8 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
   '("DATE" "FILETAGS" "DESCRIPTION")))
 
 (defun yynt-euler-table (&optional prefix)
+  "生成题目表格，用于 projecteuler 下的index.org
+请在初始化（指执行 `yynt-euler-init'）后调用该函数"
   (concat "|Problem|Description|TAG|TIME|\n"
 	  "|-+-+-+-|\n"
 	  (yynt-p-mapconcat
