@@ -1,0 +1,77 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: blog
+
+#+TITLE: 怎么弄个自己的 blog -- 暂且告一段落
+#+DATE: [2023-11-11 Sat 19:52]
+
+#+DESCRIPTION: 本文总结了自我开始编写简单博客软件到现在的一些进展，以及一些总结
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/112903574][file:0.jpg]]
+{{{end_noscript}}}
+
+从我正式开始以大概每个月一两篇开始写起博客来算，现在已经过去了差不多三年半的样子。从最开始发到 CSDN，简书，到发到买的 WordPress 上，到发知乎上，最后到现在总算是有了自己手搓的博客。不管是从时间上还是文章数量上我在写博客上可以说是有一些经历或者说经验了，本文算是做个简单的总结。
+
+{{{toc}}}
+
+* 我的折腾经历
+
+犹记得我的第一篇博客写于大学一年级的下学期（大概是 19 年的 3 月），是计算一道积分题：[[https://blog.csdn.net/includeiostreamh/article/details/88343735][1/ch^nxdx 形式的积分]]，简书的链接我似乎找不到了。这源于一道物理题目：在宇宙中， 有两个各为 1kg 的小球，相距 1m，若周围没有任何物体，两小球在引力的作用下相互靠近，问两小球接触需要花多久？
+
+（某种意义上来说这道题我还真是够印象深刻的，阿米诺斯）
+
+我大概花了半天还是一天的时间解决了这道题，解出来的时候我想要好好将它珍惜（笑），记在纸上这种方法在现代已经有些过时了，不如发到网上吧。为了发出来我注册了 CSDN 和简书的账号，并且简单学了学 Markdown 和 Latex 的用法。在完成这篇文章后我也是过足了写博客的瘾，此后的一年也就没再写过什么东西。
+
+但天有不测风云，20 年初咱们有了一段不得外出的美好时光，由于电脑不太行（Macbook 上装的 Windows 10）也玩不了什么游戏，且正巧我在学习 Win32 编程还写了个[[https://github.com/include-yy/win-games/tree/904adaf04777cf87215b0d3ee87334d1b5524015][扫雷]]，不如花点时间记录一下学习内容吧。大概是从这个时候开始我每个月都会写个一两篇笔记文章，然后发布在我斥巨资购买的 Godaddy WordPress 网站上。现在想想也是够蠢的，Godaddy 对个人博客这种微型项目来说钱多不说访问还慢，到期了我也就没有再续。
+
+为了能够正常读文章的内容，我同步将文章发布在了知乎上。此时的文章都是用 Markdown 写的，我会使用
+[[https://md.aclickall.com/][md2all]] 将 md 文件内容转换成知乎能够识别的格式。 [[https://zhuanlan.zhihu.com/p/130871341][有关动态链接库的知识]]是我在知乎上发布的第一篇文章，也应该是我在知乎上阅读量最大的一篇文章：
+
+[[./1.png]]
+
+完成文章后同时发到 WordPress 和知乎上这个过程大概从 20 年初持续到了 21 年下半年，我大概从 21 年初重新拾起了 emacs 并开始使用 emacs 的 markdown-mode 写博客，并在 21 年的 7 月开始了从 Markdwon 向 org-mode 的[[https://github.com/include-yy/notes/commit/dd09ef84bbeb99bd3ce7cd94e21a0c944cef823b][迁移]]。我在腾讯云上购买了服务器和域名 include-yy.com（当然现在已经没有使用了），通过 git pull 的方式从 github 上拉取最新的博客。org-mode 的默认导出样式非常简陋，我使用了 [[https://gongzhitaao.org/orgcss/][gongzhitaao]] 的 CSS 来作为博客的样式配置，可惜我没有留下这一时间的博客截图。
+
+自 21 年的 7 月到 22 年的 10 月我都使用着这样的配置，但腾讯云时不时拉不到 github 上的仓库这一点让我很恼火，而且自己手动生成每一篇文章然后移动到指定目录属实是有点蠢，我开始尝试使用和改进 org-mode 提供的发布功能，自 10 月份开始我就在尝试如何构建一个完全可控的博客，这应该是第一篇相关的文章：[[https://egh0bww1.com/posts/2022-10-11-make-me-a-blog/][怎么弄个自己的博客]]。我对 org-mode 的魔改应该始于 23 年 2 月的这个 [[https://github.com/include-yy/notes/commit/c0d5177932023d2663231692fc299e2fd7d206ee][commit]]，通过它我可以直接发布整个博客而不用手动生成和复制了，这一时间我也添加了自己的 CSS 样式。
+
+在完成博客的构建功能升级后，我于 23 年的 2 月将博客迁移到了 Clouflare 上，它提供和 github-pages 相似的功能，但是没有流量限制。接下来比较值得一说的是我在 23 年的 7 月根据 org-mode 的 html 导出后端编写了自己的导出后端，并更新了构建脚本：[[https://github.com/include-yy/notes/commit/253ec69f807133a1bfa35a911958a2bba5d1ca6e][use new backend: yynt2]]。随后我在 23 年的 11 月[[https://github.com/include-yy/notes/commit/c988efe55ce0752b0f93520e605c951547a92e41][开始]]为构建添加缓存功能，并于[[https://github.com/include-yy/notes/commit/c64d2a1923a2951a775cd598fffc818db455abf0][今天]]完成。
+
+从最开始的一年几百到几十再到现在只有域名的开销，从最开始的一篇文章到现在的接近一百篇，我的博客和构建工具应该是稳定下来了。
+
+* 使用 org-mode 制作博客
+
+我们当然可以手写 HTML，我自己也有过[[https://egh0bww1.com/posts/2023-01-15-make-me-a-blog-from-html-to-blog/index.htm][尝试]]，但这种方法现在看来还是太原始了。在 /ANSI Common Lisp/ 的第 16 章 Paul Graham 介绍了一个简单的 HTML 生成器，这也是我认识 HTML 生成器的开端。org-mode 为我们提供了针对 org 格式的 html 生成器 ox-html.el，以及发布整个博客的工具 org-publish.el。
+
+虽说直接贴链接不太好，不过我不太想把之前写过的东西再写一遍了，如果你也想要尝试使用 org 的话，希望能对你有所帮助。
+
+- [[../2023-01-15-make-me-a-blog-from-html-to-blog/index.htm][怎么弄个自己的 blog -- 从 HTML 到博客]]
+- [[../2023-01-17-24-org-mode-org-macro/index.org][org-mode 导出宏：org-macro]]
+- [[../2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
+- [[../2023-01-26-26-ox-html-and-ox-publish/index.org][ox-html 浅析与 ox-publish 使用介绍]]
+- [[../2023-01-30-27-semantic-element-and-org-html5-export/index.org][语义元素与 org 的 html5 导出]]
+- [[../2023-02-05-28-org-html5-export-sequel/index.org][对 org 到 HTML5 导出的补充]]
+
+在我的 blog [[https://github.com/include-yy/notes][仓库]]中，ox-yyhtml.el 是我修改 ox-html.el 的产物，yynt2.el 是我编写的用于构建博客的工具，其中的注释应该是足够详细的（大概吧）。
+
+* 后记
+
+本来我是想介绍一些博客构建工具，介绍一些博客然后分析一波的，不过对我来说我这个手搓的工具已经足够自己使用了，而且工具而已，没什么需要感悟的。最后以 dog250 的一段话结束吧：
+
+#+BEGIN_QUOTE
+韦斯特的规模，巴拉巴西的复杂网络读后感
+
+人是最重要的产生信息的实体，问题是如何输出这些信息，受限于带宽！ {{{br}}}
+你可以产生很多信息(比如我)，但不输出就像家存万贯不花一样，毫无意义，钱花出去才有意义，信息传播出去才有意义。 {{{br}}}
+你可以通过上班，布道，投稿，直播传播自己的信息，安内胃，要传播出去。 {{{br}}}
+信息度量时间，你花太久才能获得的东西别人一句话就告诉你了，而时间度量钱，用这个等价关系度量赚钱的本事。 {{{br}}}
+
+最近也读了欧文费雪，一句话点醒卷客，"收入是一系列的事件"，如果你认为这里的收入是钱就太 low 了，这里的收入指的是精神愉悦，也就是爽，这是根本。 {{{br}}}
+吸毒的，犯罪的，纵欲的，当经理的，颓废的，躺平的，奋斗的，这些人追求的都是同一件事，就是爽。 {{{br}}}
+当我觉得自己只有将我的信息传播给大家才能感到爽的时候，我就在做一件不同的事，我在缩短他人到达爽点的路径。 {{{br}}}
+至于变不变现，什么是现，除了爽，谁在乎。 {{{br}}}
+
+浙江温州皮鞋湿，下雨进水不会胖。
+
+[[https://www.zhihu.com/pin/1704250433185468416][anonymous]]
+#+END_QUOTE

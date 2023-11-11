@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-11-11T08:08:28</pubDate>
+    <pubDate>2023-11-11T22:49:37</pubDate>
+    <item>
+      <title>怎么弄个自己的 blog -- 暂且告一段落</title>
+      <link>https://egh0bww1.com/posts/2023-11-11-make-me-a-blog-break-here</link>
+      <description>本文总结了自我开始编写简单博客软件到现在的一些进展，以及一些总结</description>
+      <category>blog</category>
+      <pubDate>2023-11-11</pubDate>
+    </item>
     <item>
       <title>Compilation of Unitree GO1 Information, Simulation Environment Construction, and Physical Robot Dog Control via ROS</title>
       <link>https://egh0bww1.com/posts/2023-10-25-unitree-go1-collection-en</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了 Windows 系统下 emacs 在创建网络连接时可能出现卡顿的原因，并给出了解决方法</description>
       <category>emacs</category>
       <pubDate>2023-07-14</pubDate>
-    </item>
-    <item>
-      <title>emacs 中的数字函数</title>
-      <link>https://egh0bww1.com/posts/2023-06-12-39-emacs-math-functions</link>
-      <description>本文总结了 emacs 中的一些数学函数，方便查找</description>
-      <category>elisp</category>
-      <pubDate>2023-06-12</pubDate>
     </item>
   </channel>
 </rss>
