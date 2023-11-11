@@ -31,8 +31,9 @@ https://projecteuler.net/about
 
 Wishlist:
 
-- 添加生成 sitemap 的功能
-- 优化一些算法，比如 tag 的归类
+- [ ] 添加生成 sitemap 的功能
+- [ ] 优化一些算法，比如 tag 的归类
+- [ ] 更加函数式
 
 * Related Projects
 
@@ -147,33 +148,20 @@ Wishlist:
 
 ** 构建功能
 
-相比于 org-publish，我没有实现基于文件时间戳的缓存功能。
-
 - =yynt-show-log= 显示生成中的 log 输出 buffer
-- =yynt-gen-all-posts-barbar= ，重新生成 posts 中的所有 org 文件
-- =yynt-gen-all-reposts-barbar= ，重新生成 reposts 中的所有 org 文件
-- =yynt-gen-all-projecteuler-barbar= ，重新生成 projecteuler 中的所有 org 文件
-- =yynt-gen-all-toplevel-barbar= ，重新生成 =/index.org= 和 =/404.org= 文件
-- =yynt-gen-barbar= ，重新生成整个 blog
+- =yynt-build-proj= 弹出项目列表，并构建选中的项目
 
 对于一些带有依赖关系的构建，比如更新 posts 中的 org 需要更新主页，rss 等文件，我提供了如下函数：
 
-- =yynt-update-current-buffer= 构建当前 org 文件，并构建依赖它内容的文件
+- =yynt-build-file= 构建当前 org 文件，并构建依赖它内容的文件
 
 ** 发布功能
 
 相比于 org-publish 的生成到目标文件，我采取的方式是先原地生成再复制到目标目录。
 
-- =yynt-publish-dir= ，发布目录，默认为 =/blog-build=
-- =yynt-publish-single= ，发布单个文件
-- =yynt-publish-global-res-barbar= ，发布一些全局资源，比如 css, js, img
-- =yynt-publish-posts-barbar= ，发布 posts 下的文件，询问是否先构建
-- =yynt-publish-reposts-barbar= ，发布 republish 下的所有文件，询问更新
-- =yynt-publish-eulers-barbar= ，发布 projecteuler 下的所有文件，询问更新
-- =yynt-publish-homepage-404-barbar= ，发布 index 和 404 html，询问更新
-- =yynt-publish-barbar= ，发布 blog 所有内容，询问更新
+- =yynt-publish-proj= ，对选中的项目进行构建并发布
 
-最后，我提供了带有依赖关系的发布函数： =yynt-publish-current-buffer= ，它会发布所有依赖当前文件的文件。
+我提供了带有依赖关系的发布函数： =yynt-publish-file= ，它会发布所有依赖当前文件的文件。
 
 * 实现注解
 
