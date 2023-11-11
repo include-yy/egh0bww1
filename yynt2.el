@@ -976,16 +976,19 @@ fn 应至少接受一个文件路径（不限于文件），并返回表明是�
 			       (car (yynt-build-get-contfiles (list bobj)))))
 		      (t nil)))
 	      (outfiles (mapcar (lambda (x)
-				  (if (string= "htm" (file-name-extension x)) x
-				    (yynt-fswap-ext x "html")))
+				  (if (string= "org" (file-name-extension x))
+				      (yynt-fswap-ext x "html")
+				    x))
 				files))
 	      (res (append (mapcar 'yynt-get-fullpath (oref pobj resource))
 			   (and (= type 2)
 				(not (string= (yynt-fdir file)
-					      (yynt-fjoin yynt-basedir (oref bobj root))))
+					      (yynt-fjoin yynt-basedir
+							  (oref bobj root))))
 				(list (yynt-fdir file)))
 			   outfiles)))
-    (prog1 t (print res) (yynt-publish-reslist-cached res (oref pobj exreg) force))))
+    (prog1 t (print res)
+	   (yynt-publish-reslist-cached res (oref pobj exreg) force))))
 
 (defun yynt-publish-file (file &optional force)
   "用户命令，对当前 buffer 进行发布，并顺带发布相应的资源文件
@@ -1303,7 +1306,7 @@ num 需要是字符串，毕竟是作为 org 宏使用的"
  :sls '("index.org" "tags.org")
  :sfn 'yynt-gen-org-file
  :conf '("cfg.org" "posts/setup.org")
- :cont '("index.org"))
+ :cont '("index.org" "rss.xml"))
 ;; post 的发布描述对象
 (make-instance
  'yynt-publish
