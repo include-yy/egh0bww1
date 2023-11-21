@@ -1,0 +1,118 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS:
+
+#+TITLE: C++的接口与非侵入式接口
+#+DATE: [2019-08-19 Mon 00:22]
+#+AUTHOR: 恒虚之境
+
+#+BEGIN_aside
+https://zhuanlan.zhihu.com/p/76862132
+#+END_aside
+
+本来是要哀悼一下 COM 以及 ATL，但是在此之前，先铺垫一下接口的知识，以及一点深入的探讨。现在看来，接口在静态类型的面向对象语言中，好比 Java、C#，地位显赫，猿语只要敢声称其支持面向对象的理念，那么其语言机制中必定存在接口的概念，哪怕 go 语言不待见继承（其实继承是很好抽象手段），它也有接口的语法，并且据说还是唯一必须保留的特性。
+
+众所周知，C++ 里面的接口与众不同，接口实现与类实现混为一体，或者说，接口并没有享受到其一等公民的对待。虽然 C++ 通过多继承的方式来支持接口的编程理念，首先是要求基类不得包含任何字段，类里面只有方法，且必须要有纯虚函数，这个时候，类的对象的大小就只等于一个指针，也就是虚函数表指针，然后子类继承该基类并重写全部的纯虚函数。但是这种方式只是对接口的 walkaround，意思就是刚好 C++ 的多继承好像可以支持接口理念，好像行得通，但这只是幻觉，说的再好听，编译器内部实现中依旧将接口当成类来对待， *接口里面不得包含字段* 的关键规定重要信息并没有被充分利用起来。显然，原本接口就应当是比类更加轻量级的语言机制，编译器实现可以给予专门的优化或者更特别的照顾，用类的概念来套接口，实在有点铺张浪费。
+
+C++ 采用多继承纯虚基类的方式来搞接口，最不能忽视的必然就是其空间上的开销，比如说，一个类如果实现 N 个接口，那么该类的任何一个对象首先起码必须包含这 N 个接口的虚函数表指针，哪怕对象没有被当做是接口来使用，这个开销也都无法避免，这就不零惩罚抽象了。在 C++ 中，只要违反了这条戒律，就意味该方案有待改进。不为不需要的特性付出任何代价是最高指导原则，只有满足了这条原则的设计才是好的设计。
+
+宏观上来看，多继承的方式来实现接口，死板，缺乏弹性，对象的内存布局难以捉摸，导致在二进制的复用上困难重重。最大的弊端还是在于，一旦类的定义完成了，这个类所实现的接口也就确定下来啦，无增无减无改。当然，如果需要，我们也可以修改类的定义，再多继承多几个接口，再重写多几个虚函数。但是，如果不能修改类的定义，比如说面对着原生基本类型 int float double 的时候怎么办？就更别提要让模板类 vector list 也享受上接口的荣誉了。接口比类更轻量级意味着接口对客户端的要求更少，意味着接口的具备着更大的通用性。因此，我们必须寻求新的方法来诠释（落实）接口这个美妙的概念，更具体地说，就是如何充分利用接口不包含任何字段这条重要信息。
+
+自然，接口依旧是不包含字段的基类，并且里面存在纯虚函数。题外话，原则上，接口也可以人肉虚函数表，手写声明各个成员函数指针原型，好像 C 语言实现 COM 接口的那样，体验很不友好，虽然能多一点点灵活性以及自由度，但是工作量相当巨大，并且也丧失了编译器类型安全的好处。总之，要充分利用 C++ 编译器的每一个功能。比如说，我们就假设搞了这样的一个接口
+
+#+BEGIN_SRC cpp
+  struct TextWriter;
+  struct TextReader;
+  struct FormatState;
+
+  struct IFormatble
+  {
+	  virtual void Format(const TextWriter& stream, const FormatState& state) = 0;
+	  virtual void Parse(const TextReader& stream, const FormatState& state) = 0;
+  };
+#+END_SRC
+
+对此，编译器马上就为这个接口生成了一个虚函数表，表里面起码包含了2个条目，按顺序（顺序很重要）分别对应了虚函数 Format 和 Parse。接下来，我们就要让 int 来实现这个接口啦。显然，无法这样写，struct int : IFormatable{...}。就算可以写，那么 int 类型变量的大小马上就不仅仅只是 sizeof(int)，还得再背负多一个指针大小。这完全就不是我们想要的。还拿 int 来说，我们期望，int 变量在参与格式化的时候才出现那个虚函数表指针，不格式化时，自然就不劳烦这个指针了。天底下有这么好的事情吗？有的，软件开发中的万能丹， *任何问题都可以通过添加间接层来解决* ，一层不够，就加多几层，总是有办法的。
+
+#+BEGIN_SRC cpp
+  struct ImpIntIFormatable : IFormatble
+  {
+	  int* mThis;
+	  virtual void Format(const TextWriter& stream, const FormatState& state) override
+		  {
+			  //......
+		  }
+
+	  virtual void Parse(const TextReader& stream, const FormatState& state) override
+		  {
+			  //......
+		  }
+  };
+#+END_SRC
+
+从内存布局上看，ImpIntIFormatable 用 C 语言的结构体来表达就是这样
+
+#+BEGIN_SRC cpp
+  struct Layout4ImpInt
+  {
+	  const void* mVtbl;
+	  int* mThis;
+  };
+#+END_SRC
+
+显然，这个结构体很有普世价值，稍微升华一下，就可以当做是任意接口的实现典范了。
+
+#+BEGIN_SRC cpp
+  template<typename ObjTy, typename ITy>struct TraitOf;
+
+  template<typename ITy>
+  struct TTrait
+  {
+	  const void* mVtbl;
+	  void* mThis;
+
+	  operator ITy*()const
+		  {
+			  return (ITy*)(void*)this;
+		  }
+
+	  ITy* operator ->()
+		  {
+			  return (ITy*)(void*)this;
+		  }
+
+	  template<typename ObjTy>
+	  TTrait(ObjTy& obj)
+		  {
+			  typedef typename TraitOf<ObjTy, ITy>::type Imp;
+			  Imp imp;
+			  memcpy(this, &imp, sizeof(*this));
+			  mThis = &obj;
+		  }
+	  //...
+  };
+#+END_SRC
+
+有了接口以及实现，接下来，自然就是将二者有机地结合起来使用。用人话来说，还是以 int 为例子吧，就是在将 int 变量传递到格式化操作中时，要如何让编译器找到 ImpIntIFormatable，进而生成接口实现者的内存布局。用模板偏特化。在 Java 下，就比较惨了，必须用所谓的适配器。
+
+#+BEGIN_SRC cpp
+  template<>
+  struct TraitOf<int, IFormatble>
+  {
+	  typedef ImpIntIFormatable type;
+  };
+
+  void DoFormat(TTrait<IFormatble> tt)
+  {
+	  //...
+  }
+
+  void FF()
+  {
+	  int aa;
+	  DoFormat(aa);
+  }
+#+END_SRC
+
+以上代码，为了清晰的表达示意图，跳过了很多错误处理并忽略可扩展性了。本座的 C++ 非侵入式接口重构了几十遍，考虑了继承，模板，反射，并用它打造了 IO，json，xml，数据库读写，网络库，界面库，……，总之，用起来很得心应手啊，深深地感受到大 C++ 的伟大光辉，论非侵入式接口（或者说 trait）的粒度控制以及可定制性，还数大 C++ 做得最好，go 或者 rust 之类的非侵入式，怎能跟大 C++ 相提并论，萤火之光岂能与皓月争辉。
+
+因此，在 C++ 下，我们就重新诠释了接口。这里的关键在于接口基类中不得包含字段，这些手法才得以成立。另外，明眼人一眼就看出来，上面的方案假设虚函数表指针就一定放在对象的首地址上，这没什么不好，主流的编译器都是这么做。不这么搞的编译器都是异端，要烧死它们。为什么要标新立异，不把虚函数表指针放在对象的首地址上呢，这完全就是自绝于广大人民之前，咎由自取，自取灭亡。
