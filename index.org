@@ -99,6 +99,8 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 - [[https://gaoyichao.com/Xiaotu/][无处不在的小土]]
   - [[https://gaoyichao.com/Xiaotu/?book=ros&title=index][机器人操作系统]]
   - [[https://gaoyichao.com/Xiaotu/?book=ORB_SLAM%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB&title=index][ORB-SLAM源码解读]]
+- [[https://alpha-beta-eta.github.io/][alpha-beta-eta]]
+  - [[https://alpha-beta-eta.github.io/notes/pl.pdf][编程语言的邀请]]
 
 * ABOUT
 
