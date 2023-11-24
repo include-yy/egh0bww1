@@ -1,0 +1,388 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS:
+
+#+TITLE: 「大宽宽」传统的try-catch异常处理是否是编程语言发展中的弯路？
+#+DATE: [2020-10-19 Mon 14:07]
+#+AUTHOR: 大宽宽
+
+#+BEGIN_aside
+本文来自「大宽宽」在知乎问题[[https://www.zhihu.com/question/425726667/answer/1531780075][传统的try-catch异常处理是否是编程语言发展中的弯路？]]下的回答。
+
+我在这里只是想引起大家关于编程语言异常处理该如何设计的讨论。我个人的观点比较片面，希望大家能友好交流。我先写个引言。
+
+1) 许多时候面对一个子函数调用，我们可能无法知道它是否会抛出异常（当然有些语言有异常规格说明，但其实形同虚设），这导致有些时候当我们错误地假定函数不会抛出异常时，就会出现资源泄漏。写出强异常安全的代码在 try-catch 显得很隐晦，因而困难。
+2) 异常处理强制了进行动态类型识别，这是一种额外的开销（虽然并不大）。
+3) 许多基于 try-catch 的编程语言，并不完全强制用户处理所有异常，这带来了便捷，但却又使得程序员会忽略一些本该处理的异常。
+
+相比之下，类似 Rust 和一些函数式编程语言中的和类型返回值让我感觉很舒服。希望大家能讨论讨论，欢迎赞同，也热烈欢迎反对。
+#+END_aside
+
+{{{toc}}}
+
+我更喜欢用“如何处理好错误”来分析这个问题。至于是不是“异常”，这个“异常”是特制java里的异常还是泛指程序发生了“异常”都是很值得讨论的。
+
+* 怎样才算是处理错误的正确姿势？
+
+但在讨论所有细节之前，先要确定目标，到底怎么才算是“正确的处理错误”？据我所知，至少有两种不同目标：
+
+- 第一种是：要编写正确的代码。这里“正确”是指对任何设计上要处理的错误都必须设计处理流程。这类设计在操作系统、驱动、自动控制、存储、基础中间件等领域被使用；
+- 另外一种是：要尽量快速的开发质量可以接受的程序。此时可以忽略一大部分的错误的处理，就是放任。这种开发模式适用于 RAD，如互联网领域里大量的上层应用和服务，网站，工具类的脚本等都隶属于这一类。
+
+现实中的项目往往处于这两种模式中间的某个点，靠某一边近一点。
+
+这两种目标存在矛盾。对于第一种开发模式就意味着程序员必须认真的设计正确/错误的代码路径。而我们都知道错误的路径会多很多。但也得必须认真处理。在 C 写的底层程序里经常会看到每调用一次函数都得跟着一句 if 判断出不出错。很多第二种的开发人员往往会觉得这种代码很不“优雅”。大量的错误处理路径会夹杂在代码中，显得啰嗦，写起来很不爽，也不便于阅读。但从第一种目标看来，这么做是天经地义，无可厚非的。
+
+而第二种目标是把处理正确逻辑的路径重点完成。只处理少数的必要的错误（比如判断用户授权是否通过）。其余的一般会选择粗略的“集中处理”。比如一个 web 业务后端代码往往如此。一旦出现任何非预期的情况，会通过异常的方式一路向上抛到顶层，然后被一段集中处理的代码转换成某种 4xx/5xx 状态码给到调用者。这类程序往往会接入非常全面的监控，来实时抓取运行时发生的各种问题。大部分抓到的问题处理的价值很低，所以程序员还是会继续选择不处理；只有少量真正会影响用户体验，系统安全和稳定的问题会被收集下来处理。
+
+第一种开发模式的程序员往往会对第二种的处理方式嗤之以鼻。但如果按照第一种方式处理，把程序的绝对正确性摆在非常高的位置，反倒会伤害用户的体验。交付给用户的新功能会延期，开发成本因为开发周期延长会急剧提高。而花费很高代价开发的程序可能因为业务的快速变化而被大改甚至丢弃。从商业上这明显不划算，用户也不买账。
+
+这两种开发模式不同会造成任何单一的错误模型很难同时兼顾二者。如果对错误处理要求的很严格，就意味着无法“凑合处理”；反过来如果错误模型很利于快速/忽略处理，就意味着程序员很容易忽略某段代码可能产生的错误。编译器无法有效的引导程序员提高程序的正确性。这种问题可能通过其他手段变相的改进（比如使用静态代码扫描），但总是没有语言 built-in 用起来自然和舒适。就算是 Java 这种同时提供了 Checked Exception 和 Unchecked Exception 两种机制的语言也总会引发各种争吵。
+
+当然，后面我们会看到 go，rust 和 swift 等语言在尝试弥合这两种不同的目标，提供一套统一的错误处理，而不需要程序员根据自己业务的需要二次开发一套错误处理机制。
+
+* 错误模型如何引导编写正确的代码？
+
+很多同学都喜欢编写“优雅”的代码。这种代码看上去十分“干净”，线性的完成一件任务。阅读起来非常顺畅。但现实情况是，几乎任何一句代码都有可能出错。并不是说你不处理一个错误，那个错误自然就不存在了。
+
+如果想编写绝对正确的代码，就必须每次调用都得处理这个调用可能发生的错误。而且通常一个操作正常的结果就一种情况，但错误的情况却有N种，于是就会出现：
+
+#+BEGIN_SRC go
+  result, error := doSomething()
+  if error != nil {
+    // 处理error1
+    // 处理error2
+    // ……
+  }
+
+  // 使用result
+#+END_SRC
+
+这种看起来很啰嗦的代码。但从正确性角度，这就是最好的代码了。
+
+所以我们暂时把“优雅”放在一边。先谈正确性的问题。
+
+人是非常容易犯错的。编程语言最好可以提醒程序员不要遗漏任何一个错误。早期 C 语言编程时，语言并没有内建错误处理，而是靠程序员自己约定和检查错误码。
+
+#+BEGIN_SRC go
+  int errno = foo();
+  if (errno) { // errno不是0会被认为是“true”
+    // handle error
+  }
+  // 正常逻辑
+#+END_SRC
+
+这很容易出错，程序员很容易就忘记了 errno，直接写成：
+
+#+BEGIN_SRC go
+  foo();
+#+END_SRC
+
+错误就丢了。一旦发生，foo 后面的代码的结果就可能是无法预料的。假如这是一段交易所交易的代码，或者武器系统的控制代码，后果就会相当严重。因此保证正确性的第一个原则是：编程语言应该尽力提醒程序员不要忽略错误。程序员要不处理错误，或者明确告诉编译器这个错误我觉得可以不处理。比如在 go 中，
+
+#+BEGIN_SRC go
+result, error := doSomething()
+#+END_SRC
+
+如果写成了
+
+#+BEGIN_SRC go
+result := doSomething()
+#+END_SRC
+
+会发生编译错误。
+
+如果程序员想明确地忽略错误，需要
+
+#+BEGIN_SRC go
+result, _ := doSomething()
+#+END_SRC
+
+但可惜的是，go 中如果一个函数只会返回一个 error，是允许这么写的：
+
+#+BEGIN_SRC go
+// 理想中的写法
+
+error := doSomething()
+
+// 这么写可以通过编译器，但IDE的辅助检查可以标记这个问题
+doSomething()
+#+END_SRC
+
+这个设计从“避免人为忘记处理错误”的角度是有瑕疵的，但还好可以通过 IDE 辅助检查来强制避免忽略检查错误。在 Java 中，这个功能是 Checked Exception（CE）提供的。
+
+* Java Checked Exception
+
+如果一个函数抛出了 CE，上层调用者要不得处理，要不得重新上抛。
+
+#+BEGIN_SRC java
+  public void foo() throw SomeCheckedException {
+      // do something
+      throw new SomeCheckedException();
+  }
+
+  public void bar() {
+      foo(); // 编译不通过，没有处理 SomeCheckedException
+  }
+
+  // 明确的处理可以通过编译
+  public void bar() {
+      try {
+	  foo();
+      } catch(SomeCheckedException e) {
+	  // handle the exception
+      } finally {
+	  // clean up the resource
+      }
+  }
+
+  // 声明自己会"re-throw"foo抛出的Checked Exception也可以通过编译
+  public void bar() throws SomeCheckedException {
+      foo();
+  }
+#+END_SRC
+
+Java 的 CE 设计的本意是改进 C++ 的 exception specification 机制。C++ exception specification 的设计也是希望帮助程序员避免遗漏错误处理。但其设计的问题更巨大，连基本的静态检查也做不到。已经在 2010 年 C++ 11 标准出来是被废弃了，这里就不展开了。
+
+Java 的 CE 比 C++ exception specification 的设计好得多，但还是架不住其设计上的缺陷，造成落地时很多人都讨厌他。落地困难。比如很多时候，函数调用者也不知道怎么处理一个 Checked Exception。
+
+#+BEGIN_SRC java
+  try {
+      byte[] bytes = Files.readAllBytes(aPath);
+      return new String(bytes);
+  } catch (IOException e) {
+      // 我知道有这么个exception，但咋处理呢？？？
+  }
+#+END_SRC
+
+一种常见的方式是把下层的 Checked Exception 直接向上抛。但这又带来一系列的问题。举个例子，比如当你编写一个对象池“object-pool”的接口时，本来 borrow 函数的签名表示只会在“没有对象可以借”的时候报错：
+
+#+BEGIN_SRC java
+  interface ObjectPool<T> {
+      T borrow() throws NoObjectException;
+      // ...
+  }
+#+END_SRC
+
+初看起来很正常，但是当你尝试利用这个接口实现数据库连接池时，你会发现 JDBC 要返回另外一个 Checked Exception =SQLException= 。
+
+#+BEGIN_SRC java
+  class DBConnectionPool implements ObjectPool<DBConnection> {
+      // ...
+      @Override
+      public DBConnection borrow() throws /* 这里写啥呢？ */ {
+	  doSomethingWithSQLException(); // 怎么处理这里抛出的SQLException呢？
+      }
+  }
+#+END_SRC
+
+此时，你有 3 种选择：
+
+1) 将 =SQLException= 包装进一个 =RuntimeException= 里。改用 =RuntimeException= 。这样一切都能解决。但这就相当于干掉 CE。
+2) 直接向上抛 =SQLException= ，但这样需要同时修改 =DBConnectionPool#borrow= 和 =ObjectPool#borrow= 的函数签名，否则无法通过编译（实现类的函数不能声明抛出比接口函数声明更多的 exception）。如果改了接口，就引起接口兼容性问题。此外，这也要求 =borrow= 的使用者增加 import =SQLExcepton= 。为了做到这一点，mvn 里也许需要增加一个新的 dependency。而且
+   #+BEGIN_SRC java
+     T borrow() throws NoObjectException, SQLException;
+   #+END_SRC
+   看起来会非常奇怪，因为直觉上这似乎暴露了 borrow 的实现细节，同时因为这个接口是通用的，因此用来实现其他什么别的对象池时，因为无法抛出 =SQLException= 反而通不过编译。这就影响了接口的通用性。
+3) 把 =SQLException= 包在 =NoObjectException= 里面抛出:
+   #+BEGIN_SRC java
+   T borrow() throws NoObjectException {
+  try {
+    // ...
+  } catch (SQLException e) {
+    throw new NoObjectException(e)
+  }
+}
+   #+END_SRC
+   但这样语义上不太对。毕竟“数据库连接失败”和“没有对象可以用”是两件不同的事情。并且这么包完后，如果上层的代码想重试连接数据库呢？看起来又太过于奇怪了：
+   #+BEGIN_SRC java
+try {
+  DBConnection c = pool.borrow();
+} catch(NoObjectException e) {
+  try {
+    throw e.cause;
+  } catch (SQLException) {
+    // 尝试重新连接数据库
+  }
+}
+   #+END_SRC
+
+这样看来，似乎问题是之前那个 =NoObjectException= *太过于具体了* 。如果能稍微抽象一点，让其表意含糊一点似乎就能说得过去了，比如改成 =PoolException= 。但如果万一实现还需要抛出其他什么 exception，让 =PoolException= 都显得不合适呢？能否有个比较通用的办法呢？
+
+James Gosling 在一个[[https://www.artima.com/articles/failure-and-exceptions][访谈]]中表示希望抛出异常能尽量具体，这样有利于调用者搞清楚如何处理问题。
+
+#+BEGIN_QUOTE
+But in general, when you are writing a declaration in a throws clause, it is good to try to be *as specific as possible*.
+#+END_QUOTE
+
+但现实中这样做根本就不现实。因为一旦 Exception 变得具体，就会因为兼容性问题让接口的维护工作变得几乎不可能；即便是可以改变接口签名，也会带来一个函数随着调用层级升高而必须声明大量的 Checked Exception 问题。前者被称为 Versioning 问题，后者被称为 Scalability 问题。这些问题在 C# 的作者 Anders Hejlsberg 的一个[[https://www.artima.com/articles/the-trouble-with-checked-exceptions][访谈]]中提及。
+
+#+BEGIN_QUOTE
+但请不要误解我完全支持 Anders 的想法和 C# 的现状。后边讲到 Unchecked Exception 的地方再说。
+#+END_QUOTE
+
+除此之外 CE 在 JDK8 上遇到了另外一个问题。引入了 stream 后，因为 stream 的处理函数都不声明抛异常，因此没法通过这些函数调用抛出 CE 的函数。于是你看到了 Java 里的 *语法在打架* 。
+
+#+BEGIN_SRC java
+  void foo(Integer n) throws SomeCheckedException {
+      // ...
+  }
+
+  // 编译不通过，forEach没声明throws SomeCheckedException
+  numbers.stream().forEach(it -> foo(it));
+#+END_SRC
+
+现在很多 Java 程序员都完全拒绝使用 Checked Exception，也只用 =RuntimeException= 来构造自己的错误处理。后果就是会产生很多只有到运行时才能观察到的错误，编译器无法起到帮助程序员写好代码的作用。然而，在 Java 中这是个很无奈但又很现实的选择。
+
+*Checked Exception 已经可以被认为是一个失败的设计* ，正如 C++ 的 exception specification 一样。但我要再次强调下， *我这里提到的 CE 设计失败并不是指这个设计的本意 —— 避免开发者遗漏错误 —— 是不对的。恰恰相反，我觉得正确性是非常关键和必要的。* 这里说的失败仅仅是指 CE 实际效果并没有实现其初步的设计动机。为此，要设计一个更好的模型。
+
+* 效率优先的“凑合”错误处理
+
+这是大多数互联网公司，或者写了就丢那种程序对错误处理的方式。现实中一般就是用 Unchecked Exception。这包括 Java 中继承于 =RuntimeException= 的 exceptions，C#，kotlin，javascript，python 等中所有的 exceptions 等。
+
+顾名思义，Unchecked 就是“不用必须检查的 exception”，但一般会配合一个“兜底处理“。对于这种 exception，程序员可以在任何地方 throw，也可以在任何地方 catch。所以一个 Unchecked Exception 被抛出后可以跨越很多个调用层次才 *有可能* 被 catch。如果彻底忘记被 catch 了(Uncaught Exception)，通常就会让程序立刻 crash。兜底的错误处理因为距离错误发生的上下文太远，只能做非常粗略的处理。如 Web 程序会报一个 5xx 错误；而 GUI 也许会选择弹出一个信息除了程序员之外谁也看不懂的对话框。
+
+对于脚本语言的场景，或者是逻辑简单，错误处理一般都是兜底就足够的场景，这似乎并不是什么太大的问题。但是如果是系统开发场景（比如写一个中间件或一个存储系统）这就不能接受了，编程语言能提供的帮助实在是太有限了，太不鼓励程序员正经的处理错误了。系统程序一旦出现错误，就不是报个错误信息的问题了，而可能会损毁数据，造成不可恢复的后果。我们都知道人是注定会犯错的，无论这个人的本心如何。
+
+因为用 Unchecked Exception 写程序太容易漏过错误处理，因此为了保证程序质量，必须更注意编写准确的文档（尤其是会抛出什么 exception），必须附加更多的测试，包括程序员自己写的 UT，以及专门的测试人员编写的各种集成测试等。当然，如果业务需求来的太快，活催的太紧，这些改善软件质量的工作可能都会被简化和忽略。所以经常可以遇到完全无文档，无 UT，以及测试通过手工草草测完了事的程序。于是写出来的程序质量……
+
+然而令人惊讶的是，我们的市场环境在鼓励这样的开发模式。如果是一个初创互联网项目，需要快速启动，快速迭代的服务，如果用正确性优先的做法的团队，一定会被采用效率优先的团队打死。尽管我们都知道长期看，代码质量可以让一个团队走得更远，技术债越少后期负担越轻越灵活，但如果熬不过初期，一切都是无意义的。
+
+回到错误处理，上面提到了 Checked Exception 因为太过于严格而无法落地，而 Unchecked Exception 又过于松散，完全放弃编译器的支持，而人总是不可靠的，总是会犯错误。有没有两全的办法呢？Swfit 给出了一个还不错的解决方案。
+
+* Swift 的启示
+
+Swfit 的主要是思路是，先承认一个函数是否可能抛出错误，然后再考虑怎么处理具体的错误。这个思路和 Go、Rust 等语言是非常相似的。下面是一个简单的例子
+
+#+BEGIN_SRC swift
+// swift通常使用enum表示error
+enum SomeError: Error {
+  case reason1
+  case reason2
+}
+
+// 定义时
+func foo() throws -> int {
+	// 正常处理，设置failed
+  if failed {
+    throw SomeError.reason1
+  }
+  return 42
+}
+
+// 调用时
+func bar() {
+  do {
+    let value = try foo()
+    // 使用value
+  } catch SomeError.reason1 {
+    // handle reason1
+  } catch SomeError.reason2 {
+    // handle reason2
+  } catch {
+    // handle everything else possible
+  }
+}
+
+bar()
+#+END_SRC
+
+在 swfit 中，所有错误处理都是"checked"。对于所有错误程序员必须显示的处理，不然编译过不去。而一个函数如果可能抛错，需要在声明时标记 =throws= 关键字，但无需声明可能抛什么错误（敲黑板，这是重点）。调用这种 throws 函数时，swift 要求开发者必须使用 =try= 关键字调用函数，并且增加必要的 =do……catch= 。这就避免了程序员因为马虎大意而忽略了错误处理。
+
+=throws= 无须声明抛的具体错误是相比 CE 的一个非常大的优势。它解决了 CE 的 scaling 和 versioning 问题。只有当一个函数从不会抛错变为 =throws= 时才会有一次签名的变更，之后就不会再有了。而一般设计函数时函数可不可能抛错可以做得比较准确（如排序就不可能抛错，但读配置文件就可以抛错），让改变签名的机会很少。 同时上游也可以只处理自己关心的错误，不用 catch 自己不理解的 error。
+
+并且通常，调用者只会在意调用是否出错，而不在意具体出什么错，就可以这样写：
+
+#+BEGIN_SRC swift
+do {
+  let value = try foo()
+  // 使用value
+} catch {
+  // 错误处理
+}
+#+END_SRC
+
+但即便如此，还是比较烦，但 swift 提供了语法糖进一步简化了程序员的工作。
+
+#+BEGIN_SRC swift
+// try? 可以让出错时直接返回nil
+let value = try? foo() //foo抛错后value会得到nil
+
+// 配合??操作符提供一个默认值
+let value = (try? foo()) ?? 10 // foo抛错后value会得到10
+
+// try!是一种强检查模式，如果遇到了错误，会让程序立刻crash。
+// 也就是说如果程序员认为他的上下文肯定不会遇到错误，他可以选择主动忽略编译器的帮助。
+let value = try! foo() // foo抛错后程序会crash
+#+END_SRC
+
+swift 还提供了 rethrows 关键字解决上面 Java CE 在 lambda 表达式遇到的问题。
+
+#+BEGIN_SRC swift
+// 给Sequence做一个“myMap”高阶函数
+extension Sequence {
+  	// rethrows表示忠实的重新抛出其内部抛错函数的错误
+    public func myMap<T>(_ process: (Element) throws -> T) rethrows -> [T] {
+      var result = [T]()
+      for item in self {
+        result.append(try process(item)) // process是抛错函数所以得用try，但不需要catch
+      }
+      return result
+    }
+}
+
+func tripleIt(n: Int) throws -> Int {
+    if n == 2 {
+      throw SomeError
+    }
+    return n * 3
+}
+
+// 这样就可以愉快地使用给高阶函数传入抛错函数了
+let res = try [1, 2, 3, 4, 5].myMap(tripleIt)
+#+END_SRC
+
+个人感觉是，Swift 以优雅的语法和务实的态度近乎完美的解决了错误处理的问题。
+
+* 到底何谓错误，何谓异常？
+
+如果留意的话会发现整个文章我都避免用“异常”这个词，而更多的用“错误处理”。因为一个问题是不是“异常”，并不全部取决于问题本身，而与程序员在不在意相关。如果一个错误出了程序员不在意，或者没法在意，那么就是一个异常。异常是程序员不处理的错误。异常意味着程序进入了一个未知的，不确定的状态。
+
+比如 OOM，对 null 解引用这类问题。一旦出现，程序员做什么都没啥意义，无法把程序能从出问题的状态确定性的拉回到可控的状态。
+
+另外一类异常是开发者是主动的不在意。比如一个服务启动时要在一个路径下读取配置文件。但这个文件不存在或者没读取权限。作为服务本身，是可以设计为“一旦找不到配置文件就直接挂掉“的。因为设计一个”没配置文件也可以正常运行“的系统的代价会高的多，但没啥收益。
+
+在编写代码时，如果可以判断出一个问题上层无论如何都处理不了，就建议直接抛出异常。在 go 中就是 panic，rust 是 panic!，在 java 中是 throw 一个 Error（比如 OutOfMemoryError）。如果上层有可能处理，就还是要以错误的形式向上返回，让上层决定自己到底是不管直接挂掉还是把程序从有问题的状态转变回来。
+
+#+BEGIN_QUOTE
+非常有趣的是，在 Java 的术语里，“错误”和“异常”和现代语言的术语是相反的。java 说的 exception 往往表达一个“错误”；而 java 里说的“error”才是几乎无法恢复的问题。这点讨论各种错误模型时要特别留意。
+#+END_QUOTE
+
+* 挂掉和稳定性的关系是什么？
+
+很多人误以为一旦遇到异常挂掉就是稳定性降低。但事实刚好相反，因为异常意味着程序运行的状态处于一个非预期的状态，在没有事先设计过错误处理路径的情况下，挂掉是最好的选择。这通常被称为 fail-fast。
+
+但只挂掉是远远不够的，不然真的就变成“不稳定”的程序了。配合 fail-fast 一般配合做两件事。
+
+第一件是灰度开发和发布流程，即可以让不稳定的代码在一个风险可控的范围内跑，尽情的暴露各种问题，尽快的 crash，然后开发者尽快去修。所以很多互联网公司都有很多套上线前的环境，从最小的联调环境，到预上线环境，再到部分灰度的线上环境一圈圈扩大范围。苹果 iOS 每年发布时也是类似，会先在内部 alpha1，alpha2…… 然后经过 WWDC 后向开发者发布 beta1，beta2…… 直到最后 GA。到真正的面向公众时，程序的可靠性已经大大增加了。
+
+另外一件是隔离。当程序 crash 时，只会影响到整个系统的优先的范围。这就像是，当一个程序挂了，不会影响操作系统；当 Chrome 里某几个网页挂了，不会影响到其他 Chrome 的进程；当一个非核心业务的微服务挂了，上游可以实现降级，服务大体上还是能继续。
+
+在这种隔离体系下，一个挂了的子系统可以被迅速重启，恢复到初始状态。Erlang 把这套机制吸收到了自己的语言里，实现了 supervisor 模式。
+
+#+BEGIN_QUOTE
+当然，给定同样的输入还是可能会继续挂，继续重启——但这种情况要通过灰度开发和发布流程来控制，让在线上跑的系统已经具有极高的稳定性才可行。
+#+END_QUOTE
+
+而在 Web 后端经常看到的用"Unchecked Exception报错+兜底处理"的方式也可以看作是一种隔离。因为通常每个请求都是相互独立的，每个请求都与其他请求的上下文是隔离的。某个请求出问题，其实是让这个请求的上下文全部挂掉，而不是让整个 web server 挂掉。web server 只要继续处理下一个请求即可。这是一种非常高效的错误处理。
+
+但这个模式很容易让程序员产生一种误解，即——写代码可以不处理错误，反正有地方兜底。但事实恰好相反，这种模式只在并发请求处理的场景中才成立。web 后端这个领域已经被 web server，web 框架，数据库事务等照顾的很体贴了。换一个领域，比如 mysql，假如不好好处理错误，共享的 B+ 树，各种 buffer 和锁信息可能就会搞乱套，一个错误会影响其他数据的正确性。
+
+* 小结
+
+错误处理的方式是让我们达成开发目标的工具。而在开发中，根据领域不同，要求的正确性也不同。因此选择一个适合自己领域的错误处理方式是很重要的。如果恰好用到的编程语言能够与自己的领域相 match，那就再理想不过。
+
+但通常我们无法选择团队的语言，或者自己就只会一种语言，这时就要想办法去搭建自己错误处理。就像是C并不提供内建的错误处理，但程序员还是凭错误码这么简单的机制搞定了复杂的系统开发。在 Java 中，如果确认 Unchecked Exception + 兜底已经可以足够满足场景的需要，大可以放心用。但在一些局部关键的子系统，需要更高正确性，还是可以采用 CE 或者增加更多的静态代码检查，并且在代码设计时就要设计各种错误的处理流程。
+
+至于说 try……catch 是不是“弯路”。我认为不是，从 C++、Java 等经典语言的设计和落地后的效果可以学到很多。在 CE 设计之初，Gosling 是绝对想不到后面大家使用 CE 时的各种问题的。因此后面的 go、rust、swift 等语言才能改进自己的错误处理模型。在这个方面，过程比结果可能更重要。
+
+但，无论如何，“编写正确的程序“的大原则不会改变，关键点在于如何表达错误，如何避免开发者遗漏错误，如何组合多个可能发生错误的代码，如何提供语法糖简化一些不得不写的，反复重复的代码。语言设计的关键是 *不能劝退一个希望写好代码的人* 。
