@@ -9,8 +9,23 @@
 
 #+TITLE: 404
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/95304253][https://egh0bww1.com/img/404.jpg]]
+#+BEGIN_EXPORT html
+<figure id="yy404"></figure>
+<script>
+  let img404 = document.getElementById('yy404')
+  let img = new Image()
+  img.alt = 'load failed'
+  img.className = 'top-down-img'
+  if (window.location.protocol === "file:") {
+      img.src = './img/404-1.jpg'
+  } else {
+      img.src = 'https://egh0bww1.com/img/404-1.jpg'
+  }
+  img.onload = function() {
+      img404.appendChild(img)
+  }
+</script>
+#+END_EXPORT
 
 还是看看远处的 Y combinator 吧家人们
 
