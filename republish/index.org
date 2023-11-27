@@ -19,12 +19,31 @@
 #+TITLE: include-yy :: republish
 {{{re_init}}}
 
+#+NAME: white
 #+ATTR_HTML: :class top-down-img :id lily
 [[../img/repost-0.jpg]]
 
+#+BEGIN_EXPORT html
+<script>
+let headimg = document.getElementById('white')
+headimg.style.display = 'none'
+window.onload = function(e) {
+    document.onkeydown = (e) => {
+       if (e.keyCode == 89) {
+           if (headimg.style.display == '') {
+	       headimg.style.display = 'none'
+	   } else {
+	       headimg.style.display = ''
+           }
+       }
+   }
+}
+</script>
+#+END_EXPORT
+
 Total number of republish article is {{{re_total}}}.
 
-* 目录
+* Index
 
 {{{re_all}}}
 

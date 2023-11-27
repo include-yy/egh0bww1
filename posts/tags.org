@@ -22,12 +22,31 @@
 #+TITLE: include-yy :: blog :: tags
 {{{arch_init}}}
 
+#+NAME: lily
 #+ATTR_HTML: :class top-down-img
 [[../img/post-lily.jpg]]
 
-{{{toc}}}
+#+BEGIN_EXPORT html
+<script>
+let headimg = document.getElementById('lily')
+headimg.style.display = 'none'
+window.onload = function(e) {
+    document.onkeydown = (e) => {
+       if (e.keyCode == 89) {
+           if (headimg.style.display == '') {
+	       headimg.style.display = 'none'
+	   } else {
+	       headimg.style.display = ''
+           }
+       }
+   }
+}
+</script>
+#+END_EXPORT
 
 Total number of tag is {{{arch_total}}}.
+
+{{{toc}}}
 
 * elisp {{{arch_num(elisp)}}}
 

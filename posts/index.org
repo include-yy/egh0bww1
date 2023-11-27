@@ -24,9 +24,28 @@
 
 #+TITLE: include-yy :: blog
 
+#+NAME: chi
 #+ATTR_HTML: :class top-down-img :id cirno
 #+CAPTION: https://www.pixiv.net/artworks/110043831
 [[../img/post-1.png]]
+
+#+BEGIN_EXPORT html
+<script>
+let headimg = document.getElementById('chi')
+headimg.style.display = 'none'
+window.onload = function(e) {
+    document.onkeydown = (e) => {
+       if (e.keyCode == 89) {
+           if (headimg.style.display == '') {
+	       headimg.style.display = 'none'
+	   } else {
+	       headimg.style.display = ''
+           }
+       }
+   }
+}
+</script>
+#+END_EXPORT
 
 #+BEGIN_COMMENT
 #+BEGIN_EXPORT html
@@ -51,6 +70,10 @@ cirno.onclick = () => {
 #+END_COMMENT
 
 Total number of articles: {{{arch_total}}}
+
+#+BEGIN_COMMENT
+{{{toc}}}
+#+END_COMMENT
 
 #+BEGIN_nav
 | [[IIIII][2023]] | [[IIII][2022]] | [[III][2021]] | [[II][2020]] | [[I][2019]] |
