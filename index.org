@@ -103,6 +103,9 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
   - [[https://alpha-beta-eta.github.io/notes/pl.pdf][编程语言的邀请]]
 - [[https://karthinks.com/][Karthinks]]
   - [[https://karthinks.com/software/avy-can-do-anything/][Avy Can Do Anything]]
+- [[https://karl-voit.at/][public voi -- karl-voit]]
+  - [[https://karl-voit.at/tags/pim/][Tag Page for the Tag "pim"]]
+- *[[https://sachachua.com/blog/][Living an Awesome Life -- Sacha Chua]]*
 
 * ABOUT
 
