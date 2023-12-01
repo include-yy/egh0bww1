@@ -106,6 +106,9 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 - [[https://karl-voit.at/][public voi -- karl-voit]]
   - [[https://karl-voit.at/tags/pim/][Tag Page for the Tag "pim"]]
 - *[[https://sachachua.com/blog/][Living an Awesome Life -- Sacha Chua]]*
+- [[https://matklad.github.io/][matklad]]
+  - [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]]
+  - [[https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html][LSP could have been better]]
 
 * ABOUT
 
