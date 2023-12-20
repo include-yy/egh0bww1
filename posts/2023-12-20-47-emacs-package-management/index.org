@@ -1082,5 +1082,5 @@ package-build 提供了 =package-build--create-tar= 用来创建 tar 文件，�
 {{{begin_noscript}}}
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
-[[./p1.jpg]]
+[[https://www.pixiv.net/artworks/59128984][file:p1.jpg]]
 {{{end_noscript}}}

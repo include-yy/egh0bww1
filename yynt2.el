@@ -1,6 +1,30 @@
-;; yynt2.el -- yynt.el 的改进版 -*- lexical-binding: t; -*-
+;;; yynt2.el --- yynt.el 的改进版 -*- lexical-binding: t; -*-
 
-;;;; comment
+;; Copyright (C) 2023 include-yy <yy@egh0bww1.com>
+
+;; Author: include-yy <yy@egh0bww1.com>
+;; Created: 4 Jul 2023
+
+;; Package-Version: 0.1
+;; Package-Requires: ((emacs "29.1"))
+;; URL: https://include-yy/notes
+
+;; This file is NOT part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
 
 ;; 相比于 yynt.el 使用 advice 修改 ox-html 而言使用了新的后端，不影响 ox-html 默认行为
 ;; 添加了一些功能：
@@ -12,7 +36,9 @@
 ;; 请使用 `eval-buffer' 加载 yynt，且保证 yynt.el 在项目根目录上
 ;; 在 emacs 29 中，可以通过 C-c C-e 调用 `elisp-eval-region-or-buffer'
 
-;;; requests
+;;; Code:
+
+;; requests
 ;; 加载自带的 htmlize
 ;; 来自 https://github.com/hniksic/emacs-htmlize
 (require 'htmlize (expand-file-name "./htmlize.el"))
@@ -24,8 +50,6 @@
 ;;; 一些语言 mode，高亮需要
 (require 'bnf-mode nil t)
 (require 'haskell-mode nil t)
-
-;;;; code
 
 ;; 项目根目录
 (defvar yynt-basedir (expand-file-name "./"))
@@ -1092,7 +1116,6 @@ fn 应至少接受一个文件路径（不限于文件），并返回表明是�
  :build (yynt-build-name2obj "404.org")
  :<<fn (lambda () (list (yynt-fjoin yynt-basedir "404.html"))))
 
-;;
 
 ;;; post starts here
 ;; 二层结果 posts/*/index.org
