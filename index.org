@@ -105,6 +105,8 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
   - [[https://karthinks.com/software/avy-can-do-anything/][Avy Can Do Anything]]
 - [[https://karl-voit.at/][public voi -- karl-voit]]
   - [[https://karl-voit.at/tags/pim/][Tag Page for the Tag "pim"]]
+  - [[https://karl-voit.at/tags/emacs/][Tag Page for the Tag "emacs"]]
+  - [[https://karl-voit.at/2019/09/25/using-orgmode/][Blog Series: Using Org Mode Features(UOMF)]]
 - *[[https://sachachua.com/blog/][Living an Awesome Life -- Sacha Chua]]*
 - [[https://matklad.github.io/][matklad]]
   - [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]]

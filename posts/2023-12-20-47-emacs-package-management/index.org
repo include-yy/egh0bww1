@@ -1,0 +1,1086 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: emacs 自带的包管理
+#+DATE: [2023-03-04 Sat 04:10]
+#+DESCRIPTION: 本文总结了文档中的包管理相关资料，对 emacs 原生包管理的使用给出了一些介绍
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/73923041][file:0.jpg]]
+{{{end_noscript}}}
+
+emacs 24.1 引入的包管理器提供了一些基础功能，如使用 =list-packages= 可以列出所有源中的包，通过 =package-install= 可以安装某个包，等等。除了自带的 package.el 外，社区也有一些不错的包管理，比如 [[https://github.com/progfolio/elpaca][elpaca]], [[https://github.com/quelpa/quelpa][quelpa]], [[https://github.com/dimitri/el-get][el-get]], [[https://github.com/radian-software/straight.el][straight.el]], [[https://github.com/emacscollective/borg][borg]]。在尝试过默认包管理后，我参考 [[https://github.com/manateelazycat/lazycat-emacs][lazycat-emacs]] 选择了 git submodule 管理方式，但我最终发现对我来说这是多此一举，并退回到了 package.el。
+
+由于并不是所有的包都发布在 [[https://elpa.gnu.org/][GNU ELPA]] 和 [[https://melpa.org/][MELPA]] 上，我考虑过试一试上面这些包管理器，但一直也没有太过强烈的动机，毕竟 MELPA 能够满足绝大多数需求。随着 emacs 29 的发布，新增的 =package-vc= 填补了 git 管理这一空缺，这下可以完全采用原生的解决方案了。
+
+本文是对 Emacs Manual 和 Elisp Manual 包管理相关章节（[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Packages.html][Packages]] 和 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Packaging.html][Packaging]]）的总结，主要内容为对如何创建包、如何进行包管理和如何搭建简易 ELPA 的介绍。本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+
+{{{toc}}}
+
+* 如何创建包
+
+#+BEGIN_QUOTE
+Emacs provides a standard way to distribute Emacs Lisp code to users. A package is a collection of one or more files, formatted and bundled in such a way that users can easily download, install, uninstall, and upgrade it.
+
+[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Packaging.html][Preparing Lisp code for distribution]]
+#+END_QUOTE
+
+文档将包描述为由一个或多个文件组成的集合，能够被用户轻松下载、安装、卸载和升级。相比于普通的 elisp 代码文件，包需要具有以下属性：
+
+- =Name= ，是一个短小的单词，作为包的名字，一般也作为包内符号的前缀名
+- =Version= ，包的版本，版本字符串要能够被 =version-to-list= 理解，比如 =1.1.1= 。关于版本号的相关知识读者可以参考[[https://semver.org/lang/zh-CN/][语义化版本 2.0.0]]
+- =Brief description= ，对包功能的简短描述，只占一行，且长度应尽量小于 36 个字符
+- =Long description= ，对包功能的详细描述，在通过 =C-h P= 查看包信息时它位于简短描述后面。详细描述应该解释在包安装后如何开始使用
+- =Dependencies= ，描述包所依赖的其他包，可以为空表示无依赖。若非空则在安装包时会自动递归安装它的依赖项。如果找不到它的依赖，那么包不会被安装
+
+我们先从单文件包说起。
+
+** 单文件
+
+对于单文件包，我们可以通过源代码中的注释来指定这些属性，根据 package.el 中用于获取这些信息的 =package-buffer-info= 函数来看， =Name= 和 =Brief description= 都是通过包文件的第一行获取的，且首行的格式必须满足如下的正则表达式：
+
+#+BEGIN_SRC elisp
+  ;;; yy.el --- yy's example of using package -*- lexical-binding:t; -*-
+
+  "^;;; \\([^ ]*\\)\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$"
+#+END_SRC
+
+Emacs 会使用 =package-version= 和 =version= 关键字指定版本信息，如果它们同时出现那么 =package-version= 被优先使用。下面是一个指定版本的例子：
+
+#+BEGIN_SRC elisp
+  ;; Package-Version: 1.0.0
+#+END_SRC
+
+对于 =Long description= ，也就是在使用 =C-h P= 时显示的长描述， =package--get-description= 首先会尝试在包文件目录下搜索 README 文件并将内容插入到 help buffer 中，如果没有这个文件则会调用 =lm-commentary= 获取包文件的 =;;; Commentary:= 或 =;;; Documentation:= 注释块，注意注释块内容必须是 =;;= 开头：
+
+#+BEGIN_SRC elisp
+  ;;; Commentary:
+
+  ;; You should use `yy-add', not `yy-ad', it's a typo but many package
+  ;; have used it for a long time.
+
+  ;;; Code:
+  ;; lisp-mnt.el line 479
+  (format "%s\\|%s\\|%s"
+	  ;; commentary header
+	  (concat "^;;;[[:blank:]]*\\("
+		  lm-commentary-header
+		  "\\):[[:blank:]\n]*")
+	  "^;;[[:blank:]]?"     ; double semicolon prefix
+	  "[[:blank:]\n]*\\'")  ; trailing new-lines
+
+  ;; lisp-mnt.el line 154
+  (defcustom lm-commentary-header "Commentary\\|Documentation"
+    "Regexp which matches start of documentation section."
+    :type 'regexp)
+#+END_SRC
+
+最后的 =Dependencies= 来自关键字 =Package-requires= ， =package-buffer-info= 内部会调用 =lm-header-multiline= 获取这些依赖。如果不指定 =Package-requires= 那包就没有依赖。这里的 multiline 指的不是我们可以使用多个 =Package-Requires= ，而是依赖可以换行：
+
+#+BEGIN_SRC elisp
+  ;; Package-Requires: ((emacs "29.1") (cl-lib "1.0")
+  ;;                    (seq "1.0"))
+
+  (setq a (lm-header-multiline "package-requires"))
+  (package-read-from-string (mapconcat #'identity a " "))
+  => ((emacs "29.1") (cl-lib "1.0") (seq "1.0"))
+#+END_SRC
+
+注意上面的依赖形式，表中的 car 为依赖包名，cadr 为依赖的版本。文档中说版本是可选信息，不指定版本我们可以写成 =(pkg)= 或 =pkg= 的形式，在这种情况下包的版本默认为 0。
+
+除了上面这些属性外，在 =package-buffer-info= 和文档附录 D.8 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Library-Headers.html][Library-Headers]] 中还给出了其他的属性。这包括：
+
+- =Author= ，指定包的作者信息，可以多行，形式为 =Name <email>=
+- =Maintainer= ，指定维护者信息，格式与作者一致，若无该属性则作者就是维护者
+- =Created= ，包的创建日期
+- =Keywords= ，包的关键字，可以指定多个，中间以空格或逗号分隔
+- =URL= 或 =Homepage= ，指定包的网站或主页
+
+除了 =;;; Commentary:= 外，我们还可以使用 =;;; Change Log:=, =;;; Code:= 等块注释，后者表示代码从此处开始。在包的最后我们需要加上 =;;; xxx.el ends here= ，不过根据注释来看这一要求最早会在 emacs 31 废除：
+
+#+BEGIN_SRC elisp
+  ;;; packages.el line 1200
+  ;; This warning was added in Emacs 27.1, and should be removed at
+  ;; the earliest in version 31.1.  The idea is to phase out the
+  ;; requirement for a "footer line" without unduly impacting users
+  ;; on earlier Emacs versions.  See Bug#26490 for more details.
+  (unless (search-forward (concat ";;; " file-name ".el ends here"))
+    (lwarn '(package package-format) :warning
+	   "Package lacks a terminating comment"))
+#+END_SRC
+
+在文档附录中给出了一个包的代码例子，不过它并不完整，这里我给出一个可以实际安装的包，读者可以使用 =package-install-file= 或 =package-install-from-buffer= 尝试。下面代码的许可证部分可以很方便地从各种包中找到并复制：
+
+{{{begin_details}}}
+{{{summary(单文件包的一个简单例子)}}}
+#+BEGIN_SRC elisp
+  ;;; asmd.el --- add, sub, mul, div functions -*- lexical-binding:t; -*-
+
+  ;; Copyright (C) 2023 include-yy <yy@egh0bww1.com>
+
+  ;; Author: include-yy <yy@egh0bww1.com>
+  ;; Maintainer: include-yy <yy@egh0bww1.com>
+  ;; Created: 7 Dec 2023
+
+  ;; Package-Version: 0.1
+  ;; Package-Requires: ((emacs "29.1") (dash "2.0"))
+  ;; Keywords: math
+  ;; URL: https://github.com/include-yy/notes
+
+  ;; This file is NOT part of GNU Emacs.
+
+  ;; This program is free software; you can redistribute it and/or modify
+  ;; it under the terms of the GNU General Public License as published by
+  ;; the Free Software Foundation; either version 3, or (at your option)
+  ;; any later version.
+  ;;
+  ;; This program is distributed in the hope that it will be useful,
+  ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ;; GNU General Public License for more details.
+  ;;
+  ;; You should have received a copy of the GNU General Public License
+  ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+  ;;; Commentary:
+
+  ;; basic math functions for add, sub, mul and div operations.
+
+  ;; Usage
+
+  ;; (asmd-add 1 2) => 3
+  ;; (asmd-sub 1 2) => -1
+  ;; (asmd-mul 1 2) => 2
+  ;; (asmd-div 1 2) => 0
+
+  ;;; Code:
+
+  (defun asmd-add (a b) (+ a b))
+  (defun asmd-sub (a b) (- a b))
+  (defun asmd-mul (a b) (* a b))
+  (defun asmd-div (a b) (/ a b))
+
+  (provide 'asmd)
+  ;;; asmd.el ends here
+#+END_SRC
+{{{end_details}}}
+
+读者可以将以上内容复制到一个 buffer 中，然后调用 =package-install-from-buffer= 进行安装。完成安装后即可使用这些函数了（请先 =(require 'asmd)= ，在安装完毕后 emacs 只会添加路径到 =load-path= 并执行一些 autoload 表达式），使用 =C-h P asmd= 可以看到包的详细介绍信息，使用 =list-packages= 可以找到这个包：
+
+[[./1.png]]
+
+[[./2.png]]
+
+读者有兴趣的话可以尝试修改上面文件中的属性值，比如在 emacs 29 中指定 =Package-Requires: ((emacs "30"))= 看看会出现什么结果。此时 echo area 会显示： /package-compute-transaction: This package requires Emacs version 30/ ，也就是无法安装。在实验后读者可通过 =package-delete= 删除 =asmd= ，或直接在 GUI 界面中点击上面的 =DELETE= 按钮。
+
+在安装过程中，emacs 并不仅仅是将包内容写入到 =package-user-dir= 中的某个文件夹中，它还对包进行了字节编译和提取包中的 autoload。在包安装目录生成的 autoloads 文件会在 emacs 启动时的包初始化阶段被加载，我们在使用这些 autoload 函数时无需显式加载包。
+
+如果我们不想让 emacs 启动时加载包，可以在 early-init.el 中设置 =package-enable-at-startup= 为 =nil= 来阻止 =package-activate-all= 的调用。关于 =;;;###autoload= 魔法注释的使用可以参考 elisp manual 的 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][Autoload]] 一节。
+
+** 多文件
+
+与单文件包相比多文件包也许能够更加方便地组织代码，比如将不同功能的模块放到不同的文件中、添加非代码文件、等等。不过通过合理使用 =^L= 字符我们也能在单文件中分隔代码，至少我认为不超过 1w 行的包不必要使用多个文件。
+
+如果我们创建了一个多文件包，那么在安装时它需要是 =name-version.tar= 形式命名的 tar 打包文件，而且 tar 必须包含一个 =name-pkg.el= 文件，它被用来指定一些包的元信息，也就是我们在上一节中看到的那些。同样是 asmd 包，在多文件的组织下它将是这样的：由 =LICENSE=, =README=, =asmd.el=,  =asmd-pkg.el= 这四个文件组成。这里附上实际可用的 tar 文件：[[file:asmd-0.1.tar][asmd-0.1.tar]]。
+
+（顺带，如果想要将一个目录内的文件使用 tar 归档，可以使用 =tar -cvf name.tar dirname= ）
+
+[[./3.png]]
+
+我们需要编写类似这样的 =asmd-pkg.el= 文件，可见其中包含了除 =long description= 外的所有基本信息，即 =name=, =version=, =brief description= 和 =Package-Requires= ：
+
+#+BEGIN_SRC elisp
+(define-package "asmd" "0.1"
+  "add, sub, mul, div functions"
+  '((emacs "29.1") (dash "2.0"))
+  :author '("include-yy" . "yy@egh0bww1.com")
+  :maintainer '("include-yy" . "yy@egh0bww1.com")
+  :url "https://github.com/include-yy/notes"
+  :keywords '("math"))
+#+END_SRC
+
+你可以通过 =package-install-from-buffer= 或 =package-install-file= 来进行安装。 =package-install-file= 在内部调用了前者，而 =package-install-from-buffer= 会区分目录，tar 文件和简单文件三种情况。如果传递给 =package-install-from-buffer= 的参数为 dired-mode buffer（也就是目录），它在未找到 =name-pkg.el= 文件时会尝试从所有可能的 el 文件中提取出包的元信息，而在处理 tar 文件时元信息必须来自 =name-pkg.el= 文件，否则会报错。
+
+上面的 =define-package= 在现在的 emacs 中只起到一个标识作用，虽然是个函数但不会执行：
+
+#+BEGIN_SRC elisp
+  (defun define-package ( _name-string _version-string
+			  &optional _docstring _requirements
+			  &rest _extra-properties)
+    "Define a new package.
+  NAME-STRING is the name of the package, as a string.
+  VERSION-STRING is the version of the package, as a string.
+  DOCSTRING is a short description of the package, a string.
+  REQUIREMENTS is a list of dependencies on other packages.
+   Each requirement is of the form (OTHER-PACKAGE OTHER-VERSION),
+   where OTHER-VERSION is a string.
+
+  EXTRA-PROPERTIES is currently unused."
+    (declare (obsolete nil "29.1") (indent defun))
+    (error "Don't call me!"))
+#+END_SRC
+
+对于 tar 文件包的内容，emacs 的要求是不要包含 =.elc= 文件和 =name-autoloads.el= 文件，因为它们会在安装包时生成。
+
+** info 文档
+
+在安装某些包后，你能够在 =M-x info= 中找到它们的文档（比如 =use-package= 和 =magit= ）。emacs 使用一种叫做 texinfo 的工具来生成这样的 info 文档，文档的源文件格式为 texi。texinfo 的编写方法可以参考文档 [[https://www.gnu.org/software/texinfo/manual/texinfo/][GNU Texinfo manual]]。
+
+如果我们想要为 asmd 加上 info 文档支持，我们可以使用下面的 texi 文件，并经过 texinfo 生成 dir 和 info 文件，生成指令如下：
+
+#+BEGIN_SRC text
+  makeinfo asmd.texi
+  install-info asmd.info dir
+#+END_SRC
+
+{{{begin_details}}}
+{{{summary(asmd.texi)}}}
+#+BEGIN_SRC texinfo
+  \input texinfo
+  @setfilename asmd.info
+  @settitle asmd User Manual
+  @documentencoding UTF-8
+  @documentlanguage en
+
+  @copying
+  @quotation
+
+  Copyright (C) 2023 include-yy
+
+  You can redistribute this document and/or modify it under the terms
+  of the GNU General Public License as published by the Free Software
+  Foundation, either version 3 of the License, or (at your option) any
+  later version.
+
+  This document is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE@.  See the GNU
+  General Public License for more details.
+
+  @end quotation
+  @end copying
+
+  @dircategory Emacs
+  @direntry
+  ,* asmd: (asmd). Use asmd to +, -, * and /
+  @end direntry
+
+  @titlepage
+  @title Hello world
+  @subtitle yy
+  @author include-yy
+  @page
+  @insertcopying
+  @end titlepage
+
+  @contents
+
+  @ifnottex
+  @node Top
+  @top asmd User manual
+
+  Just Four functions.
+
+  @insertcopying
+
+  @menu
+  ,* add::
+  ,* sub::
+  ,* mul::
+  ,* div::
+  @end menu
+  @end ifnottex
+
+  @node add
+  @chapter add
+
+  (asmd-add 1 2) => 3
+
+  @node sub
+  @chapter sub
+
+  (asmd-sub 1 2) => -1
+
+  @node mul
+  @chapter mul
+
+  (asmd-mul 1 2) => 2
+
+  @node div
+  @chapter div
+
+  (asmd-div 1 2) => 0
+
+  @bye
+#+END_SRC
+{{{end_details}}}
+
+经过上面操作后，你会得到 =asmd.info= 和 =dir= 两个文件。前者是文档的主体，后者是 info 文件对应的 dir 文件，用来保存一些顶级菜单信息。将两个文件放入源代码目录并打包，我们就获得了一个带有 info 文档支持的多文件包。如果 tar 包或目录中存在名为 =dir= 的文件，那么这个包的安装目录会被认为是一个 Info 目录，这通过调用 =install-info= 完成（当然了我们需要同时提供 dir 和 info 文件）。
+
+在完成安装后读者可以通过 =M-x info= 命令访问 info 文档：
+
+[[./4.png]]
+
+* 如何管理包
+
+除了自己的配置文件之外，大多数用户没有编写和发布 elisp 代码的需求，因此对读者来说这一节可能更有用一点。本节介绍了如何使用 emacs 自带的 package.el 和 package-vc.el 进行一般的包管理。
+
+** package-initialize 与 early-init.el
+
+在许多 ELPA 或者镜像的配置建议中都有 =package-initialize= 的调用代码，在 MELPA 的 Getting start 中有如下配置代码：
+
+#+BEGIN_SRC elisp
+  (require 'package)
+  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+  ;; Comment/uncomment this line to enable MELPA Stable if desired.  See `package-archive-priorities`
+  ;; and `package-pinned-packages`. Most users will not need or want to do this.
+  ;;(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+  (package-initialize)
+#+END_SRC
+
+差不多一年前我对 emacs 的启动过程进行了一番[[../2023-02-23-29-how-emacs-startup/index.org][研究]]，发现 emacs 28 在启动时会调用 =package-activate-all= 进行包相关的初始化。这是否意味着我们无需在配置文件中加上 =package-initialize= 调用呢？这还是得分析一下。
+
+要想了解 emacs 不同版本间启动时的区别，最快和最准确的方法是通过 =C-h n= 阅读 NEWS 文件中的 =* Startup Changes in Emacs= 章节。在 NEWS.24 中关于 package 的描述是这样的：
+
+#+BEGIN_QUOTE
+By default, all installed packages are loaded automatically when
+Emacs starts up.  To disable this, set 'package-enable-at-startup' to
+nil.  To specify the packages to load, customize 'package-load-list'.
+#+END_QUOTE
+
+通过参考 emacs 24 源代码目录中的 =doc/lispref/os.texi= 可以发现启动时的 =package-initialize= 调用发生在用户配置加载之后，因此我们可以在配置中设置 =package-enable-at-startup= 控制包是否初始化。如果用户在自己的配置文件中放置了对 =package-initlaize= 的调用且未设置 =package-enable-at-startup= 为 nil，那么 =package-initialize= 会被调用两次。
+
+在 NEWS.25 中列出了 package.el 繁多的改进，其中一项就是在调用 =package-initialize= 后将 =package-enable-at-startup= 置 nil（在 27 及以后版本中没有这个行为），这就避免了 emacs 启动时用户调用后还会继续调用。如果希望默认调用发生则需要在调用 =package-initialize= 后置 =package-enable-at-startup= 为 t。
+
+我没有在 NEWS.26 中找到太多和 package.el 相关的改变，不过 NEWS.27 确实引入了巨大的变化：emacs 引入了 early init file，如果在 =user-emacs-directory= 中存在 early-init.el 的文件，那么 emacs 会在初始化的早期对它进行加载。添加它的主要原因是 emacs 的初始化顺序发生了变化，现在包的初始化会发生在用户配置初始化之前，而且包初始化过程中调用的不再是 =package-initialize= 而是 =package-activate-all= ，我们需要一个早于包初始化加载的选项。下图说明了 emacs 28 中的初始化顺序（从 NEWS 变化来看与 emacs 27 没有关键性的区别）：
+
+[[./6.png]]
+
+根据 NEWS.27 的说法，在 27 之前 emacs 在启动时会自动添加一个 =package-initialize= 到 init 文件的[[https://emacs-china.org/t/topic/3766][末尾]]（草，生怕用户不知道有这个功能），但在 27 后这就是不必要的了，用户也不用在配置文件中显式调用 =package-initialize= 了。如果要与之前版本的 emacs 保持兼容可以使用以下代码：（这段代码的意义也仅仅是为了不让 emacs “帮”你插入多余的 =package-initialize= 罢了）
+
+#+BEGIN_SRC elisp
+  (when (< emacs-major-version 27)
+       (package-initialize))
+#+END_SRC
+
+添加 =package-initialzie= 调用在 init 文件末尾这个工作是由 =package--ensure-init-file= 完成的，它会被 =package-initialize= 调用。这个函数在 emacs 25 中[[https://github.com/emacs-mirror/emacs/commit/fdc521952e6d68fa603aac899fe4c08e0a2ed480][加入]] package.el，并在 emacs 27 中[[https://github.com/emacs-mirror/emacs/commit/24acb31c04b4048b85311d794e600ecd7ce60d3b][移除]]，看来大家都不喜欢自己的配置文件被拉屎（笑）。
+
+在 NEWS.28 和 NEWS（也就是最新的 29）中 emacs 的启动过程没有太大变化，此处略过。不过 29 引入了一些比较新的 package 特性，我会在下面的小节进行介绍。
+
+通过 early-init.el ，我们可以控制包初始化的一些选项：
+
+- 如果我们设置 =package-enable-at-startup= 为 nil，那么包不会在默认的包初始化阶段初始化
+- 可以设置 =package-user-dir= 来控制用户包的位置，它的默认值为 ="~/.emacs.d/elpa"=
+- 可以设置 =package-directory-list= 来添加或删除其他的包位置，它默认包括一些系统级包目录
+
+我们可以在 early-init.el 中设置 =package-enable-at-startup= 为 nil，从而将包的初始化延后到用户配置文件加载期间。在 purcell 的[[https://github.com/purcell/emacs.d/blob/master/lisp/init-elpa.el][配置]]中， =package-initialize= 调用被放在了 init-elpa.el 中，在其中他修改 =package-user-dir= 为 =elpa-%s.%s= ，如此一来不同版本的 emacs 将不会共享同一套包。这样做是因为 emacs 包安装时会在源代码同一目录编译生成字节码 elc 文件，虽然 emacs 的字节码具有良好的兼容性，但最新版的字节码不一定能在较老版本的 emacs 上执行：
+
+#+BEGIN_SRC elisp
+  ;;; Install into separate package dirs for each Emacs version, to prevent bytecode incompatibility
+  (setq package-user-dir
+	(expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
+			  user-emacs-directory))
+#+END_SRC
+
+除了修改默认的包初始化行为外 early-init.el 还有许多其他的用法。不过文档不建议我们滥用它，因为 early-init.el 的执行发生在 emacs 初始化的早期，此时一些图形资源并未初始化，某些代码可能不能正确执行：
+
+#+BEGIN_QUOTE
+We recommend against putting any customizations in this file that
+don't need to be set up before initializing installed add-on packages,
+because the early init file is read too early into the startup
+process, and some important parts of the Emacs session, such as
+'window-system' and other GUI features, are not yet set up, which could
+make some customization fail to work.
+
+NEWS.27 --- Startup Changes in Emacs 27.1
+#+END_QUOTE
+
+*** 对 emacs 29 中 package-initialzie 的实现分析
+
+原本我是从源代码推得 =package-initialize= 这个东西有些“不对劲”才想着读一读不同 emacs 版本之间的变迁，现在根据文档和历史代码完成了演变分析，原来写的代码分析似乎就不怎么有必要了。这里废物利用一下，简单介绍介绍 emacs 29 中的 package.el 在包初始化上的具体实现吧。
+
+在 emacs 29 中， =package-initialize= 的具体实现如下，可见其中调用了 =package-activate-all= ：
+
+#+BEGIN_SRC elisp
+  ;; packacge.el line 1691
+  ;;;###autoload
+  (defun package-initialize (&optional no-activate)
+    (interactive)
+    (when (and package--initialized (not after-init-time))
+      (lwarn '(package reinitialization) :warning
+	     "Unnecessary call to `package-initialize' in init file"))
+    (setq package-alist nil)
+    (package-load-all-descriptors)
+    (package-read-all-archive-contents)
+    (setq package--initialized t)
+    (unless no-activate
+      (package-activate-all))
+    ;; This uses `package--mapc' so it must be called after
+    ;; `package--initialized' is t.
+    (package--build-compatibility-table))
+#+END_SRC
+
+可以注意到，在调用 =package-activate-all= 之前， =package-initialize= 调用了 =package-load-all-descriptors= 和 =package-read-all-archive-contents= ，前者用于从 =package-user-dir= 等目录中获取所有包的描述信息并添加到 =package-alist= 中，后者根据 =package-archives= （也就是指定的所有 ELPA）中的名字从本地获取缓存文件并添加包信息到 =package-archive-contents= 中，这些缓存文件位于 =package-user-dir= 的 =elpa/archives= 目录；在调用 =package-activate-all= 之后， =package-initialize= 调用了 =package--build-compatibility-table= 添加一些包的兼容性信息。
+
+在负责 emacs 启动过程的 startup.el 中负责包初始化的代码是这样的，我没有找到对 =package-initialize= 的调用：
+
+#+BEGIN_SRC elisp
+  ;; If any package directory exists, initialize the package system.
+  (and user-init-file
+       package-enable-at-startup
+       (not (bound-and-true-p package--activated))
+       (catch 'package-dir-found
+	 (let ((dirs (cons package-user-dir package-directory-list)))
+	   (dolist (dir dirs)
+	     (when (file-directory-p dir)
+	       (dolist (subdir (directory-files dir))
+		 (when (let ((subdir (expand-file-name subdir dir)))
+			 (and (file-directory-p subdir)
+			      (file-exists-p
+			       (expand-file-name
+				(package--description-file subdir)
+				subdir))))
+		   (throw 'package-dir-found t)))))))
+       (package-activate-all))
+#+END_SRC
+
+可见它在进行了一系列检测后对 =package-activate-all= 进行了调用，由这部分代码我们无法得知它是否完成了 =package-initialize= 的工作。在阅读 =package-activate-all= 的代码时我发现内部的 =package--activate-all= 调用了 =package--alist= 来获取已安装包的信息，而它在内部调用了 =package-load-all-descriptors= 获取已安装包的描述信息。
+
+#+BEGIN_SRC elisp
+  (defun package--alist ()
+    "Return `package-alist', after computing it if needed."
+    (or package-alist
+	(progn (package-load-all-descriptors)
+	       package-alist)))
+#+END_SRC
+
+=package-activate-all= 的实际初始化工作由 =package-activate= 完成，而它内部又调用了 =package-activate-1= 来加载 autoload 文件和添加 =load-path= ，感兴趣的读者可以去看一看具体的实现。
+
+根据上面的分析，可以发现仅调用 =package-activate-all= 相比 =package-initialize= 少了两个步骤：对 =package-archive-contents= 的初始化和对包兼容性信息的初始化。这意味着如果我们通过设定 =package-enable-at-startup= 为 nil 或通过 =-Q= 启动 Emacs 会导致 =package-archive-contents= 为空。
+
+但这并不会有什么不良影响，在需要用到 =package-initialize= 初始化的一些值时，相关的代码会调用 =package--archives-initialize= 完成 =package-activate-all= 没有完成的工作。由于这里的调用指定了 =t= 参数，在 =package-initialize= 调用时并不会调用 =package-activate-all= ：
+
+#+BEGIN_SRC elisp
+  (defun package--archives-initialize ()
+    "Make sure the list of installed and remote packages are initialized."
+    (unless package--initialized
+      (package-initialize t))
+    (unless package-archive-contents
+      (package-refresh-contents)))
+#+END_SRC
+
+读者可以通过 =-Q= 启动的 emacs 做个测试。在这样的 emacs 实例中首先 =(require 'pacakge)= 后测试 =package-archive-contents= 的值，在调用 =package-install= 命令后（调用即可，无需真正执行）再测试 =package-archive-contents= ，你会发现其中多了一些来自 GNU ELPA 包的信息。
+
+综上，如果我们没有通过 =early-init.el= 做一些自定义行为的话，我们无需在自己的配置文件中调用 =package-initialize= ，但加上也没有什么坏处就是了。
+
+** 包的来源与安全问题
+
+在上一节我贴出了 MELPA 的配置代码，在其中我们为 =package-archives= 添加了一条 cons，即 =("melpa" . "https://melpa.org/packages")= 。在这个列表中的 archive 是可用于获取包的来源，它的形式是 =(ID . LOCATION)= ，其中 ID 是表示 archive 名字的字符串，LOCATION 是归档的位置，如果以 http(s) 开头则使用 HTTP URL，否则将被视为本地绝对路径。文档建议我们使用 HTTPS，因为它提供了加密传输更加安全。
+
+在添加新的归档后，我们可以通过 =package-refresh-contents= 从所有的归档下载包的描述，这个命令同时也会更新已有 archive 的包描述。它会在内部触发 =package-refresh-contents-hook= ，而钩子的默认函数为 =package--download-and-read-archives= ，它在内部会调用 =package--download-one-archive= 执行实际的下载操作，也就是下载归档的 =archive-contents= 文件，并保存在 =package-user-dir= 的 =archives= 目录下。读者可以试试从浏览器访问以下链接观察一下归档的包列表：
+
+- https://melpa.org/packages/archive-contents
+- https://elpa.gnu.org/packages/archive-contents
+
+#+BEGIN_SRC elisp
+  (defun package--download-and-read-archives (&optional async)
+    "Download descriptions of all `package-archives' and read them.
+  Populate `package-archive-contents' with the result.
+
+  If optional argument ASYNC is non-nil, perform the downloads
+  asynchronously."
+    (dolist (archive package-archives)
+      (condition-case-unless-debug nil
+	  (package--download-one-archive archive "archive-contents" async)
+	(error (message "Failed to download `%s' archive."
+			(car archive))))))
+#+END_SRC
+
+如果我们使用 HTTP 而不是 HTTPS 可能会有一系列的安全问题，凭我的计算机网络知识来看最显而易见的应该是攻击者可以轻易获取和篡改传输的包代码，这可能导致我们获取并使用的包中含有恶意插入的代码，从而造成意想不到的后果（emacs 是提供了简单但也够用的文件 API 的）。说到这里我想起了十几年前上网时屏幕顶部和底部的广告，很大一部分应该是所谓的运营商 HTTP 劫持。现在上网能摆脱这些狗屎广告还真是多亏了棱镜门和斯洛登推动了 HTTPS 的使用（当然只是原因之一，笑）。
+
+通过使用 HTTPS 我们能够在很大程度上保证传输过程的安全性，打个比方的话就是中途没有外卖员偷吃或者撒尿，也不会有李鬼商家。通过使用 GPG 我们还能更进一步增强安全性，在 HTTPS 基础上再加一次检测。简单来说，发布包的 archive 可以为每个包文件通过 GPG 的私钥生成一个签名文件，私钥不对他人公开，用户在获取包后可以通过公钥和签名文件验证包是否值得信任。这个过程对用户是透明的，通过 emacs 的 =epg= 完成。
+
+在默认情况下， =package-check-signature= 的值为 =allow-unsigned= ，也就是允许未签名的 archive 存在。默认的 emacs 中存在 GNU ELPA 和 NONGNU ELPA 的公钥，这两个 ELPA 会在服务器上提供签名文件，你可以通过访问以下链接来简单观察对 archive-contents 的签名文件：
+
+- https://elpa.gnu.org/packages/archive-contents.sig
+- https://elpa.nongnu.org/nongnu/archive-contents.sig
+
+MELPA 并未提供签名文件，因此如果你的 =package-archives= 中存在 MELPA 且设置 =package-check-signature= 为 =t= 时，调用 =package-refresh-contents= 会失败。在 2014 年就有为 MELPA 添加 GPG 签名的[[https://github.com/melpa/melpa/issues/1749][讨论]]，但到了 [[https://github.com/melpa/melpa/issues/1749#issuecomment-802248818][21]] 年都没有什么进展（更别说现在了，乐）。我们可以添加 ="melpa"= 到 =package-unsigned-archives= 来规避这个问题。在上面的讨论中有一条一针见血的评论：
+
+#+BEGIN_QUOTE
+I'm a little confused as to what the proposed threat model is here.
+
+A signature is a cryptographic assertion of ... something. If a package is signed through MELPA, what exactly is being asserted about it? Has someone inspected the code? Does someone have some level of trust in the individual who has uploaded the package or committed to github? I definitely don't want to import a key into my GPG keyring that signs random stuff via an unmonitored, automated system that anyone can inject stuff into...
+
+Particularly, if a user has to accept new root signing keys on a regular basis, then part of the regular user experience is getting man-in-the-middled and hitting "OK, this is fine, update packages from this unknown and unexpected source".
+
+[[https://github.com/melpa/melpa/issues/1749#issuecomment-71553669][glyph --- Comment on Signing packages]]
+#+END_QUOTE
+
+通过使用 =package-import-keyring= 我们可以导入公钥到 emacs 中，emacs 使用 =package-gnupghome-dir= 来存放公钥，它的默认值是 =~/.emacs.d/elpa/gnupg= 。在 GNU ELPA 上有个叫 =gnu-elpa-keyring-update= 的包，我们可以用它更新 GNU ELPA 的公钥。如果当前公钥已经过期且我们没有安装这个包，我们可以暂时设置 =package-check-signature= 为 nil 再安装。
+
+** 包的安装、更新与删除
+
+在配置好 =package-archive= 并 =package-refresh-contents= 后，我们就可以进行实际的包管理了，这一小结我会详细介绍 package.el 所提供的绝大多数功能，大体上来说是对 emacs manual [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Package-Installation.html][Package Installation]] 一节的二次总结。
+
+*** 安装
+
+最重要的安装命令是 =package-install= ，在 =M-x= 调用它后会弹出 minibuffer 让我们输入包名并进行安装。它会分析和安装包的所有依赖，如果包已经安装则显示 =xxx is already installed= 。想要在配置文件中指定哪些包需要安装，我们可以这样做：
+
+#+BEGIN_SRC elisp
+  (dolist (a '(dash magit s company corfu cape ...))
+    (package-install a))
+#+END_SRC
+
+关于包的安装，一个容易想到的问题是：如果多个 ELPA 中有同一个包， =package-install= 在安装时会选取哪一个？文档中没有给出明确的说明，而是给出了叫做 =package-pinned-packages= 的选项，通过使用它可以将某个包固定到某个 ELPA 上，比如设置它为 =((dash . "gnu"))= 将 dash 绑定到 GNU ELPA 上。 =install-package= 会调用 =package-compute-transaction= 计算需要安装的包，简单观察其代码可以发现它使用了 =assq= 在 =package-archive-contents= 中进行搜索：
+
+#+BEGIN_SRC elisp
+  ;; package.el line 1932
+  ;; A package is required, but not installed.  It might also be
+  ;; blocked via `package-load-list'.
+  (let ((pkg-descs (cdr (assq next-pkg package-archive-contents)))
+	(found nil)
+	(found-something nil)
+	(problem nil))
+    ...)
+#+END_SRC
+
+在 =package-archive-contents= 初始化或刷新时（即调用 =package-initialize= 或 =package-refresh-contents= 时），它们调用的 =package-read-archive-contents= 内部会调用 =package--add-to-archive-contents= 将包添加到 =package-archive-contents= 中，它会根据 =package-pinned-packages= 来仅将锁定到某个 ELPA 的包添加到 =package-archive-contents= ：
+
+#+BEGIN_SRC elisp
+  ;; package--add-to-archive-contents
+
+  ;; Skip entirely if pinned to another archive.
+  (when (not (and pinned-to-archive
+		  (not (equal (cdr pinned-to-archive) archive))))
+    (setq package-archive-contents
+	  (package--append-to-alist pkg-desc package-archive-contents)))
+#+END_SRC
+
+除了 =package-pinned-packages= 外，另一选项也会影响 =package-archive-contents= 中同名不同来源包的顺序，它就是 =package-archive-priorities= 。通过它我们可以指定 ELPA 之间的相对优先顺序。比如 =(("gnu" . 100) ("melpa" . 50) ("melpa" . 0))= 。 =package--append-to-alist= 会使用这些优先级信息按顺序添加包到 =package-archive-contents= 中，ELPA 优先级越高的包就在列表的越前面：（从 =package--append-to-alist= 的实现来看，按优先级递增顺序设置 =package-archive-priorities= 似乎更有效率）
+
+#+BEGIN_SRC elisp
+  (defun package--append-to-alist (pkg-desc alist)
+    "Append an entry for PKG-DESC to the start of ALIST and return it.
+  This entry takes the form (`package-desc-name' PKG-DESC).
+
+  If ALIST already has an entry with this name, destructively add
+  PKG-DESC to the cdr of this entry instead, sorted by version
+  number."
+    (let* ((name (package-desc-name pkg-desc))
+	   (priority-version (package-desc-priority-version pkg-desc))
+	   (existing-packages (assq name alist)))
+      (if (not existing-packages)
+	  (cons (list name pkg-desc)
+		alist)
+	(while (if (and (cdr existing-packages)
+			(version-list-< priority-version
+					(package-desc-priority-version
+					 (cadr existing-packages))))
+		   (setq existing-packages (cdr existing-packages))
+		 (push pkg-desc (cdr existing-packages))
+		 nil))
+	alist)))
+#+END_SRC
+
+综上，我们可以通过配置 =package-archive-priorities= 来指定不同 ELPA 之间的优先级，通过配置 =package-pinned-packages= 指定特定包对应的 ELPA。 =package-install= 使用的 =package-install-from-archive= 会调用 =package-unpack= 执行安装动作，在上文中提到的 =package-install-from-buffer= 和 =package-install-file= 内部也使用了 =package-unpack= 。
+
+在调用 =package-install= 时，它在默认情况下会将安装的包的符号添加到 =package-selected-packages= 中，如果我们指定它的第二参数 =DONT-SELECT= 为 t 则不添加。emacs 提供了一个命令 =package-install-selected-packages= 来确保 =package-selected-packages= 中所有的包都安装了，我们也可以这样组织自己的配置文件：
+
+#+BEGIN_SRC elisp
+  (setopt package-selected-packages
+	  '(markdown-mode parrot cnfonts find-file-in-project
+	    winum pyim pyim-basedict popup
+	    moe-theme vertico company company-posframe
+	    eldoc-box vundo magit ibuffer-vc orderless consult
+	    wgrep haskell-mode igist devdocs buffer-env
+	    expand-region which-key diminish yasnippet
+	    breadcrumb blacken shrface docker benchmark-init
+	    tabspaces popwin hyperbole embark embark-consult
+	    popper expreg corfu tempel cape envrc))
+
+  (package-install-selected-packages)
+#+END_SRC
+
+最后补充说明一下包的安装位置。用户安装的包将位于 =package-user-dir= 目录下，包的目录名为包名加上版本号，比如 =dash-1.0= ，在文件夹中是包的代码和生成的字节码文件与 autoload 文件（如果是多文件包那么文件会从 tar 中解压得到）。下图是 embark 包文件夹的内容：
+
+[[./7.png]]
+
+*** 更新
+
+通过调用命令 =package-upgrade= 我们可以对已安装的包进行更新，它会根据 =package--upgradeable-packages= 得到可更新的包供我们选择。它的具体实现非常简单，就是先删除旧包后安装新包：
+
+#+BEGIN_SRC elisp
+  (defun package-upgrade (name)
+    (interactive
+     (list (completing-read
+	    "Upgrade package: " (package--upgradeable-packages) nil t)))
+    (let* ((package (if (symbolp name)
+			name
+		      (intern name)))
+	   (pkg-desc (cadr (assq package package-alist))))
+      (if (package-vc-p pkg-desc)
+	  (package-vc-upgrade pkg-desc)
+	(package-delete pkg-desc 'force 'dont-unselect)
+	(package-install package 'dont-select))))
+#+END_SRC
+
+通过使用 =package-upgrade-all= 我们可以更新所有可更新的包，它会提示用户是否更新所有的包，就像这样：
+
+[[./8.png]]
+
+除了用户自己安装的包外，emacs 中也有一定数量的内置包，它们随 emacs 一起发布，存在于 emacs 的 lisp 源代码目录中。就比如 emacs 29.1 中的 eglot，它的版本是 1.12.29，但最新版已经到了 1.15 了：
+
+[[./9.png]]
+
+要想安装这个更新，我们可以在调用 =package-install= 命令前使用 =C-u= 前缀，此时 =package-install= 会考虑内置的包，如果以普通方式调用则看不到所有的内置包。另一种方法是设置 =package-install-upgrade-built-in= 为非 nil 值。使用 =package-upgrade= 或 =package-upgrade-all= 是无法更新任何内置包的。
+
+需要说明的是，内置包的更新并不会删除原有位置的文件，而是在 =package-user-dir= 目录下添加新版本的内置包，此时原目录的包会被遮蔽掉，这可以通过 =list-load-path-shadows= 看出来：
+
+[[./10.png]]
+
+如果我们不小心或故意修改了某个包中的代码，我们可能需要更新它对应的字节码文件，这时使用 =package-recompile= 或 =package-recompile-all= 即可。
+
+*** 删除
+
+（我没有在文档中找到和删除相关的说明，也许这并不是什么常用的功能）
+
+我们可以通过 =pacakge-delete= 命令来删除包，它会弹出包列表供我们选择。如果要删除的包被其他的包依赖，那么它不能被删除，除非第二参数 =force= 为非 nil 值。在调用 =package-install= 时包会被添加到 =package-selected-packages= 列表中，而 =package-delete= 会将它移出列表，除非我们指定第三参数 =nosave= 为非 nil 值。包内容所在的目录会从 =package-user-dir= 中被删除。
+
+上面我们介绍了 =package-upgrade= 用来对包进行更新，emacs 也提供了 =package-reinstall= 对包进行重新安装，它与前者的不同之处在于它不会变动包的版本，只是简单的删除包后重新安装。
+
+通过命令 =package-autoremove= 我们可以移除不再需要的包，它在内部会通过 =package--removable-packages= 分析不再需要的包，它与 =package-selected-packages= 关系密切。
+
+*** 快速启动
+
+通过前面的内容我们已经了解到在 emacs 启动时会调用 =package-activate-all= 对所有的包进行初始化。实际上这也算是个比较耗时的过程，因为它需要遍历 =package-user-dir= 下的所有包目录并添加 =load-path= 和加载 autoload 文件（其余工作可以参考 =package-activate-1= 的实现）。
+
+在 emacs 27 中，package.el 新增了 quickstart 特性，我们可以将所有包的 autoload 文件合并为一个大的 autoload 文件，emacs 在启动时只需加载该文件即可。读者可以在 early-init.el 中使用如下代码测试 =package-activate-all= 的用时。在我的 elpa 目录下共有 78 个包，测试用时为 0.2424 秒：
+
+#+BEGIN_SRC elisp
+  ;; -*- lexical-binding:t; -*-
+
+  (defvar yy/time nil)
+  (defvar yy/flag nil)
+  (defun yy/timer (fn)
+    (let ((ti (float-time)))
+      (funcall fn)
+      (unless yy/flag
+	(setq yy/time (- (float-time) ti))
+	(setq yy/flag t))))
+
+  (advice-add 'package-activate-all :around 'yy/timer)
+#+END_SRC
+
+想要使用 quickstart 功能只需我们调用 =package-quickstart-refresh= 即可，它会在 =package-quickstart-file= 位置生成 quickstart 文件并编译得到字节码文件，此文件中包含所有包的添加 =load-path= 和 autoload 代码。 =package-activate-all= 在此文件存在时会采取不同的初始化步骤：
+
+#+BEGIN_SRC elisp
+  (let* ((elc (concat package-quickstart-file "c"))
+	 (qs (if (file-readable-p elc) elc
+	       (if (file-readable-p package-quickstart-file)
+		   package-quickstart-file))))
+    ;; The quickstart file presumes that it has a blank slate,
+    ;; so don't use it if we already activated some packages.
+    (if (and qs (not (bound-and-true-p package-activated-list)))
+	;; Skip load-source-file-function which would slow us down by a factor
+	;; 2 when loading the .el file (this assumes we were careful to
+	;; save this file so it doesn't need any decoding).
+	(let ((load-source-file-function nil))
+	  (unless (boundp 'package-activated-list)
+	    (setq package-activated-list nil))
+	  (load qs nil 'nomessage))
+      (require 'package)
+      (package--activate-all)))
+#+END_SRC
+
+在生成 quickstart 文件后，我的 emacs 启动时的包初始化时间变为了 0.0354 秒。这个提升是很不错的，不过这对我总共 4 秒的启动时间带来的改进有些微不足道。如果读者使用了几百个包，使用 quickstart 的效果应该会更加显著。
+
+相比普通流程，使用 quickstart 的不方便之处在于每次安装新包后我们需要手动调用 =package-quickstart-refresh= 来更新 quickstart 文件，对此 emacs 提供了 =package-quickstart= 选项，将它设为 t 可以让 emacs 在需要的时候为我们自动刷新 quickstart 文件，这一项工作由 =package--quickstart-maybe-refresh= 完成：
+
+#+BEGIN_SRC elisp
+  (defun package--quickstart-maybe-refresh ()
+    (if package-quickstart
+	;; FIXME: Delay refresh in case we're installing/deleting
+	;; several packages!
+	(package-quickstart-refresh)
+      (delete-file (concat package-quickstart-file "c"))
+      (delete-file package-quickstart-file)))
+#+END_SRC
+
+在 package.el 中， =package-install=, =package-install-from-buffer= 和 =package-delete= 都调用了 =package--quickstart-maybe-refresh= 来更新 quickstart。
+
+想要停用 quickstart 功能的话，删除 quickstart 文件（包括 el 和 elc 文件）并设置 =package-quickstart= 为 nil 即可。
+
+** 从代码仓库安装包
+
+从 emacs 29 起，emacs 引入了 package-vc.el，为我们提供了从 VCS（Version Control System）获取和更新包的能力。这一节我会介绍 package-vc 提供的几个函数和命令，想要全面了解实现的同学可以阅读 package-vc.el 的源代码，它只有不到一千行。
+
+如果你调用过 =package-vc-selected-packages=, =package-vc-install=, =package-vc-checkout=, =package-vc-install-from-checkout= 其中之一的函数的话，你能够在 =package-user-dir= 目录的 =archive= 下找到一些 eld 文件（ /Files with the ".eld" extension are now visited in 'lisp-data-mode'./ NEWS.29）：
+
+| [[./11.png]] | [[./12.png]] |
+
+从文件位置也不难猜出这些数据文件来自各 ELPA，它们由 =package-vc--archives-initialize= 初始化并从 ELPA 下载，相当于是各 ELPA 提供的从代码仓库安装代码包的来源，这可以让我们从源头而不是 ELPA 服务器获取代码。要安装这些来自仓库的包可以使用 =package-vc-install= ，经它安装的包享有和从 package.el 安装的包的同等待遇，会生成 =name-pkg.el= 和 =name-autoload.el= 文件，可被 =package-upgrade-{all}= 更新，可被 =package-delete= 删除，它们甚至会显示在 =list-packages= 列表中。
+
+如果我们只想拉取包到某一位置而不是安装到包目录并添加到包系统中，我们可以使用 =package-vc-checkout= 命令，不过之后可能需要我们手动做一些工作，比如添加到 =load-path= 。使用 =package-vc-install-from-checkout= 可以从本地的代码仓库安装代码包到 emacs 包系统中，比较有意思的是它会使用软链接而不是 clone，这意味着修改 elpa 中的代码就会修改原仓库代码，同时生成的 pkg 和 autoload 也会在原目录中。在 Windows 上通过此方式安装后的效果如下（注意右图 asmd-0 图标的快捷方式脚标）：
+
+| [[./13.png]] | [[./14.png]] |
+
+如果仓库中的代码发生了变化，我们可以通过 =package-vc-rebuild= 重新生成 autoload 等文件。
+
+自然，我们都从仓库直接获取代码了，难道还要限于 ELPA 为我们提供的仓库代码吗？ =package-vc-install= 除了接受包名外可以接受指定来源的包，它的形式是 =(name . spec)= ，其中 =name= 是包名符号， =spec= 是包含一些属性的 plist，属性包括以下这些：
+
+- =:url= 包仓库的 URL
+- =:branch= 包所在的分支名字符串
+- =:lisp-dir= 代码所在目录，默认为包的根目录
+- =:main-file= 项目主文件，负责提供包的元信息
+- =:doc= 指定构建 info 文档的文件，可以是 texi 或 org 文件
+- =:vc-backend= 使用的 VCS 工具名，emacs 会尝试根据 URL 或其他信息进行猜测，一般不用指定
+
+在文档中给出了下面的 =package-vc-install= 方式，不过 package-vc 也提供了类似 =package-selected-packages= 的方式，我们可以使用 =package-vc-selected-packages= 添加自己想要的包然后通过 =package-vc-install-selected-packages= 一起安装（下面的 =:vc-backend= 是多余的）：
+
+#+BEGIN_SRC elisp
+  ;; from documentation
+  ;; Specifying information manually:
+  (package-vc-install
+   '(bbdb :url "https://git.savannah.nongnu.org/git/bbdb.git"
+	  :lisp-dir "lisp"
+	  :doc "doc/bbdb.texi"))
+
+  ;; my method
+  ;; 安装来自 git 仓库的包
+  (setopt package-vc-selected-packages
+	  '((yyorg-bookmark :url "https://github.com/include-yy/yyorg-bookmark"
+			    :vc-backend Git)
+	    (chodf :url "https://github.com/include-yy/chodf"
+		   :vc-backend Git)
+	    (rescript-mode :url "https://github.com/include-yy/rescript-mode"
+			   :vc-backend Git)
+	    (auto-save :url "https://github.com/include-yy/auto-save"
+		       :vc-backend Git)
+	    (consult-everything :url "https://github.com/jthaman/consult-everything"
+				:vc-backend Git)))
+
+  (package-vc-install-selected-packages)
+#+END_SRC
+
+文档中还提到了可以使用 =package-report-bug= 和 =package-vc-prepare-patch= 报 bug 和提供补丁，不过我们可能永远都用不上，这里就不介绍了。
+
+** 与 use-package 配合
+
+几个月前我写了一篇介绍 =use-package= 的[[../2023-09-02-43-use-use-package-manage-emacs-config/index.org][文章]]，其中提到了 use-package 与 package.el 的联动，这里再做一些补充。
+
+通过在 =use-package= 中使用 =:ensure= 关键字， =use-package= 在被求值时会确保这个包被安装，带有 =:ensure t= 的 =use-package= 展开式如下：
+
+#+BEGIN_SRC elisp
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :ensure t))))
+  =>
+  (progn
+    (use-package-ensure-elpa 'foo '(t) 'nil)
+    (require 'foo nil nil))
+#+END_SRC
+
+除了通过 =t= 保证当前 =use-package= 指定包被安装外，还可以指定另一名字，这种情况常见于包的文件名和包名不匹配的情况，这是文档给出的例子：（读者可以下载 [[https://elpa.gnu.org/packages/auctex.html][auctex]] 压缩包查看其中的 tex.el，其中并没有 auctex.el）
+
+#+BEGIN_SRC elisp
+  (use-package tex
+    :ensure auctex)
+#+END_SRC
+
+如果我们设置 =use-package-always-ensure= 为非 nil 值，那么所有的 =use-package= 表达式都将默认 =:ensure= 为 t（当然，会被局部的有名 =:ensure= 覆盖）。 =:ensure= 并不会保证所有的包都是最新的，如果想要让包自动更新可以使用 [[https://github.com/rranelli/auto-package-update.el][auto-package-update]] 包：
+
+#+BEGIN_SRC elisp
+  (use-package auto-package-update
+    :config
+    (setq auto-package-update-delete-old-versions t)
+    (setq auto-package-update-hide-results t)
+    (auto-package-update-maybe))
+#+END_SRC
+
+在 =:ensure= 基础上我们还可以使用 =:pin= 指定包的 ELPA 来源，比如 =:pin gnu= 等。它的实现原理就是修改上面提到的 =package-pinned-package= 来锁定某个包到某个 ELPA。在 =:ensure= 内也可使用 =:pin= ，我从一条报错中学到了这一点：
+
+#+BEGIN_SRC elisp
+  ;; use-package-ensure.el line 150
+  (use-package-error
+   (concat ":ensure wants an optional package name "
+	   "(an unquoted symbol name), or (<symbol> :pin <string>)"))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :ensure t
+	 :pin "gnu"))))
+  =>
+  (progn
+    (use-package-pin-package 'foo "gnu")
+    (use-package-ensure-elpa 'foo '(t) 'nil)
+    (require 'foo nil nil))
+
+  (let ((use-package-expand-minimally t))
+    (pp-emacs-lisp-code
+     (macroexpand-all
+      '(use-package foo
+	 :ensure (foo :pin "gnu")))))
+  =>
+  (progn
+    (use-package-ensure-elpa 'foo '((foo . "gnu")) 'nil)
+    (require 'foo nil nil))
+#+END_SRC
+
+=use-package= 也提供了将所有包默认锁定到某一 ELPA 的 =use-package-always-pin= 选项，我们可以通过 =use-package= 表达式内的 =:pin= 覆盖这一选项。
+
+在 =use-package= 于 emacs 29 加入 emacs 后它的 [[https://github.com/jwiegley/use-package][github]] 页面就没怎么更新了，上面并没有列出更新的变化，比如加入了 =:vc= 关键字来从 VCS 获取包，它在内部使用了 =package-vc= ：（具体代码可以参考这个 [[https://github.com/emacs-mirror/emacs/commit/2ce279680bf9c1964e98e2aa48a03d6675c386fe][commit]]）
+
+#+BEGIN_SRC elisp
+  (use-package bbdb
+    :vc (:url "https://git.savannah.nongnu.org/git/bbdb.git"
+	 :rev :newest))
+#+END_SRC
+
+到了 emacs 30 应该就能使用这个功能了，届时应该会有详细的[[https://elpa.gnu.org/devel/doc/use-package.html#Install-package][文档]]对关键字进行说明。明白 elisp 的读者可以尝试将官方仓库中的代码插入到自己配置文件中来提前体验。
+
+（等到了 emacs 30 我可能会考虑将 =package-selected-packages= 和 =package-vc-selected-packages= 的用法换成 =use-package= 的 =:eusre= 和 =:vc= 来进行包的安装。）
+
+** 使用 GUI 进行包管理
+
+package.el 提供了一个非常不错的 GUI 界面用来进行包的增删改查，但一直以来我也只是在配置文件中通过 =package-install= 安装包罢了，没怎么用过。下面就文档提到的内容做简单介绍。
+
+通过 =M-x list-package= 我们可以打开一个列有所有归档中包的 buffer，如下图所示：
+
+[[./5.png]]
+
+（ =list-package= 还有一个别名 =package-list-packages= ，如果我们指定 =no-fetch= 参数为 =t= 或直接调用 =package-list-packages-no-fetch= ，那么在此过程中不会通过 =package-refresh-contents= 刷新归档。）
+
+上图中每行的各个字段的意义很明确，在这个 buffer 中 package.el 提供了很多快捷键，有点类似 dired-mode。完整的按键列表可以通过按下 =h= （ =package-menu-quick-help= ）显示出来，或者参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Package-Menu.html][Package Menu]] 文档：
+
+- =RET= 或 =?= (=package-menu-describe-package=)，显示当前行对应包的 help buffer，类似于 =C-h P=
+- =i= (=package-menu-mark-install=)，将当前行的包标记为安装
+- =d= (=package-menu-mark-delete=)，将当前行的包标记为删除
+- =w= (=package-browse-url=)，访问包的网页
+- =~= (=package-menu-mark-obsolete-for-deletion=)，标记所有废弃的包为删除
+- =U= (=package-menu-mark-upgrades=)，标记所有有更新版本的包，这会使用 =i= 标记新包并使用 =d= 标记旧包
+  - 如果 =package-install-upgrade-built-in= 为 non-nil，它也会标记可更新的内置包
+- =x= (=package-menu-execute=)，执行所有标记
+  - 如果没有包被标记，那么会安装或删除（若包已经安装）当前光标位置的包
+- =u= 或 =DEL= ，取消所有标记
+- =g= 或 =r= ，刷新 buffer，重新从 ELPA 获取包列表
+- =H= (=package-menu-hide-package=)，根据正则隐藏匹配的包，若不输入正则则仅隐藏当前位置的包
+- =(= (=package-menu-toggle-hiding=)，切换是否显示老版本或低优先级的包
+
+在 emacs 27 中 package-menu 添加了一大堆的 filter 功能，可以让我们根据某些规则筛选包：
+
+- =/ a= (=package-menu-filter-by-archive=)，根据 archive 筛选
+- =/ d= (=package-menu-filter-by-description=)，使用正则筛选匹配的包描述
+- =/ k= (=package-menu-filter-by-keyword=)，根据关键字筛选，输入时可以使用 =,= 分隔多个关键字
+- =/ N= (=package-menu-filter-by-name-or-description=) ，根据正则筛选名字或描述
+- =/ n= (=package-menu-filter-by-name=) ，根据正则筛选名字
+- =/ s= (=package-menu-filter-by-status=)，根据状态筛选，输入时可通过 =,= 分隔多个状态
+- =/ v= (=package-menu-filter-by-version=)，根据版本筛选，可使用 =< > == 符号
+- =/ m= (=package-menu-filter-marked=)，仅显示被标记的包
+- =/ u= (=package-menu-filter-upgradable=)，显示可更新的包，受 =package-install-upgrade-built-in= 影响
+- =/ /= (=package-menu-filter-clear=)，清除 filter
+
+当然了我列出这些选项并没有什么意义，想要会用还得读者亲自试试。这里没有提到的包状态可以参考 emacs manual 的 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Package-Statuses.html][Package Statues]] 一节。
+
+默认情况下 =package-menu-hide-low-priority= 为 =archive= ，也就是会在 =list-packages= 得到的 buffer 中隐藏低优先级 archive 的同名包。如果我们修改它为 =t= 则会隐藏所有低版本且低优先级的包，若为 nil 则都不隐藏。
+
+最后再提一个之前没有提到的选项： =package-load-list= ，它接受 =(name version)= 形状的表作为元素来在包加载阶段确定加载哪个版本的包，有这个选项的原因是 elpa 目录中可能存在多个版本的相同包。虽然只使用 =package-install= 和 =package-upgrade= 一般不太可能引入不同版本的相同包，但是它们的来源不一定是 =package-install= ，还可能是用户手动的 =package-install-from-buffer= ，甚至是 =list-packages= 安装的同名包：
+
+| [[./15.png]] | [[./16.png]] |
+
+当 =package-load-list= 为 =(all)= 时，emacs 会加载那个 *最近* （而不是最高版本）安装的同名包。若其中含有 =(name version)= 元素时， =version= 应该是版本字符串或 =t= 或 =nil= ， =t= 为默认情况，版本号为指定特定版本， =nil= 则表示不加载任何版本。文档中给出的例子是： =((muse "3.20") all)= 。
+
+* 如何搭建 ELPA
+
+如你所见，现在的 ELPA 会提供两种列表，一种是 archive-contents，另一种是 elpa-packages.eld。你也看到了我们可以直接在配置文件中指定仓库的 URL，因此这一节我不会介绍如何创建 eld 文件的方法，而是介绍如何创建传统的 ELPA（如果感兴趣的话可以参考各 ELPA 的 elpa-packages.eld 然后自己编写或生成后放到本地或服务器上）。
+
+ELPA 的“部署”是非常简单的，简单放在本地或者一个静态 HTTP 服务器上即可，服务器的包目录下需要提供以下四种文件：
+
+- =archive-contents= ，提供包列表，列表需要是 =package-desc= 结构
+- =<package-name>-readme.txt= ，提供某个包的长描述（可选）
+- =<package-name>-<version>.sig= ，提供某个包文件的签名（可选）
+- =<package-name>-<version>.(tar|el)= ，包体文件，可以为单文件或 tar 打包文件
+
+在下面的演示中，我会在 early-init.el 中添加如下代码，并移除 init.el 文件：
+
+#+BEGIN_SRC elisp
+  (setq package-user-dir
+	(expand-file-name "elpa-test"
+			  user-emacs-directory))
+
+  (setq package-archives
+	`(("yy-elpa" . ,(expand-file-name
+			 (file-name-concat
+			  user-emacs-directory "yy-elpa")))))
+
+  (setq inhibit-startup-screen t)
+  (setq ring-bell-function 'ignore)
+  (setq completions-detailed t)
+  (defalias 'yes-or-no-p 'y-or-n-p)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
+  (menu-bar-mode -1)
+  (blink-cursor-mode -1)
+  (setq make-backup-files nil)
+  (setq auto-save-default nil)
+
+  (setq scroll-step 1)
+  (setq scroll-conservatively 10000)
+  (prefer-coding-system 'utf-8)
+#+END_SRC
+
+** 使用 package-x.el
+
+在使用上面的 early-init.el 配置文件后，对 =list-package= 命令的调用会失败，这是因为我们还没有向 =yy-elpa= 中添加任何的包，其中也没有 =archive-contents= 文件。假设我们现在已经有了单个包文件或打包好的 tar 文件，我们可以使用 =package-x= 提供的 =package-upload-file= 将它们添加到 ELPA 所在目录，不过这需要我们首先加载 =package-x= 并设置 =package-archive-upload-base= 为 =yy-elpa= 所在目录：
+
+#+BEGIN_SRC elisp
+  (require 'package-x)
+  (setopt package-archive-upload-base
+	  (expand-file-name (file-name-concat
+			     user-emacs-directory "yy-elpa")))
+#+END_SRC
+
+现在，随便去 GNU ELPA 上下载几个文件（记得去掉版本后缀）然后通过 =package-upload-file= 添加到自己的 ELPA 目录，并调用 =list-packages= 命令施加 =/ s available,incompat= filter，可以看到如下结果：
+
+[[./17.png]]
+
+=package-archive-upload-base= 会为我们生成带版本后缀的包文件，并更新 =package-archive-upload-base= 目录的 =archive-contents= 文件。通过该命令我们可以方便地根据包创建可用的 ELPA：
+
+| [[./18.png]] | [[./19.png]] |
+
+你可以注意到单文件包在生成产物中还有对应的 readme.txt 文件，在处理包时它调用的 =package-upload-buffer-internal= 会对单文件获取 =Commentary= 来生成 readme 文件，但是并不会处理 tar 文件中的 README：
+
+#+BEGIN_SRC elisp
+  (commentary
+   (pcase file-type
+     ('single (lm-commentary))
+     ('tar nil))) ;; FIXME: Get it from the README file.
+#+END_SRC
+
+只要设置好 =package-archive-upload-base= 并使用 =package-upload-file= ，我们就能根据已有的包文件得到可用的 ELPA 了。但是它只是完成了从包到可用的 ELPA 过程，对我们这种个人 ELPA 来说，完整的步骤应该是从源头获取代码经过调整后得到单文件或多文件包，在打包后添加到 ELPA。 package-x 只是帮我们做了最后一步。
+
+用于 ELPA 打包的工具似乎有很多，比如 MELPA 的 [[https://github.com/melpa/melpa/blob/master/package-build/package-build.el][package-build]] ，[[https://github.com/cask/cask][Cask]] 等等。这里我就不展开介绍了，因为我的目的不是创建一个上千包的 ELPA，而是一个能方便自己使用的 ELPA，怎么方便怎么来。
+
+好了，切换回自己的 emacs 配置吧，快受不这高对比度了。
+
+** 一种简单的 ELPA 方案
+
+因为在我的目标中搭出来的 ELPA 以自用为主，所以在包的内容上应该做到能省就省（笑）。如你所见，要得到一个包我们可能会用到 texinfo 工具，如果我们舍弃掉这部分文档的话需要的工作应该会更少些；如果裁剪原仓库中的 README 只给出原文档的 URL 可以减小包的体积；如果只在源代码中给出 LICENSE 信息可以省掉 LICENSE 文件。
+
+在此基础之上，我们可以考虑添加 Changelog.txt 文件记录每次从源代码更新包后发生的变化，添加测试文件 test.el 测试包是否在某个 emacs 版本下可用。根据以上思路我从 [[https://github.com/magnars/dash.el][dash]] 获取了以下的必要文件：
+
+[[./20.png]]
+
+如果我们将包全部以 tar 文件形式发布的话处理起来应该能够更加统一一些，如果能够有代码自动根据源文件生成 =name-pkg.el= 那将会更加方便。在 package.el 中提供了 =package-dir-info= 获取某目录中的包信息，可以简单借鉴一下；在 MELPA 的 package-build 中提供了负责生成 =-pkg.el= 的 =package-build--write-pkg-file= ，而 emacs 本身也提供了在进行包安装时生成 =-pkg.el= 的 =package-generate-description-file= 函数，我根据这两个函数综合得到了自己的 =yyelpa-gen-pkg-file= ，可以生成当前目录下的 =-pkg.el= 文件：（完整的代码我会在最后给出）
+
+#+BEGIN_SRC elisp
+  (defun yyelpa-gen-pkg-file (dir)
+    "根据包的主文件生成 pkg.el"
+    (if-let ((desc (yyelpa-dir-info dir)))
+	(yyelpa-write-pkg-file desc dir)
+      (error "yyelpa: %s doesn't have a valid main file" dir)))
+#+END_SRC
+
+接下来是由所有的代码文件和 README 生成 tar 文件。我们可以考虑直接在 emacs 中调用 tar 命令，不过 emacs 本身并没有提供打包功能，可以设置一个指定 tar 可执行文件位置的选项：
+
+#+BEGIN_SRC elisp
+  (defcustom yyelpa-tar-executable nil
+    "tar 命令的位置，在 Linux 系统上不用指定")
+#+END_SRC
+
+package-build 提供了 =package-build--create-tar= 用来创建 tar 文件，这里简单抄一下：
+
+#+BEGIN_SRC elisp
+  (defun yyelpa-create-tar (desc dir)
+    "在某一目录创建 tar 打包文件"
+    (let* ((dirname (file-name-base (directory-file-name dir)))
+	   (version (mapconcat 'number-to-string
+			       (package-desc-version desc) "."))
+	   (name (concat dirname "-" version))
+	   (files (cons "README"
+			(directory-files dir nil (concat "^" dirname ".*" "\\.el\\'"))))
+	   (tarname (concat name ".tar")))
+      (let ((default-directory dir))
+	(make-directory name t)
+	(dolist (f files)
+	  (copy-file f (file-name-concat name f) t))
+	(process-file
+	 yyelpa-tar-executable nil
+	 (get-buffer-create "*yyelpa-build-checkout*") nil
+	 "-cf" tarname name)
+	(delete-directory name t)
+	(when yyelpa-build-verbose
+	  (message "Created %s containing:" tarname)
+	  (dolist (line (sort (process-lines yyelpa-tar-executable
+					     "--list" "--file" tarname)
+			      #'string<))
+	    (message "  %s" line))))))
+#+END_SRC
+
+现在，我们通过 =yyelpa-gen-pkg-file= 和 =yyelpa-create-tar= 可以创建完成完整包的创建。接下来设定好 =package-archive-upload-base= 即可使用 =package-x= 提供的 ELPA 创建和修改功能了：
+
+#+BEGIN_SRC elisp
+  (defvar yyelpa-build-dir (expand-file-name "build/packages")
+    "包的导出目录，设置为 yyelpa.el 脚本所在目录的 build 子目录")
+
+  (defun yyelpa-upload-tar (desc dir)
+    "将包发布到 `yyelpa-build-dir' 所在位置
+  目录中需要存在与目录同名的 tar 文件"
+    (let* ((package-archive-upload-base yyelpa-build-dir)
+	   (dirname (file-name-base (directory-file-name dir)))
+	   (version (mapconcat 'number-to-string
+			       (package-desc-version desc) "."))
+	   (name (concat dirname "-" version))
+	   (tarname (expand-file-name (concat name ".tar") dir)))
+      (if (file-exists-p tarname)
+	  (package-upload-file tarname)
+	(error "yyelpa: %s.tar not exist, cannot upload" name))))
+
+  (defun yyelpa-update (dir)
+    "对某个被选中的包进行打包构建并传至 build 目录
+  无缓存和修改时间检查"
+    (interactive (list (completing-read
+			"Select a package: "
+			(directory-files yyelpa-pkg-dir
+					 nil directory-files-no-dot-files-regexp)
+			nil t)))
+    (let* ((fulldir (expand-file-name dir yyelpa-pkg-dir))
+	   (desc (yyelpa-gen-pkg-file fulldir)))
+      (yyelpa-create-tar desc fulldir)
+      (yyelpa-upload-tar desc fulldir)))
+#+END_SRC
+
+完整的代码我放在了 [[https://github.com/include-yy/yyelpa/blob/be294c859a0fa4d1f5729df59bc033b8e103cecd/yyelpa.el][github]] 上，感兴趣的读者可以看看。我还添加了基于 dired 的批量更新函数。在得到成品 ELPA 后你可以本地使用或上传至自己的服务器，然后添加到配置的 =package-archives= 中。
+
+目前，我已经创建了自己的 ELPA，你可以通过以下代码添加到你的 ELPA 来源中（前提是你信任我这个源）。目前只有上面提到的 asmd 包，算是我这个 archive 的第一个包：
+
+#+BEGIN_SRC elisp
+  (add-to-list 'package-archives
+	       '("yyelpa" . "https://elpa.egh0bww1.com/packages/"))
+#+END_SRC
+
+[[./21.png]]
+
+* 后记
+
+原本在介绍完如何创建自己的 ELPA 后我打算对 package-vc.el 的实现进行详细介绍来更好地了解它的使用方法，不过考虑到这玩意在 emacs 29 中才引入，可能之后还会有一些变化，就先用着吧；原本我还打算将 emacs 的这个包管理与 pacman, apt, pip 和 npm 等成熟包管理器做个对比，但我对它们并不是很熟，这里就不好为人师了。
+
+从原理上来说，从包管理器安装包和自己凑一套包都能起到相同的效果，但自己凑显然要费力的多。ELPA 算是为 emacsr 们提供了一个合作分享的平台，希望它们能够健康地发展下去。
+
+从这个[[https://madnight.github.io/githut/#/stars/2023/3][统计]]来看，emacs 在 github 上的占比并不怎么低：
+
+[[./22.png]]
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+#+ATTR_HTML: :class top-down-img
+[[./p1.jpg]]
+{{{end_noscript}}}

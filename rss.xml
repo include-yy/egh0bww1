@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2023-11-11T22:49:37</pubDate>
+    <pubDate>2023-12-20T14:56:25</pubDate>
+    <item>
+      <title>emacs 自带的包管理</title>
+      <link>https://egh0bww1.com/posts/2023-12-20-47-emacs-package-management</link>
+      <description>本文总结了文档中的包管理相关资料，对 emacs 原生包管理的使用给出了一些介绍</description>
+      <category>emacs</category>
+      <pubDate>2023-12-20</pubDate>
+    </item>
     <item>
       <title>怎么弄个自己的 blog -- 暂且告一段落</title>
       <link>https://egh0bww1.com/posts/2023-11-11-make-me-a-blog-break-here</link>
@@ -68,13 +75,6 @@
       <description>本文是对 Elisp Manual 第 39 章的详细讲解，介绍了如何在 Emacs 中使用同步异步子进程，以及如何使用 elisp 创建网络连接</description>
       <category>elisp</category>
       <pubDate>2023-07-23</pubDate>
-    </item>
-    <item>
-      <title>Windows 下在 emacs 中使用 localhost 导致的连接创建卡顿以及解决方法</title>
-      <link>https://egh0bww1.com/posts/2023-07-14-40-emacs-use-127-not-localhost</link>
-      <description>本文介绍了 Windows 系统下 emacs 在创建网络连接时可能出现卡顿的原因，并给出了解决方法</description>
-      <category>emacs</category>
-      <pubDate>2023-07-14</pubDate>
     </item>
   </channel>
 </rss>
