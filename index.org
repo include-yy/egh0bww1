@@ -111,6 +111,7 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 - [[https://matklad.github.io/][matklad]]
   - [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]]
   - [[https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html][LSP could have been better]]
+- [[https://blog.wangxuan.name/][王玄的博客 --- 种野菜杂草的自留地，任君取用]]
 
 * ABOUT
 
