@@ -1,0 +1,345 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: emacs
+
+#+TITLE: 使用 outline 管理 emacs 配置文件
+#+DATE: [2024-01-09 Tue 10:41]
+
+#+DESCRIPTION: 本文简单介绍了如何使用 emacs 内置的 outline-mode 来管理配制文件
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/112397277][file:0.jpg]]
+{{{end_noscript}}}
+
+你可能尝试过在 Emacs 中使用 =C-h h= 打开一个叫做 HELLO 的文件，里面收集了许多语言的“你好”，比如こんにちは，안녕하세요，Ciao，ꦲꦭꦺꦴ，Bonjour 等等。但是你如果没有添加各语言的字体可能只会显示一些 Unicode 豆腐块。几个月前我从[[https://qiita.com/styzo/items/28d5d994a293fa704476][这里]]学到了如何设置字体并下载了一大堆的 Noto 字体，补全了这些豆腐：
+
+[[./1.png]]
+
+由于涉及语言繁多，这些设置字体的代码在我的 init.el 中占用了不少的行数，在阅读时有些占地方，要是能够折叠起来或者直接跳过这个配置块就好了。我在随机搜索过程中找到了使用 outline-mode 管理单文件 emacs 配置的教程，简单尝试了下感觉确实不错，解决了配置文件的分块问题。
+
+本文简单介绍了 outline-mode 的使用方法，以及使用它来管理单文件 emacs 配置的简单实践。本文使用的环境如下：
+
+- GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
+
+{{{toc}}}
+
+* 配置文件的代码分块
+
+（记不太清楚之前是否写过和配置方式选择方面的文章了，这里再啰嗦一下吧。）
+
+emacs 中的配置有很多流派，比如简单的单 init.el 文件配置，根据不同插件配置拆分成不同文件的多文件配置，使用 org 文学编程的 org 文件配置，等等。在用过 =.emacs= 式的简单配置后，我选择了多文件配置方式，也就是在 =user-emacs-directory= 目录下放置 init.el 文件，并在 =lisp= 目录下放置不同插件的配置文件，如 init-company.el，init-avy.el 等等，使用这种方式的典范可以参考 [[https://github.com/purcell/emacs.d][purcell/emacs.d]]。init.el 文件是配置文件的加载入口，里面会 =require= 其他的小配置文件：
+
+#+BEGIN_SRC elisp
+  ......
+  (require 'init-frame-hooks)
+  (require 'init-xterm)
+  (require 'init-themes)
+  (require 'init-osx-keys)
+  (require 'init-gui-frames)
+  (require 'init-dired)
+  ......
+#+END_SRC
+
+忘了是什么时候，我放弃了这种做法并回到了单个 init.el 的组织方式。现在想来应该是出于以下原因：
+
+- 我在 Windows 上使用 emacs，而 Windows 的小文件 I/O 性能并不好，配置拆的太碎会让 emacs 启动变慢
+- 每个配置文件中的内容并不多，某些文件甚至只有 =(provide 'init-xxx)= 这一行
+- emacs 29 内置了 =use-package= ，提供了 out-of-box 的文件内模块化手段
+- 在回到 init.el 前我也简单尝试了使用 org-mode 组织配置文件，但感觉不是太有必要。我并不需要在配置文件中插入太多的文本
+
+在经过合并后我发现整个 init.el 文件也不过千行而已，拆分文件真有点小题大做了。但是合并后也带来了新的问题，多文件自带的自然分隔消失了，查找某个配置反倒不如原来方便，毕竟多文件时直接把光标放到 =(require 'init-xxxx)= 上通过 =M-.= (xref-find-definitions) 就能跳转到子配置文件。
+
+解决这个问题的方法自然是分类。我首先分好大类，然后在具体的配置块中以 =;;= 开头：
+
+#+BEGIN_SRC elisp
+;;; include-yy's emacs config -*- lexical-binding:t; -*-
+
+;;; 跳表
+
+;;; @1 基础设置
+;;; @2 内置包的设置
+;;; @3 外部包的设置
+;;; @4 一些零散的配置
+;;; @x 一些比较小的包，直接放在配置文件里
+;;; ;;⑨ 表示需要配置系统或机器相关的路径或选项
+#+END_SRC
+
+在每个大块（ =;;; @N= ）中有不同的小块（ =;;= ），大块与大块之间使用 =^L= 字符分隔（这样在使用 =C-x ]= (forward-page) 命令时不会直接跳到文件尾）。比如以下代码来自 =@2= 中的行号配置：
+
+#+BEGIN_SRC elisp
+  ;; 显示行号
+  (use-package display-line-numbers
+    :config
+    (setq line-number-display-limit large-file-warning-threshold)
+    ;;(setq line-number-display-limit-width 1000)
+    (defun yy/display-line () (display-line-numbers-mode 1))
+    (add-hook 'prog-mode-hook 'yy/display-line))
+#+END_SRC
+
+但是这只是解决了大类与大类之间的分隔问题， =;;= 注释在配置文件中不够突出，并不能作为配置块的起始标志，也就不能方便我快速跳转或查找。 =(use-package= 当然可以视作一个模块的开头，但是并不是所有的代码都需要用到 =use-package= 。
+
+我在初始方案上做出了一些改进，使用 =;; @xxx= 作为配置小块的开头，以下是一些块开头例子：
+
+#+BEGIN_SRC elisp
+  ;; @DIMINISH 放在最前面
+  ;; @DISPLAY-LINE-NUMBERS 显示行号
+  ;; @UNIQUIFY 路径名显示唯一化
+  ;; @ISEARCH “智能搜索”
+  ;; @DESKTOP 保存当前 emacs 状态
+  ;; @WINNER 保留窗口配置记录，可回退和前进
+  ;; @ORG org-mode 基础配置
+#+END_SRC
+
+到了这里我已经在配置文件中“实现”了大纲，一级大纲是 =;;; @N= 开头的大类，二级是 =;; @= 开头的代码块，我可以通过 =;; @= 前缀来快速搜索各模块的配置，因为它在代 elisp 代码中并不常见，具有足够的辨识度。在完成这一步的我来看这已经是终极解决方案了，不过最近几天“发现”的 outline-mode 可以让块的显示和块间移动变得更加方便，还能折叠过长的代码，这也就是我将在下文介绍的内容。
+
+* outline-mode 简介
+
+在 emacs manual 中有对 outline-mode 的具体[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Outline-Mode.html][介绍]]，这里我结合 outline-mode.el 在此基础上做一些补充，特别是一些内部函数的使用方法，方便读者自己尝试。
+
+outline 的中文意思是“大纲”，貌似这个词最多出现在写作中。它是显示层级关系和树状结构形态的一种清单，拿本文来说“配置文件的代码分块”和“outline-mode 简介”就是大纲。照我的理解，大纲是对属于它的文本内容的一个总结，方便读者了解具体内容，把握住了大纲就把握了全文的结构。对于不是文章的东西，比如 emacs 配置，大纲也能起到相似的作用。
+
+我们可以通过 =outline-mode= 在某 buffer 中开启 outline major-mode，然后添加以一连串 =*= 开头的大纲：
+
+#+BEGIN_SRC outline
+  ,* 这是一级
+
+  ,** 二级
+
+  ,*** 三级
+
+  ,************************************************************ 60 级
+#+END_SRC
+
+outline-mode 并不只是给大纲提供高亮，我们可以将光标移动到大纲上，然后使用 =TAB= 切换折叠状态：
+
+[[./2.webp]]
+
+如果读者使用过 org-mode 那么应该不会对 outline-mode 中的一些快捷键感到陌生，比如 =C-c C-n= 跳到下一个大纲， =C-c C-p= 跳到上一个大纲， =C-c C-u= 跳到父大纲，等等。下面的列表总结了来自 =C-h m= 的所有快捷键，要想了解作用读者可以自己尝试或者读文档，具体效果我就不使用动图展示了：
+
+移动命令(5)：
+
+- =C-c C-f= (outline-forward-save-level)，移动到同级的下一个大纲
+- =C-c C-b= (outline-backward-same-level)，移动到同级的上一个大纲
+- =C-c C-n= (outline-next-visiable-heading)，移动到下一个可见的大纲
+- =C-c C-p= (outline-previous-visible-heading)，移动到上一个可见的大纲
+- =C-c C-u= (outline-up-heading)，移动到当前所在子大纲的父大纲
+
+show/hide 命令(13)：
+
+- =TAB= (outline-cycle)，切换当前节点的显示/隐藏状态
+- =<backtab>= (outline-cycle-buffer)，切换当前 buffer 所有节点的显示/隐藏状态
+- =C-c C-o= (outline-hide-other)，隐藏除当前节点外的其他任何内容
+- =C-c C-a= (outline-show-all)，显示所有的节点
+- =C-c C-c= (outline-hide-entry)，隐藏当前节点内容
+- =C-c C-e= (outline-show-entry)，显示当前节点内容
+- =C-c C-d= (outline-hide-subtree)，隐藏当前节点下的所有子孙节点
+- =C-c C-s= (outline-show-subtree)，显示当前节点下的所有子孙节点
+- =C-c C-l= (outline-hide-leaves)，隐藏当前节点下的所有子孙节点的内容
+- =C-c C-k= (outline-show-branches)，显示所有子孙节点，但不展开子节点内容
+- =C-c TAB= (outline-show-children), 显示当前节点的子节点，但不展开
+- =C-c C-t= (outline-hide-body)，隐藏所有节点的内容
+- =C-c C-q= (outline-hide-sublevels)，隐藏某一级的所有大纲
+
+动作命令(6)：
+
+- =C-c RET= (outline-insert-heading)，插入大纲
+- =C-c C-v= (outline-move-subtree-down)，将当前大纲下移
+- =C-c C-^= (outline-move-subtree-up)，将当前大纲上移
+- =C-c @= (outline-mark-subtree)，标记当前大纲所有内容
+- =C-c C-<= (outline-promote)，提升当前大纲等级（1 级最高）
+- =C-c C->= (outline-demote)，降低当前大纲等级
+
+但是，这个 major-mode 对我们没有什么太大的意义，毕竟 elisp 文件就应该用 emacs-lisp-mode。真正有用的是 outline-minor-mode。
+
+** outline-minor-mode
+
+outline-minor-mode 是一个 buffer-local 的 minor mode，它提供了 outline-mode 的全部功能，但是也有一些区别。我们可以使用 =outline-minor-mode= 命令来开启或关闭它。
+
+与 major mode 不同，outline-minor-mode 并不会占用 =C-c= 键前缀，它使用的是 =C-c @= ，这是为了避免与 major-mode 或其他 mode 的按键冲突，但是这简直不是人按的（我建议用右手的手掌按压右 Ctrl，然后左手按下 c 和 Shift+2）。我们可以通过 =outline-minor-mode-prefix= 修改这个键前缀。
+
+另一个问题是其他文件中可能不允许出现 =*= 开头的大纲，我们可以通过修改 =outline-regexp= 这个 buffer-local 变量来控制大纲的格式。对 outline-mode 来说它是 ="[*^L]+"= （这里面的 =^L= 是一个字符而不是 =^= 和 =L= ，在 emacs 中它用于分隔 page），lisp-mode 将它设置为如下值。这个 =outline-regexp= 意味着以 =;;; abc= ， =(sexp ...)= 和 =;;;###autoload= 开头的行都会被视为大纲：
+
+#+BEGIN_SRC elisp
+  (setq-local outline-regexp (concat ";;;;* [^ \t\n]\\|(\\|\\("
+				     lisp-mode-autoload-regexp
+				     "\\)"))
+#+END_SRC
+
+在我的配置文件中我将 =outline-regexp= 设置为 =;;; Code\\|;;@+= ，以 =;;@= 开头且含有一个或多个 =@= 的行将会被视为大纲。这就很容易想到一个问题：emacs 是如何确定大纲的级别？默认的 =outline-level= 会根据 =outline-regexp= 匹配的字符串长度来确定大纲级别，比如 =;;@= 在 =outline-level= 函数眼里就是三级：
+
+#+BEGIN_SRC elisp
+  (defun outline-level ()
+    "Return the depth to which a statement is nested in the outline.
+  Point must be at the beginning of a header line.
+  This is actually either the level specified in `outline-heading-alist'
+  or else the number of characters matched by `outline-regexp'."
+    (or (cdr (assoc (match-string 0) outline-heading-alist))
+	(- (match-end 0) (match-beginning 0))))
+#+END_SRC
+
+在我的配置中我希望 =;;; Code= 为 1 级， =;;@= 为 2 级， =;;@@= 为三级，依次类推。参考 =outline-level= 的实现，我可以设置 =outline-heading-alist= 为以下的值来达到目的：
+
+#+BEGIN_SRC elisp
+  (setq-local outline-heading-alist '((";;; Code" . 1) (";;@" . 2) (";;@@" . 3)))
+#+END_SRC
+
+但光是设置这东西还不够，上面的 =outline-level= 只是默认实现而已。如果你简单阅读 outline.el 的代码你会发现凡是涉及到 =outline-level= 的调用都是 =(funcall outline-level)= ：
+
+[[./3.png]]
+
+之所以这样做是因为修改 =outline-regexp= 后可以选择设定 buffer-local 的 =outline-level= 变量来提供更加合适的 =outline-level= 实现，还是拿 lisp-mode 来举例，它提供的实现如下：
+
+#+BEGIN_SRC elisp
+  (defun lisp-outline-level ()
+    "Lisp mode `outline-level' function."
+    ;; Expects outline-regexp is ";;;\\(;* [^ \t\n]\\|###autoload\\)\\|("
+    ;; and point is at the beginning of a matching line.
+    (let ((len (- (match-end 0) (match-beginning 0))))
+      (cond ((or (looking-at-p "(")
+		 (looking-at-p lisp-mode-autoload-regexp))
+	     1000)
+	    ((looking-at ";;\\(;+\\) ")
+	     (- (match-end 1) (match-beginning 1)))
+	    ;; Above should match everything but just in case.
+	    (t
+	     len))))
+#+END_SRC
+
+如果你想要手动调用 =outline-level= 来获取某个大纲的级别，我建议首先调用 =(outline-back-to-heading)= 来移动到某一大纲，因为 =outline-level= 函数会使用上一次匹配的结果。下面的函数可以获取某一大纲的级别：
+
+#+BEGIN_SRC elisp
+  (defun yy/get-level ()
+    (interactive)
+    (outline-back-to-heading)
+    (print (funcall outline-level)))
+#+END_SRC
+
+** 一些可用的选项
+
+在配置好 =outline-regexp= 和 =outline-level= 后，一个我们自定义的 outline-minor-mode 就基本可用了。但 outline-minor-mode 还有更多有趣的功能，这里简单做个介绍。
+
+我们可以设定 =outline-minor-mode-use-buttons= 为非空值来为每个大纲提供一个可点击的折叠/展开按钮。在非空情况下有三种选择： =insert=, =in-margins= 和其他真值。当为普通真值时它会在 buffer 中插入一个按钮，当为 =in-margins= 时它会在外边距插入。下图展示了两种不同的效果：
+
+[[./4.png]]
+
+当 =outline-minor-mode-use-buttons= 为 =insert= 时，它的显示效果与普通真值相似，但是它会在 buffer 中插入一个占位符，当光标位于该符号上时可以通过回车键控制这个大纲的展开和折叠。文档是这样说的，但是我似乎无法通过回车控制大纲的展开与折叠......
+
+如果我们设定 =outline-minor-mode-cycle= 为非空值，我们可以在光标在大纲上时通过 =TAB= 切换大纲的折叠/展开状态。不过文档没有说的是我们可以通过 =outline-minor-mode-cycle-filter= 更精细地控制 =TAB= 在大纲上的行为。默认情况下只要光标在大纲上即可进行折叠/展开，但我们可以设置为 =bolp=, =eolp= 等值来仅当光标位于行首或行尾时才能展开/折叠。读者可以阅读 =outline-minor-mode-cycle-filter= 的代码来了解其他选项。
+
+选项 =outline-minor-mode-hightlight= 可以控制大纲的高亮。当大纲的格式正好是 major mode 某一类元素时它可能不能正常高亮，就比如 emacs-lisp-mode 中的注释。此时我们需要将它设定为 =override= 来强制使用 outline 的高亮。更多选项可以参考 outline.el 中的 =outline-minor-mode-highlight= 定义。
+
+如果我们想在开启 outline-minor-mode 时控制某些大纲的折叠或展开，我们可以使用 =outline-default-state= 控制 outline 在打开时的行为。当它为 =outline-show-all= 时 buffer 正常显示，当它为 =outline-show-only-headings= 时只显示大纲而不显示内容。当它为某一数字时只显示到数字级别的大纲，当它为一个函数时，函数负责 buffer 中大纲的显示与折叠。
+
+值得一提的是当 =outline-default-state= 为数字时还可以通过 =outline-default-rules= 进行更精细的控制。在 =outline-default-rules= 这张表中可以有以下元素：
+
+- =(match-regexp . REGEXP)= ，当 =REGEXP= 与某大纲匹配时它会被折叠
+- =subtree-has-long-lines= ，当大纲内容中存在超长行（指超过 =outline-default-long-line= 长度的行，这个选项也是可配置的）时，只显示大纲
+- =subtree-is-long= ，当大纲内容行数超过 =outline-default-line-count= 时，只显示大纲
+- =(custom-function . FUNCTION)= ， =FUNCTION= 是一个 lambda 表达式或函数名，它会在每个大纲的开头位置被调用，用来控制大纲的可见性
+
+现在我们就具有了使用 outline-minor-mode 的基础知识，下面我将以我的配置文件为示例介绍如何将 outline-minor-mode 用于配置文件代码块管理。
+
+* 使用 outline-minor-mode 管理 init.el
+
+目前我已经在自己的 [[https://gist.github.com/include-yy/e70dcbfc1a80403814d0b7a7357971d9][init.el]] 中用上了 outline-minor-mode。这一节我会带读者走一遍流程，方便读者在自己的配置中也能愉快地享受 outline-minor-mode 的折叠和分块功能。
+
+首先要做的是对配置文件中的代码进行分类。我采取的分类是：基础配置、emacs 内置模块配置、外部包配置、其他代码、编程语言配置这五个类：
+
+[[./5.png]]
+
+接着是选取大纲的格式，由于历史原因我选择了 =;;@= 作为大纲开头，读者也可以选择其他显著区分于普通 elisp 注释的大纲开头。选取 =outline-regexp= 后我们可以设置 =outline-heading-alist= 为不同大纲分配级别，或者是创建自己的 =outline-level= 函数。
+
+到了这里就已经完成了设置的绝大部分工作，将选择的 =outline-regexp= 放到函数中，然后加上 =outline-minor-mode-cycle= 等选项的设定，我们就完成了：
+
+#+BEGIN_SRC elisp
+  (defun yy/yyinit-setup ()
+    (interactive)
+    (when (equal (expand-file-name "~/.emacs.d/init.el")
+		 (buffer-file-name (current-buffer)))
+      (setq-local outline-regexp ";;; Code\\|;;@+")
+      (setq-local outline-heading-alist '((";;; Code" . 1) (";;@" . 2) (";;@@" . 3)))
+      (setq-local outline-minor-mode-use-buttons 'in-margins)
+      (setq-local outline-minor-mode-highlight 'override)
+      (setq-local outline-minor-mode-cycle t)
+      (setq-local outline-level 'outline-level)
+      (outline-minor-mode)))
+#+END_SRC
+
+在加载上面的函数后，将以下内容添加到 init.el 文件的末尾，然后 =revert-buffer= 即可在 init.el 中使用 outline-minor-mode 了：
+
+#+BEGIN_SRC elisp
+;; Local Variables:
+;; eval: (when (fboundp 'yy/yyinit-setup) (yy/yyinit-setup))
+;; End:
+#+END_SRC
+
+如果你不想使用 outline-minor-mode 那反人类的按键前缀的话，可以考虑创建一个 keymap 将没有被 emacs-lisp-mode 使用的 =C-c= 前缀按键利用起来。我创建了如下 minor-mode：
+
+#+BEGIN_SRC elisp
+  (defvar-keymap yyinit-mode-map
+    :doc "部分来自 outline-mode 的键绑定"
+    "C-c C-n" #'outline-next-visible-heading
+    "C-c C-p" #'outline-previous-visible-heading
+    "C-c C-u" #'outline-up-heading
+    "C-c C-a" #'outline-show-all)
+
+  (define-minor-mode yyinit-mode
+    "用于浏览配置文件各节点的 minor-mode，添加了部分 outline-mode 按键绑定"
+    :keymap yyinit-mode-map)
+#+END_SRC
+
+在 =yy/yyinit-setup= 的最后一行添加 =(yyinit-mode)= 即可：
+
+[[./6.png]]
+
+如果你安装了 =consult= ，你可以使用 =consult-outline= 快速浏览和跳转到某一大纲。
+
+当你在添加上述 file-local eval 后首次 =revert-buffer= 或打开文件时，emacs 会弹出警报来提示你是否加载这些变量：
+
+[[./7.png]]
+
+我们可以选择 =y= 进行加载，或者是 =!= 将该表达式标记为安全（这样一来之后的读取文件不会报警）。后者会在你的 =custom-file= 中添加以下内容：
+
+#+BEGIN_SRC elisp
+  (custom-set-variables
+   ...
+   '(safe-local-variable-values
+     '(...
+       (eval when
+	     (fboundp 'yy/yyinit-setup)
+	     (yy/yyinit-setup))
+       ...))
+   ...)
+#+END_SRC
+
+对于 file-local 变量的安全性，emacs 是这样解释的：
+
+#+BEGIN_SRC elisp
+  If a file-local variable could specify an arbitrary function or
+  Lisp expression that would be called later, visiting a file
+  could take over your Emacs. Emacs protects against this by
+  automatically setting only those file-local variables whose
+  specified values are known to be safe. Other file-local
+  variables are set only if the user agrees.
+
+File Local Variables -- GNU Emacs Lisp Reference Manual
+#+END_SRC
+
+之所以注意到这个问题，是因为我在测试时将 =outline-level= 的变量设定也放到了 file-local 变量中，在 =revert-buffer= 时发现居然没有 =!= 选项，看了看 outline.el，它将 =outline-level= 添加到了 =risky-local-variable= 中：
+
+#+BEGIN_SRC elisp
+  ;;;###autoload(put 'outline-level 'risky-local-variable t)
+#+END_SRC
+
+* 后记
+
+对我来说 outline-minor-mode 配好了能用就完事了，但是这个月也整不出什么新活来，OOP 考古才考到 Simula，tree-sitter 还卡在看龙书的 160 页的 LL 文法。就拿这篇续一续不至于从去年的 12 月断掉，看看 24 年的年中之前能不能把 OOP 考古和 tree-sitter 教程这两个巨坑给填了。
+
+不管怎么说，新的一年开始了，嗨嗨嗨。
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/84692487][file:p1.jpg]]
+{{{end_noscript}}}
