@@ -218,8 +218,8 @@ yyhash--lookup, yyhash--maybe-resize"
 	     do (yyhash-put i j a))
     (yyhash-map
      (lambda (x y)
-       (incf reg1 x)
-       (incf reg2 y))
+       (cl-incf reg1 x)
+       (cl-incf reg2 y))
      a)
     (should (= reg1 (* 1001 500)))
     (should (= reg2 (* 1003 500)))

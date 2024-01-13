@@ -3,10 +3,9 @@
 ;; Author: include-yy
 ;; Maintainer: include-yy
 ;; Version: 0.1
-;; Package-Requires: ((emacs) (cl-lib))
+;; Package-Requires: ((emacs "27.1"))
 ;; Homepage: https://gist.github.com/include-yy/4b30d26e2a8b8bcdd46c1bcd717b3756
 ;; Keywords: hashtable
-
 
 ;; This file is not part of GNU Emacs
 
@@ -23,12 +22,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 ;;; Commentary:
 
 ;; just for fun, a toy hash table, use the source code of EMACS
 
 ;;; Code:
+(require 'cl-lib)
 
 (defconst yyhash--rehash-size 1.5 "rehash size")
 (defconst yyhash--rehash-threshold 0.8125 "threshold")
@@ -93,7 +92,7 @@ return a list, cadr is 0 to 55th bit, car is 56th to 63th bit"
   "hash for list"
   (let ((hash 0))
     (when (< depth yyhash--max-depth)
-      (do ((i 0 (+ i 1)))
+      (cl-do ((i 0 (+ i 1)))
 	  ((not (and (consp ls) (< i yyhash--max-len))))
 	(let ((hash2 (yyhash--hashfn (car ls) (1+ depth))))
 	  (setq hash (yyhash--combine hash hash2))
@@ -192,7 +191,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
 
 (defun yyhash--next-almost-prime (n)
   "create a pesudo prime number bigger then n"
-  (do ((n (logior n 1) (+ n 2)))
+  (cl-do ((n (logior n 1) (+ n 2)))
       ((and (not (zerop (% n 3)))
 	    (not (zerop (% n 5)))
 	    (not (zerop (% n 7))))
@@ -209,7 +208,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
 		  (floor (/ h-size yyhash--rehash-threshold))))
 	 (index (make-vector i-size -1))
 	 (hash (make-vector h-size nil)))
-    (do ((i 0 (+ i 1)))
+    (cl-do ((i 0 (+ i 1)))
 	((= i (1- h-size)))
       (aset next i (+ i 1)))
     (yyhash--s-create
@@ -244,7 +243,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
   (let* ((hash-code (yyhash--hashfn key 0))
 	 (start-of-bucket (% hash-code (yyhash--isize yh)))
 	 (find-i
-	  (do ((i (yyhash--index-getv yh start-of-bucket)
+	  (cl-do ((i (yyhash--index-getv yh start-of-bucket)
 		  (yyhash--next-getv yh i)))
 	      ((or (< i 0)
 		   (and
@@ -281,7 +280,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
   (let* ((hash-code (yyhash--hashfn key 0))
 	 (start-id (% hash-code (yyhash--isize yh)))
 	 (prev -1)
-	 (fd (do ((i (yyhash--index-getv yh start-id)
+	 (fd (cl-do ((i (yyhash--index-getv yh start-id)
 		     (yyhash--next-getv yh i)))
 		 ((or (< i 0)
 		      (and (equal key (yyhash--key yh i))
@@ -305,7 +304,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
   "use function fn to map hashtable"
   (let* ((k-v (yyhash--s-key-and-value yh))
 	 (len (yyhash-size yh)))
-    (do ((i 0 (+ i 2))
+    (cl-do ((i 0 (+ i 2))
 	 (j 1 (+ j 2))
 	 (k 0 (+ k 1)))
 	((= k len))
@@ -315,7 +314,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
 (defun yyhash--putnew (key val yh hash)
   "add new item to hashtable"
   (yyhash--maybe-resize yh)
-  (incf (yyhash--s-count yh))
+  (cl-incf (yyhash--s-count yh))
   (let ((i (yyhash--s-next-free yh))
 	(start-id (% hash (yyhash--isize yh))))
     (cl-assert (null (yyhash--hash-getv yh i)))
@@ -365,7 +364,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
 	     (index-size (yyhash--next-almost-prime
 			  (floor (/ new-size yyhash--rehash-threshold))))
 	     (index-n (make-vector index-size -1)))
-	(do ((i old-size (1+ i)))
+	(cl-do ((i old-size (1+ i)))
 	    ((= i (1- new-size)) (aset next-n i -1))
 	  (aset next-n i (+ i 1)))
 	(setf (yyhash--s-index yh) index-n)
@@ -374,7 +373,7 @@ key of item I is at index (* I 2), value is at (1+ (* I 2))"))
 	(setf (yyhash--s-next yh) next-n)
 	(setf (yyhash--s-next-free yh) old-size)
 
-	(do ((i 0 (1+ i)))
+	(cl-do ((i 0 (1+ i)))
 	    ((= i old-size))
 	  (let* ((hash-code (yyhash--hash-getv yh i))
 		 (start-id (% hash-code index-size)))
