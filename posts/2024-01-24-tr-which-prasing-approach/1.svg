@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="107.22073mm"
+   height="61.664635mm"
+   viewBox="0 0 107.22073 61.664635"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   sodipodi:docname="tree1.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.8"
+     inkscape:cx="221.84072"
+     inkscape:cy="133.57143"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     inkscape:document-rotation="0"
+     showgrid="true"
+     inkscape:lockguides="false"
+     inkscape:snap-bbox="true"
+     inkscape:snap-global="true"
+     inkscape:bbox-paths="false"
+     inkscape:bbox-nodes="false"
+     inkscape:snap-bbox-edge-midpoints="false"
+     inkscape:snap-bbox-midpoints="false"
+     inkscape:snap-page="true"
+     inkscape:snap-text-baseline="true"
+     inkscape:object-nodes="false"
+     inkscape:window-width="1828"
+     inkscape:window-height="1147"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid10"
+       dotted="false"
+       enabled="true"
+       visible="true"
+       originx="4.8337488"
+       originy="-80.697917" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(4.8337489,-80.697917)">
+    <path
+       id="path12-0"
+       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 48.947916,89.067917 a 13.229166,7.9375 0 0 1 -13.229166,7.9375 13.229166,7.9375 0 0 1 -13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,7.9375" />
+    <path
+       id="path12-8"
+       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 22.057083,111.5575 A 13.229166,7.9375 0 0 1 8.8279171,119.495 13.229166,7.9375 0 0 1 -4.4012489,111.5575 13.229166,7.9375 0 0 1 8.8279171,103.62 13.229166,7.9375 0 0 1 22.057083,111.5575" />
+    <g
+       aria-label="2"
+       id="text839-5"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583">
+      <path
+         d="m 6.9440896,109.30855 0.529165,0.42333 c 0.0635,-0.0847 0.042333,-0.15875 0.09525,-0.24341 0.1587495,-0.24342 0.5609149,-0.59267 1.1324131,-0.59267 0.6984977,0 1.2594126,0.53975 1.2594126,1.24883 0,0.80433 -0.6773311,1.37583 -1.1535796,1.80975 -0.7514143,0.67733 -1.3652457,1.35466 -1.9155773,2.45532 v 0.46567 h 3.8734876 v -0.74083 c -0.0635,-0.0212 -0.116416,0.0318 -0.137583,0.0529 -0.04233,0.0318 -0.07408,0.0423 -0.116416,0.0423 H 7.7484204 c 0.5503316,-0.96308 1.3123292,-1.61924 1.7885776,-2.06374 0.486832,-0.45508 1.164163,-1.12183 1.164163,-2.07433 0,-1.02658 -0.8360807,-1.85207 -1.9155772,-1.85207 -0.7514143,0 -1.4499121,0.40216 -1.8414942,1.06891 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';stroke-width:0.264583"
+         id="path1099" />
+    </g>
+    <path
+       id="path12-8-8"
+       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 75.496141,111.50298 a 13.229166,7.9375 0 0 1 -13.229166,7.9375 13.229166,7.9375 0 0 1 -13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,7.9375" />
+    <g
+       aria-label="*"
+       id="text839-5-1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583">
+      <path
+         d="m 61.875394,109.31752 0.169333,1.87325 -1.714495,-0.79375 -0.264582,0.67733 1.820327,0.56092 -1.386412,1.58749 0.582081,0.46567 1.18533,-1.76741 1.142996,1.75682 0.582082,-0.45508 -1.333496,-1.59808 1.809744,-0.55033 -0.275166,-0.64558 -1.682744,0.762 0.158749,-1.5875 c 0.01058,-0.127 0.05292,-0.15875 0.0635,-0.28575 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';stroke-width:0.264583"
+         id="path1095" />
+    </g>
+    <path
+       id="path12-8-8-2"
+       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 49.037809,133.99255 a 13.229166,7.9375 0 0 1 -13.229166,7.9375 13.229166,7.9375 0 0 1 -13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,7.9375" />
+    <g
+       aria-label="3"
+       id="text839-5-1-1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583">
+      <path
+         d="m 37.544305,132.29922 c 0,-0.89958 -0.772581,-1.67216 -1.820328,-1.67216 -0.592665,0 -1.164163,0.254 -1.576911,0.6985 l 0.402165,0.46566 c 0.306916,-0.32808 0.730248,-0.50799 1.142996,-0.50799 0.677332,0 1.142997,0.46566 1.142997,1.02658 0,0.40216 -0.243416,0.83608 -0.698498,1.03716 -0.116416,0.0529 -0.412749,0.16933 -1.037163,0.16933 v 0.59267 c 0.105833,-0.0106 0.211666,-0.0212 0.328082,-0.0212 0.888997,0 1.545162,0.46566 1.545162,1.24883 0,0.71966 -0.550332,1.34408 -1.322913,1.34408 -0.613831,0 -0.984247,-0.39158 -1.02658,-0.4445 -0.08467,-0.10583 -0.04233,-0.21167 -0.137583,-0.30692 l -0.560915,0.66675 c 0.444499,0.48683 1.079497,0.762 1.735661,0.762 1.259413,0 2.031994,-0.89958 2.031994,-1.92616 0,-0.78317 -0.465665,-1.4605 -1.142996,-1.70391 0.592664,-0.22225 0.99483,-0.78317 0.99483,-1.42875 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';stroke-width:0.264583"
+         id="path1091" />
+    </g>
+    <path
+       id="path12-8-8-2-4"
+       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 101.95448,133.99255 a 13.229166,7.9375 0 0 1 -13.229169,7.9375 13.229166,7.9375 0 0 1 -13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229166,-7.9375 13.229166,7.9375 0 0 1 13.229169,7.9375" />
+    <g
+       aria-label="4"
+       id="text839-5-1-1-4"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583">
+      <path
+         d="m 89.392056,130.69056 -2.804575,4.22274 v 0.56091 h 2.656409 v 1.82033 h 0.77258 v -1.82033 h 0.846664 v -0.65616 H 90.01647 v -4.12749 z m -0.137583,1.17475 v 2.95274 h -1.936744 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Inconsolata for Powerline';-inkscape-font-specification:'Inconsolata for Powerline';stroke-width:0.264583"
+         id="path1087" />
+    </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 26.592092,95.027039 16.252976,104.7939"
+       id="path1016"
+       sodipodi:nodetypes="cc" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path1016-4"
+       d="m 54.412671,117.786 -10.339117,9.76686"
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 71.96738,117.36996 10.339117,9.76686"
+       id="path1016-4-3"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 44.674293,95.291544 55.01341,105.0584"
+       id="path1016-4-6"
+       sodipodi:nodetypes="cc" />
+    <text
+       id="text861"
+       y="91.966957"
+       x="33.809311"
+       style="font-style:normal;font-weight:normal;font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       xml:space="preserve"><tspan
+         style="stroke-width:0.264583"
+         y="91.966957"
+         x="33.809311"
+         id="tspan859"
+         sodipodi:role="line">-</tspan></text>
+  </g>
+</svg>

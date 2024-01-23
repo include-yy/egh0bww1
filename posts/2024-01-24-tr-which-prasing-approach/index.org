@@ -1,0 +1,498 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: tr
+
+#+TITLE: 【翻译】Which Parsing Approach
+#+DATE: [2024-01-23 Tue 04:30]
+
+#+DESCRIPTION: 本文是对 Laurence Tratt 的 Which Parsing Approach 的翻译，对常见 parsing 方法进行了介绍，且特别偏向于 LR parsing
+
+#+BEGIN_aside
+本文使用 ChatGPT 翻译了 Laurence Tratt 的一篇文章，作者介绍了几种常见的 parser，并说明了自己选择 LR parser 的原因。
+
+- [[https://tratt.net/laurie/blog/2020/which_parsing_approach.html][Which Parsing Approach]]
+#+END_aside
+
+我们都知道， parsing 是设计和实现编程语言的重要部分，但它就像是抱子甘蓝（Brussels sprout）：有益于饮食但没有多少人喜欢它的味道。不幸的是，我逐渐意识到，我们对 parsing 的普遍反感是有问题的。尽管许多人认为我们已将 20 世纪 60 年代的进步融入了我们共同的认知，但我担心我们已经退步了，并且我们经常在 parsing 上做出不恰当的决策。如果这听起来像是指责，我并不是这个意思：我过去二十多年一直认为 parsing 很简单，觉得没必要深入了解就能用得好。唉，现实是一个残酷的老师，在这篇文章中，我想分享一些我被迫慢慢学习并承认的教训。
+
+让我们从基础开始。一个语法（grammar）编码了一个给定语言的语法规则（syntax rules）。parsing 是指接收输入（例如源文件）并确定它是否以及如何对应于一个语法。在最基本的层面上，parsing 只是判断“这个输入是否符合语法”。这对编程语言来说一般没什么用，所以我们通常在解析时执行语义操作（semantic actions），这允许我们构建一个解析树，以树的形式表示输入。如果我有一个简单的计算器语法并输入 =2-3*4= ，我可能得到一个看起来如下的树：
+
+[[./1.svg]]
+
+在这篇文章的剩余部分中，我将用“pretty print text”的形式来表示树，其中括号让我们可以简洁地表达树的结构。例如，上面的树等同于 =(2-(3*4))= 。我将假设“parsing”意味着“检查与语法的对应关系并构建一个解析树”。我还会尽可能简化其他解析术语和命名法来让内容易于理解且保持适中长度。
+
+{{{toc}}}
+
+* Recursive descent
+
+解析输入的方法可以说是眼花缭乱的多，所以我将从可能是最常见的一种开始：手写 parser。虽然手写 parser 这个概念指涉广泛，但几乎每个编写了一个还不错的手写 parser 的人，无论他们是否意识到，实际上都在编写一个递归下降（recursive descent）parser[fn:1]。这个想法相对简单：编写一系列函数，这些函数检查给定位置的输入字符串，并且如果它们在该位置匹配，则推进解析。例如，一个可以解析上述简单计算器语言的递归下降 parser 在 Python 中的第一次尝试可能如下所示：
+
+#+BEGIN_SRC python
+  NUMBERS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+  OPERATORS = ["-", "*"]
+
+  class Number:
+    def __init__(self, n): self.n = n
+    def __str__(self): return str(self.n)
+  class Mul:
+    def __init__(self, lhs, rhs):
+      self.lhs = lhs
+      self.rhs = rhs
+    def __str__(self): return "(%s*%s)" % (str(self.lhs), str(self.rhs))
+  class Sub:
+    def __init__(self, lhs, rhs):
+      self.lhs = lhs
+      self.rhs = rhs
+    def __str__(self): return "(%s-%s)" % (str(self.lhs), str(self.rhs))
+
+  def parse_expr(s, i):
+    if s[i] not in NUMBERS:
+      return
+    j = i
+    while j < len(s) and s[j] in NUMBERS:
+      j += 1
+      lhs = Number(s[i:j])
+    if j == len(s) or s[j] not in OPERATORS:
+      return (j + 1, lhs)
+    op = s[j]
+    r = parse_expr(s, j + 1)
+    if r is None:
+      return
+    (i, rhs) = r
+    if op == "-":
+      return (i, Sub(lhs, rhs))
+    else:
+      assert op == "*"
+      return (i, Mul(lhs, rhs))
+
+  def parse(s):
+    r = parse_expr(s, 0)
+    if r is None or r[0] <= len(s):
+      return "Syntax error"
+    return r[1]
+
+  print(parse("2-3*4"))
+#+END_SRC
+
+这个想法相对简单：我们有一个正在解析的字符串 's'，变量 'i' 告诉我们到目前为止解析了多远。如果它能够从 'i' 开始解析输入的一部分，那么 =parse_expr= 函数会返回一对 =(i, tree)= ，告诉我们它解析到了多远，并返回它创建的树；如果它失败了，它返回 =None= 。当我解析 =2-3*4= 时，它会输出：
+
+#+BEGIN_SRC python
+  (2-(3*4))
+#+END_SRC
+
+换句话说，如果我们对这颗树求值，我们会得到 -10 的结果 --- 成功！诚然，这是有代价的：递归下降 parser 有相当多的样板（boiler-plate）代码，以确保它不会做一些愚蠢的事情，并且遇到的任何语法错误都会导致解析停止。例如，如果你删除第 40 行和第 41 行的检查（译注， =parse= 函数中的 =if= 那两行），那么 =2abc= 将会成功解析，返回 =Number(2)= ，忽略了 =abc= 无法解析的事实！减少样板代码的方法是有的，但如果你以编写递归下降 parser 为生，你必须学会与之共存。
+
+不幸地是，如果尝试解析 =2*3-4= ，我们会得到一个令人惊讶的结果：
+
+#+BEGIN_SRC python
+  (2*(3-4))
+#+END_SRC
+
+从小就有人教我们，数学语法要求 '\star' 比 '-' 有更强的“结合性”。更正式地说，'\star' 的优先级比 '-' 高。不幸地是，我手写的递归下降 parser 给这两个运算符赋予了相同的优先级。如果求值我们会得到 -2，而不是我们从原始表达式中期望的 2。
+
+幸运地是，有一种相当标准的方法可以编码运算符优先级，按照上面 parser 的风格，可以写成这样：
+
+#+BEGIN_SRC python
+  def parse_expr(s, i):
+    r = parse_factor(s, i)
+    if r is None:
+      return
+    (i, lhs) = r
+    if i < len(s) and s[i] == "-":
+      r = parse_expr(s, i + 1)
+      if r is None:
+	return
+      (i, rhs) = r
+      return (i, Sub(lhs, rhs))
+    return (i, lhs)
+
+  def parse_factor(s, i):
+    r = parse_term(s, i)
+    if r is None:
+      return None
+    (i, lhs) = r
+    if i < len(s) and s[i] == "*":
+      r = parse_factor(s, i + 1)
+      if r is None:
+	return
+      (i, rhs) = r
+      return (i, Mul(lhs, rhs))
+    return (i, lhs)
+
+  def parse_term(s, i):
+    if s[i] not in NUMBERS:
+      return
+    j = i
+    while j < len(s) and s[j] in NUMBERS:
+      j += 1
+    return (j, Number(s[i:j]))
+
+  def parse(s):
+    r = parse_expr(s, 0)
+    if r is None or r[0] <= len(s):
+      return "Syntax error"
+    return r[1]
+#+END_SRC
+
+如果解析这些表达式：
+
+#+BEGIN_SRC python
+  print(parse("2-3*4"))
+  print(parse("2*3-4"))
+#+END_SRC
+
+可见得到了预期的输出：
+
+#+BEGIN_SRC python
+  (2-(3*4))
+  ((2*3)-4)
+#+END_SRC
+
+终于成功了！嗯，还不够，因为如果我解析 2-3-4，我又得到了一个令人惊讶的结果：
+
+#+BEGIN_SRC python
+  (2-(3-4))
+#+END_SRC
+
+不幸地是，正如这个例子所示，我们错误地将运算符解析为右结合（right associative）的，而它们应该是左结合（left associative）的。换句话说，当我们看到一系列减法时，应该先匹配较早的减法，再匹配较晚的减法。修正这个问题看似容易，但实际上并不简单：在递归下降 parser 中实现左结合性的“明显”方法会导致无限循环。修复这个问题涉及到的内容比我想在这里讨论的要多：请参阅[[https://web.archive.org/web/20191231231734/www.engr.mun.ca/~theo/Misc/exp_parsing.htm][此页面]]，其中概述了解决此问题的方法。
+
+这些问题可能让人误认为是由一个不够了解某种语言（例如数学）的呆子（比如作者我）编写 parser 所导致的。我希望你能看到，这里还有更深层次的问题。根本问题是我想要编写的语法是模糊（ambiguous）的： =2-3*4= 可以被解析为等同于 =2-(3*4)= 或 =(2-3)*4= 。经常有人说递归下降 parser 本质上是无歧义的。虽然这是正确的，但这实际上是把一种弊端说成了优点：递归下降 parser 之所以无歧义，仅仅是因为它们忽略了歧义。换句话说，每当递归下降 parser 在运行时遇到一个输入可以被模糊地解析的点时，它就会任意选择其中一个可能性，并继续前进，就好像其他可能性从未存在过一样。重要的是，parser 作者不会收到通知。由于递归下降 parser 只是普通程序，我们不太可能进行静态分析，以便在编译时可靠地告诉我们解析中所有的歧义点。
+
+因此，递归下降 parser 没有真正的“理论”可能并非巧合。值得注意的是，它们与我们最了解的语法类别 --- [[https://en.wikipedia.org/wiki/Context-free_grammar][上下文无关文法]]（CFGs）没有已知的关系。例如，我们通常不知道递归下降 parser 接受的语言：我们所能做的就是不断向它投入更多的输入，并观察它是否以及如何解析它们，永远不知道另一个输入是否会导致令人惊讶的解析。
+
+随着时间的推移，我逐渐将递归下降视为 parsing 技术中的汇编：最大的灵活性，最大的性能，和最大的危险。我所见过的每一个转换为其他形式的非平凡递归下降 parser 都出现了意想不到的歧义。有时这会导致错误的解析（如上所述），但它同样经常导致看似正确的输入根本无法解析[fn:2]。使用递归下降 parser 有其优点（我稍后会提到这些），但在我看来，如果可以使用另一种形式，通常应该使用另一种形式。
+
+
+* Generalised parsers
+
+在光谱的另一端，我们有所谓的通用 parser（generalizsed parser）。有各种通用 parsing 算法（例如[[https://en.wikipedia.org/wiki/Earley_parser][Earley]]、[[https://www.cs.rhul.ac.uk/research/languages/csle/GLLparsers.html][GLL]] 和 [[https://en.wikipedia.org/wiki/GLR_parser][GLR]]），但从这篇文章的角度来看，它们都是等效的。它们都可以解析任何上下文无关文法（因此它们建立在坚实的理论基础上），甚至可以解析有歧义的文法（因此你不必担心扭曲你的文法），并且它们保证在运行时告诉你文法中所有模棱两可的地方（因此你不必担心出现意外的错误解析）。
+
+这些属性似乎使得通用解析成为解决递归下降 parser 问题的解决方案。然而，这是有代价的。考虑以下语法，再次解析我们用作例子的数学小子集：
+
+#+BEGIN_SRC bnf
+  Expr: Expr "-" Expr
+      | Expr "*" Expr
+      | "INT"
+      ;
+#+END_SRC
+
+看到这个语法，许多读者可能已经发现了一个明显的歧义点： =2-3*4= 可以被解析为等同于 =(2-3)*4= 或 =2-(3*4)= 。通用解析器之所以有趣，是因为它们在运行时生成所有这些可能性。这样的 parser 可以返回一个“解析森林”（parse forest，即展示所有模糊的可能性），但这对编程语言来说并不是很有用：我们期望编译器对我们提供的程序确定一个单一的含义。因此，我们需要消除模糊的可能性，以便最终得到单一的解析树。一种简单的方法是为规则的产生式分配优先级，这样如果在解析的某个点匹配了多个产生式，我们可以选择优先级最高的一个。例如，我可能像下面一样重写我的语法：
+
+#+BEGIN_SRC bnf
+  Expr: Expr "-" Expr %precedence 10
+      | Expr "*" Expr %precedence 20
+      | "INT"
+      ;
+#+END_SRC
+
+假设“更高”的优先级意味着“更紧密的绑定”，那么这将把 =2-3*4= 解析为 =2-(3*4)= 。
+
+根据我的经验，较少的人（包括我，从痛苦的经历中）注意到上述语法中的第二个歧义点： =2-3-4= 可以被解析为左结合（即 =(2-3)-4= ）或右结合（即 =2-(3-4)= ）（因为有诸如 =Expr "-" Expr= 的规则）。不幸地是，优先级不足以在这两种可能性之间消除歧义：要么需要重写语法，要么需要使用不同的消除歧义运算符[fn:3]。
+
+虽然好消息是通用解析器会在运行时可靠地告诉我们它遇到了歧义，但坏消息是我们通常必须等到遇到一个被模糊解析的输入，才发现我们的语法是模糊的。有一些不错的[[https://navkrish.net/pubs/vasudevan_tratt__detecting_ambiguity_in_programming_language_grammars.pdf][启发式方法]]可以静态地找到许多歧义点，但它们仅仅是启发式的。
+
+随着时间的推移，我逐渐将通用解析视为编程语言中的动态类型（dynamic typing）：表达力强且安全，但会将更多不必要的错误推迟到运行时。我花了多年时间尝试编写任意 CFG，但对于复杂的语法，我不断挣扎着排除所有的歧义[fn:4]。我没有遇到一个对歧义错误感到满意或除了惊讶之外的其他反应的用户：被告知你的输入有效但无法解析是相当奇怪的。也就是说，我认为通用 parser 在语言组合（language composition）方面有一定作用，因为组合不同的语法固有地会导致歧义。然而，我不再认为通用 parser 是“正常” parsing 的合适选择。
+
+* Statically unambiguous parsing
+
+有几种 parsing 方法可以静态排除歧义，绕过了通用 parsing 的一个根本问题。我将描述两种最著名的方法：LL 和 LR。本质上，这些方法描述了只包含无歧义语法的 CFG 的子集。通常将符合这些子集之一的语法描述为“有效的 LL 语法”或类似的说法。
+
+然而，据我们所知，不可能定义完备（complete）的无歧义 CFG 子集，因此有一些无歧义的语法不适合这些子集。因此，我认为将这些方法类比为静态类型系统是最容易理解的：它们是健全的（sound，即如果一个语法是有效的 LL/LR 语法，它确实是无歧义的），但不是完备的（complete，一些无歧义的语法不是有效的 LL/LR 语法）。
+
+* LL parsing
+
+尽管不如过去常见，LL parsing 仍然是诸如 [[https://javacc.github.io/javacc/][javacc]]  这样的系统的基础。我个人的偏见是，LL parser 大体上没有吸引力，因为缺乏左递归使得表达许多标准编程语言构造与递归下降 parser 一样尴尬。然而，正如这种共性所暗示的，LL 语法具有一个重要特性：它们自然映射到递归下降 parser （但反之则不一定）。因此，可以通过创建一个 LL 语法并忠实地将其映射到一个递归下降 parser 来确保递归下降 parser 不会意外地消除歧义。
+
+在我看来，LL 和递归下降 parser 的结合在一个小而重要的领域中有其用武之地：如果你真的、真的需要尽可能高的性能和/或你想要最好的错误信息，这可能是我们所知的最佳途径。然而，它的代价很大。对于一个现实的编程语言语法，通常需要花费许多人月的努力[fn:5]来超越一个自动生成的 parser。因此，我认为这种方法只对少数项目有意义（特别是工业级编译器和 IDE）。
+
+* LR parsing: prelude
+
+我将要探讨的最后一种主要 parsing 方法是 LR parsing。与许多人一样，多年来我一直尝试躲开 LR parsing，因为我吸收了一个普遍的观点，即 LR parsing 是一件可怕的事情。相反，我投身于其他 parsing 方法，特别是 Earley parser[fn:6]。
+
+然后，在 2008 年末，当我在会议中感到无聊时，我开始编写 [[https://tratt.net/laurie/src/extsmail/][extsmail]]，这是一个主要用于通过 ssh 发送电子邮件的程序。我认为用传统的 Unix 守护进程风格编写这个程序会很有趣，这是我以前没有尝试过的。因此，对于 extsmail 需要的两个配置文件，我决定使用传统的 Unix 守护进程解析工具 Yacc。我不仅之前没有使用过 Yacc，也没有使用过或研究过 LR parsing --- 我怀疑我将面临一项艰巨的任务。当我发现编写像 [[https://github.com/ltratt/extsmail/blob/master/externals_parser.y][externals_parser.y]] 这样的语法实际上很容易时，我感到非常惊讶。
+
+然而，我当时认为我在处理这些相对简单的文法时运气很好，并继续避免使用 LR parsing。在意识到通用 parsing 和歧义带来问题后，我花了相当长的时间[[https://tratt.net/laurie/blog/2020/which_parsing_approach.html][涉足 PEG parsing]]（这是潜在地采用了递归下降的方法），最终意识到相对于通用 parsing，它会带来不同但同样严重的问题。
+
+后来我偶然发现了[fn:7] Tim Wagner 的关于增量解析的[[https://web.archive.org/web/20150920220626/http://harmonia.cs.berkeley.edu/papers/twagner-thesis.pdf][论文]]，Lukas Diekmann 以此为[[https://diekmann.co.uk/diekmann_phd.pdf][基础]]创建了 [[https://soft-dev.org/src/eco/][Eco]][fn:8]。Wagner 的工作使用了 LR parsing，但我设法在不真正理解 LR parsing 是如何工作的情况下，稍微参与了 Eco。然后，在 2015 年，当我们作为一个团队在尝试使用 Rust 时，Lukas 尝试编写了一个 LR parser 的雏形，我很快加入并进行了一些修改。在没有明确计划的情况下，我开始扩展代码，直到我意识到我已经承担了维护的责任，这个项目显然有潜力成为一个完整的 Rust LR parser。在那个时候，我意识到我实际上需要理解 LR parsing。一开始，我发现网上的解释有些令人困惑，但算法足够简单，很快我就有了一个完整的、基本的 Rust LR parser（后来成为了 [[https://softdevteam.github.io/grmtools/master/book/quickstart.html][grmtools]]）。
+
+为什么我要告诉你这个漫长、可能乏味的个人历史？因为我想强调，即使我不真正知道我在逃避什么或为什么，我也试图尽力避免 LR parsing。即使在我使用过 LR parsing，并意识到它不是我预期的那个妖怪（bogeyman）之后，我仍然花了几年时间尝试其他替代方法。公开承认这一点不仅让我感到尴尬，它还让我感到困扰：我是如何形成了一个需要这么久才能克服的偏见？我逐渐找到了一个关于我们社区普遍不喜欢 LR parsing 的合理解释，奇怪的是，这与本科编译器课程有关。出于可能在 1970 年代和 80 年代是有意义的原因，许多编译器课程在 parsing 上花费了过量时间 --- 通常是 LR parsing。学生们期望学到以巧妙的方式生成机器代码，但在他们甚至接触到主要的 LR 算法之前不得不学习各种 parsing 背景。到那时，他们已经彻底厌倦了 parsing，特别是 LR parsing。这是我们领域自己给自己造成的伤害，因为我们无意中使人们远离了一种美丽的算法[fn:9]。
+
+* LR parsing
+
+既然已经讨论过这些，让我们深入了解一些 LR parsing 的技术细节。首先，LR 比 LL 更强大[fn:10]。换句话说，每个有效的 LL 语法同时也是有效的 LR 语法（但反之则不一定）。其次，LR 语法是我们目前知道如何静态定义的无歧义 CFG 的最大实用子集[fn:11]。
+
+让我们实际尝试一下 LR parsing[fn:12]，通过输入以下语法：
+
+#+BEGIN_SRC bison
+  %start Expr
+  %%
+  Expr: Expr "-" Expr
+      | Expr "*" Expr
+      | "INT"
+      ;
+#+END_SRC
+
+到 Yacc。这样做会导致在编译时打印以下内容：
+
+#+BEGIN_SRC text
+  expr1.y: yacc finds 4 shift/reduce conflicts
+#+END_SRC
+
+此时，我知道一些读者在听到“移入/归约冲突”（shift/reduce conflict）时会开始冒冷汗。别慌！目前，我们只需将其视为 LR parser 静态检测到的一个歧义（或四个......）并告诉我们我们应该以某种方式修复它[fn:13]。
+
+有各种方法可以深入了解这些歧义的更多细节。我会厚着脸皮推荐 [[https://crates.io/crates/nimbleparse][nimbleparse]]（译注，这是作者写的包），但大多数 Yacc 实现都有提供更详细信息的方法。nimbleparse 也需要一个有效的词法分析器，所以如果我将上述语法和这个 Lex 文件[fn:14]一起提供给它：
+
+#+BEGIN_SRC bison
+  %%
+  - "-"
+  \* "*"
+  [0-9]+ "INT"
+#+END_SRC
+
+我们会得到以下输出：
+
+#+BEGIN_SRC text
+  Shift/Reduce conflicts:
+     State 5: Shift("*") / Reduce(Expr: "Expr" "-" "Expr")
+     State 5: Shift("-") / Reduce(Expr: "Expr" "-" "Expr")
+     State 6: Shift("*") / Reduce(Expr: "Expr" "*" "Expr")
+     State 6: Shift("-") / Reduce(Expr: "Expr" "*" "Expr")
+
+  Stategraph:
+  0: [^ -> . Expr, {'$'}]
+     Expr -> 1
+     'INT' -> 2
+  1: [Expr -> Expr . '-' Expr, {'-', '*', '$'}]
+     [Expr -> Expr . '*' Expr, {'-', '*', '$'}]
+     [^ -> Expr ., {'$'}]
+     '-' -> 3
+     '*' -> 4
+  2: [Expr -> 'INT' ., {'-', '*', '$'}]
+  3: [Expr -> Expr '-' . Expr, {'-', '*', '$'}]
+     'INT' -> 2
+     Expr -> 5
+  4: [Expr -> Expr '*' . Expr, {'-', '*', '$'}]
+     Expr -> 6
+     'INT' -> 2
+  5: [Expr -> Expr . '-' Expr, {'-', '*', '$'}]
+     [Expr -> Expr . '*' Expr, {'-', '*', '$'}]
+     [Expr -> Expr '-' Expr ., {'-', '*', '$'}]
+     '*' -> 4
+     '-' -> 3
+  6: [Expr -> Expr . '-' Expr, {'-', '*', '$'}]
+     [Expr -> Expr . '*' Expr, {'-', '*', '$'}]
+     [Expr -> Expr '*' Expr ., {'-', '*', '$'}]
+     '*' -> 4
+     '-' -> 3
+#+END_SRC
+
+
+这向我们展示了语法被转换成的状态图（即状态机）以及发生冲突的状态。
+
+通过一些努力，我们可以理解这个状态图以及发生的冲突。然而，我不打算在这里进一步详细说明，因为大多数读者可能已经猜到了，在大型语法上理解冲突非常困难。我大致将其比喻为解决整个程序类型推断错误[fn:15]：报告的错误是正确的，但不一定对应于你认为需要修复的程序/语法中的位置。（译注，也许可以和 C++ 模板展开错误类比一下）
+
+虽然我确信改进冲突报告的方式是可能的[fn:16]，但令我惊讶的是，我已经开发了许多语法，而且冲突问题并没有给我带来太多困扰。实际上，我唯一试图理解冲突的时候是当一个现有的大型语法需要根据新的外部规范进行更新时，这并不常见[fn:17]。在大多数情况下，我正在开发一个新的，或调整一个现有的小型语法。然后，就像使用类型推断的语言一样，我发现每次更改后都保存并编译是最有效的方法。如果这确实识别了一个冲突，我知道是什么改变引起的，随后确定一个合理的修复方法通常相当明显。我不仅不担心涉及状态图中的哪个状态，我甚至不费心检查冲突是移入/归约（shift/reduce）、归约/归约（reduce/reduce）还是接受/归约（accept/reduce）[fn:18]。
+
+老实说，我只遇到过一个现实的反例，那就是 —— 别笑 —— 数学表达式。将其编码为 LR 语法出奇地困难，因为数学的语法规则很复杂，几乎每一个朴素的语法都是模糊的。幸运的是，因为这是一个非常常见的例子，因此在网上有许多解决方案。这里是经典的解决方案：
+
+#+BEGIN_SRC bison
+  %start Expr
+  %%
+  Expr: Expr "-" Term
+      | Term
+      ;
+  Term: Term "*" Factor
+      | Factor
+      ;
+  Factor: "INT"
+      ;
+#+END_SRC
+
+它没有冲突，这意味着 Yacc 已经静态证明了它是无歧义的！它正确处理了优先级 —— =2-3*4= 解析为 =2-(3*4)= —— 和结合性 —— =2-3-4= 解析为 =(2-3)-4= 。
+
+随着时间的推移，我逐渐将 LR 解析视为编程语言中的静态类型：偶尔令人烦恼的限制性，但提供足够的静态保证，以值得为重要的软件忍受这些不便。重要的是要记住，LR 并不是魔法：虽然它会阻止你编写一个模糊的语法，但它不会阻止你为你想要解析的语言编写一个不正确的语法。例如，尽管 LR 会阻止你创建一个既左结合又右结合的规则，但你仍然需要正确选择它应该是左结合还是右结合。
+
+* Performance
+
+人们通常担心 parsing 性能，特别是 LR parsing 性能，尽管在现代计算机上几乎总是没有必要的。例如，如果我拿 Java 的语法（它异常庞大，因此解析速度慢）和我编写的 LR parsing 系统（它只进行了适度的优化），我可以在我三年前的笔记本电脑上轻松地每秒解析成千上万行代码。除非你有数十亿行源代码，或者有数百万用户，这速度肯定是足够快的。
+
+我怀疑对解析性能的担忧可以追溯到解析技术处于大力发展时期。LR parsing [[https://www.sciencedirect.com/science/article/pii/S0019995865904262?via%3Dihub][发明于 1965 年]]，那时计算机运行缓慢[fn:19]且资源匮乏。LR parsing 在编译时生成一个状态表（statetable），然后在运行时解释它。当时计算机的状态表过于庞大，不实用，因此发明了两种解决方案。
+
+首先，发明了 LR 的算法子集（例如 LALR、SLR），这些子集减少了状态表的大小，但代价是减少了它们能接受的语法数量（即一些 LR 语法不是有效的 LALR 语法）。实际上，这些子集使用起来很烦人：它们会导致一些看似合理的语法被拒绝；理解为什么一个语法被拒绝可能需要对算法有深入的理解[fn:20]。
+
+其次，自 1977 年以来，我们已经知道可以在[[https://link.springer.com/article/10.1007/BF00290336][不限制接受的语法的情况下大幅缩小 LR 状态表]][fn:21]。结合其他几种技术来压缩状态表的内存占用[fn:22]，即使是最微不足道的现代机器也可以以令人印象深刻的速度运行任意 LR parser。
+
+* Error recovery
+
+当我编程时，我会产生非常多的语法错误。使用的 parser 能准确地报告我犯下这类错误的位置至关重要：大多数 parser，包括 LR parser，在这方面做得足够好[fn:23]。如果 parser 能从我的错误中恢复，允许它继续解析，那就更好了。
+
+最好的递归下降 parser[fn:24]在错误恢复方面做得相当不错。LL parsing 系统对于任意 LL 语法也通常做得还可以。
+
+不幸地是，公平地说，像 Yacc 这样的 LR parsing 系统在错误恢复方面表现不佳。Yacc 本身使用 =error= 标记（译注，yacc 有一个专门 =error= token 用来做错误处理），但结果如此糟糕，以至于我发现使用带有错误恢复的 Yacc parser 比不带错误恢复的更令人沮丧。然而，我们可以为任意 LR 语法[[https://soft-dev.org/pubs/html/diekmann_tratt__dont_panic/][做得更好]]，希望未来更多的 LR 解析器能提供良好的错误信息。
+
+* LR parsing: aesthetics
+
+现在我要转向一个更模糊的因素：可读性。无论是明确地还是隐含地，人们需要了解他们所使用的语言的语法规则。一些编程语言设计者假设或希望，给用户一些代码示例相当于告诉他们语言的语法规则。这在大多数情况下是有效的，因为我们可以在很大程度上依赖于对“编程语言看起来像什么”（what a programming language looks like）的共同文化理解[fn:25]，但有经验的程序员知道忽视诸如运算符优先级这样的黑暗角落的危险。在更深层次上，那些实现编译器，甚至只是一个准确的语法高亮显示器的人，需要准确知道语言的语法规则是什么。依我来看，parser 的可读性对于确保编程语言工具的准确性和编程语言的有效使用至关重要。
+
+在我看来，本文中介绍的各种语法和 parser 中，最容易阅读的是通用 parser 的版本，因为它最接近我小时候学到的非正式数学语法。然而，这种可读性是有代价的：由于语法可能存在歧义，我有时会在消除歧义后错误地判断给定输入将以哪种方式解析。
+
+毫无疑问，最难阅读的是递归下降 parser。它是最长的，最详细的，也是唯一缺乏任何基础理论来指导读者的。
+
+LL parsing 中缺乏左递归使许多语法难以阅读。一个令人惊讶的看法是，许多（尽管不是全部）LR 语法可以被半机械地转换为 LL（例如，参见[[https://www.andrews.edu/~bidwell/456/lr2llgram.html][与本文中使用的大致相同的 LR 语法转换为 LL 等价物的这种转换]]）：转换后的 LL 语法在转换后从未更易于阅读。
+
+因此，LR 语法填补了一个重要的空白。它们通常接近于任意 CFG 的可读性；由于左结合性如此常见，它们几乎总是比 LL 语法更易于阅读；如果你允许一点点诗意的自由（poetic license），它们的可读性相比递归下降 parser 要好上一万倍。
+
+当然，我显然有些偏见，所以也许 Guy Steele 的这些话更有说服力：
+
+#+BEGIN_QUOTE
+
+[Be] sure that your language will parse. It seems stupid … to sit down and start designing constructs and not worry about how they will fit together. You can get a language that’s difficult if not impossible to parse, not only for a computer, but for a person. I use Yacc constantly as a check of all my language designs, but I very seldom use Yacc in the implementation. I use it as a tester, to be sure that it’s LR(1) … because if a language is LR(1) it’s more likely that a person can deal with it.
+
+[[https://www.youtube.com/watch?t=4145&v=agw-wlHGi0E&feature=youtu.beDynamic][Languages Wizards Series - Panel on Language Design]]
+#+END_QUOTE
+
+* Summary
+
+在尝试了几乎所有其他可能的 parsing 方法多年之后，我现在坚信 LR parsing 是绝大多数目的的最佳方法：它具有最强的实际安全保证，允许良好的语法可读性，并且性能相当不错。特别是，我希望未来的编程语言作者采纳 Guy Steele 上面的建议，并使他们的参考语法符合 LR[fn:26]。
+
+就个人而言，我已经做到了言行一致（I've put my money where my mouth is）：我在 [[https://softdevteam.github.io/grmtools/master/book/quickstart.html][grmtools]] 上投入了大量工作，这是一个与 Yacc 兼容的 Rust LR parsing 系统。grmtools 还不完美，也不完整，也远未完全优化 --- 但它已经足够好，适用于许多目的，我打算继续维护它一段时间。我希望它是鼓励人们重新发现 LR parsing 的美感和实用性的一小步。
+
+*致谢* ：感谢 Lukas Diekmann 和 Naveneetha Vasudevan 对这篇文章草稿的评论。感谢 Roberto Ierusalimschy 和 Terence Parr 回答我的问题。所有观点、任何错误或不适当之处，都完全归我所有！
+
+[2020-09-15 Tue 08:00]
+
+* Comments
+
+Olof (2022-12-12 20:57:44)
+
+I think it can be a good idea to also mention Floyd's operator precendence grammars. They still parse most languages you can think of, have closure properties similar to regular expressions, are very convenient for implementing math grammars, and have a notion of local parsability (each node of the parse tree corresponds to subsets of the string with different branches being overlapping) that make them really good for incremental parsing (i.e. updating the parse tree in log time as you type since you can do tree search for the node that changed and propagate changes up), which is really useful for editor plugins. Local parsability is also very good for error recovery since the kinds of parse errors you can get are guarenteed to be local.
+
+----------------------------------------------
+
+Frans Faase (2023-05-03 10:29:33)
+
+The article fails to see that both LL and LR are back-tracking less parsers. In the times these parser were developed, creating a back-tracking parser was just out of the question, because memory restrictions did not allow files to be stored in RAM. Memorization is a powerfull technique to reduce the negative impact of back-tracking. Again it was not considered a valid solution to creating parsers (in the old days) because of its memory overhead. Nowadays, there is no reason to not use a back-tracking parser and for many use cases, they are just efficient enough. See for example https://fransfaase.github.io/MCH2022ParserWorkshop/IParseStudio.html which parses the whole input again on each edit of the input.
+
+* 译后记
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+编译原理与操作系统和图形学并称为所谓程序员的三大浪漫，当然我也不是程序员或者学 CS 的，我也没必要强加到自己身上。图形学和操作系统我沾过一点皮毛（不知道调过内核 API 和写过周末光追算不算，笑死），但编译原理一直属于心向往之但踌躇不前的对象。前段时间读完了 Google 的 WebGPU 入门[[https://codelabs.developers.google.com/your-first-webgpu-app?hl=zh-cn#0][教程]]搓了个生命游戏出来，这激起了我对 [[https://www.w3.org/TR/WGSL/][WGSL]] 这门语言的兴趣，找了找发现它已经有了 tree-sitter 和 emacs major-mode 支持（甚至还有 LSP）
+
+- [[https://github.com/acowley/wgsl-ts-mode][acowley/wgsl-ts-mode --- WGSL tree-sitter support for emacs]]
+- [[https://github.com/szebniok/tree-sitter-wgsl][szebniok/tree-sitter-wgsl --- WebGPU Shading Language grammar for tree-sitter parser]]
+- [[https://github.com/gpuweb/tree-sitter-wgsl][gpuweb/tree-sitter-wgsl]]
+- [[https://github.com/wgsl-analyzer/wgsl-analyzer][wgsl-analyzer/wgsl-analyzer --- a language server implementation for the WGSL shading language]]
+
+你会发现 WGSL 的 tree-sitter 实现有两个，上面列表中的下一个是官方实现。如果你仔细观察它俩仓库中 grammar.js 的行数，你会发现 szebniok 的实现远远短于 gpuweb，差不多只有三分之二长度。这是因为 gpuweb 的实现是自动生成的，这也导致这个实现实用价值几乎为 0：它保留了表达式产生式的所有嵌套关系。如果我们想要从表达式一级到达字面量一级，根据当前最新的[[https://www.w3.org/TR/2024/WD-WGSL-20240115/][标准]]，我们需要经过以下层级关系：
+
+#+BEGIN_SRC text
+  expression ->
+  relational_expression ->
+  shift_expression ->
+  additive_expression ->
+  multiplicative_expression ->
+  unary_expression ->
+  singular_expression ->
+  primary_expression ->
+  literal
+#+END_SRC
+
+按照 tree-sitter 的文档，我们应该使用优先级和结合来压缩这样的层级关系，不然这样得到的 parser 估计没几个人想用。tree-sitter 官网把它列到上面估计是看 gpuweb 的面子。读者可以在本地安装 tree-sitter-cli 来体验一下这恐怖的嵌套。
+
+虽然已经有了现成的 parser 实现，但它离当前的 WGSL 标准差的有点远了。现在的 WGSL 将 =<type>= 语法放到了表达式里面，这就意味着 =vector<vector<int>>= 之类的表达式会与 =<= =>= 或 =<<= 和 =>>= 冲突，似乎早期的 C++ 需要写成 =vector<vector<int> >= 来区分模板和位移符号。
+
+我打算自己手搓一个 tree-sitter-wgsl，但由于不知道如何处理上面的冲突而不得不先学点编译原理知识，现在勉强翻完了龙书的前 200 页，突然想到之前好像看到过一篇讲 LR 的文章，遂找出来翻译着读了一遍，也算是收获不少，原来还有 Scannerless parsing 这种操作。这也就是本文的由来了。
+
+既然 C++ 这样复杂的语言都能实现 tree-sitter parser，那小小 WGSL 自然也不在话下。最后让我们玩玩生命游戏吧，我原本准备留到介绍我实现的 tree-sitter-wgsl 时随文章一起发出来，但到时候可能忘了。
+
+#+BEGIN_EXPORT html
+<p>
+  <label>覆盖率<input type="range" id="rate" min="0" max="100" value="60" step="1"></label>
+  <span id="rateValue">60%</span>
+</p>
+<p>
+  <label>刷新间隔<input type="range" id="interval" min="10" max="1000" value="100" step="10"></label>
+  <span id="intervalValue">100ms</span>
+</p>
+<p>
+  <button id="startBtn" disabled>Start</button>
+  <button id="toggleBtn" disabled>Run</button>
+  <button id="stepBtn" disabled>Step</button>
+</p>
+<p>Log info: <span id="loginfo">Script Executing...</span></p>
+<figure><canvas width="512" height="512" style="background-color: black;"></canvas></figure>
+<script src="./life.js"></script>
+#+END_EXPORT
+
+* Footnotes
+
+[fn:1] Parsing Expression Grammars (PEG)s and “parser combinators” in some functional languages are just recursive descent parsers in disguise.
+
+[fn:2] My favourite example of this is best expressed as a Parsing Expression Grammar (PEG): {{{br}}}
+#+BEGIN_SRC text
+  r <- a / ab
+#+END_SRC
+or as a hand-written recursive descent parser: {{{br}}}
+#+BEGIN_SRC python
+  def r(s, i):
+      if i + 1 < len(s) and s[i] == "a":
+	  return ...
+      elif i + 2 < len(s) and s[i] == "ab":
+	  return ...
+#+END_SRC
+Both of these parsers successfully parse the string ‘a’ but fail to parse the string ‘ab’. As soon as ‘a’ is matched, the rule succeeds, which leaves ‘b’ unmatched; neither parser tries to match ‘ab’ directly.
+
+[fn:3] I believe that it’s still an open question as to how many distinct disambiguation operators there need to be.
+
+[fn:4] In [[https://convergepl.org/][Converge]] I ended up cheating, encoding some default disambiguation rules into the parser. When I did this I didn’t really understand the problem that I’d encountered nor did I realise that my “solution” was not curing, but merely delaying, the pain. The only thing more surprising than encountering an ambiguous parse is finding out that your input has been disambiguated-by-default in the wrong way.
+
+[fn:5] To give a rough idea of scale: [[https://github.com/rust-lang/rust/tree/master/compiler/rustc_parse/src/parser][Rust’s parser]] is about 10KLoC and [[https://hg.openjdk.org/jdk/jdk/file/7a7285477153/src/jdk.compiler/share/classes/com/sun/tools/javac/parser/JavacParser.java][javac’s parser]] about 4.5KLoC.
+
+[fn:6] Yes, I wrote [[https://github.com/ltratt/converge/blob/converge-1.x/vm/Modules/C_Earley_Parser.c][more]] [[https://github.com/ltratt/converge/blob/master/vm/Modules/Con_C_Earley_Parser.py][than]] one. I no longer recommend it, because Earley’s original algorithm has a bug in it, and descriptions of a/the fix seem either to be incorrect, or to destroy the beauty of the algorithm.
+
+[fn:7] Michael Van De Vanter first pointed Wagner’s work out to me. However, I didn’t appreciate it for what it was. I then forgot about it, and stumbled across it at “independently” at a later point, before somehow realising that it was what Michael had already suggested. I later learnt to listen to his advice more carefully, and benefited much from it!
+
+[fn:8] It’s also the basis of [[https://github.com/tree-sitter/tree-sitter][Tree-sitter]], which might be the best long-term argument I know of for programming languages having an LR grammar!
+
+[fn:9] Perhaps I was lucky not to study a compilers course myself (my university did not offer one at that point), as it meant I couldn’t develop the most severe of allergic reactions to LR parsing.
+
+[fn:10] From least to most expressive we thus have: regular expressions, LL, LR, unambiguous, CFG. In other words, regular expressions are a strict subset of LL, LL a strict subset of LR, and so on. The most complete description of the hierarchy I know can be found in p89 of [[https://users.math-cs.spbu.ru/~okhotin/talks/grammars_lata_talk.pdf][Alexander Okhotin’s talk]] (where arrows mean “more expressive” and “ordinary” means “CFG”). Note that recursive descent doesn’t fit into this hierarchy at all — formally speaking, we know that it accepts a disjoint set of languages relative to CFGs, but, because PEGs have no underlying theory that we know of, we are unable to precisely define that set further. {{{br}}}
+Another interesting case is the ALL(\star) algorithm which underlies ANTLR. ALL(\star) accepts a strict superset of LL (including many ambiguous grammars), but is disjoint with LR since ALL(\star) doesn’t support left-recursion. However, ANTLR can remove direct left-recursion before invoking ALL(\star), so some grammars that might seem impossible to parse with ALL(\star) can in fact be parsed by it. Bearing in mind that we’re talking about infinite sets, and that I don’t think we have a formal proof of the following statement, I think it would be fair to say that the ALL(\star) subset of CFGs is bigger than the LR subset.
+
+[fn:11] There are larger unambiguous subsets such as [[https://www.sciencedirect.com/science/article/pii/S0022000073800509/pdf?md5=8ac87046af6d6a710bebfcaebaca8591&amp;pid=1-s2.0-S0022000073800509-main.pdf][LR-Regular (or “LRR”) grammars]]. However, as far as I can tell, these are probably not practical. For example, [[https://ecommons.cornell.edu/items/ff818354-43a4-4402-9ef3-5b626ba3207d][it is not decidable as to whether an arbitrary grammar is LRR or not]]. [Update 2020-10-28: a previous version of this footnote suggested that Marpa is LRR-based. It is a generalised parser that can therefore also parse LRR grammars. My apologies for the confusion!] [Update: 2022-12-20: Askar Safin points out that [[https://www.sciencedirect.com/science/article/pii/0022000083900260?via%3Dihub][a later paper than the one I cited shows that it is decidable as to whether an arbitrary grammar is LRR or not]].]
+
+[fn:12] Berkeley Yacc actually implements LALR, but for this example it’s indistinguishable from LR. I’ll discuss LALR a little bit later in this post.
+
+[fn:13] Although I’ve presented the conflicts as errors, in Yacc they’re actually warnings because it has “default conflict resolution” rules (see Section 5 of the [[https://www.cs.utexas.edu/users/novak/yaccpaper.htm][Yacc manual]]). In other words Yacc is willing to take in an ambiguous grammar and automatically disambiguate it to produce an unambiguous grammar. In general, I do not recommend making use of this feature.
+
+[fn:14] Although it’s rarely remarked upon, the traditional splitting of “parsing” into separate lexing and parsing phases is an important part of the ambiguity story. Not only is it easy for the lexer to identify for as a keyword and forest as an identifier, but the parser then only has to distinguish between token types and not token values. [[https://en.wikipedia.org/wiki/Scannerless_parsing][Scannerless parsing]] merges these two phases, which allows more grammars to be expressed, but introduces more scope for ambiguity — and, in some cases, enables the resulting parsing algorithm to accept context-sensitive grammars.
+
+[fn:15] Imagine a Haskell or RPython program where none of the functions have explicit types. The challenge when programming in such systems is that errors are often reported far away from where they were caused. In other words, I might make a static type error in one function, but the type inferencer will detect the resulting error in another function. While type error messages have become much better over time, they can never match human expectations in all cases.
+
+[fn:16] The best conflict reports I’ve seen come from [[https://github.com/lalrpop/lalrpop][LALRPOP]].
+
+[fn:17] Off-hand, I can only think of a single example: when Lukas tried to evolve [[https://github.com/softdevteam/grammars/tree/master/java7][this Java 7 grammar]] to Java 8. Until that point, grmtools did not have a way of reporting details about conflicts because I hadn’t needed such a feature! {{{br}}}
+The Java specification used to pride itself on presenting a simple, machine-proven, unambiguous grammar in an appendix. Unfortunately, at some point, this grammar seems to have been dropped from the specification, and I suspect that the new syntax introduced has not been checked for possible ambiguities. We quickly realised that a Java 8 grammar wasn’t important enough to our work for us to invest the time in this, so I don’t know if it is ambiguous or not.
+
+[fn:18] For the insatiably curious, the conflict types mean roughly:
+- shift/reduce: The LR parser can’t be sure whether it should advance the input by one token, or whether a parsing rule will have completed.
+- reduce/reduce: The LR parser can’t be sure which of two rules will have completed.
+- accept/reduce: The LR parser can’t be sure if the entire parse has completed or merely one rule has completed.
+That last possibility is so rare that I’d forgotten it even exists before I thought to fact-check this footnote!
+
+[fn:19] Roughly speaking, the [[https://en.wikipedia.org/wiki/CDC_6600][fastest super computer in the world at that time]] ran about 10,000 times slower than a decent desktop chip today.
+
+[fn:20] SLR is particularly restrictive. However, I’m not sure I’ve ever seen SLR used in practise (though I know it was in the past), but LALR is still found in Berkeley Yacc. Even though LALR is less restrictive than SLR, it can still require real programming language grammars to be unpleasantly contorted in places.
+
+[fn:21] Pager’s description is slightly incomplete; it’s best paired with [[https://www.cssauh.com/xc/pub/chenx_dissertation.pdf][Xin Chen’s thesis]]. From memory, neither mentions that the algorithm is non-deterministic and can sometimes create unreachable states that can be garbage collected to save a little bit more memory. [[https://github.com/softdevteam/grmtools/blob/master/lrtable/src/lib/pager.rs][grmtool’s implementation of this algorithm]] goes into more detail on such matters and also has the bonus of being runnable. However, Pager’s algorithm doesn’t quite work properly if you use Yacc’s conflict resolution feature. One day I should implement the [[https://www.sciencedirect.com/science/article/pii/S0167642309001191][IELR algorithm]] to solve this problem.
+
+[fn:22] For example, encoding sparse tables (e.g. in Rust with the [[https://crates.io/crates/sparsevec][sparsevec crate]]), and packing vectors of small integers (e.g. with the [[https://crates.io/crates/packedvec][packedvec crate]]). It’s a long time since I’ve thought about these aspects: from memory, one can do even better than these techniques, but they’re already effective enough that we didn’t feel the need to look further at that point.
+
+[fn:23] There is one major exception in C-ish syntaxes: missing curly brackets. The resulting errors are typically reported many lines after the point that a human would consider as the cause of the problem.
+
+[fn:24] rustc gives the best syntax error messages of any compiler / parser I’ve ever used.
+
+[fn:25] Recent years have reinforced a long-standing trend: programmers don’t like to learn languages with unfamiliar syntaxes. For better or worse, C-ish syntax is likely to be the dominant cultural force in programming languages for decades to come.
+
+[fn:26] That doesn’t mean that the eventual compiler has to contain an LR parser (though I’d start with an LR parser and only consider moving to something else if I had millions of users), but the parser it does contain should be entirely compliant with the reference LR grammar.

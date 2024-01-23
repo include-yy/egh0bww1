@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2024-01-09T18:41:36</pubDate>
+    <pubDate>2024-01-24T07:32:25</pubDate>
+    <item>
+      <title>【翻译】Which Parsing Approach</title>
+      <link>https://egh0bww1.com/posts/2024-01-24-tr-which-prasing-approach</link>
+      <description>本文是对 Laurence Tratt 的 Which Parsing Approach 的翻译，对常见 parsing 方法进行了介绍，且特别偏向于 LR parsing</description>
+      <category>tr</category>
+      <pubDate>2024-01-24</pubDate>
+    </item>
     <item>
       <title>使用 outline 管理 emacs 配置文件</title>
       <link>https://egh0bww1.com/posts/2024-01-09-48-use-outline-manage-init-file</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了 emacs igist 插件的用法，并对其实现进行了简单的分析</description>
       <category>emacs</category>
       <pubDate>2023-09-05</pubDate>
-    </item>
-    <item>
-      <title>使用 use-package 管理 emacs 配置</title>
-      <link>https://egh0bww1.com/posts/2023-09-02-43-use-use-package-manage-emacs-config</link>
-      <description>本文参考了 use-package 文档，简要介绍了 use-package 的使用方式</description>
-      <category>emacs</category>
-      <pubDate>2023-09-02</pubDate>
     </item>
   </channel>
 </rss>

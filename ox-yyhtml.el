@@ -1703,7 +1703,7 @@ targets and targets."
 			(when (eq 'headline (org-element-type datum))
 			  (if-let ((numbers (org-export-get-headline-number datum info)))
 			      (concat "-H-" (mapconcat #'number-to-string numbers "➈"))
-			    (concat "-H-" (number-to-string
+			    (concat "-NH-" (number-to-string
 					   (cl-incf (plist-get info :html-headline-cnt))))))
 			(org-export-new-reference cache)))
 	       (reference-string (t-format-reference new)))
