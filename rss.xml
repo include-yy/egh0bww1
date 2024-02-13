@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2024-01-24T07:32:25</pubDate>
+    <pubDate>2024-02-14T00:35:36</pubDate>
+    <item>
+      <title>emacs 的 treesit --- 用 tree-sitter 写 parser</title>
+      <link>https://egh0bww1.com/posts/2024-02-14-49-write-a-treesitter-parser-wgsl</link>
+      <description>本文简单介绍了 tree-sitter 的使用方法，并使用 WGSL 作为具体例子</description>
+      <category>elisp</category>
+      <pubDate>2024-02-14</pubDate>
+    </item>
     <item>
       <title>【翻译】Which Parsing Approach</title>
       <link>https://egh0bww1.com/posts/2024-01-24-tr-which-prasing-approach</link>
@@ -68,13 +75,6 @@
       <description>本文介绍了如何配置 emacs 使之适应 Python 编程</description>
       <category>emacs</category>
       <pubDate>2023-09-09</pubDate>
-    </item>
-    <item>
-      <title>使用 igist 管理 github gist</title>
-      <link>https://egh0bww1.com/posts/2023-09-05-44-use-igist-manage-gist</link>
-      <description>本文介绍了 emacs igist 插件的用法，并对其实现进行了简单的分析</description>
-      <category>emacs</category>
-      <pubDate>2023-09-05</pubDate>
     </item>
   </channel>
 </rss>
