@@ -116,6 +116,8 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
   - [[https://luoshui.icu/blog/6619a405/][电子玩具 | 我为什么选择 Excel]]
 - [[https://tratt.net/laurie/blog/archive.html][Laurence Tratt: Laurence Tratt]]
   - [[https://tratt.net/laurie/blog/2020/which_parsing_approach.html][Which Parsing Approach?]]
+- [[https://documentation.divio.com/index.html][Documentation System]]
+
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
