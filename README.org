@@ -186,3 +186,8 @@ Wishlist:
 - 如果要添加新的子目录，可以参考 posts 和 repost 的实现
 
 - 从 f.el 抄了一些小函数，可以考虑将 f.el 作为项目的依赖项
+
+* 一些参考资料
+
+- [[https://misohena.jp/blog/2020-12-12-how-to-escape-symbols-in-org-mode.html][org-modeで文字をエスケープする方法]]
+  - 如何在 Org 文本中使用一些符号的转义序列（对 =org-entities-help= 的总结）
