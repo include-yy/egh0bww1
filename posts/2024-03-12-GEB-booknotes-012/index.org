@@ -406,7 +406,7 @@ languages.
 GEB 第 24 页
 #+END_QUOTE
 
-我将这一节取名为“永恒的金色对角线”，是在向刘未鹏的[[https://mindhacks.cn/2006/10/15/cantor-godel-turing-an-eternal-golden-diagonal/][康托尔、哥德尔、图灵——永恒的金色对角线]]一文致敬（我改进了原文的格式：[[file:d:/Onedrive/yynotes/republish/2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][转载]]），这是一篇常看常新的文章。对 Y 组合子和停机问题感兴趣的读者可以看看，这篇文章是在他看完 GEB 后写的，应该能带来一些启发。
+我将这一节取名为“永恒的金色对角线”，是在向刘未鹏的[[https://mindhacks.cn/2006/10/15/cantor-godel-turing-an-eternal-golden-diagonal/][康托尔、哥德尔、图灵——永恒的金色对角线]]一文致敬（我改进了原文的格式：[[../../republish/2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][转载]]），这是一篇常看常新的文章。对 Y 组合子和停机问题感兴趣的读者可以看看，这篇文章是在他看完 GEB 后写的，应该能带来一些启发。
 
 到了这里，我们总算是说完了导言部分，这部分差不多花费了我总精力的八成，不过听了一堆赋格和卡农，也算是小有收获。
 
