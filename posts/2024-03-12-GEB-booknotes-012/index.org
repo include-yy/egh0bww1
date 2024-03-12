@@ -1,0 +1,474 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: gossip
+
+#+TMP: 0
+#+TITLE: GEB 集异璧笔记 --- 第零一二章
+#+DATE: [2024-03-09 Sat 21:18]
+
+#+DESCRIPTION: 本文是我在阅读侯世达的传奇著作 GEB 时的一些笔记，主要是对一二章的阅读总结
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/14907613][file:0.jpg]]
+{{{end_noscript}}}
+
+按理说我应该接着上一篇[[../2024-02-14-49-write-a-treesitter-parser-wgsl/index.org][文章]]介绍 tree-sitter 提供的 API，但是暂时没什么想写的动力。最近随便翻了翻很早之前就有所耳闻的《哥德尔、埃舍尔、巴赫：集异璧之大成》开头两章，不如写个简单的读书笔记水水博客。以下我们简称这本书为 GEB。
+
+我是从 Scheme 这门编程语言最先了解到侯世达（[[https://en.wikipedia.org/wiki/Douglas_Hofstadter][Douglas Hofstadter]]）这个人的，他提出了 Scheme 中非常有名的 yin-yang puzzle，代码如下：
+{{{begin_details}}}
+{{{summary(yin-yang puzzle)}}}
+#+BEGIN_SRC elisp
+  (let* ((yin ((lambda (cc) (display #\@) cc)
+	       (call/cc (lambda (c) c))))
+	 (yang ((lambda (cc) (display #\*) cc)
+		(call/cc (lambda (c) c)))))
+    (yin yang))
+
+;; @*@**@***@****@*****@******@*******@********@*********
+#+END_SRC
+
+下面是 JS 实现，可以在浏览器内通过开发者工具运行：
+
+#+BEGIN_SRC js
+// https://www.zhihu.com/question/27683900/answer/128555592
+const display = (x) => console.log(x);
+const con = (x, y, k) => k(y);
+const yin = (k) => ((c, k2) => k2(c))(
+    (v2, k1) => ((cc, k0) => con(display(0), cc, k0))(v2, k),
+    (v2) => ((cc, k0) => con(display(0), cc, k0))(v2, k)
+);
+const yang = (k) => ((c, k2) => k2(c))(
+    (v2, k1) => ((cc, k0) => con(display(1), cc, k0))(v2, k),
+    (v2) => ((cc, k0) => con(display(1), cc, k0))(v2, k)
+);
+const f = (k) => yin((v1) => yang((v2) => v1(v2, k)));
+f((x) => x);
+#+END_SRC
+{{{end_details}}}
+
+跟随着 Scheme 的脚步我进一步了解到他的著作 GEB，但这大概已经是四五年前的事情了。在二一年到二二年我迫切地希望建立起某种能够符合自身的知识框架或者说认知框架看了一点书，比如《数学：确定性的丧失》、《机器崛起：遗失的控制论历史》、《万物皆无序-新数字秩序的革命》、等等。 *这个知识框架我到现在都没有建立起来，但我也不再觉得这是非常紧迫的事情了* 。二三年玩了一年 Emacs，玩到年末因为要写个 parser 学了点编译原理的知识，其中关于语言的一些综述性知识似乎为我补全了阅读 GEB 需要的最后一丝动机。到了今年的三月，我终于能够拿起这本书了。
+
+本文使用的书版本为 1996 年 8 月第 1 版，如果你使用的 PDF 共有 1089 页那应该就是同一本（笑），下文中出现的正文页数换算到 PDF 就是加上 36。虽说是读书笔记，本文对书中提及的信息和知识做了一些补充，也许能够帮助音乐白痴（比如我）更好地理解书中的内容。我没有做读书笔记的习惯，本文（以及后续）也算是一次尝试。
+
+{{{toc}}}
+
+* 侯世达何许人也
+
+老实说在第一次看到阴阳谜题和侯世达这个名字时，我还以为他是个中国人，不过“侯世达”其实是“Hofstadter”的本土化翻译。根据[[https://en.wikipedia.org/wiki/Douglas_Hofstadter][维基百科]]的记载，侯世达生于 1945 年，是有名的美国认知科学家和计算机科学家。本文涉及的 GEB 于 1979 年出版，中文版于 1996 年出版，差不多隔了 20 年。GEB 的维基是这样介绍这本书的：
+
+#+BEGIN_QUOTE
+By exploring common themes in the lives and works of logician Kurt
+Gödel, artist M. C. Escher, and composer Johann Sebastian Bach, the
+book expounds concepts fundamental to mathematics, symmetry, and
+intelligence. Through short stories, illustrations, and analysis, the
+book discusses how systems can acquire meaningful context despite
+being made of "meaningless" elements. It also discusses self-reference
+and formal rules, isomorphism, what it means to communicate, how
+knowledge can be represented and stored, the methods and limitations
+of symbolic representation, and even the fundamental notion of
+"meaning" itself.
+
+[[https://en.wikipedia.org/wiki/G%C3%B6del,_Escher,_Bach][Gödel, Escher, Bach | Wikipedia]]
+#+END_QUOTE
+
+除了 GEB 外，他至少还有以下英文作品：
+
+- [[https://en.wikipedia.org/wiki/The_Mind%27s_I][The Mind's I: Fantasies and Reflections on Self and Soul]]，出版于 1982 年，有中译版《我是谁，或什么：一部心与自我的辩证奇想集》
+- [[https://en.wikipedia.org/wiki/Metamagical_Themas][Metamagical Themas]]，出版于 1985 年，是侯世达在上世纪八十年代发表在《科学美国人》杂志上的一系列文章的集合
+- [[https://en.wikipedia.org/wiki/Fluid_Concepts_and_Creative_Analogies][Fluid Concepts and Creative Analogies: Computer Models of the Fundamental Mechanisms of Thought]]，出版于 1995 年，[[https://www.amazon.com/Fluid-Concepts-Creative-Analogies-Fundamental/dp/0465024750][Amazon]] 上的一些评论可能有助于进一步的了解
+- [[https://en.wikipedia.org/wiki/Le_Ton_beau_de_Marot][Le Ton beau de Marot]]，出版于 1997 年，根据维基来看似乎是对翻译的探讨和思考
+- [[https://en.wikipedia.org/wiki/I_Am_a_Strange_Loop][I Am a Strange Loop]]，出版于 2007 年，似乎是对 GEB 中内容的进一步发展，有中译版《我是个怪圈》
+- [[https://www.amazon.com/Surfaces-Essences-Analogy-Fuel-Thinking/dp/0465018475][Surfaces and Essences: Analogy as the Fuel and Fire of Thinking]]，出版于 2013 年，有中译版《表象和本质：类比，思考之源和思维之火》
+
+我并不关心侯世达在他的领域上有什么成就，因此我不打算继续介绍他的生涯或者学术成果了。他在编程上确实是弄出了一些比较好玩的东西，比如本文开头提到的 Scheme 阴阳谜题。有一门叫做 [[https://austinhenley.com/blog/hofstadter.html][Hofstadter]] 的 esolang，不过发明者并不是侯世达。
+
+* 巴赫和埃舍尔是何方神圣
+
+本文的标题说明了笔记的范围是 GEB 的第零、第一和第二章，但准确地说应该是导言加上一二章共 80 页的内容，其中导言就占了差不多一半。由于不懂音乐和美术，导言部分我基本上没有看懂，不得不查找资料再看一遍。在看第一遍时我把卡农想成了歌剧《卡门》，难怪越看越不对劲（笑）。顺带一提，卡门中的这一段你可能会感到非常熟悉：[[https://www.bilibili.com/video/BV1wx411j7T7][哈巴涅拉]]。
+
+** 巴赫和卡农
+
+说到西方古典音乐，最为人所知的应该就是[[https://www.bilibili.com/video/BV1ss411k7V8][命运交响曲]]、[[https://www.bilibili.com/video/BV1bs411t73q][欢乐颂]]和[[https://www.bilibili.com/video/BV1hs41197SG][致爱丽丝]]的贝多芬，[[https://www.bilibili.com/video/BV12S4y1C7a5][不想长大]]（雾，[[https://www.bilibili.com/video/BV1R441157dU][第 40 号交响曲]]）、[[https://www.bilibili.com/video/BV1ux411N7to][第十三号小夜曲]]、[[https://www.bilibili.com/video/BV1Ns411f7ug][小步舞曲]]和[[https://www.bilibili.com/video/BV1yb411m7eQ][土耳其进行曲]]的莫扎特、[[https://www.bilibili.com/video/BV1tW411c7jg][小夜曲]]的舒伯特，[[https://www.bilibili.com/video/BV1PD4y1Z72q][天鹅湖]]和[[https://www.bilibili.com/video/BV1Ti4y1w7wF][胡桃夹子]]（花之圆舞曲，猫和老鼠里面有。当然更出名的可能是[[https://www.bilibili.com/video/BV1HW411371K][糖果仙子之舞]]）的柴可夫斯基。除了“有名”的《[[https://www.bilibili.com/video/BV1u64y1h7yS][G 弦上的咏叹调]]》外，巴赫似乎没有上面这些那么为人所知的作品。当然我个人对古典音乐的认知水平是绝对无法衡量巴赫本身的水平的，在知乎上的这个[[https://www.zhihu.com/question/588826034/answer/3124942304][回答]]中可以看出巴赫的做出的开创性工作。
+
+在整个导言部分，巴赫这边最令人费解的可能就是“赋格”和“卡农”两个概念了。赋格（fugue）指的是在一个声部上出现一个主题片段，然后在其他声部上模仿这个片段，来行程各个声部想不问答追逐的效果。这里有一篇非常不错的解释[[https://www.zhihu.com/question/348500387/answer/1287723126][文章]]，以及一个不错的可视化解释性[[https://www.bilibili.com/video/BV1WS4y167bE][视频]]。有时间的话，读者可以听听《[[https://www.bilibili.com/video/BV1Ss411r7oC][赋格的艺术]]》。下面是一些我觉得有助于读者理解赋格的视频：
+
+- [[https://www.bilibili.com/video/BV1wW411e7Gx][洛基亚赋格]]
+- [[https://www.bilibili.com/video/BV12R4y187ZC][恭喜赋格]]
+- [[https://www.bilibili.com/video/BV1CA4y1D7C8][社会你虎哥 g小调赋格（ℋ𝒲𝒱 578: ℋ𝓊𝓊𝑔ℯ𝓇 𝐼𝓃 𝒢 ℳ𝒾𝓃ℴ𝓇）]]
+- [[https://www.bilibili.com/video/BV1W54y1m74d][史上最宏大的赋格 巴赫 BWV578 g小调赋格]]
+- [[https://www.bilibili.com/video/BV1Nx411w74K][【教堂管风琴】D小调托卡塔与赋格-巴赫]]
+
+说到卡农，我们大概会以为它只是一首[[https://www.bilibili.com/video/BV1L4411U7Fj][曲]]（即《[[https://www.bilibili.com/video/BV1Tx411w7pd][帕卡贝尔的卡农变奏曲]]》，也即《[[https://zh.wikipedia.org/wiki/%E5%8D%A1%E8%BE%B2_(%E5%B8%95%E6%B5%B7%E8%B2%9D%E7%88%BE)][D大调卡农与吉格，为3把小提琴与通奏低音而作]]》）。但实际上卡农（Canon）是一种音乐谱曲技法，它是赋格的严格形式（被叫做 fettered fugue），要求其他声部完全或近乎完全复制领声的旋律。正如 GEB 书中提到的，《[[https://www.bilibili.com/video/BV1864y1e7og][保卫黄河]]》是很不错的卡农例子。这里有个非常不错的卡农介绍视频：[[https://www.bilibili.com/video/BV1pv4y1g7Qy][BV1pv4y1g7Qy]]，D 大调卡农的可视化也有个不错的视频：[[https://www.bilibili.com/video/BV1oT4y1f7nb][BV1oT4y1f7nb]]。
+
+当然了，光是文字和视频可能并不能很好地体现卡农的特点，也许我们可以试着通过编程生成一首卡农然后放出来。在 StackExchange 上这个 [[https://codegolf.stackexchange.com/questions/104535/play-some-of-pachelbels-canon][Challenge]] 中多个用户使用多种方法实现了帕卡贝尔卡农的播放，在支持 HTML5 的浏览器环境中我们可以使用如下代码播放卡农的片段：
+
+[[./1.png]]
+
+#+BEGIN_SRC js
+  // https://codegolf.stackexchange.com/a/104636
+  with(new AudioContext)for(t=i=0;n=parseInt('l43l431db98643o86ogfdbdfdgfdzbdzgigikigfdbzbdv98db9864311480'[i++],36);)with(createOscillator())frequency.value=880*2**(-~-n%20/12),connect(destination),start(t),stop(i>56?t+q*8:t+=n>20?q=6/13:q/2)
+
+  // `with' keyword is deprecated, below is better
+  // include-yy 2024-03-10
+  (function canon() {
+      let audio = new AudioContext
+      for (t = i = 0;
+	   n = parseInt('l43l431db98643o86ogfdbdfdgfdzbdzgigikigfdbzbdv98db9864311480'[i++], 36);) {
+	  let oscillator = audio.createOscillator()
+	  let q = 6 / 13
+	  //oscillator.type = "square"
+	  oscillator.frequency.value = 880 * 2 ** (-(n-1)%20/12)
+	  oscillator.connect(audio.destination)
+	  oscillator.start(t)
+	  oscillator.stop(i > 56 ? t + q * 8 : (t += ((n > 20) ? q : q / 2)))
+      }
+  })()
+#+END_SRC
+
+#+BEGIN_COMMENT
+#+BEGIN_SRC js
+// BMP = 65
+const BMP = 240
+// 4/4
+const beats_per_bar = 4
+const quarter_note = 4
+//standard frequency
+const A1_freq = 55
+const A2_freq = 110
+const A3_freq = 220
+const A4_freq = 440
+const A5_freq = 880
+const A6_freq = 1760
+
+// token to freq table
+const C4_table = {
+    //2
+    'C2': -24, 'C#2': -23, 'Db2': -23, 'D2': -22, 'D#2': -21, 'Eb2': -21,
+    'E2': -20, 'F2': -19, 'F#2': -18, 'Gb2': -18, 'G2': -17, 'G#2': -16, 'Ab2':-16,
+    'A2': -15, 'A#2': -14, 'Bb2': -14, 'B2': -13,
+    //3
+    'C3': -12, 'C#3': -11, 'Db3': -11, 'D3': -10, 'D#3': -9, 'Eb3': -9,
+    'E3': -8, 'F3': -7, 'F#3': -6, 'Gb3': -6, 'G3': -5, 'G#3': -4, 'Ab3':-4,
+    'A3': -3, 'A#3': -2, 'B#3': -2, 'B3': -1,
+    //4
+    'C4': 0, 'C#4': 1, 'Db4': 1, 'D4': 2, 'D#4': 3, 'Eb4': 3,
+    'E4': 4, 'F4': 5, 'F#4': 6, 'Gb4': 6, 'G4': 7, 'G#4': 8, 'Ab4':8,
+    'A4': 9, 'A#4': 10, 'Bb4': 10, 'B4': 11,
+    //5
+    'C5': 12, 'C#5': 13, 'Db5': 13, 'D5': 14, 'D#5': 15, 'Eb5': 15,
+    'E5': 16, 'F5': 17, 'F#5': 18, 'Gb5': 18, 'G5': 19, 'G#5': 20, 'Ab5':20,
+    'A5': 21, 'A#5': 22, 'Bb5': 22, 'B5': 23,
+    //6
+    'C6': 24, 'C#6': 25, 'Db6': 25, 'D6': 26, 'D#6': 27, 'Eb6': 27,
+    'E6': 28, 'F6': 29, 'F#6': 30, 'Gb6': 30, 'G6': 31, 'G#6': 32, 'Ab6':32,
+    'A6': 33, 'A#6': 34, 'Bb6': 34, 'B6': 35,
+}
+
+const freq_table = (() => {
+    let arr2 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A1_freq * 2 ** (x/12))
+    let arr3 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A2_freq * 2 ** (x/12))
+    let arr4 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A3_freq * 2 ** (x/12))
+    let arr5 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A4_freq * 2 ** (x/12))
+    let arr6 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A5_freq * 2 ** (x/12))
+    let arr7 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((x) => A6_freq * 2 ** (x/12))
+    return arr2.concat(arr3, arr4, arr5, arr6)
+})()
+
+const str2freq = (str, delta=0) => {
+    let index = C4_table[str]
+    if (index != undefined) {
+	return freq_table[index + 36 + delta]
+    } else {
+	return 0
+    }
+}
+
+// unit [token, quarter, [deltas]]
+// example: ['F2', 1/8, [0, 1, 2]]
+// do ra mi fa so la xi: ['C4', 1/8, [0, 1, 2, 3, 4, 5, 6]]
+
+// unit -> [[frequency, exist_time]...]
+// let's call [[frequency, exist_time]] as delta
+const unit2delta = (unit) => {
+    let time = unit[1] * quarter_note * 60 / BMP
+    let fname = unit[0]
+    return unit[2].map((d) => {
+	return [str2freq(fname, d), time]
+    })
+}
+
+const units2delta = (units) => {
+    let arr = []
+    for (const unit of units) {
+	let deltas = unit2delta(unit)
+	for (const d of deltas) {
+	    arr.push(d)
+	}
+    }
+    return arr
+}
+
+const delta2music = (delta) => {
+    let audio = new AudioContext
+    let ti = 0.0
+    for (const d of delta) {
+	if (d[0] === 0.0) {
+	    ti += d[1]
+	} else {
+	    let oscii = audio.createOscillator()
+	    //oscii.type = "square"
+	    oscii.frequency.value = d[0]
+	    oscii.connect(audio.destination)
+	    oscii.start(ti)
+	    oscii.stop(ti += d[1])
+	}
+    }
+}
+
+const units2music = (units) => {
+    delta2music(units2delta(units))
+}
+
+var units = [
+    ['A4', 1/4, [0, -2, -4, -5]],
+    ['D4', 1/4, [0, -2, 0, 2]],
+    ['F4', 1/4, [0, -1, -3, -5]],
+    ['B3', 1/4, [0, -2, 0, -4]],
+    ['A3', 1/8, [-4, 0, 3, 2, 0, -4, 0, -2]],
+]
+
+var units1 = [
+    ['C5', 1/4, [0]],
+    ['A4', 1/4, [0, 1]],
+]
+
+let f = () => units2music(units)
+let g = () => units2music(units1)
+
+let k = () => {f(); g()}
+#+END_SRC
+#+END_COMMENT
+
+我们可以参考 D 大调卡农的[[https://musopen.org/music/15215-canon-and-gigue-in-d-major/#google_vignette][完整谱子]]写出一个完整版本的 JS 卡农实现，但这需要更进一步的乐理知识了，我看不懂这完整的乐谱，也许之后有时间能够用更好用的库（比如 [[https://github.com/meenie/band.js][band.js]]）实现这首卡农。正如书中所说，除了通过副本与主体在时间上的交错，还有其他更复杂的方法来产生更加丰富的卡农：
+
+#+BEGIN_QUOTE
+当然还有更复杂的卡农。按由简入繁的顺序，第一种更复杂的卡农是：主题的种种“副本”不仅在时间上，而且在音高上互相交错。也就是说，第一声部可能是在 C 调上唱出主题，同第一声部相交错的第二声部可能是在比 C 调高五度的 G 调上唱出同一主题。与前两个声部相交错的第三声部可能在比 G 调高五度的 D 调上唱出，以此类推。
+
+下一种更复杂的卡农是：各个声部的速度不同，比如说，第二个声部的速度可能是第一声部的二倍或一半。前者叫做减值，后者叫做增值。
+
+这还不算完。卡农构成中下一个更复杂的阶段是主题转位，意思是产生这样一个旋律，每当原来的主题跳上时，它就跳下，两者所越过的半音数目相同。
+
+最后，这些“副本”中最玄奥的是逆行 —— 主题依一定时间从后往前奏出。使用了这种技巧的卡农，熟称为“螃蟹卡农”，这是因为螃蟹那奇特的运动方式。不用说，巴赫《音乐的奉献》中也包含有一支螃蟹卡农。注意，不论是哪一种“副本”，都保持有原主题的所有信息，也就是说，从任何一种副本中都可以完全恢复原主题。这种保存信息的转换经常被称作同构。在本书中，我们将经常谈到同构。
+
+GEB 第 12 页
+#+END_QUOTE
+
+最后是书中提到的螃蟹卡农，这里有两个不错的演示视频：
+
+- [[https://www.bilibili.com/video/BV1Xx411h7Zo][巴赫的螃蟹卡农]]
+- [[https://www.bilibili.com/video/BV1sx411F7eZ][【正着听和倒着听都一样的乐曲】螃蟹卡农]]
+
+最后的最后是书中提到的无穷升高的卡农：[[https://youtu.be/eXXO2dN3P_w?si=uMNV2BzMeD0L-Kmf][Canon a 2 per tonos]]，GEB 希望由它能够体现出一些“怪圈”现象：当向上或向下穿过一些层次后我们又回到了开始的地方。
+
+十几年前在我读小学的时候我学过两三年的小提琴，但现在我已经至少十年没碰过任何乐器，当时学过的一些乐理知识也不知道忘哪里去了。GEB 中对巴赫和卡农的介绍让我重新产生了对音乐的兴趣，经过简单的了解我发现乐谱和编程语言在“语言”上还听相似的：音符是乐谱的元素，正如 token 是代码的元素；多个音符组成一节，正如多段代码组成函数；升号降号还原号仅在一节内起作用，正如代码的作用域；乐谱可以有多个声部，正如程序可以有多个线程并行；BMP 决定音乐演奏的快慢，正如 CPU 的频率和 IPC 影响执行效率，诸如此类的类比还可以列很多。
+
+乐谱和代码用 **离散** 的符号不完整地描述了（可能）连续的事物，为我们提供了一种相当不错的 **近似** ，人们在此基础上创造出了许多伟大的作品。作为离散到连续世界中介的人也如 Linux 中的伪终端一样发挥着自己的作用，但更好的说法可能是人的能动性推动了离散世界从连续世界获取信息扩充自己的过程，以及从离散世界映射概念来影响连续世界的过程，虽然人到底有没有能动性还是一个问题。
+
+哈，还真是“童年的纸飞机飞回了我的手中”。
+
+[[./2.jpg]]
+
+** 埃舍尔和他的画
+
+巴赫生于 1685 年，死于 1750 年，而埃舍尔生于 1898 年，死于 1972 年，相比巴赫他离我们更近一些，仅仅差不多一百年。在 GEB 中侯世达展示了他的《[[https://zh.wikipedia.org/zh-cn/%E7%80%91%E5%B8%83_(%E7%9F%B3%E7%89%88%E7%95%AB)][瀑布]]》、《[[https://en.wikipedia.org/wiki/Ascending_and_Descending][上升与下降]]》、《[[https://en.wikipedia.org/wiki/Hand_with_Reflecting_Sphere][举着反光球的手]]》和《[[https://en.wikipedia.org/wiki/Metamorphosis_I][变形I]]》，也许这里我应该做一些补充：
+
+| [[https://en.wikipedia.org/wiki/Regular_Division_of_the_Plane][file:3.jpg]]  | [[https://en.wikipedia.org/wiki/Sky_and_Water_II][file:6.jpg]]  | [[https://en.wikipedia.org/wiki/Sky_and_Water_I][file:5.jpg]]  |
+| [[https://en.wikipedia.org/wiki/Day_and_Night_(M._C._Escher)][file:4.jpg]]  | [[https://en.wikipedia.org/wiki/Reptiles_(M._C._Escher)][file:7.jpg]]  | [[https://en.wikipedia.org/wiki/Magic_Mirror_(M._C._Escher)][file:8.jpg]]  |
+| [[https://en.wikipedia.org/wiki/Three_Spheres_II][file:9.jpg]]  | [[https://en.wikipedia.org/wiki/Curl-up][file:12.jpg]] | [[https://en.wikipedia.org/wiki/Drawing_Hands][file:11.jpg]] |
+| [[https://en.wikipedia.org/wiki/Another_World_(M._C._Escher)][file:10.jpg]] | [[https://en.wikipedia.org/wiki/House_of_Stairs][file:13.jpg]] | [[https://en.wikipedia.org/wiki/Dragon_(M._C._Escher)][file:14.jpg]] |
+| [[https://en.wikipedia.org/wiki/Relativity_(M._C._Escher)][file:15.jpg]] | [[https://en.wikipedia.org/wiki/Convex_and_Concave][file:16.jpg]] | [[https://en.wikipedia.org/wiki/Cube_with_Magic_Ribbons][file:17.jpg]] |
+
+GEB 对埃舍尔的评价是“怪圈就是埃舍尔画中最常出现的主题之一”，上面的画应该足以说明这一点。在 GEB 的埃舍尔这一节我认为 20 页的最后一段可以摘抄一下：
+
+#+BEGIN_QUOTE
+埃舍尔其他的画把无穷表现得更强烈，在他的一些画中，一个单一主题可以出现在现实的不同层次上。比如，某幅画中的一个层次可以被清楚地看作是在表现幻想或想象，另一个层次则会被认为是表现现实。这两个都层次可能是仅有的明确地画出来的层次。但是单这两个层次便使观者不由得把自己看成是另外一个层次的一部分，这样一来，这位观众就不由自主地被埃舍尔画中隐含的层次串所俘获了。在这个串中，对于任何一个层次来说，在它之上都有另一个层次比它更为“实在”，同样，也总有一个在它之下的层次比它更加“虚幻”。单是这一点已足以让人头疼了。但如果这个层次串不是直线的，而是形成了一个圈，又将发生什么呢？那时候什么是实在的？什么是虚幻的？
+
+GEB，第 20 页
+#+END_QUOTE
+
+了解过一些计算机知识的你应该知道，非矢量图片文件存储的是整张图片一个个像素的值（当然不同格式有不同的压缩方式），将图片理解为连续世界的离散近似是完全没有问题的。但相比乐谱而言，绘画可能更能表达一点： *离散世界并不一定要对应或近似于现实世界* 。画中的世界不需要遵守三维世界的物理规律，更准确一点的表述可能是绘画想要表达的实体并不受到真实世界的约束。这允许我们在概念世界发明不存在于现实世界的东西。
+
+在导言中，埃舍尔位于巴赫之后，也许是为了表达一种递进关系：乐谱的不寻常只会让我们感觉到不和谐或难听，但是不可能的绘画能让我们感到明显的违和感，因为它不可能存在。音乐和绘画都属于八（九？）大艺术，所以我将巴赫和埃舍尔放到了同一节。在介绍完这两位大艺术家后，GEB 转向了更加严谨和 *符号化* 的数学和逻辑，以及背后的希尔伯特、康托尔、哥德尔和其他数学家们。
+
+[[https://en.wikipedia.org/wiki/Impossible_object][file:18.png]]
+
+* 语言、悖论和自指
+
+在导言的剩余部分，作者讨论了一系列和悖论相关的问题，尤其是哥德尔定理和集合论悖论。我在阅读这一部分时像在理解赋格和卡农时出现了一些小困难，我有必要补充一些知识，也许它们在后面的章节也能用得上。它们包括：
+
+- 对语言和思维的介绍和个人理解
+- 对悖论的简单介绍
+- 语言的定义与运算
+
++正好处理一下很久之前写的对语言和思维关系的思考的废案（笑）。+
+
+** 语言与思维
+
+“语言”这个词似乎在我们生活中存在广泛的“被滥用”情况，比如“设计语言”、“色彩语言”、“音乐语言”、“镜头语言”、“动作语言”，等等。当然，把这样的词称为“语言”的滥用也太偏颇了点，凡是带上了语言的词似乎都会涉及到一套方法，比如下面这段对“镜头语言”的理解：
+
+#+BEGIN_QUOTE
+我看了很多知乎作者的回答，有一个回答接地气且逻辑比较合理
+- 第一，拍什么，镜头的静态信息，首先是构图，其次是景别。是镜头语言的字
+- 第二，怎么拍，镜头的动态信息，即运镜，是镜头语言的词，决定字的运用
+- 第三，怎么用，镜头的拼接和剪辑，是镜头的标点符号，决定这些字能串成能懂的文章
+
+这个语言中出了几个关键词，构图，景别，运镜，拼接，剪辑，又得逐个展开学习
+
+https://zhuanlan.zhihu.com/p/628255839
+#+END_QUOTE
+
+对我们来说，最熟悉和使用最多的是我们的母语——中文，它是我们进行人与人交流的媒介，同时也是我们进行思考时的工具。如果你学过一点编程和数学，你也应该听说过所谓的数学语言和编程，下面两个“句子”分别描述了数学中的 \(\epsilon-\delta\) [[https://zhuanlan.zhihu.com/p/83128696][定义]]和输出 Hello world 的 C 程序：
+
+\[lim_{x \rightarrow x_0}f(x) = A: \forall(\epsilon \gt 0 \rightarrow \exists \delta(\delta \gt 0 \wedge \forall x(|x - x_0| \lt \delta \rightarrow |f(x) - A| \lt \epsilon)))\]
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+  int main(void) { printf("hello world\n"); return 0;}
+#+END_SRC
+
+很明显，数学语言在表达数学思想和编程语言在表达程序上比自然语言更好用，如果将自然语言视为通用语言，那么数学语言和程序语言可以看作是 DSL（领域特定语言，domain specific language）。如果你要我在各种语言找到一些共同点的话，那大概就是这三点：是人造物、是分享信息的基本工具、是思维和认知工具。
+
+说完了对语言的粗浅认识，接下来我们聊聊语言和思维之间的关系。就在我写这句话的时候，我的脑海里面把我想要写的字一个个“读”了出来，然后再由我的手敲击键盘输入到文本编辑器中，似乎中文成为了我思维的载体。如果没有语言思维是如何进行的呢，或者说没有语言思维还存在吗？一年半前我在为这个问题苦恼时看到了这个[[https://www.zhihu.com/question/27535310/answer/2192328532][回答]]，对我很有启发：
+
+#+BEGIN_QUOTE
+1. 在发生顺序意义上，语言是思维的产物
+
+   从发生顺序意义上来说，语言是思维的产物，而思维绝不是语言的产物。但语言这个产物一旦产生，又成为了思维的一部分：这并不矛盾，因为思维是动态的。
+2. 语言构建过程本身就是一个思维过程
+
+   纯粹的背诵不构成语言：语言构建事实上是语言中最重要的要素之一。人们通过语言构建去表达他们想要表达的想法。而语言构建本身就是一个思维过程。在初等教育中，这种构建能力在语文教育中的组词、造句、作文等形式中得到训练。
+3. 语言对思维提升具有重大作用
+
+   虽然语言是思维的产物，但语言一经产生，就被整合在思维中了。有了语言，我们不仅可以有效地与他人交流，我们自己的思维也得到了提升。有了文字之后，特别是有了录音录像设备之后，语言就有可以被长久地记录：这对于人们既不保证可靠、也不保证准确的记忆是极大地辅助（除此之外，辅助人记忆的还有使用结绳记事、算筹等方法）。在我们可以记录语言之前，这使得我们可以反复地研究概念，研究理论，以至研究语言本身。
+#+END_QUOTE
+
+除了中文之外，世界上还有许多其他的自然语言，使用其他语言作为思维载体的人必然在认知上与我们存在差别。语言终究还是个离散的东西，不同语言在逼近某个事物的近似肯定是做的有好有坏，不同语言在不同的方面会存在优点和缺点。[[https://zhuanlan.zhihu.com/p/319154253][【语言学】语言反映文化？看不同语言如何划分色彩]]这篇文章似乎表明不同的颜色词汇导致了视觉差异。非要我举个例子的话，C 语言的 =typedef= 子语言的描述能力就很弱，无法像 Ada 那样描述区间（range）类型。在 /On Understanding Types, Data Abstraction, and Polymorphism/ 这篇论文中是这样描述类型语言的设计的：
+
+#+BEGIN_QUOTE
+The type expression sublanguage should be sufficiently rich to support
+types for all values with which we wish to compute, but sufficiently
+tractable to permit decidable and efficient type checking. One of the
+purposes of this paper is to examine tradeoffs between richness and
+tractability for type expression sublanguages of strongly typed
+languages.
+
+1.5. Type Expression Sublanguages
+#+END_QUOTE
+
+接着是最后一个问题：语言是否约束了思维。就上面的色彩例子来看语言对思维的影响是毋庸置疑的，但它究竟影响到了何种程度？有人认为语言怎样描述世界我们就怎样观察世界，语言是认知的牢笼（似乎被否定了，这也叫做萨皮尔-沃尔夫强假说）；也有人认为语言知识对一些思维方式和日常行为产生一定程度的影响（弱假说）。关于这一点我的认识是：思维创造了语言，而语言又反过来影响了思维。
+
+** 悖论和自指
+
+所谓悖论，指的是一种导致矛盾的命题。正常情况下命题只可能为真或假，比如“太阳东升西落”为真，“孔子现在还活着”为假，“我能够吞下玻璃碎片而不伤身体”为假。对一个悖论，如果承假设它是真的，经过一系列正确的推理，却又得出它明显是假的；如果假设它是假的，经过一系列正确的推理，却又得出它明显是真的。
+
+一个比较有名的悖论是理发师悖论：小城里的理发师放出豪言：他要为城里人刮胡子，而且一定要为城里所有“不为自己刮胡子的人”刮胡子。如果理发师为自己刮胡子，那么根据他说的话他就不该为自己刮胡子；如果理发师不为自己刮胡子，根据他的话他就该为自己刮胡子，这就成了悖论。导致这个悖论出现的原因是理发师也是小城居民，如果他来自城外，他是否为自己理发不影响城内的情况。
+
+如果你了解数学史，你应该听说过芝诺这个人，他提出了著名的“飞矢不动”和“阿基里斯追乌龟”悖论，“飞矢不动”悖论提出的问题是“一支射出的箭是动的还是不动的”，而“阿基里斯追乌龟”悖论则在询问“在无穷个追逐过程中阿基里斯能否赶上乌龟”。学了微积分的我们都知道某些无穷过程是可以在有穷过程中完成的，最典型的比如 0.5^{n} 数列的求和极限。某种意义上来说，芝诺的这些悖论推动了微积分的发明。
+
+参考悖论的维基[[https://zh.wikipedia.org/wiki/%E6%82%96%E8%AE%BA][词条]]，根据[[https://zh.wikipedia.org/wiki/%E5%A8%81%E6%8B%89%E5%BE%B7%C2%B7%E8%8C%83%C2%B7%E5%A5%A5%E6%9B%BC%C2%B7%E8%92%AF%E5%9B%A0][蒯因]]（Quine）的分类，芝诺的这些悖论属于谬误悖论（falsidical paradox），即推理过程有谬误而据此确立的命题是错误的，不算是真正的悖论。另一类是结果看似荒谬但确实正确的真实性悖论（veridical paradox），比如[[https://zh.wikipedia.org/wiki/%E5%B8%8C%E5%B0%94%E4%BC%AF%E7%89%B9%E6%97%85%E9%A6%86%E6%82%96%E8%AE%BA][希尔伯特旅馆悖论]]，拥有 *可数* 无限间客房的旅馆在住满的情况下还可以接纳最多 *可数* 无限个新客人，这需要一点简单的技巧来理解，读者有兴趣可以看看《超越无穷大》这本书。
+
+在排除了真实性悖论和谬误悖论后，真正的悖论 *几乎* 都与 *自指* （self-reference）有关。不少埃舍尔的画都体现了自指，最直观的那幅可能是两只手在同时绘画对方。自指指陈述概念的过程中直接或间接地引用了自身，很容易因为打破因果关系来引入逻辑上的无限循环，比如“这句话有十二个字命题成立”和“这句话有十二个字命题不成立”，这个命题本身在命题成立和不成立时本身的字数发生了改变，导致命题和命题的非命题同时成立，形成了悖论。
+
+如上所述，悖论几乎都来自自指，如果我们没有语言的话悖论还能够存在吗？我觉得应该不存在了，或者以一种完全无法被我们理解的方式存在，如果我们能够在无语言的情况下表达自指的话。稍微想想，编程语言中的循环和递归都源于循环结构或递归函数对自己的引用啊（笑）。
+
+** 语言的定义和运算
+
+也许我们有必要给出一个形式化的语言定义，这应该会有助于对接下来内容的理解。以下内容来自维基的 [[https://en.wikipedia.org/wiki/Formal_language][Formal language]] 页面，我只是做简单转述。下面规则对自然语言也适用，但在研究中自然语言处理似乎不会使用这样基于规则的方法，因为自然语言太复杂了，现在比较流行的是深度学习方法。
+
+在形式语言理论中，语言是一个字母表（alphabet）上的某些有限长字符串的集合。语言定义在一个特定的字母表上，字母表 \(\Sigma\) 可以为任意有限集合，例如 \(\{a, b, c, \dots, z\}\) 表示小写字母构成的字母表。是的，语言的基本定义就这么简单，就是字母表表示的有穷序列的一个集合。例如 \(\{\epsilon, a, ab, abc\}\) 就是一门定义在 \(\Sigma = \{a, b, c\}\) 上的语言，其中 \(\epsilon\) 表示空串。
+
+直接给出语言中所有的有穷序列是显式的语言构造方法，我们也可以通过规则来给出语言的隐式定义。虽然说起来似乎有些不可思议，我们在使用正则表达式时其实就是在定义一门语言。正则 =[0-9]+= 定义了一门由 1 个或多个数字字符组成序列的语言， =(hello|world)= 定义了序列包含 =hello= 和 =world= 的语言， =((19|20)[0-9]{2})= 定义了包含 1900 到 2099 的语言...... 如果我们将正则中的子表达式视为语言，那么正则中的算符则是进行了语言间的[[https://en.wikipedia.org/wiki/Formal_language#Operations_on_languages][运算]]。
+
+在规则定义语言中，正则的表现力是最弱的那一档，当前市面上绝大多数语言都会使用一种叫做[[https://en.wikipedia.org/wiki/Context-free_grammar][上下文无关文法]]（CFG）的规则来描述语法。维基给出了一个非常简单的例子 =S -> aSb | ab= ，它可以产生语言 \(\{a^nb^n: n \ge 1\}\) ，这门语言无法用正则描述。[[https://zh.wikipedia.org/wiki/%E4%B9%94%E5%A7%86%E6%96%AF%E5%9F%BA%E8%B0%B1%E7%B3%BB][乔姆斯基体系]]刻画了形式文法的表达能力，读者有兴趣可以简单了解。
+
+读者若想要进一步了解编程语言的语法，可以考虑阅读《编译原理》的前两章。
+
+* 永恒的金色对角线
+
+紧随埃舍尔的是关于哥德尔不完备定理的陈述，原本在这一节我准备介绍一下 20 世纪初的数学成就，但这个工作量太大了点，关于这些数学家的八卦我也只知道一点，比如康托尔被克罗内克“迫害”，布劳威尔和希尔伯特撕破脸，其余的就一无所知了。在 GEB 的 23 页作者提到将在以后的章节仔细研究哥德尔的建构，所以我们也没必要急着一下子弄清这个定义到底描述了什么。这里我简单摘抄一下总结性的句子：
+
+#+BEGIN_QUOTE
+哥德尔的证明适用于任何一个企图达到怀特海和罗素为自己所设立的那个目标的公理系统。对于各种不同的系统，都有一个基本的方法变出这一戏法。简而言之，哥德尔展示了，无论涉及到什么公理系统，可证性总是比真理性弱的概念。
+
+因此，哥德尔定理对于那些对数学的基础感兴趣的逻辑学家、数学家和哲学家们产生了震撼的影响。因为它展示出了，无论多么复杂的确定的系统，都不能表示出整数：0, 1, 2, 3...... 的复杂性。今天的读者也许不会像一九三一时的读者那样为此而困窘。这是因为这期间我们的文化已经把哥德尔定理连同相对论和量子力学等观念上的革命一起吸收了。
+
+GEB 第 24 页
+#+END_QUOTE
+
+我将这一节取名为“永恒的金色对角线”，是在向刘未鹏的[[https://mindhacks.cn/2006/10/15/cantor-godel-turing-an-eternal-golden-diagonal/][康托尔、哥德尔、图灵——永恒的金色对角线]]一文致敬（我改进了原文的格式：[[file:d:/Onedrive/yynotes/republish/2023-02-14-cantor-godel-turing-the-eternal-golden-diagnoal/index.org][转载]]），这是一篇常看常新的文章。对 Y 组合子和停机问题感兴趣的读者可以看看，这篇文章是在他看完 GEB 后写的，应该能带来一些启发。
+
+到了这里，我们总算是说完了导言部分，这部分差不多花费了我总精力的八成，不过听了一堆赋格和卡农，也算是小有收获。
+
+* WU 谜题与 pq 系统
+
+WU 谜题是第一章的标题，而 pq 系统是第二章中一个简单的形式系统，我将它们合在一起作为本文的最后一小节大概也能说明他们没有什么太难理解的内容。有意思的是一二章的最后都有阿基里斯和乌龟的对话，相比之后的每一章末尾都会有对话吧。
+
+在第一章中，作者只是向我们介绍了 WJU 系统，而没有给出题目要求我们解答。维基上有个页面对 WJU 系统进行了详细的介绍，也许阅读随后的章节会用到：[[https://en.wikipedia.org/wiki/MU_puzzle][MU puzzle]]。
+
+在第 47 页，作者向我们展示了形式系统中完全不同的定理定义：
+
+#+BEGIN_QUOTE
+我们把这种可以从规则中产生的符号串叫做定理。当然，“定理”这个词在数学中也使用，但与这里的意思很不一样。在形式系统中，不必把定理看作是陈述 —— 它们仅仅是一些由符号组成的串。它们也不是证明出来的，而是产生出来的，就像是按照一定的印刷规则通过机器产生出来的一样。
+
+GEB 第 48 页
+#+END_QUOTE
+
+WJU 系统的字母表是 \(\{W, J, U\}\) ，语法是 WJU 系统中给出的规则，从这个系统我们可以获取一个由 WJU 定理组成的语言。
+
+第一章最后比较重要的是 *判定过程* ，也就是判定某个定理是否符合系统规则。我们需要保证判定过程（procedure）能够对于给定定理在有限长的时间内完成检验。
+
+#+BEGIN_QUOTE
+当你有了一个判定过程，那么你就有了对系统中所有定理性质的非常具体的刻画。从表面上看，似乎形式系统中的规则与公理同判定过程一样完全地刻画了这个系统中的定理。但是，在许多情况下，隐含地刻画还不够。如果有人声称有了一个对所有定理的刻画，但是若要推断某一个特别的符号串不是一个定理则需要无限长的时间，你大概会倾向于说这个刻画中缺少点什么 —— 它不够具体。
+
+GEB 第 56 页
+#+END_QUOTE
+
+至于第二章，pq 系统的判定过程相当简单，这里的 =q= 代表 =equal= ， =p= 代表 =plus= ， =----q--p--= 就是 =----equal--plus--= ，即 =2+2=4= ，整个 pq 系统能够很好的与自然数加法对应。不过作者在第 69 页强调这样系统同构意义的被动性，是我们为它赋予意义而不是它从一开始就有意义：
+
+#+BEGIN_QUOTE
+pq 系统似乎在迫使我们认识到，形式系统中的符号虽然一开始没有意义，但至少在发现了同构关系时，不可避免地会带上某种“意义”。然而，形式系统中的意义与语言中的意义的区别是非常重要的。在语言中，当我们知道了一个记号的意义，我们就能基于这个记号做出新的陈述。从某种意义上说，语言中的意义是“主动的”，因为它为创造句子带来了一条新规则。
+
+另一方面，在形式系统中，定理都是运用产生式规则实现定义了的，我们可以选择以定理与真陈述之间的同构为基础的“意义”。但是，不是说这样就准许我们在已建立的定理之外增加新的定理。
+
+GEB 第 70 页
+#+END_QUOTE
+
+在第 72 页，有一段话我觉得可以摘抄一下，很早之前我看到过将宇宙演化视为一个函数反复迭代的过程，很有意思：
+
+#+BEGIN_QUOTE
+现实世界的一切都可以变成形式系统吗？从一个很广的意义上说，回答可能是肯定的。比如，人们可以设想，现实世界本身只不过是一个非常复杂的形式系统。它的符号不在纸上移动，而是在一个三维空间里运动，它们是组成一切事物的基本例子。物理法则告诉人们如何根据给定的时刻从给出所有粒子的位置和速度得出属于“下一个”瞬间的一组新的位置和速度。所以这个宏伟的形式系统的定理，就是粒子在宇宙历史中不同时间的可能布局。唯一的公理是所有粒子在“时间的开始”时的原始布局。
+
+这是一个非常宏伟的设想，然而它只有纯粹的理论意义。另外，量子力学也使人们对于上述概念所含的理论价值产生了某种怀疑。从根本上说，我们是在问宇宙是否是以完全确定的方式运动，而这是个尚未解决的问题。
+
+GEB 第 72 页
+#+END_QUOTE
+
+最后的最后，作者对传统数学证明给出了一种看法：它们绕过了无穷：
+
+#+BEGIN_QUOTE
+假如我们越来越仔细地研究欧几里得的证明，我们就会看到，它是由许许多多小的——几乎是无穷小的——步骤组成的。加入把所有这些步骤都一行一行写出来，这个证明会难以复杂地复杂。对于我们的头脑来说，把许多步骤亚索在一起形成单个句子是最为清晰的。
+
+GEB 第 80 页
+#+END_QUOTE
+* 后记
+
+如你所见，我写笔记的理由只是试着看看记读书笔记是不是真的对我有用，我倒是希望它能对我有用。如果说从高中毕业算是爬出了洞穴，那我现在应该是渐渐适应外面的阳光了。
+
+GEB 共有 900 多页 20 章，现在从页面上来说完成了 10%，希望今年之内能够看完。
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/93208667][file:p1.jpg]]
+{{{end_noscript}}}

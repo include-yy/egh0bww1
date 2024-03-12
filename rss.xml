@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2024-02-14T00:35:36</pubDate>
+    <pubDate>2024-03-12T17:30:08</pubDate>
+    <item>
+      <title>GEB 集异璧笔记 --- 第零一二章</title>
+      <link>https://egh0bww1.com/posts/2024-03-12-GEB-booknotes-012</link>
+      <description>本文是我在阅读侯世达的传奇著作 GEB 时的一些笔记，主要是对一二章的阅读总结</description>
+      <category>gossip</category>
+      <pubDate>2024-03-12</pubDate>
+    </item>
     <item>
       <title>emacs 的 treesit --- 用 tree-sitter 写 parser</title>
       <link>https://egh0bww1.com/posts/2024-02-14-49-write-a-treesitter-parser-wgsl</link>
@@ -68,13 +75,6 @@
       <description>本文介绍 direnv 及其 Emacs 集成，来方便地在 Emacs 中分离不同项目的开发环境</description>
       <category>emacs</category>
       <pubDate>2023-10-10</pubDate>
-    </item>
-    <item>
-      <title>使用 emacs 进行 Python 编程</title>
-      <link>https://egh0bww1.com/posts/2023-09-09-45-use-emacs-do-python-programming</link>
-      <description>本文介绍了如何配置 emacs 使之适应 Python 编程</description>
-      <category>emacs</category>
-      <pubDate>2023-09-09</pubDate>
     </item>
   </channel>
 </rss>
