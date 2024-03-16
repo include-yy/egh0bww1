@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2024-03-12T18:06:32</pubDate>
+    <pubDate>2024-03-17T06:17:28</pubDate>
+    <item>
+      <title>如何在 Emacs 中测试代码用时</title>
+      <link>https://egh0bww1.com/posts/2024-03-17-50-emacs-benchmark</link>
+      <description>本文简单介绍了一些在 Emacs 中测试代码性能的方法</description>
+      <category>elisp</category>
+      <pubDate>2024-03-17</pubDate>
+    </item>
     <item>
       <title>GEB 集异璧笔记 --- 第零一二章</title>
       <link>https://egh0bww1.com/posts/2024-03-12-GEB-booknotes-012</link>
@@ -68,13 +75,6 @@
       <description>本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法</description>
       <category>robot</category>
       <pubDate>2023-10-24</pubDate>
-    </item>
-    <item>
-      <title>在 Emacs 中进行分离式项目环境变量管理 -- direnv</title>
-      <link>https://egh0bww1.com/posts/2023-10-10-46-manage-project-environment-use-direnv</link>
-      <description>本文介绍 direnv 及其 Emacs 集成，来方便地在 Emacs 中分离不同项目的开发环境</description>
-      <category>emacs</category>
-      <pubDate>2023-10-10</pubDate>
     </item>
   </channel>
 </rss>

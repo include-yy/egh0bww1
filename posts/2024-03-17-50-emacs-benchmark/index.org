@@ -1,0 +1,285 @@
+#+SETUPFILE: ../setup.org
+#+FILETAGS: elisp
+#+TMP: 0
+#+TITLE: 如何在 Emacs 中测试代码用时
+#+DATE: [2024-03-17 Sun 01:35]
+
+#+DESCRIPTION: 本文简单介绍了一些在 Emacs 中测试代码性能的方法
+
+{{{begin_noscript}}}
+#+NAME: headimg
+#+ATTR_HTML: :class top-down-img
+[[https://www.pixiv.net/artworks/116825034][file:0.jpg]]
+{{{end_noscript}}}
+
+在编写一些代码并想测试它的运行速度时，我都会写下 =(let ((ti (float-time))) ... (princ (- (float-time) ti)))= ，写得多了我就总结成了一个宏：
+
+#+BEGIN_SRC elisp
+(defmacro my-time (&rest body)
+  (let ((ti (gensym)))
+    `(let ((,ti (float-time)))
+       ,@body
+       (let ((final-time (float-time)))
+	 (insert (format "\n;;%ss" (- final-time ,ti)))
+	 (message "my-time: %ss" (- final-time ,ti))))))
+#+END_SRC
+
+我一直在疑惑这么常用的功能 Emacs 为什么没有内置，今天才发现我灯下黑了。Emacs 已经内置了 benchmark.el 用于测量代码执行用时，elpa 上也提供了 [[https://elpa.gnu.org/packages/elisp-benchmarks.html][elisp-benchmark]]，不过它只是用于 native-comp 相关的测试。在这篇文章中我会介绍 benchmark.el 的使用和实现。
+
+需要注意的是，本文的主题是“代码执行用时测试”，而不是“Emacs 性能测试”，性能这个词比执行时间要复杂太多，光凭一小篇文章是讲不清楚的。有时间的话，我可能会在之后的文章中简单介绍两个内置的性能测试包：elp.el 和 profiler.el。
+
+本文使用的环境为：GNU Emacs 29.2 (build 2, x86_64-w64-mingw32) of 2024-01-19
+
+{{{toc}}}
+
+* 如何使用 benchmark.el
+
+在 benchmark.el 中，未被 =--= 隐藏的函数包括这些：
+
+- =(benchmark-elapse &rest forms)= ，返回 =form= 的执行时间
+- =(benchmark-call func &optional repetitions)= ，统计函数 =func= 执行 =repetitions= 次用时
+- =(benchmark-run &optional repetitions &rest forms)= ，统计 =forms= 执行 =repetitions= 次用时
+- =(benchmark-run-compiled &optional repetitions &rest forms)= ，会对 forms 进行编译后测试
+- =(benchmark repetitions form)= ，测试 =form= 运行 =repetitions= 用时，是一个命令
+- =(benchmark-progn &rest body)= ，测试 =body= 运行用时，会返回 =body= 的求值结果
+
+在所有上面这些函数中，只有 =benchmark-elapse= 仅返回时间，其余的函数都包含有 GC 相关信息，即 GC 次数和 GC 用时；只有 =benchmark-progn= 会返回原表达式的返回值；只有 =benchmark= 是命令；只有 =benchmark-call= 要求接受单数为函数，其余都为表达式。
+
+从依赖关系上来说， =benchmark-elapse= 和 =benchmark-progn= 比较独立， =benchmark-run-(compiled)= 和 =benchmark= 都使用了 =benchmark-call= 。
+
+我没有怎么用过 benchmark.el 提供的功能（这不废话吗），下面给出一些简单的使用用例。需要说明的是，GC 执行次数和时间均与 =gc-cons-threshold= 有关，在我的 Emacs 中它的值为 20MB，即 20971520。
+
+- =benchmark-elapse=
+  #+BEGIN_SRC elisp
+    (defun my-fib (n)
+      (pcase n
+	(0 1) (1 1)
+	(_ (+ (my-fib (1- n))
+	      (my-fib (- n 2))))))
+    (benchmark-elapse (my-fib 30)) => 0.311837
+    (byte-compile 'my-fib)
+    (benchmark-elapse (my-fib 30)) => 0.079755
+  #+END_SRC
+
+- =benchmark-call=
+  #+BEGIN_SRC elisp
+    (benchmark-call (lambda () (sit-for 0.05)) 2) => (0.119455 0 0.0)
+    (benchmark-call (lambda () (sit-for 0.05)) 20) => (1.250869 0 0.0)
+    (benchmark-call (lambda () (my-fib 30)) 2) => (0.159323 0 0.0)
+    (benchmark-call (lambda () (append (list 1 2) (list 3 4))) 200000)
+    => (0.104006 1 0.08735500000000229)
+    (benchmark-call (lambda () (append (list 1 2) (list 3 4))) 2000000)
+    => (1.043738 10 0.8836429999999993)
+    (benchmark-call (lambda () (append (list 1 2) (list 3 4))) 20000000)
+    => (9.936138 91 8.26613)
+
+    (benchmark-call (lambda () (append (list 1 2) (list 3 4))) 1.0)
+    => (2111111 1.157599 10 0.9642879999999998)
+  #+END_SRC
+
+- =benchmark-(run(compiled))=
+  #+BEGIN_SRC elisp
+    (benchmark 10 (sit-for 0.1)) => "Elapsed time: 0.000003s"
+    (benchmark-run 10 (sit-for 0.1)) => (1.098851 0 0.0)
+    (benchmark-run-compiled 10 (sit-for 0.1)) => (1.0848609999999999 0 0.0)
+    (benchmark 100000000 (+ 1 1)) => "Elapsed time: 1.996412s"
+    (benchmark-run 100000000 (+ 1 1)) => (1.9098709999999999 0 0.0)
+    (benchmark-run-compiled 100000000 (+ 1 1)) => (0.822057 0 0.0)
+  #+END_SRC
+
+- =benchmark-progn=
+  #+BEGIN_SRC elisp
+    (benchmark-progn (+ 1 2)) => 3 with output Elapsed time: 0.000002s
+  #+END_SRC
+
+* benchmark.el 的实现
+
+整个 benchmark.el 只有不到 200 行，即使没有文档分析起来也非常容易。这一节中我会按顺序给出各函数的定义。
+
+#+BEGIN_SRC elisp
+  (defmacro benchmark-elapse (&rest forms)
+    "Return the time in seconds elapsed for execution of FORMS."
+    (declare (indent 0) (debug t))
+    (let ((t1 (make-symbol "t1")))
+      `(let ((,t1 (current-time)))
+	 ,@forms
+	 (float-time (time-since ,t1)))))
+#+END_SRC
+
+=benchmark-elapse= 可以返回表达式的执行时间，和我在开头给出的 =my-time= 在功能上没什么差别，不过它展示了 =float-time= 的另一种用法，接受参数则表示将时间转换为单位为秒的浮点数。
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defun benchmark-call (func &optional repetitions)
+    "Measure the run time of calling FUNC a number REPETITIONS of times.
+  The result is a list (TIME GC GCTIME)
+  where TIME is the total time it took, in seconds.
+  GCTIME is the amount of time that was spent in the GC
+  and GC is the number of times the GC was called.
+
+  REPETITIONS can also be a floating point number, in which case it
+  specifies a minimum number of seconds that the benchmark execution
+  should take.  In that case the return value is prepended with the
+  number of repetitions actually used."
+    (if (floatp repetitions)
+	(benchmark--adaptive func repetitions)
+      (unless repetitions (setq repetitions 1))
+      (let ((gc gc-elapsed)
+	    (gcs gcs-done)
+	    (empty-func (lambda () 'empty-func)))
+	(list
+	 (if (> repetitions 1)
+	     (- (benchmark-elapse (dotimes (_ repetitions) (funcall func)))
+		(benchmark-elapse (dotimes (_ repetitions) (funcall empty-func))))
+	   (- (benchmark-elapse (funcall func))
+	      (benchmark-elapse (funcall empty-func))))
+	 (- gcs-done gcs)
+	 (- gc-elapsed gc)))))
+#+END_SRC
+
+=benchmark-call= 可以测试调用无参函数 =func= 一共 =repetitions= 次的用时，以及 GC（garbage colleciton）次数和 GC 用时。如果 =repetitons= 为浮点数则会调用 =benchmark--adaptive= （后文会介绍），如果 =repetions= 为证书且小于 1 则仅调用一次。整个实现比较有意思的是考虑了函数的调用开销，可见上面的实现中用函数调用总用时减去了空函数的调用总用时。
+
+#+BEGIN_SRC elisp
+  (defun benchmark--adaptive (func time)
+    "Measure the run time of FUNC, calling it enough times to last TIME seconds.
+  Result is (REPETITIONS . DATA) where DATA is as returned by `benchmark-call'."
+    (named-let loop ((repetitions 1)
+		     (data (let ((x (list 0))) (setcdr x x) x)))
+      ;; (message "Running %d iteration" repetitions)
+      (let ((newdata (benchmark-call func repetitions)))
+	(if (<= (car newdata) 0)
+	    ;; This can happen if we're unlucky, e.g. the process got preempted
+	    ;; (or the GC ran) just during the empty-func loop.
+	    ;; Just try again, hopefully this won't repeat itself.
+	    (progn
+	      ;; (message "Ignoring the %d iterations" repetitions)
+	      (loop (* 2 repetitions) data))
+	  (let* ((sum (cl-mapcar #'+ data (cons repetitions newdata)))
+		 (totaltime (nth 1 sum)))
+	    (if (>= totaltime time)
+		sum
+	      (let* ((iter-time (/ totaltime (car sum)))
+		     (missing-time (- time totaltime))
+		     (missing-iter (/ missing-time iter-time)))
+		;; `iter-time' is approximate because of effects like the GC,
+		;; so multiply at most by 10, in case we are wildly off the mark.
+		(loop (max repetitions
+			   (min (ceiling missing-iter)
+				(* 10 repetitions)))
+		      sum))))))))
+#+END_SRC
+
+与 =benchmark-call= 不同，它会调用函数直到用时达到或超过 =time= 为止。从具体的实现来看， =loop= 是一个非常保守的过程，它会一点点增加每次调用 =benchmark-call= 的 =repetitions= 值，直到达到标准为止。整个实现部分我觉得最好玩的是 =loop= 中 =data= 的初始化过程： =(let ((x (list 0))) (setcdr x x) x)= ，在下面的 =cl-mapcar= 调用中它充当了一个无限长度且元素都为 0 的表：
+
+#+BEGIN_SRC elisp
+  (let ((x '#0=(0 . #0#)))
+    (cl-mapcar '+ x '(1 2 3 4 5)))
+  => (1 2 3 4 5)
+#+END_SRC
+
+至于 =benchmark--adaptive= 中 =newdata= 的 =car= 小于 0 的情况，根据 =benchmark-call= 的代码来看出现的原因可能是函数的调用时间小于空函数的调用时间，但这在通常情况下是不可能的。注释中给出的说明是可能是空函数执行过程中出现进程被抢占或 GC 运行的情况。
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defmacro benchmark-run (&optional repetitions &rest forms)
+    "Time execution of FORMS.
+  If REPETITIONS is supplied as a number, run FORMS that many times,
+  accounting for the overhead of the resulting loop.  Otherwise run
+  FORMS once.
+  Return a list of the total elapsed time for execution, the number of
+  garbage collections that ran, and the time taken by garbage collection.
+  See also `benchmark-run-compiled'."
+    (declare (indent 1) (debug t))
+    (unless (or (natnump repetitions) (and repetitions (symbolp repetitions)))
+      (setq forms (cons repetitions forms)
+	    repetitions 1))
+    `(benchmark-call (lambda () ,@forms) ,repetitions))
+#+END_SRC
+
+=benchmark-run= 可看作对 =benchmark-call= 的包装，但它的 =repetitions= 只接受自然数常数或符号，不指定或指定其他的值则仅执行一次。
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defmacro benchmark-run-compiled (&optional repetitions &rest forms)
+    "Time execution of compiled version of FORMS.
+  This is like `benchmark-run', but what is timed is a funcall of the
+  byte code obtained by wrapping FORMS in a `lambda' and compiling the
+  result.  The overhead of the `lambda's is accounted for."
+    (declare (indent 1) (debug t))
+    (unless (or (natnump repetitions) (and repetitions (symbolp repetitions)))
+      (setq forms (cons repetitions forms)
+	    repetitions 1))
+    `(benchmark-call (,(if (native-comp-available-p)
+			   'native-compile
+			 'byte-compile)
+		      '(lambda () ,@forms))
+		     ,repetitions))
+#+END_SRC
+
+=benchmark-run-compiled= 会在执行代码前尝试进行字节编译或 native 编译，并使用编译后的函数来测试用时，其余部分和 =benchmark-run= 没有区别。
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defun benchmark (repetitions form)
+    "Print the time taken for REPETITIONS executions of FORM.
+  Interactively, REPETITIONS is taken from the prefix arg, and
+  the command prompts for the form to benchmark.
+  For non-interactive use see also `benchmark-run' and
+  `benchmark-run-compiled'.
+  FORM can also be a function in which case we measure the time it takes
+  to call it without any argument."
+    (interactive "p\nxForm: ")
+    (let ((result (benchmark-call (eval (pcase form
+					  ((or `#',_ `(lambda . ,_)) form)
+					  (_ `(lambda () ,form)))
+					t)
+				  repetitions)))
+      (if (zerop (nth 1 result))
+	  (message "Elapsed time: %fs" (car result))
+	(message "Elapsed time: %fs (%fs in %d GCs)" (car result)
+		 (nth 2 result) (nth 1 result)))))
+#+END_SRC
+
+从注释说明来看， =benchmark= 甚至是一个命令，我们可以通过数字前缀指定重复次数，并输入代码来执行。它的内部使用了 =benchmark-call= 来执行。
+
+#+BEGIN_SRC elisp
+  ;;;###autoload
+  (defmacro benchmark-progn (&rest body)
+    "Evaluate BODY and message the time taken.
+  The return value is the value of the final form in BODY."
+    (declare (debug t) (indent 0))
+    (let ((value (make-symbol "value"))
+	  (start (make-symbol "start"))
+	  (gcs (make-symbol "gcs"))
+	  (gc (make-symbol "gc")))
+      `(let ((,gc gc-elapsed)
+	     (,gcs gcs-done)
+	     (,start (current-time))
+	     (,value (progn
+		       ,@body)))
+	 (message "Elapsed time: %fs%s"
+		  (float-time (time-since ,start))
+		  (if (> (- gcs-done ,gcs) 0)
+		      (format " (%fs in %d GCs)"
+			      (- gc-elapsed ,gc)
+			      (- gcs-done ,gcs))
+		    ""))
+	 ;; Return the value of the body.
+	 ,value)))
+#+END_SRC
+
+最后的 =benchmark-progn= 则是简单记录代码块执行时间，使用 =message= 输出统计信息并返回代码的返回值。
+
+* 后记
+
+这篇文章非常简单，毕竟测试代码用时是一个非常小的功能，写一个能用的非常简单，但既然 Emacs 都内置了那为何不用呢？关于代码的用时测试还有很多值得讨论的问题，这里就不进一步延申了。
+
+[[./p1.jpg]]
+
+{{{begin_noscript}}}
+#+NAME: tailimg
+| [[https://www.pixiv.net/artworks/84494726][file:p7.jpg]]  | [[https://www.pixiv.net/artworks/108753371][file:p3.jpg]]  | [[https://www.pixiv.net/artworks/31064333][file:p4.jpg]]  |
+| [[https://www.pixiv.net/artworks/27757605][file:p5.jpg]]  | [[https://www.pixiv.net/artworks/103427537][file:p8.jpg]]  | [[https://www.pixiv.net/artworks/84712477][file:p2.jpg]]  |
+| [[https://www.pixiv.net/artworks/23329637][file:p6.jpg]]  | [[https://www.pixiv.net/artworks/58288674][file:p9.jpg]]  | [[https://www.pixiv.net/artworks/57287597][file:p10.jpg]] |
+| [[https://www.pixiv.net/artworks/79883313][file:p11.jpg]] | [[https://www.pixiv.net/artworks/104755087][file:p12.jpg]] | [[https://www.pixiv.net/artworks/35520691][file:p13.jpg]] |
+{{{end_noscript}}}
