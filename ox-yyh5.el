@@ -94,7 +94,7 @@
 		   (:filter-parse-tree . t-image-link-filter)
 		   (:filter-final-output . t-final-function))
   :menu-entry
-  '(?b "Export to yy's html5"
+  '(?i "Export to yy's html5"
        ((?H "As HTML buffer" t-export-as-html)
 	(?y "As HTML file" t-export-to-html)
 	(?o "As HTML file and open"
@@ -103,7 +103,6 @@
 		(org-open-file (t-export-to-html nil s v b)))))))
   :options-alist
   '(
-    (:html-container "HTML_CONTAINER" nil t-container-element)
     (:html-content-class "HTML_CONTENT_CLASS" nil t-content-class)
     (:description "DESCRIPTION" nil nil newline)
     (:keywords "KEYWORDS" nil nil space)
@@ -1035,18 +1034,6 @@ This variable is ignored for anything other than HTML5 export."
   :package-version '(Org . "8.0")
   :type 'boolean)
 
-(defcustom t-container-element "section" ; <yynt> 默认使用 <section>
-  "HTML element to use for wrapping top level sections.
-Can be set with the in-buffer HTML_CONTAINER property or for
-publishing, with :html-container.
-
-Note that changing the default will prevent you from using
-org-info.js for your website."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type 'string)
-
 (defcustom t-content-class "content"
   "CSS class name to use for the top level content wrapper.
 Can be set with the in-buffer HTML_CONTENT_CLASS property or for
@@ -1567,19 +1554,11 @@ CSS classes, then this prefix can be very useful."
 
 ;;; Internal Functions
 
-(defun t-xhtml-p (info)
-  (let ((dt (downcase (plist-get info :html-doctype))))
-    (string-match-p "xhtml" dt)))
-
-(defun t-html5-p (info)
-  (let ((dt (downcase (plist-get info :html-doctype))))
-    (member dt '("html5" "xhtml5" "<!doctype html>"))))
-
 (defun t--html5-fancy-p (info)
   "Non-nil when exporting to HTML5 with fancy elements.
 INFO is the current state of the export process, as a plist."
-  (and (plist-get info :html-html5-fancy)
-       (t-html5-p info)))
+  (plist-get info :html-html5-fancy))
+
 
 (defun t-close-tag (tag attr info)
   "Return close-tag for string TAG.
@@ -1587,7 +1566,7 @@ ATTR specifies additional attributes.  INFO is a property list
 containing current export state."
   (concat "<" tag
 	  (org-string-nw-p (concat " " attr))
-	  (if (t-xhtml-p info) " />" ">")))
+	  ">"))
 
 (defun t--make-attribute-string (attributes)
   "Return a list of attributes, as a string.
@@ -1878,12 +1857,7 @@ INFO is a plist used as a communication channel."
 	(concat "<!-- "
 		(plist-get info :html-metadata-timestamp-format)
 		" -->\n")))
-
-     (if (t-html5-p info)
-	 (t--build-meta-entry "charset" charset)
-       (t--build-meta-entry "http-equiv" "Content-Type"
-				   (concat "text/html;charset=" charset)))
-
+     (t--build-meta-entry "charset" charset)
      (let ((viewport-options
 	    (cl-remove-if-not (lambda (cell) (org-string-nw-p (cadr cell)))
 			      (plist-get info :html-viewport))))
@@ -2059,29 +2033,10 @@ holding export options."
 CONTENTS is the transcoded contents string.  INFO is a plist
 holding export options."
   (concat
-   (when (and (not (t-html5-p info)) (t-xhtml-p info))
-     (let* ((xml-declaration (plist-get info :html-xml-declaration))
-	    (decl (or (and (stringp xml-declaration) xml-declaration)
-		      (cdr (assoc (plist-get info :html-extension)
-				  xml-declaration))
-		      (cdr (assoc "html" xml-declaration))
-		      "")))
-       (when (not (or (not decl) (string= "" decl)))
-	 (format "%s\n"
-		 (format decl
-			 (or (and t-coding-system
-				  (fboundp 'coding-system-get)
-				  (coding-system-get t-coding-system 'mime-charset))
-			     "iso-8859-1"))))))
    "<!DOCTYPE html>"
    "\n"
    (concat "<html"
-	   (cond ((t-xhtml-p info)
-		  (format
-		   " xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"%s\" xml:lang=\"%s\""
-		   (plist-get info :language) (plist-get info :language)))
-		 ((t-html5-p info)
-		  (format " lang=\"%s\"" (plist-get info :language))))
+	   (format " lang=\"%s\"" (plist-get info :language))
 	   ">\n")
    "<head>\n"
    (t--build-meta-info info)
@@ -2703,9 +2658,8 @@ See `t-format-headline-function' for details."
 
 (defun t--container (headline info)
   (or (org-element-property :HTML_CONTAINER headline)
-      (if (= 1 (org-export-get-relative-level headline info))
-	  (plist-get info :html-container)
-	"div")))
+      (if (<= (org-export-get-relative-level headline info) 3)
+	  "section" "div")))
 
 ;;;; Horizontal Rule
 
@@ -3691,8 +3645,6 @@ contextual information."
 	    (t--make-attribute-string
 	     (org-combine-plists
 	      (list :id (t--reference table info t))
-	      (and (not (t-html5-p info))
-		   (plist-get info :html-table-attributes))
 	      (org-export-read-attribute :attr_html table))))
 	   (alignspec
 	    (if (bound-and-true-p t-format-table-no-css)
