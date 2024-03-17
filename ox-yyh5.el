@@ -3155,7 +3155,9 @@ CONTENTS holds the contents of the section.  INFO is a plist
 holding contextual information."
   (let ((parent (org-export-get-parent-headline section)))
     ;; Before first headline: no container, just return CONTENTS.
-    (if (not parent) contents
+    (if (not parent)
+	;; the zeroth section
+	(format "<section id=\"abstract\">%s</section>" (or contents ""))
       ;; Get div's class and id references.
       (let* ((class-num (+ (org-export-get-relative-level parent info)
 			   (1- (plist-get info :html-toplevel-hlevel))))
@@ -3166,7 +3168,7 @@ holding contextual information."
 		    (org-export-get-headline-number parent info) "-"))))
         ;; Build return value.
 	;; <yynt> 此处可能不需要 id
-	(format "<div class=\"outline-text-%d\">\n%s</div>\n"
+	(format "<section class=\"outline-text-%d\">\n%s</section>\n"
 		class-num
 		(or contents ""))))))
 
