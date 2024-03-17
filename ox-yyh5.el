@@ -106,7 +106,6 @@
     (:html-content-class "HTML_CONTENT_CLASS" nil t-content-class)
     (:description "DESCRIPTION" nil nil newline)
     (:keywords "KEYWORDS" nil nil space)
-    (:html-html5-fancy nil "html5-fancy" t-html5-fancy)
     (:html-link-use-abs-url nil "html-link-use-abs-url" t-link-use-abs-url)
     (:html-link-home "HTML_LINK_HOME" nil t-link-home)
     (:html-link-up "HTML_LINK_UP" nil t-link-up)
@@ -1026,14 +1025,6 @@ Use utf-8 as the default value."
   :package-version '(Org . "8.0")
   :type 'coding-system)
 
-(defcustom t-html5-fancy t ; <yynt> 默认使用 html5 标签
-  "Non-nil means using new HTML5 elements.
-This variable is ignored for anything other than HTML5 export."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type 'boolean)
-
 (defcustom t-content-class "content"
   "CSS class name to use for the top level content wrapper.
 Can be set with the in-buffer HTML_CONTENT_CLASS property or for
@@ -1554,12 +1545,6 @@ CSS classes, then this prefix can be very useful."
 
 ;;; Internal Functions
 
-(defun t--html5-fancy-p (info)
-  "Non-nil when exporting to HTML5 with fancy elements.
-INFO is the current state of the export process, as a plist."
-  (plist-get info :html-html5-fancy))
-
-
 (defun t-close-tag (tag attr info)
   "Return close-tag for string TAG.
 ATTR specifies additional attributes.  INFO is a property list
@@ -1643,18 +1628,15 @@ targets and targets."
 INFO is a plist used as a communication channel.  When optional
 arguments CAPTION and LABEL are given, use them for caption and
 \"id\" attribute."
-  (let ((html5-fancy (t--html5-fancy-p info)))
-    (format (if html5-fancy "\n<figure%s>\n%s%s</figure>" ; <yynt> 去掉末尾的 \n，且去掉 figure 的 id
-	      "\n<div class=\"figure\">\n%s%s\n</div>")
-	    ;; ID. <yynt> 不使用 id
-	    (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
-	    ;; Contents.
-	    (if html5-fancy contents (format "<p>%s</p>" contents))
-	    ;; Caption.
-	    (if (not (org-string-nw-p caption)) ""
-	      (format (if html5-fancy "<figcaption>%s</figcaption>\n" ; <yynt> 将开头 \n 去掉加到末尾
-			"\n<p>%s</p>")
-		      caption)))))
+  (format "\n<figure%s>\n%s%s</figure>"
+	  ;; ID. <yynt> 不使用 id
+	  (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
+	  ;; Contents.
+	  contents
+	  ;; Caption.
+	  (if (not (org-string-nw-p caption)) ""
+	    (format "<figcaption>%s</figcaption>\n"
+		    caption))))
 
 (defun t--format-image (source attributes info)
   "Return \"img\" tag with given SOURCE and ATTRIBUTES.
@@ -2076,20 +2058,14 @@ holding export options."
    (when (plist-get info :with-title)
      (let ((title (and (plist-get info :with-title)
 		       (plist-get info :title)))
-	   (subtitle (plist-get info :subtitle))
-	   (html5-fancy (t--html5-fancy-p info)))
+	   (subtitle (plist-get info :subtitle)))
        (when title
 	 (format
-	  (if html5-fancy
-	      "<header>\n<h1 class=\"title\">%s</h1>\n%s</header>\n" ; <yynt> 添加标题末尾换行
-	    "<h1 class=\"title\">%s%s</h1>\n")
+	  "<header>\n<h1 class=\"title\">%s</h1>\n%s</header>\n"
 	  (org-export-data title info)
 	  (if subtitle
 	      (format
-	       (if html5-fancy
-		   "<p class=\"subtitle\" role=\"doc-subtitle\">%s</p>\n"
-		 (concat "\n" (t-close-tag "br" nil info) "\n"
-			 "<span class=\"subtitle\">%s</span>\n"))
+	       "<p class=\"subtitle\" role=\"doc-subtitle\">%s</p>\n"
 	       (org-export-data subtitle info))
 	    "")))))
    contents
@@ -2292,9 +2268,7 @@ of contents as a string, or nil if it is empty."
 			 (t--toc-text toc-entries)
 			 "</div>\n")))
 	(if scope toc
-	  (let ((outer-tag (if (t--html5-fancy-p info)
-			       "nav"
-			     "div")))
+	  (let ((outer-tag "nav"))
 	    (concat (format "<%s id=\"table-of-contents\" role=\"doc-toc\">\n" outer-tag)
 		    (let ((top-level (plist-get info :html-toplevel-hlevel)))
 		      (format "<h%d>%s</h%d>\n"
@@ -3420,8 +3394,7 @@ contextual information."
 CONTENTS holds the contents of the block.  INFO is a plist
 holding contextual information."
   (let* ((block-type (org-element-property :type special-block))
-         (html5-fancy (and (t--html5-fancy-p info)
-                           (member block-type t-html5-elements)))
+         (html5-fancy (member block-type t-html5-elements))
          (attributes (org-export-read-attribute :attr_html special-block)))
     (unless html5-fancy
       (let ((class (plist-get attributes :class)))
