@@ -70,10 +70,6 @@
     (table-row . t-table-row)
     (plain-list . t-plain-list) (item . t-item)
     (statistics-cookie . t-statistics-cookie) ; [%] [/]
-    ;; clock, drawer, task, planning, property-drawer
-    (drawer . t-drawer)
-    (inlinetask . t-inlinetask) (planning . t-planning)
-    (property-drawer . t-property-drawer) (node-property . t-node-property)
     ;; latex
     (latex-environment . t-latex-environment)
     (latex-fragment . t-latex-fragment)
@@ -117,10 +113,7 @@
     (:html-footnote-format nil nil t-footnote-format)
     (:html-footnote-separator nil nil t-footnote-separator)
     (:html-footnotes-section nil nil t-footnotes-section)
-    (:html-format-drawer-function nil nil t-format-drawer-function)
     (:html-format-headline-function nil nil t-format-headline-function)
-    (:html-format-inlinetask-function
-     nil nil t-format-inlinetask-function)
     (:html-home/up-format nil nil t-home/up-format)
     (:html-indent nil nil t-indent)
     (:html-inline-image-rules nil nil t-inline-image-rules)
@@ -236,23 +229,6 @@ Warning: non-nil may break indentation of source code blocks."
   :package-version '(Org . "8.0")
   :type 'boolean)
 
-;;;; Drawers
-
-(defcustom t-format-drawer-function (lambda (_name contents) contents)
-  "Function called to format a drawer in HTML code.
-
-The function must accept two parameters:
-  NAME      the drawer name, like \"LOGBOOK\"
-  CONTENTS  the contents of the drawer.
-
-The function should return the string to be exported.
-
-The default value simply returns the value of CONTENTS."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type 'function)
-
 ;;;; Footnotes
 
 (defcustom t-footnotes-section "<div id=\"footnotes\">
@@ -345,27 +321,6 @@ used as a reference."
   :package-version '(Org . "9.4")
   :type 'boolean
   :safe #'booleanp)
-
-;;;; Inlinetasks
-
-(defcustom t-format-inlinetask-function
-  't-format-inlinetask-default-function
-  "Function called to format an inlinetask in HTML code.
-
-The function must accept seven parameters:
-  TODO      the todo keyword, as a string
-  TODO-TYPE the todo type, a symbol among `todo', `done' and nil.
-  PRIORITY  the inlinetask priority, as a string
-  NAME      the inlinetask name, as a string.
-  TAGS      the inlinetask tags, as a list of strings.
-  CONTENTS  the contents of the inlinetask, as a string.
-  INFO      the export options, as a plist
-
-The function should return the string to be exported."
-  :group 'org-export-yyh5
-  :version "26.1"
-  :package-version '(Org . "8.3")
-  :type 'function)
 
 ;;;; LaTeX
 
@@ -1118,7 +1073,7 @@ targets and targets."
 	 (user-label
 	  (org-element-property
 	   (pcase type
-	     ((or `headline `inlinetask) :CUSTOM_ID)
+	     (`headline :CUSTOM_ID)
 	     ((or `radio-target `target) :value)
 	     (_ :name))
 	   datum)))
@@ -1126,10 +1081,10 @@ targets and targets."
      ((and user-label
 	   (or (plist-get info :html-prefer-user-labels)
 	       ;; Used CUSTOM_ID property unconditionally.
-	       (memq type '(headline inlinetask))))
+	       (eq type 'headline)))
       user-label)
      ((and named-only
-	   (not (memq type '(headline inlinetask radio-target target)))
+	   (not (memq type '(headline radio-target target)))
 	   (not user-label))
       nil)
      (t
@@ -1975,16 +1930,6 @@ information."
   (format (or (cdr (assq 'code (plist-get info :html-text-markup-alist))) "%s")
 	  (t-encode-plain-text (org-element-property :value code))))
 
-;;;; Drawer
-
-(defun t-drawer (drawer contents info)
-  "Transcode a DRAWER element from Org to HTML.
-CONTENTS holds the contents of the block.  INFO is a plist
-holding contextual information."
-  (funcall (plist-get info :html-format-drawer-function)
-	   (org-element-property :drawer-name drawer)
-	   contents))
-
 ;;;; Dynamic Block
 
 (defun t-dynamic-block (_dynamic-block contents _info)
@@ -2180,34 +2125,6 @@ contextual information."
 	  (let ((lbl (t--reference inline-src-block info t)))
 	    (if (not lbl) "" (format " id=\"%s\"" lbl)))))
     (format "<code class=\"src src-%s\"%s>%s</code>" lang label code)))
-
-;;;; Inlinetask
-
-(defun t-inlinetask (inlinetask contents info)
-  "Transcode an INLINETASK element from Org to HTML.
-CONTENTS holds the contents of the block.  INFO is a plist
-holding contextual information."
-  (let* ((todo (and (plist-get info :with-todo-keywords)
-		    (let ((todo (org-element-property :todo-keyword inlinetask)))
-		      (and todo (org-export-data todo info)))))
-	 (todo-type (and todo (org-element-property :todo-type inlinetask)))
-	 (priority (and (plist-get info :with-priority)
-			(org-element-property :priority inlinetask)))
-	 (text (org-export-data (org-element-property :title inlinetask) info))
-	 (tags (and (plist-get info :with-tags)
-		    (org-export-get-tags inlinetask info))))
-    (funcall (plist-get info :html-format-inlinetask-function)
-	     todo todo-type priority text tags contents info)))
-
-(defun t-format-inlinetask-default-function
-    (todo todo-type priority text tags contents info)
-  "Default format function for inlinetasks.
-See `t-format-inlinetask-function' for details."
-  (format "<div class=\"inlinetask\">\n<b>%s</b>%s\n%s</div>"
-	  (t-format-headline-default-function
-	   todo todo-type priority text tags info)
-	  (t-close-tag "br" nil info)
-	  contents))
 
 ;;;; Italic
 
@@ -2706,17 +2623,6 @@ INFO is a plist holding contextual information.  See
      (t
       (format "<i>%s</i>" desc))))))
 
-;;;; Node Property
-
-(defun t-node-property (node-property _contents _info)
-  "Transcode a NODE-PROPERTY element from Org to HTML.
-CONTENTS is nil.  INFO is a plist holding contextual
-information."
-  (format "%s:%s"
-          (org-element-property :key node-property)
-          (let ((value (org-element-property :value node-property)))
-            (if value (concat " " value) ""))))
-
 ;;;; Paragraph
 
 (defun t-paragraph (paragraph contents info)
@@ -2824,39 +2730,6 @@ contextual information."
 	     (concat (t-close-tag "br" nil info) "\n") output)))
     ;; Return value.
     output))
-
-;; Planning
-
-(defun t-planning (planning _contents info)
-  "Transcode a PLANNING element from Org to HTML.
-CONTENTS is nil.  INFO is a plist used as a communication
-channel."
-  (format
-   "<p><span class=\"timestamp-wrapper\">%s</span></p>"
-   (org-trim
-    (mapconcat
-     (lambda (pair)
-       (let ((timestamp (cdr pair)))
-	 (when timestamp
-	   (let ((string (car pair)))
-	     (format "<span class=\"timestamp-kwd\">%s</span> \
-<span class=\"timestamp\">%s</span> "
-		     string
-		     (t-plain-text (org-timestamp-translate timestamp)
-					  info))))))
-     `((,org-closed-string . ,(org-element-property :closed planning))
-       (,org-deadline-string . ,(org-element-property :deadline planning))
-       (,org-scheduled-string . ,(org-element-property :scheduled planning)))
-     ""))))
-
-;;;; Property Drawer
-
-(defun t-property-drawer (_property-drawer contents _info)
-  "Transcode a PROPERTY-DRAWER element from Org to HTML.
-CONTENTS holds the contents of the drawer.  INFO is a plist
-holding contextual information."
-  (and (org-string-nw-p contents)
-       (format "<pre class=\"example\">\n%s</pre>" contents)))
 
 ;;;; Quote Block
 
