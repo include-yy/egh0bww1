@@ -42,24 +42,35 @@
 ;;; Define Back-End
 
 (org-export-define-backend 'yyh5
-  '((bold . t-bold)
-    (center-block . t-center-block)
+  '(
+    ;; top-level structure
+    (inner-template . t-inner-template) (template . t-template)
+    ;; basic element
+    (bold . t-bold) (italic . t-italic) (code . t-code)
+    (underline . t-underline) (verbatim . t-verbatim)
+    ;; block
+    (center-block . t-center-block) (dynamic-block . t-dynamic-block)
+    (example-block . t-example-block) (export-block . t-export-block)
+    (inline-src-block . t-inline-src-block) (quote-block . t-quote-block)
+    (special-block . t-special-block) (src-block . t-src-block)
+    (verse-block . t-verse-block)
+    ;; paragraph, headline, section, list
+    (paragraph . t-paragraph) (plain-list . t-plain-list)
+    (plain-text . t-plain-text) (section . t-section)
+    ;; table
+    (table . t-table)
+    (table-cell . t-table-cell)
+    (table-row . t-table-row)
+
     (clock . t-clock)
-    (code . t-code)
     (drawer . t-drawer)
-    (dynamic-block . t-dynamic-block)
     (entity . t-entity)
-    (example-block . t-example-block)
-    (export-block . t-export-block)
     (export-snippet . t-export-snippet)
     (fixed-width . t-fixed-width)
     (footnote-reference . t-footnote-reference)
     (headline . t-headline)
     (horizontal-rule . t-horizontal-rule)
-    (inline-src-block . t-inline-src-block)
     (inlinetask . t-inlinetask)
-    (inner-template . t-inner-template)
-    (italic . t-italic)
     (item . t-item)
     (keyword . t-keyword)
     (latex-environment . t-latex-environment)
@@ -67,32 +78,22 @@
     (line-break . t-line-break)
     (link . t-link)
     (node-property . t-node-property)
-    (paragraph . t-paragraph)
-    (plain-list . t-plain-list)
-    (plain-text . t-plain-text)
     (planning . t-planning)
     (property-drawer . t-property-drawer)
-    (quote-block . t-quote-block)
     (radio-target . t-radio-target)
-    (section . t-section)
-    (special-block . t-special-block)
-    (src-block . t-src-block)
+
     (statistics-cookie . t-statistics-cookie)
     (strike-through . t-strike-through)
     (subscript . t-subscript)
     (superscript . t-superscript)
-    (table . t-table)
-    (table-cell . t-table-cell)
-    (table-row . t-table-row)
     (target . t-target)
-    (template . t-template)
     (timestamp . t-timestamp)
-    (underline . t-underline)
-    (verbatim . t-verbatim)
-    (verse-block . t-verse-block))
-  :filters-alist '((:filter-options . t-infojs-install-script)
+
+    )
+  :filters-alist '(
 		   (:filter-parse-tree . t-image-link-filter)
-		   (:filter-final-output . t-final-function))
+		   (:filter-final-output . t-final-function)
+		   )
   :menu-entry
   '(?i "Export to yy's html5"
        ((?H "As HTML buffer" t-export-as-html)
@@ -108,13 +109,13 @@
     (:html-link-home "HTML_LINK_HOME" nil t-link-home)
     (:html-link-up "HTML_LINK_UP" nil t-link-up)
     (:html-mathjax "HTML_MATHJAX" nil "" space)
-    (:html-equation-reference-format "HTML_EQUATION_REFERENCE_FORMAT" nil t-equation-reference-format t)
+    (:html-equation-reference-format
+     "HTML_EQUATION_REFERENCE_FORMAT" nil t-equation-reference-format t)
     (:html-postamble nil "html-postamble" t-postamble)
     (:html-preamble nil "html-preamble" t-preamble)
     (:html-head "HTML_HEAD" nil t-head newline)
     (:html-head-extra "HTML_HEAD_EXTRA" nil t-head-extra newline)
     (:subtitle "SUBTITLE" nil nil parse)
-    (:html-head-include-scripts nil "html-scripts" t-head-include-scripts)
     (:html-allow-name-attribute-in-anchors
      nil nil t-allow-name-attribute-in-anchors)
     (:html-divs nil nil t-divs)
@@ -129,8 +130,6 @@
      nil nil t-format-inlinetask-function)
     (:html-home/up-format nil nil t-home/up-format)
     (:html-indent nil nil t-indent)
-    (:html-infojs-options nil nil t-infojs-options)
-    (:html-infojs-template nil nil t-infojs-template)
     (:html-inline-image-rules nil nil t-inline-image-rules)
     (:html-link-org-files-as-html nil nil t-link-org-files-as-html)
     (:html-mathjax-options nil nil t-mathjax-options)
@@ -151,7 +150,6 @@
     (:html-text-markup-alist nil nil t-text-markup-alist)
     (:html-todo-kwd-class-prefix nil nil t-todo-kwd-class-prefix)
     (:html-toplevel-hlevel nil nil t-toplevel-hlevel)
-    (:html-use-infojs nil nil t-use-infojs)
     (:html-validation-link nil nil t-validation-link)
     (:html-viewport nil nil t-viewport)
     (:html-inline-images nil nil t-inline-images)
@@ -160,11 +158,6 @@
     (:html-table-row-close-tag nil nil t-table-row-close-tag)
     (:html-xml-declaration nil nil t-xml-declaration)
     (:html-wrap-src-lines nil nil t-wrap-src-lines)
-    (:html-klipsify-src nil nil t-klipsify-src)
-    (:html-klipse-css nil nil t-klipse-css)
-    (:html-klipse-js nil nil t-klipse-js)
-    (:html-klipse-selection-script nil nil t-klipse-selection-script)
-    (:infojs-opt "INFOJS_OPT" nil nil)
     ;; Redefine regular options.
     (:creator "CREATOR" nil t-creator-string)
     (:with-latex nil "tex" t-with-latex)
@@ -181,7 +174,8 @@
     (:html-link-right "HTML_LINK_RIGHT" nil t-link-home)
     (:html-link-rname "HTML_LINK_RNAME" nil "HOME")
     (:html-link-func "HTML_LINK_FUNC" nil nil)
-    (:html-headline-cnt nil nil 0)))
+    (:html-headline-cnt nil nil 0)
+    ))
 
 
 ;;; Internal Variables
@@ -208,32 +202,6 @@ property on the headline itself.")
     ("\\.\\.\\." . "&#x2026;"))		; hellip
   "Regular expressions for special string conversion.")
 
-(defcustom t-scripts
-  "<script>
-// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
-     function CodeHighlightOn(elem, id)
-     {
-       var target = document.getElementById(id);
-       if(null != target) {
-         elem.classList.add(\"code-highlighted\");
-         target.classList.add(\"code-highlighted\");
-       }
-     }
-     function CodeHighlightOff(elem, id)
-     {
-       var target = document.getElementById(id);
-       if(null != target) {
-         elem.classList.remove(\"code-highlighted\");
-         target.classList.remove(\"code-highlighted\");
-       }
-     }
-// @license-end
-</script>"
-  "Basic JavaScript to allow highlighting references in code blocks."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.5")
-  :type 'string)
-
 
 ;;; User Configuration Variables
 
@@ -241,160 +209,6 @@ property on the headline itself.")
   "Options for exporting Org mode files to HTML."
   :tag "Org Export HTML"
   :group 'org-export)
-
-;;;; Handle infojs
-
-(defvar t-infojs-opts-table
-  '((path PATH "https://orgmode.org/org-info.js")
-    (view VIEW "info")
-    (toc TOC :with-toc)
-    (ftoc FIXED_TOC "0")
-    (tdepth TOC_DEPTH "max")
-    (sdepth SECTION_DEPTH "max")
-    (mouse MOUSE_HINT "underline")
-    (buttons VIEW_BUTTONS "0")
-    (ltoc LOCAL_TOC "1")
-    (up LINK_UP :html-link-up)
-    (home LINK_HOME :html-link-home))
-  "JavaScript options, long form for script, default values.")
-
-(defcustom t-use-infojs nil ;<yynt> 不使用 infojs
-  "Non-nil when Sebastian Rose's Java Script org-info.js should be active.
-This option can be nil or t to never or always use the script.
-It can also be the symbol `when-configured', meaning that the
-script will be linked into the export file if and only if there
-is a \"#+INFOJS_OPT:\" line in the buffer.  See also the variable
-`t-infojs-options'."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type '(choice
-	  (const :tag "Never" nil)
-	  (const :tag "When configured in buffer" when-configured)
-	  (const :tag "Always" t)))
-
-(defcustom t-infojs-options
-  (mapcar (lambda (x) (cons (car x) (nth 2 x))) t-infojs-opts-table)
-  "Options settings for the INFOJS JavaScript.
-Each of the options must have an entry in `t-infojs-opts-table'.
-The value can either be a string that will be passed to the script, or
-a property.  This property is then assumed to be a property that is defined
-by the Export/Publishing setup of Org.
-The `sdepth' and `tdepth' parameters can also be set to \"max\", which
-means to use the maximum value consistent with other options."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type
-  `(set :greedy t :inline t
-	,@(mapcar
-	   (lambda (x)
-	     (list 'cons (list 'const (car x))
-		   '(choice
-		     (symbol :tag "Publishing/Export property")
-		     (string :tag "Value"))))
-	   t-infojs-opts-table)))
-
-(defcustom t-infojs-template
-  "<script src=\"%SCRIPT_PATH\">
-// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
-// @license-end
-</script>
-
-<script>
-// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
-%MANAGER_OPTIONS
-org_html_manager.setup();  // activate after the parameters are set
-// @license-end
-</script>"
-  "The template for the export style additions when org-info.js is used.
-Option settings will replace the %MANAGER-OPTIONS cookie."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.4")
-  :type 'string)
-
-(defun t-infojs-install-script (exp-plist _backend)
-  "Install script in export options when appropriate.
-EXP-PLIST is a plist containing export options.  BACKEND is the
-export back-end currently used."
-  (unless (or (memq 'body-only (plist-get exp-plist :export-options))
-	      (not (plist-get exp-plist :html-use-infojs))
-	      (and (eq (plist-get exp-plist :html-use-infojs) 'when-configured)
-		   (let ((opt (plist-get exp-plist :infojs-opt)))
-		     (or (not opt)
-			 (string= "" opt)
-			 (string-match "\\<view:nil\\>" opt)))))
-    (let* ((template (plist-get exp-plist :html-infojs-template))
-	   (ptoc (plist-get exp-plist :with-toc))
-	   (hlevels (plist-get exp-plist :headline-levels))
-	   (sdepth hlevels)
-	   (tdepth (if (integerp ptoc) (min ptoc hlevels) hlevels))
-	   (options (plist-get exp-plist :infojs-opt))
-	   (infojs-opt (plist-get exp-plist :html-infojs-options))
-	   (table t-infojs-opts-table)
-	   style)
-      (dolist (entry table)
-	(let* ((opt (car entry))
-	       (var (nth 1 entry))
-	       ;; Compute default values for script option OPT from
-	       ;; `t-infojs-options' variable.
-	       (default
-		 (let ((default (cdr (assq opt infojs-opt))))
-		   (if (and (symbolp default) (not (memq default '(t nil))))
-		       (plist-get exp-plist default)
-		     default)))
-	       ;; Value set through INFOJS_OPT keyword has precedence
-	       ;; over the default one.
-	       (val (if (and options
-			     (string-match (format "\\<%s:\\(\\S-+\\)" opt)
-					   options))
-			(match-string 1 options)
-		      default)))
-	  (pcase opt
-	    (`path (setq template
-			 (replace-regexp-in-string
-			  "%SCRIPT_PATH" val template t t)))
-	    (`sdepth (when (integerp (read val))
-		       (setq sdepth (min (read val) sdepth))))
-	    (`tdepth (when (integerp (read val))
-		       (setq tdepth (min (read val) tdepth))))
-	    (_ (setq val
-		     (cond
-		      ((or (eq val t) (equal val "t")) "1")
-		      ((or (eq val nil) (equal val "nil")) "0")
-		      ((stringp val) val)
-		      (t (format "%s" val))))
-	       (push (cons var val) style)))))
-      ;; Now we set the depth of the *generated* TOC to SDEPTH,
-      ;; because the toc will actually determine the splitting.  How
-      ;; much of the toc will actually be displayed is governed by the
-      ;; TDEPTH option.
-      (setq exp-plist (plist-put exp-plist :with-toc sdepth))
-      ;; The table of contents should not show more sections than we
-      ;; generate.
-      (setq tdepth (min tdepth sdepth))
-      (push (cons "TOC_DEPTH" tdepth) style)
-      ;; Build style string.
-      (setq style (mapconcat
-		   (lambda (x)
-		     (format "org_html_manager.set(\"%s\", \"%s\");"
-			     (car x) (cdr x)))
-		   style "\n"))
-      (when (and style (> (length style) 0))
-	(and (string-match "%MANAGER_OPTIONS" template)
-	     (setq style (replace-match style t t template))
-	     (setq exp-plist
-		   (plist-put
-		    exp-plist :html-head-extra
-		    (concat (or (plist-get exp-plist :html-head-extra) "")
-			    "\n"
-			    style)))))
-      ;; This script absolutely needs the table of contents, so we
-      ;; change that setting.
-      (unless (plist-get exp-plist :with-toc)
-	(setq exp-plist (plist-put exp-plist :with-toc t)))
-      ;; Return the modified property list.
-      exp-plist)))
 
 ;;;; Bold, etc.
 
@@ -1148,16 +962,6 @@ ignored."
   :group 'org-export-yyh5
   :type 'string)
 
-;;;; Template :: Scripts
-
-(defcustom t-head-include-scripts nil
-  "Non-nil means include the JavaScript snippets in exported HTML files.
-The actual script is defined in `t-scripts'."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type 'boolean)
-
 ;;;; Template :: Styles
 
 (defcustom t-meta-tags #'t-meta-tags-default
@@ -1271,40 +1075,6 @@ https://developer.mozilla.org/en-US/docs/Mozilla/Mobile/Viewport_meta_tag"
 			     (choice (const :tag "unset" "")
 				     (const "true")
 				     (const "false"))))))
-
-;; Handle source code blocks with Klipse
-
-(defcustom t-klipsify-src nil
-  "When non-nil, source code blocks are editable in exported presentation."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.1")
-  :type 'boolean)
-
-(defcustom t-klipse-css
-  "https://storage.googleapis.com/app.klipse.tech/css/codemirror.css"
-  "Location of the codemirror CSS file for use with klipse."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.1")
-  :type 'string)
-
-(defcustom t-klipse-js
-  "https://storage.googleapis.com/app.klipse.tech/plugin_prod/js/klipse_plugin.min.js"
-  "Location of the klipse javascript file."
-  :group 'org-export-yyh5
-  :type 'string)
-
-(defcustom t-klipse-selection-script
-  "window.klipse_settings = {selector_eval_html: '.src-html',
-                             selector_eval_js: '.src-js',
-                             selector_eval_python_client: '.src-python',
-                             selector_eval_scheme: '.src-scheme',
-                             selector: '.src-clojure',
-                             selector_eval_ruby: '.src-ruby'};"
-  "Javascript snippet to activate klipse."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.1")
-  :type 'string)
-
 
 ;;;; Todos
 
@@ -1653,8 +1423,7 @@ INFO is a plist used as a communication channel."
       (t-close-tag "link"
 		   (format "rel=\"stylesheet\" href=\"%s\" type=\"text/css\""
 			   (plist-get info :html-htmlized-css-url))
-		   info))
-    (when (plist-get info :html-head-include-scripts) t-scripts))))
+		   info)))))
 
 (defun t--build-mathjax-config (info)
   "Insert the user setup into the mathjax template.
@@ -1856,13 +1625,6 @@ holding export options."
    ;;(format "</%s>\n" (nth 1 (assq 'content (plist-get info :html-divs))))
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
-   ;; Possibly use the Klipse library live code blocks.
-   (when (plist-get info :html-klipsify-src)
-     (concat "<script>" (plist-get info :html-klipse-selection-script)
-	     "</script><script src=\""
-	     t-klipse-js
-	     "\"></script><link rel=\"stylesheet\" type=\"text/css\" href=\""
-	     t-klipse-css "\"/>"))
    ;; Closing document.
    "</body>\n</html>"))
 
@@ -3085,7 +2847,6 @@ contextual information."
     ;; Return value.
     output))
 
-
 ;; Planning
 
 (defun t-planning (planning _contents info)
@@ -3146,19 +2907,7 @@ holding contextual information."
     (if (not parent)
 	;; the zeroth section
 	(format "<section id=\"abstract\">\n%s</section>" (or contents ""))
-      ;; Get div's class and id references.
-      (let* ((class-num (+ (org-export-get-relative-level parent info)
-			   (1- (plist-get info :html-toplevel-hlevel))))
-	     (section-number
-	      (and (org-export-numbered-headline-p parent info)
-		   (mapconcat
-		    #'number-to-string
-		    (org-export-get-headline-number parent info) "-"))))
-        ;; Build return value.
-	;; <yynt> 此处可能不需要 id
-	(format "<section class=\"outline-text-%d\">\n%s</section>\n"
-		class-num
-		(or contents ""))))))
+      (or contents ""))))
 
 ;;;; Radio Target
 
@@ -3205,10 +2954,7 @@ contextual information."
     (let* ((lang (org-element-property :language src-block))
 	   (code (t-format-code src-block info))
 	   (label (let ((lbl (t--reference src-block info t)))
-		    (if lbl (format " id=\"%s\"" lbl) "")))
-	   (klipsify  (and  (plist-get info :html-klipsify-src)
-                            (member lang '("javascript" "js"
-					   "ruby" "scheme" "clojure" "php" "html")))))
+		    (if lbl (format " id=\"%s\"" lbl) ""))))
       (if (not lang) (format "<pre class=\"example\"%s>\n%s</pre>" label code)
 	(format "<div class=\"org-src-container\">\n%s%s\n</div>"
 		;; Build caption.
@@ -3225,16 +2971,8 @@ contextual information."
 			      listing-number
 			      (org-trim (org-export-data caption info))))))
 		;; Contents.
-		(if klipsify
-		    (format "<pre><code class=\"src src-%s\"%s%s>%s</code></pre>"
-			    lang
-			    label
-			    (if (string= lang "html")
-				" data-editor-type=\"html\""
-			      "")
-			    code)
-		  (format "<pre class=\"src src-%s\"%s>\n%s</pre>" ; <yynt> 添加换行符
-                          lang label code)))))))
+		(format "<pre class=\"src src-%s\"%s>\n%s</pre>" ; <yynt> 添加换行符
+                        lang label code))))))
 
 ;;;; Statistics Cookie
 
