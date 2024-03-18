@@ -590,7 +590,6 @@ Use utf-8 as the default value."
 
 (defcustom t-divs ;<yynt> content 使用 main, postamble 使用 footer
   '((preamble  "div" "preamble")
-    (content   "main" "content")
     (postamble "footer" "postamble"))
   "Alist of the three section elements for HTML export.
 The car of each entry is one of `preamble', `content' or `postamble'.
@@ -601,16 +600,7 @@ Note that changing the default will prevent you from using
 org-info.js for your website."
   :group 'org-export-yyh5
   :version "24.4"
-  :package-version '(Org . "8.0")
-  :type '(list :greedy t
-	       (list :tag "Preamble"
-		     (const :format "" preamble)
-		     (string :tag "element") (string :tag "     id"))
-	       (list :tag "Content"
-		     (const :format "" content)
-		     (string :tag "element") (string :tag "     id"))
-	       (list :tag "Postamble" (const :format "" postamble)
-		     (string :tag "     id") (string :tag "element"))))
+  :package-version '(Org . "8.0"))
 
 (defconst t-checkbox-types
   '((unicode .
@@ -635,7 +625,7 @@ The choices are:
 Note that only the ascii characters implement tri-state
 checkboxes.  The other two use the `off' checkbox for `trans'.")
 
-(defcustom t-checkbox-type 'ascii
+(defcustom t-checkbox-type 'unicode
   "The type of checkboxes to use for HTML export.
 See `t-checkbox-types' for the values used for each
 option."
@@ -656,74 +646,116 @@ See `format-time-string' for more information on its components."
   :type 'string)
 
 ;;;; Template :: Mathjax
-
 (defcustom t-mathjax-options
-  '((path "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML" )
-    (scale "100")
+  '((path "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+    (scale 1.0)
     (align "center")
-    (font "TeX")
-    (linebreaks "false")
-    (autonumber "AMS")
+    (font "mathjax-modern")
+    (overflow "overflow")
+    (tags "ams")
     (indent "0em")
     (multlinewidth "85%")
     (tagindent ".8em")
     (tagside "right"))
   "Options for MathJax setup.
 
-Alist of the following elements.  All values are strings.
+Alist of the following elements.
 
-path          The path to MathJax.
+path          The path to MathJax version 3 or later.
 scale         Scaling with HTML-CSS, MathML and SVG output engines.
 align         How to align display math: left, center, or right.
-font          The font to use with HTML-CSS and SVG output.  As of MathJax 2.5
-              the following values are understood: \"TeX\", \"STIX-Web\",
-              \"Asana-Math\", \"Neo-Euler\", \"Gyre-Pagella\",
-              \"Gyre-Termes\", and \"Latin-Modern\".
+font          The font to use with HTML-CSS and SVG output.  Needs
+              MathJax version 4+.  MathJax 4 provides 11 fonts:
+              \"mathjax-modern\"   Latin-Modern font, default in MathJax 4+
+              \"mathjax-asana\"    Asana-Math font
+              \"mathjax-bonum\"    Gyre Bonum font
+              \"mathjax-dejavu\"   Gyre DejaVu font
+              \"mathjax-pagella\"  Gyre Pagella font
+              \"mathjax-schola\"   Gyre Schola font
+              \"mathjax-termes\"   Gyre Termes font
+              \"mathjax-stix2\"    STIX2 font
+              \"mathjax-fira\"     Fira and Fira-Math fonts
+              \"mathjax-euler\"    Neo Euler font that extends Latin-Modern
+              \"mathjax-tex\"      The original MathJax TeX font
+overflow      How to break displayed equations when too large.  Needs
+              MathJax 4 or newer.  Supported options include
+              \"overflow\", \"scale\", \"scroll\", \"truncate\",
+              \"linebreak\", and \"elide\".
 linebreaks    Let MathJax perform automatic linebreaks.  Valid values
               are \"true\" and \"false\".
-indent        If align is not center, how far from the left/right side?
-              Valid values are \"left\" and \"right\"
+indent        If align is not center, how far from the left/right side?  For
+              example, \"1em\".
 multlinewidth The width of the multline environment.
-autonumber    How to number equations.  Valid values are \"None\",
-              \"all\" and \"AMS Math\".
+tags          How to number equations.  Valid values are \"none\",
+              \"all\" and \"ams\".
 tagindent     The amount tags are indented.
 tagside       Which side to show tags/labels on.  Valid values are
               \"left\" and \"right\"
 
-You can also customize this for each buffer, using something like
+You can also customize this for some buffer, using something like
 
-#+HTML_MATHJAX: align: left indent: 5em tagside: left font: Neo-Euler
+#+HTML_MATHJAX: align: left indent: 5em tagside: left
 
 For further information about MathJax options, see the MathJax documentation:
 
-  https://docs.mathjax.org/"
+  https://docs.mathjax.org/
+
+To maintain compatibility with pre-9.6 Org that used MathJax 2,
+the following conversions take place.
+
+The legacy \"autonumber\" option, with the value \"AMS\",
+\"None\", or \"All\", becomes the \"tags\" option set to the
+value \"ams\", \"none\", or \"all\", respectively.
+
+Any legacy values of the \"scale\" option, specified as
+percentage strings, become converted to unit-interval numbers.
+For example, a legacy scale of \"150\" becomes a scale of 1.5.
+
+The legacy \"linebreaks\" option, with the value \"true\" or
+\"false\", becomes the \"overflow\" option set to the value
+\"linebreak\" or \"overflow\", respectively.
+
+The legacy values of the \"font\" option, namely \"TeX\",
+\"STIX-Web\", \"Asana-Math\", \"Neo-Euler\", \"Gyre-Pagella\",
+\"Gyre-Termes\", \"Latin-Modern\", become converted to the
+corresponding MathJax 4+ font names.
+
+Legacy options and values always take precedence."
   :group 'org-export-yyh5
-  :package-version '(Org . "8.3")
+  :package-version '(Org . "9.6")
   :type '(list :greedy t
 	       (list :tag "path   (the path from where to load MathJax.js)"
 		     (const :format "       " path) (string))
 	       (list :tag "scale  (scaling for the displayed math)"
-		     (const :format "       " scale) (string))
+		     (const :format "   " scale) (float))
 	       (list :tag "align  (alignment of displayed equations)"
 		     (const :format "       " align) (string))
-	       (list :tag "font (used to display math)"
-		     (const :format "            " font)
-		     (choice (const "TeX")
-			     (const "STIX-Web")
-			     (const "Asana-Math")
-			     (const "Neo-Euler")
-			     (const "Gyre-Pagella")
-			     (const "Gyre-Termes")
-			     (const "Latin-Modern")))
-	       (list :tag "linebreaks (automatic line-breaking)"
-		     (const :format "      " linebreaks)
-		     (choice (const "true")
-			     (const "false")))
-	       (list :tag "autonumber (when should equations be numbered)"
-		     (const :format "      " autonumber)
-		     (choice (const "AMS")
-			     (const "None")
-			     (const "All")))
+               (list :tag "font (used to typeset math)"
+		     (const :format "               " font)
+                     (choice (const "mathjax-modern")
+                             (const "mathjax-asana")
+                             (const "mathjax-bonum")
+                             (const "mathjax-dejavu")
+                             (const "mathjax-pagella")
+                             (const "mathjax-schola")
+                             (const "mathjax-termes")
+                             (const "mathjax-stix2")
+                             (const "mathjax-fira")
+                             (const "mathjax-euler")
+                             (const "mathjax-tex")))
+               (list :tag "overflow (how to break displayed math)"
+		     (const :format "         " overflow)
+                     (choice (const "overflow")
+                             (const "scale")
+                             (const "scroll")
+                             (const "truncate")
+                             (const "linebreak")
+                             (const "elide")))
+	       (list :tag "tags (whether equations are numbered and how)"
+		     (const :format "    " tags)
+		     (choice (const "ams")
+			     (const "none")
+			     (const "all")))
 	       (list :tag "indent (indentation with left or right alignment)"
 		     (const :format "       " indent) (string))
 	       (list :tag "multlinewidth (width to use for the multline environment)"
@@ -736,28 +768,39 @@ For further information about MathJax options, see the MathJax documentation:
 			     (const "right")))))
 
 (defcustom t-mathjax-template
-  "<script type=\"text/x-mathjax-config\">
-    MathJax.Hub.Config({
-        displayAlign: \"%ALIGN\",
-        displayIndent: \"%INDENT\",
-
-        \"HTML-CSS\": { scale: %SCALE,
-                        linebreaks: { automatic: \"%LINEBREAKS\" },
-                        webFont: \"%FONT\"
-                       },
-        SVG: {scale: %SCALE,
-              linebreaks: { automatic: \"%LINEBREAKS\" },
-              font: \"%FONT\"},
-        NativeMML: {scale: %SCALE},
-        TeX: { equationNumbers: {autoNumber: \"%AUTONUMBER\"},
-               MultLineWidth: \"%MULTLINEWIDTH\",
-               TagSide: \"%TAGSIDE\",
-               TagIndent: \"%TAGINDENT\"
-             }
-});
+  "<script>
+  window.MathJax = {
+    tex: {
+      ams: {
+        multlineWidth: '%MULTLINEWIDTH'
+      },
+      tags: '%TAGS',
+      tagSide: '%TAGSIDE',
+      tagIndent: '%TAGINDENT'
+    },
+    chtml: {
+      scale: %SCALE,
+      displayAlign: '%ALIGN',
+      displayIndent: '%INDENT'
+    },
+    svg: {
+      scale: %SCALE,
+      displayAlign: '%ALIGN',
+      displayIndent: '%INDENT'
+    },
+    output: {
+      font: '%FONT',
+      displayOverflow: '%OVERFLOW'
+    }
+  };
 </script>
-<script src=\"%PATH\"></script>"
-  "The MathJax template.  See also `t-mathjax-options'."
+
+<script
+  id=\"MathJax-script\"
+  async
+  src=\"%PATH\">
+</script>"
+  "The MathJax template.  See also `org-html-mathjax-options'."
   :group 'org-export-yyh5
   :type 'string)
 
