@@ -71,8 +71,8 @@
     (plain-list . t-plain-list) (item . t-item)
     (statistics-cookie . t-statistics-cookie) ; [%] [/]
     ;; latex
-    (latex-environment . t-latex-environment)
-    (latex-fragment . t-latex-fragment)
+    (latex-environment . t-latex-environment) ; \begin
+    (latex-fragment . t-latex-fragment) ; \(, \[
     ;; link, target
     (link . t-link) (target . t-target)
     (radio-target . t-radio-target)
@@ -92,11 +92,12 @@
 	      (if a (t-export-to-html t s v b)
 		(org-open-file (t-export-to-html nil s v b)))))))
   :options-alist
-  '(
-    (:description "DESCRIPTION" nil nil newline)
+  '((:description "DESCRIPTION" nil nil newline)
     (:keywords "KEYWORDS" nil nil space)
-    (:html-link-home "HTML_LINK_HOME" nil t-link-home)
-    (:html-link-up "HTML_LINK_UP" nil t-link-up)
+    (:html-link-left  "HTML_LINK_LEFT"  nil t-link-left)
+    (:html-link-lname "HTML_LINK_LNAME" nil t-link-lname)
+    (:html-link-right "HTML_LINK_RIGHT" nil t-link-right)
+    (:html-link-rname "HTML_LINK_RNAME" nil t-link-rname)
     (:html-mathjax "HTML_MATHJAX" nil "" space)
     (:html-equation-reference-format
      "HTML_EQUATION_REFERENCE_FORMAT" nil t-equation-reference-format t)
@@ -114,7 +115,7 @@
     (:html-footnote-separator nil nil t-footnote-separator)
     (:html-footnotes-section nil nil t-footnotes-section)
     (:html-format-headline-function nil nil t-format-headline-function)
-    (:html-home/up-format nil nil t-home/up-format)
+    (:html-format-home/up-function nil nil t-format-home/up-function)
     (:html-indent nil nil t-indent)
     (:html-inline-image-rules nil nil t-inline-image-rules)
     (:html-link-org-files-as-html nil nil t-link-org-files-as-html)
@@ -155,10 +156,6 @@
     (:html-new-preamble "HTML_PRE" nil "" newline)
     (:html-new-postamble-func "HTML_SUFFUNC" nil nil)
     (:html-new-postamble "HTML_SUF" nil nil newline)
-    (:html-link-left "HTML_LINK_LEFT" nil t-link-up)
-    (:html-link-lname "HTML_LINK_LNAME" nil "UP")
-    (:html-link-right "HTML_LINK_RIGHT" nil t-link-home)
-    (:html-link-rname "HTML_LINK_RNAME" nil "HOME")
     (:html-link-func "HTML_LINK_FUNC" nil nil)
     (:html-headline-cnt nil nil 0)
     )
@@ -887,29 +884,30 @@ example."
 	  (list (string :tag "Language")
 		(string :tag "Format string"))))
 
-(defcustom t-link-up ""
-  "Where should the \"UP\" link of exported HTML pages lead?"
+(defcustom t-link-left ""
+  "Where should the \"left\" link of exported HTML pages lead?"
   :group 'org-export-yyh5
   :type '(string :tag "File or URL"))
 
-(defcustom t-link-home ""
+(defcustom t-link-lname "UP"
+  "The left link's name"
+  :group 'org-export-yyh5
+  :type '(string))
+
+(defcustom t-link-right ""
   "Where should the \"HOME\" link of exported HTML pages lead?"
   :group 'org-export-yyh5
   :type '(string :tag "File or URL"))
 
-;; <yynt> 修改了默认的格式化字符串，可以添加自定义名字
-(defcustom t-home/up-format
-  "<div id=\"org-div-home-and-up\">
-<a href=\"%s\"> %s </a>
-<a href=\"%s\"> %s </a>
-</div>\n"
-  "Snippet used to insert the HOME and UP links.
-This is a format string, the first %s will receive the UP link,
-the second the HOME link.  If both `t-link-up' and
-`t-link-home' are empty, the entire snippet will be
-ignored."
+(defcustom t-link-rname "HOME"
+  "The right link's name"
   :group 'org-export-yyh5
-  :type 'string)
+  :type '(string))
+
+(defcustom t-format-home/up-function #'t-format-home/up-default-function
+  "function used for home/div formatting"
+  :group 'org-export-yyh5
+  :type '(symbol))
 
 ;;;; Template :: Styles
 
@@ -1512,6 +1510,30 @@ holding export options."
   ;;  Footnotes section.
   ;;  (t-footnote-section info)))
 
+(defun t-format-home/up-default-function (info)
+  "format the home/div element"
+  (let ((link-left  (org-trim (plist-get info :html-link-left)))
+	(link-right (org-trim (plist-get info :html-link-right)))
+	(link-lname (org-trim (plist-get info :html-link-lname)))
+	(link-rname (org-trim (plist-get info :html-link-rname))))
+    (if (and (not (string= link-lname "")) (not (string= link-rname ""))
+	     (not (string= link-left "")) (not (string= link-right "")))
+	(format "
+<nav id=\"org-div-home-and-up\">
+<a href=\"%s\"> %s </a>
+<a href=\"%s\"> %s </a>
+</nav>\n"
+		link-left link-lname link-right link-rname)
+      (cond
+       ((and (not (string= link-lname "")) (not (string= link-left "")))
+	(format "
+<nav id=\"org-div-home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+		link-left link-lname))
+       ((and (not (string= link-rname "")) (not (string= link-right "")))
+	(format "
+<nav id=\"org-div-home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+		link-right link-rname))))))
+
 (defun t-template (contents info)
   "Return complete document string after HTML conversion.
 CONTENTS is the transcoded contents string.  INFO is a plist
@@ -1528,26 +1550,9 @@ holding export options."
    (t--build-mathjax-config info)
    "</head>\n"
    "<body>\n"
-   ;; <yynt> ，为 home/up link 添加更多选项
-   ;; 格式字符串需要采取 %s(Llink) %s(Lname) %s(Rlink) %s(Rname) 的顺序
-   ;; 或是直接通过 HTML_LINK_FUNC 指定返回字符串的函数
-   (if-let ((funstr (plist-get info :html-link-func)))
-       (org-element-normalize-string (funcall (intern funstr) info))
-     (let ((link-up (org-trim (plist-get info :html-link-up)))
-	   (link-home (org-trim (plist-get info :html-link-home)))
-	   (link-left (org-trim (plist-get info :html-link-left)))
-	   (link-right (org-trim (plist-get info :html-link-right)))
-	   (link-lname (org-trim (plist-get info :html-link-lname)))
-	   (link-rname (org-trim (plist-get info :html-link-rname))))
-       (unless (and (string= link-up "") (string= link-home "")
-		    (string= link-left "") (string= link-right ""))
-	 (format (plist-get info :html-home/up-format)
-		 (cl-find-if-not (lambda (x) (string= "" x))
-				 (list link-left link-right link-up link-home))
-		 link-lname
-		 (cl-find-if-not (lambda (x) (string= "" x))
-				 (list link-right link-left link-home link-up))
-		 link-rname))))
+   ;; home and up links
+   (when-let ((fun (plist-get info :html-format-home/up-function)))
+     (funcall fun info))
    ;; Preamble.
    (t--build-pre/postamble 'preamble info)
    ;; Document contents.
