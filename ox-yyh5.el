@@ -103,10 +103,8 @@
 		(org-open-file (t-export-to-html nil s v b)))))))
   :options-alist
   '(
-    (:html-content-class "HTML_CONTENT_CLASS" nil t-content-class)
     (:description "DESCRIPTION" nil nil newline)
     (:keywords "KEYWORDS" nil nil space)
-    (:html-link-use-abs-url nil "html-link-use-abs-url" t-link-use-abs-url)
     (:html-link-home "HTML_LINK_HOME" nil t-link-home)
     (:html-link-up "HTML_LINK_UP" nil t-link-up)
     (:html-mathjax "HTML_MATHJAX" nil "" space)
@@ -116,8 +114,6 @@
     (:html-head "HTML_HEAD" nil t-head newline)
     (:html-head-extra "HTML_HEAD_EXTRA" nil t-head-extra newline)
     (:subtitle "SUBTITLE" nil nil parse)
-    (:html-head-include-default-style
-     nil "html-style" t-head-include-default-style)
     (:html-head-include-scripts nil "html-scripts" t-head-include-scripts)
     (:html-allow-name-attribute-in-anchors
      nil nil t-allow-name-attribute-in-anchors)
@@ -832,15 +828,6 @@ Use utf-8 as the default value."
   :package-version '(Org . "8.0")
   :type 'coding-system)
 
-(defcustom t-content-class "content"
-  "CSS class name to use for the top level content wrapper.
-Can be set with the in-buffer HTML_CONTENT_CLASS property or for
-publishing, with :html-content-class."
-  :group 'org-export-yyh5
-  :version "27.2"
-  :package-version '(Org . "9.5")
-  :type 'string)
-
 (defcustom t-divs ;<yynt> content 使用 main, postamble 使用 footer
   '((preamble  "div" "preamble")
     (content   "main" "content")
@@ -1146,13 +1133,6 @@ example."
   "Where should the \"HOME\" link of exported HTML pages lead?"
   :group 'org-export-yyh5
   :type '(string :tag "File or URL"))
-
-(defcustom t-link-use-abs-url nil
-  "Should we prepend relative links with HTML_LINK_HOME?"
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.1")
-  :type 'boolean)
 
 ;; <yynt> 修改了默认的格式化字符串，可以添加自定义名字
 (defcustom t-home/up-format
@@ -1793,14 +1773,26 @@ communication channel."
   "Return body of document string after HTML conversion.
 CONTENTS is the transcoded contents string.  INFO is a plist
 holding export options."
-  (concat
-   ;; Table of contents.
-   (let ((depth (plist-get info :with-toc)))
-     (when depth (t-toc depth info)))
-   ;; Document contents.
-   contents
-   ;; Footnotes section.
-   (t-footnote-section info)))
+    (with-temp-buffer
+      (insert contents)
+      (goto-char (point-min))
+      (search-forward "</section>")
+      (when-let ((depth (plist-get info :with-toc)))
+	(insert (format "\n%s\n" (t-toc depth info))))
+      (insert "<main>")
+      (goto-char (point-max))
+      (insert "</main>")
+      (insert (or (org-html-footnote-section info) ""))
+      (buffer-string)))
+
+  ;; (concat
+  ;;  Table of contents.
+  ;;  (let ((depth (plist-get info :with-toc)))
+  ;;    (when depth (t-toc depth info)))
+  ;;  Document contents.
+  ;;  contents
+  ;;  Footnotes section.
+  ;;  (t-footnote-section info)))
 
 (defun t-template (contents info)
   "Return complete document string after HTML conversion.
@@ -1841,11 +1833,11 @@ holding export options."
    ;; Preamble.
    (t--build-pre/postamble 'preamble info)
    ;; Document contents.
-   (let ((div (assq 'content (plist-get info :html-divs))))
-     (format "<%s id=\"%s\" class=\"%s\">\n"
-             (nth 1 div)
-             (nth 2 div)
-             (plist-get info :html-content-class)))
+   ;; (let ((div (assq 'content (plist-get info :html-divs))))
+   ;;   (format "<%s id=\"%s\" class=\"%s\">\n"
+   ;;           (nth 1 div)
+   ;;           (nth 2 div)
+   ;;           (plist-get info :html-content-class)))
    ;; Document title.
    (when (plist-get info :with-title)
      (let ((title (and (plist-get info :with-title)
@@ -1853,7 +1845,7 @@ holding export options."
 	   (subtitle (plist-get info :subtitle)))
        (when title
 	 (format
-	  "<header>\n<h1 class=\"title\">%s</h1>\n%s</header>\n"
+	  "<header>\n<h1>%s</h1>\n%s</header>\n"
 	  (org-export-data title info)
 	  (if subtitle
 	      (format
@@ -1861,7 +1853,7 @@ holding export options."
 	       (org-export-data subtitle info))
 	    "")))))
    contents
-   (format "</%s>\n" (nth 1 (assq 'content (plist-get info :html-divs))))
+   ;;(format "</%s>\n" (nth 1 (assq 'content (plist-get info :html-divs))))
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
    ;; Possibly use the Klipse library live code blocks.
@@ -2821,10 +2813,6 @@ INFO is a plist holding contextual information.  See
 	    ;; name.
 	    (let ((home (and (plist-get info :html-link-home)
 			     (org-trim (plist-get info :html-link-home)))))
-	      (when (and home
-			 (plist-get info :html-link-use-abs-url)
-			 (file-name-absolute-p raw-path))
-		(setq raw-path (concat (file-name-as-directory home) raw-path))))
 	    ;; Maybe turn ".org" into ".html".
 	    (setq raw-path (funcall link-org-files-as-html-maybe raw-path info))
 	    ;; Add search option, if any.  A search option can be
@@ -2976,7 +2964,7 @@ INFO is a plist holding contextual information.  See
 	(format "<a href=\"%s\"%s>%s</a>" path attributes path)))
      ;; No path, only description.  Try to do something useful.
      (t
-      (format "<i>%s</i>" desc)))))
+      (format "<i>%s</i>" desc))))))
 
 ;;;; Node Property
 
@@ -3157,7 +3145,7 @@ holding contextual information."
     ;; Before first headline: no container, just return CONTENTS.
     (if (not parent)
 	;; the zeroth section
-	(format "<section id=\"abstract\">%s</section>" (or contents ""))
+	(format "<section id=\"abstract\">\n%s</section>" (or contents ""))
       ;; Get div's class and id references.
       (let* ((class-num (+ (org-export-get-relative-level parent info)
 			   (1- (plist-get info :html-toplevel-hlevel))))
