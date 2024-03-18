@@ -31,6 +31,7 @@
 ;; This library implements a HTML back-end for Org generic exporter.
 ;; Based on ox-html.el, focus on HTML5 standard
 ;; https://html.spec.whatwg.org/multipage/
+;; https://respec.org/docs/
 
 ;;; Code:
 
@@ -42,53 +43,45 @@
 ;;; Define Back-End
 
 (org-export-define-backend 'yyh5
-  '(
+  '(;; see https://orgmode.org/worg/org-syntax.html for details
     ;; top-level structure
     (inner-template . t-inner-template) (template . t-template)
-    ;; basic element
+    ;; marker * / ~ _ = +
     (bold . t-bold) (italic . t-italic) (code . t-code)
     (underline . t-underline) (verbatim . t-verbatim)
+    (strike-through . t-strike-through)
+    ;; basic elements
+    (subscript . t-subscript) (superscript . t-superscript)
+    (line-break . t-line-break) (timestamp . t-timestamp)
+    (entity . t-entity) (export-snippet . t-export-snippet) ; \alpha, #+HTML:
+    (fixed-width . t-fixed-width) (footnote-reference . t-footnote-reference)
+    (horizontal-rule . t-horizontal-rule) ; -----------
     ;; block
     (center-block . t-center-block) (dynamic-block . t-dynamic-block)
     (example-block . t-example-block) (export-block . t-export-block)
     (inline-src-block . t-inline-src-block) (quote-block . t-quote-block)
     (special-block . t-special-block) (src-block . t-src-block)
     (verse-block . t-verse-block)
-    ;; paragraph, headline, section, list
-    (paragraph . t-paragraph) (plain-list . t-plain-list)
-    (plain-text . t-plain-text) (section . t-section)
-    ;; table
-    (table . t-table)
-    (table-cell . t-table-cell)
+    ;; paragraph, headline, section
+    (paragraph . t-paragraph)  (plain-text . t-plain-text)
+    (section . t-section) (headline . t-headline)
+    ;; table, list
+    (table . t-table) (table-cell . t-table-cell)
     (table-row . t-table-row)
-
-    (clock . t-clock)
+    (plain-list . t-plain-list) (item . t-item)
+    (statistics-cookie . t-statistics-cookie) ; [%] [/]
+    ;; clock, drawer, task, planning, property-drawer
     (drawer . t-drawer)
-    (entity . t-entity)
-    (export-snippet . t-export-snippet)
-    (fixed-width . t-fixed-width)
-    (footnote-reference . t-footnote-reference)
-    (headline . t-headline)
-    (horizontal-rule . t-horizontal-rule)
-    (inlinetask . t-inlinetask)
-    (item . t-item)
-    (keyword . t-keyword)
+    (inlinetask . t-inlinetask) (planning . t-planning)
+    (property-drawer . t-property-drawer) (node-property . t-node-property)
+    ;; latex
     (latex-environment . t-latex-environment)
     (latex-fragment . t-latex-fragment)
-    (line-break . t-line-break)
-    (link . t-link)
-    (node-property . t-node-property)
-    (planning . t-planning)
-    (property-drawer . t-property-drawer)
+    ;; link, target
+    (link . t-link) (target . t-target)
     (radio-target . t-radio-target)
-
-    (statistics-cookie . t-statistics-cookie)
-    (strike-through . t-strike-through)
-    (subscript . t-subscript)
-    (superscript . t-superscript)
-    (target . t-target)
-    (timestamp . t-timestamp)
-
+    ;; #+HTML: and #+TOC:
+    (keyword . t-keyword)
     )
   :filters-alist '(
 		   (:filter-parse-tree . t-image-link-filter)
@@ -175,7 +168,8 @@
     (:html-link-rname "HTML_LINK_RNAME" nil "HOME")
     (:html-link-func "HTML_LINK_FUNC" nil nil)
     (:html-headline-cnt nil nil 0)
-    ))
+    )
+  )
 
 
 ;;; Internal Variables
@@ -187,10 +181,10 @@
   "CSS class used for pre/postamble.")
 
 (defconst t-html5-elements
-  '("article" "aside" "audio" "canvas" "details" "figcaption" "div" ;; <yynt> 添加空 div 标签
-    "figure" "footer" "header" "menu" "meter" "nav" "noscript" ;; <yynt> 添加 noscript 标签
+  '("article" "aside" "audio" "canvas" "details" "figcaption" "div"
+    "figure" "footer" "header" "menu" "meter" "nav" "noscript"
     "output" "progress" "section" "summary" "video")
-  "New elements in html5.
+  "elements in html5.
 
 For blocks that should contain headlines, use the HTML_CONTAINER
 property on the headline itself.")
@@ -1971,22 +1965,6 @@ contextual information."
 CONTENTS holds the contents of the block.  INFO is a plist
 holding contextual information."
   (format "<div class=\"org-center\">\n%s</div>" contents))
-
-;;;; Clock
-
-(defun t-clock (clock _contents _info)
-  "Transcode a CLOCK element from Org to HTML.
-CONTENTS is nil.  INFO is a plist used as a communication
-channel."
-  (format "<p>
-<span class=\"timestamp-wrapper\">
-<span class=\"timestamp-kwd\">%s</span> <span class=\"timestamp\">%s</span>%s
-</span>
-</p>"
-	  org-clock-string
-	  (org-timestamp-translate (org-element-property :value clock))
-	  (let ((time (org-element-property :duration clock)))
-	    (and time (format " <span class=\"timestamp\">(%s)</span>" time)))))
 
 ;;;; Code
 
