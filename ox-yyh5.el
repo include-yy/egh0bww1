@@ -132,7 +132,6 @@
     (:html-table-header-tags nil nil t-table-header-tags)
     (:html-table-use-header-tags-for-first-column
      nil nil t-table-use-header-tags-for-first-column)
-    (:html-tag-class-prefix nil nil t-tag-class-prefix)
     (:html-text-markup-alist nil nil t-text-markup-alist)
     (:html-toplevel-hlevel nil nil t-toplevel-hlevel)
     (:html-validation-link nil nil t-validation-link)
@@ -1212,7 +1211,7 @@ INFO is a plist used as a communication channel."
     (definitions
       (format
        (plist-get info :html-footnotes-section)
-       (t--translate "Footnotes" info)
+       "Footnotes"
        (format
 	"\n%s\n"
 	(mapconcat
@@ -1403,22 +1402,22 @@ communication channel."
 		    (and (plist-get info :with-date)
 			 (org-string-nw-p date)
 			 (format "<p class=\"date\">%s: %s</p>\n"
-				 (t--translate "Date" info)
+				 "Date"
 				 date))
 		    (and (plist-get info :with-author)
 			 (org-string-nw-p author)
 			 (format "<p class=\"author\">%s: %s</p>\n"
-				 (t--translate "Author" info)
+				 "Author"
 				 author))
 		    (and (plist-get info :with-email)
 			 (org-string-nw-p email)
 			 (format "<p class=\"email\">%s: %s</p>\n"
-				 (t--translate "Email" info)
+				 "Email"
 				 email))
 		    (and (plist-get info :time-stamp-file)
 			 (format
 			  "<p class=\"date\">%s: %s</p>\n"
-			  (t--translate "Created" info)
+			  "Created"
 			  (format-time-string
 			   (plist-get info :html-metadata-timestamp-format))))
 		    (and (plist-get info :with-creator)
@@ -1534,11 +1533,6 @@ holding export options."
    (t--build-pre/postamble 'postamble info)
    ;; Closing document.
    "</body>\n</html>"))
-
-(defun t--translate (s info)
-  "Translate string S according to specified language.
-INFO is a plist used as a communication channel."
-  (org-export-translate s :html info))
 
 ;;;; Anchor
 
@@ -1724,7 +1718,7 @@ of contents as a string, or nil if it is empty."
 		    (let ((top-level (plist-get info :html-toplevel-hlevel)))
 		      (format "<h%d>%s</h%d>\n"
 			      top-level
-			      (t--translate "Table of Contents" info)
+			      "Table of Contents"
 			      top-level))
 		    toc
 		    (format "</%s>\n" outer-tag))))))))
@@ -1790,12 +1784,12 @@ of listings as a string, or nil if it is empty."
 	      (let ((top-level (plist-get info :html-toplevel-hlevel)))
 		(format "<h%d>%s</h%d>\n"
 			top-level
-			(t--translate "List of Listings" info)
+			"List of Listings"
 			top-level))
 	      "<div id=\"text-list-of-listings\">\n<ul>\n"
 	      (let ((count 0)
 		    (initial-fmt (format "<span class=\"listing-number\">%s</span>"
-					 (t--translate "Listing %d:" info))))
+					 "Listing %d:")))
 		(mapconcat
 		 (lambda (entry)
 		   (let ((label (t--reference entry info t))
@@ -1828,12 +1822,12 @@ of tables as a string, or nil if it is empty."
 	      (let ((top-level (plist-get info :html-toplevel-hlevel)))
 		(format "<h%d>%s</h%d>\n"
 			top-level
-			(t--translate "List of Tables" info)
+			"List of Tables"
 			top-level))
 	      "<div id=\"text-list-of-tables\">\n<ul>\n"
 	      (let ((count 0)
 		    (initial-fmt (format "<span class=\"table-number\">%s</span>"
-					 (t--translate "Table %d:" info))))
+					 "Table %d:")))
 		(mapconcat
 		 (lambda (entry)
 		   (let ((label (t--reference entry info t))
@@ -2592,7 +2586,7 @@ the plist used as a communication channel."
 		    #'t--has-caption-p))
 	       (if (not (org-string-nw-p raw)) raw
 		 (concat "<span class=\"figure-number\">"
-			 (format (t--translate "Figure %d:" info)
+			 (format "Figure %d:"
 				 (org-export-get-ordinal
 				  (org-element-map paragraph 'link
 				    #'identity info t)
@@ -2753,7 +2747,7 @@ contextual information."
 			   (format
 			    "<span class=\"listing-number\">%s </span>"
 			    (format
-			     (t--translate "Listing %d:" info)
+			     "Listing %d:"
 			     (org-export-get-ordinal
 			      src-block info nil #'t--has-caption-p)))))
 		      (format "<label class=\"org-src-name\">%s%s</label>"
@@ -2960,7 +2954,7 @@ contextual information."
 			  "<caption class=\"t-bottom\">%s</caption>")
 			(concat
 			 "<span class=\"table-number\">"
-			 (format (t--translate "Table %d:" info) number)
+			 (format "Table %d:" number)
 			 "</span> " (org-export-data caption info))))
 	      (funcall table-column-specs table info)
 	      contents))))
