@@ -77,12 +77,9 @@
     (link . t-link) (target . t-target)
     (radio-target . t-radio-target)
     ;; #+HTML: and #+TOC:
-    (keyword . t-keyword)
-    )
-  :filters-alist '(
-		   (:filter-parse-tree . t-image-link-filter)
-		   (:filter-final-output . t-final-function)
-		   )
+    (keyword . t-keyword))
+  :filters-alist '((:filter-parse-tree . t-image-link-filter)
+		   (:filter-final-output . t-final-function))
   :menu-entry
   '(?i "Export to yy's html5"
        ((?H "As HTML buffer" t-export-as-html)
@@ -138,7 +135,6 @@
     (:html-validation-link nil nil t-validation-link)
     (:html-viewport nil nil t-viewport)
     (:html-inline-images nil nil t-inline-images)
-    (:html-table-attributes nil nil t-table-default-attributes)
     (:html-table-row-open-tag nil nil t-table-row-open-tag)
     (:html-table-row-close-tag nil nil t-table-row-close-tag)
     (:html-wrap-src-lines nil nil t-wrap-src-lines)
@@ -148,9 +144,7 @@
     ;; Retrieve LaTeX header for fragments.
     (:latex-header "LATEX_HEADER" nil nil newline)
     ;;; <yynt> options added by include-yy
-    (:html-headline-cnt nil nil 0)
-    )
-  )
+    (:html-headline-cnt nil nil 0)))
 
 
 ;;; Internal Variables
@@ -212,29 +206,19 @@ a formatting string to wrap fontified text with.
 
 If no association can be found for a given markup, text will be
 returned as-is."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type '(alist :key-type (symbol :tag "Markup type")
-		:value-type (string :tag "Format string"))
-  :options '(bold code italic strike-through underline verbatim))
+  :group 'org-export-yyh5)
 
 (defcustom t-indent nil
   "Non-nil means to indent the generated HTML.
 Warning: non-nil may break indentation of source code blocks."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'boolean)
 
 ;;;; Footnotes
 
 (defcustom t-footnotes-section "<div id=\"footnotes\">
 <h2 class=\"footnotes\">%s: </h2>
-<div id=\"text-footnotes\">
-%s
-</div>
-</div>"
+<div id=\"text-footnotes\">\n%s\n</div>\n</div>"
   "Format for the footnotes section.
 Should contain a two instances of %s.  The first will be replaced with the
 language-specific word for \"Footnotes\", the second one will be replaced
@@ -273,8 +257,6 @@ document title."
 By default, when appropriate, anchors are formatted with \"id\"
 but without \"name\" attribute."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'boolean)
 
 (defcustom t-prefer-user-labels t
@@ -291,7 +273,6 @@ real name of the target to create the ID attribute.
 Independently of this variable, however, CUSTOM_ID are always
 used as a reference."
   :group 'org-export-yyh5
-  :package-version '(Org . "9.4")
   :type 'boolean
   :safe #'booleanp)
 
@@ -311,7 +292,6 @@ Most common values are:
   \\eqref{%s}    Wrap the equation in parentheses
   \\ref{%s}      Do not wrap the equation in parentheses"
   :group 'org-export-yyh5
-  :package-version '(Org . "9.4")
   :type 'string
   :safe #'stringp)
 
@@ -332,14 +312,7 @@ e.g. \"tex:mathjax\".  Allowed values are:
                 LaTeX fragments to HTML.
   SYMBOL        Any symbol defined in `org-preview-latex-process-alist',
                 e.g., `dvipng'."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type '(choice
-	  (const :tag "Do not process math in any way" nil)
-	  (const :tag "Leave math verbatim" verbatim)
-	  (const :tag "Use MathJax to display math" mathjax)
-	  (symbol :tag "Convert to image to display math" :value dvipng)))
+  :group 'org-export-yyh5)
 
 ;;;; Links :: Generic
 
@@ -362,8 +335,6 @@ When nil, the links still point to the plain \".org\" file."
 This is done using an <img> tag.  When nil, an anchor with href is used to
 link to the image."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.1")
   :type 'boolean)
 
 (defcustom t-inline-image-rules
@@ -374,10 +345,7 @@ link to the image."
 A rule consists in an association whose key is the type of link
 to consider, and value is a regexp that will be matched against
 link's path."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.5")
-  :type '(alist :key-type (string :tag "Type")
-		:value-type (regexp :tag "Path")))
+  :group 'org-export-yyh5)
 
 ;;;; Plain Text
 
@@ -396,16 +364,7 @@ to export the CSS attribute values inline in the HTML or nil to
 export plain text.  We use as default `inline-css', in order to
 make the resulting HTML self-containing.
 
-However, this will fail when using Emacs in batch mode for export, because
-then no rich font definitions are in place.  It will also not be good if
-people with different Emacs setup contribute HTML files to a website,
-because the fonts will represent the individual setups.  In these cases,
-it is much better to let Org/Htmlize assign classes only, and to use
-a style file to define the look of these classes.
-To get a start for your css file, start Emacs session and make sure that
-all the faces you are interested in are defined, for example by loading files
-in all modes you want.  Then, use the command
-`\\[t-htmlize-generate-css]' to extract class definitions."
+See `org-html-htmlize-output-type' for more information."
   :group 'org-export-yyh5
   :type '(choice (const css) (const inline-css) (const nil)))
 
@@ -419,24 +378,10 @@ in all modes you want.  Then, use the command
 In this case, add line number in attribute \"data-ox-html-linenr\" when line
 numbers are enabled."
   :group 'org-export-yyh5
-  :package-version '(Org . "9.3")
   :type 'boolean
   :safe #'booleanp)
 
 ;;;; Table
-
-(defcustom t-table-default-attributes
-  '(:border "2" :cellspacing "0" :cellpadding "6" :rules "groups" :frame "hsides")
-  "Default attributes and values which will be used in table tags.
-This is a plist where attributes are symbols, starting with
-colons, and values are strings.
-
-When exporting to HTML5, these values will be disregarded."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
-  :type '(plist :key-type (symbol :tag "Property")
-		:value-type (string :tag "Value")))
 
 (defcustom t-table-header-tags '("<th scope=\"%s\"%s>" . "</th>")
   "The opening and ending tags for table header fields.
@@ -533,23 +478,16 @@ Otherwise, place it near the end."
   "Coding system for HTML export.
 Use utf-8 as the default value."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'coding-system)
 
-(defcustom t-divs ;<yynt> content 使用 main, postamble 使用 footer
+(defcustom t-divs
   '((preamble  "div" "preamble")
     (postamble "footer" "postamble"))
-  "Alist of the three section elements for HTML export.
-The car of each entry is one of `preamble', `content' or `postamble'.
+  "Alist of the two section elements for HTML export.
+The car of each entry is one of `preamble' or `postamble'.
 The cdrs of each entry are the ELEMENT_TYPE and ID for each
-section of the exported document.
-
-Note that changing the default will prevent you from using
-org-info.js for your website."
-  :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0"))
+section of the exported document."
+  :group 'org-export-yyh5)
 
 (defconst t-checkbox-types
   '((unicode .
@@ -579,8 +517,6 @@ checkboxes.  The other two use the `off' checkbox for `trans'.")
 See `t-checkbox-types' for the values used for each
 option."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type '(choice
 	  (const :tag "ASCII characters" ascii)
 	  (const :tag "Unicode characters" unicode)
@@ -590,8 +526,6 @@ option."
   "Format used for timestamps in preamble, postamble and metadata.
 See `format-time-string' for more information on its components."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'string)
 
 ;;;; Template :: Mathjax
@@ -608,7 +542,7 @@ See `format-time-string' for more information on its components."
     (tagside "right"))
   "Options for MathJax setup.
 
-See org-html-mathjax-options for details"
+See `org-html-mathjax-options' for details"
   :group 'org-export-yyh5
   :package-version '(Org . "9.6"))
 
@@ -680,7 +614,6 @@ like that: \"%%\"."
   "<a href=\"https://validator.w3.org/check?uri=referer\">Validate</a>"
   "Link to HTML validation service."
   :group 'org-export-yyh5
-  :package-version '(Org . "9.4")
   :type 'string)
 
 (defcustom t-creator-string
@@ -690,8 +623,6 @@ like that: \"%%\"."
   "Information about the creator of the HTML document.
 This option can also be set on with the CREATOR keyword."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type '(string :tag "Creator string"))
 
 ;;;; Template :: Preamble
@@ -781,7 +712,6 @@ to `t--build-meta-entry'.  Any nil items are ignored.
 Also accept a function which gives such a list when called with a
 single argument (INFO, a communication plist)."
   :group 'org-export-yyh5
-  :package-version '(Org . "9.5")
   :type '(choice
 	  (repeat
 	   (list (string :tag "Meta label")
@@ -795,41 +725,13 @@ The actual style is defined in `t-style-default' and
 should not be modified.  Use `t-head' to use your own
 style information."
   :group 'org-export-yyhtml
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'boolean)
 
 (defcustom t-head ""
   "Org-wide head definitions for exported HTML files.
 
-This variable can contain the full HTML structure to provide a
-style, including the surrounding HTML tags.  You can consider
-including definitions for the following classes: title, todo,
-done, timestamp, timestamp-kwd, tag, target.
-
-For example, a valid value would be:
-
-   <style>
-      p { font-weight: normal; color: gray; }
-      h1 { color: black; }
-      .title { text-align: center; }
-      .todo, .timestamp-kwd { color: red; }
-      .done { color: green; }
-   </style>
-
-If you want to refer to an external style, use something like
-
-   <link rel=\"stylesheet\" type=\"text/css\" href=\"mystyles.css\" />
-
-As the value of this option simply gets inserted into the HTML
-<head> header, you can use it to add any arbitrary text to the
-header.
-
-You can set this on a per-file basis using #+HTML_HEAD:,
-or for publication projects using the :html-head property."
+See `org-html-head' for more information."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'string)
 ;;;###autoload
 (put 't-head 'safe-local-variable 'stringp)
@@ -840,8 +742,6 @@ or for publication projects using the :html-head property."
 You can set this on a per-file basis using #+HTML_HEAD_EXTRA:,
 or for publication projects using the :html-head-extra property."
   :group 'org-export-yyh5
-  :version "24.4"
-  :package-version '(Org . "8.0")
   :type 'string)
 ;;;###autoload
 (put 't-head-extra 'safe-local-variable 'stringp)
@@ -855,44 +755,10 @@ or for publication projects using the :html-head-extra property."
 			(user-scalable ""))
   "Viewport options for mobile-optimized sites.
 
-The following values are recognized
-
-width          Size of the viewport.
-initial-scale  Zoom level when the page is first loaded.
-minimum-scale  Minimum allowed zoom level.
-maximum-scale  Maximum allowed zoom level.
-user-scalable  Whether zoom can be changed.
-
-The viewport meta tag is inserted if this variable is non-nil.
-
+See `org-html-viewport' for more infomation.
 See the following site for a reference:
 https://developer.mozilla.org/en-US/docs/Mozilla/Mobile/Viewport_meta_tag"
-  :group 'org-export-yyh5
-  :version "26.1"
-  :package-version '(Org . "8.3")
-  :type '(choice (const :tag "Disable" nil)
-		 (list :tag "Enable"
-		       (list :tag "Width of viewport"
-			     (const :format "             " width)
-			     (choice (const :tag "unset" "")
-				     (string)))
-		       (list :tag "Initial scale"
-			     (const :format "             " initial-scale)
-			     (choice (const :tag "unset" "")
-				     (string)))
-		       (list :tag "Minimum scale/zoom"
-			     (const :format "             " minimum-scale)
-			     (choice (const :tag "unset" "")
-				     (string)))
-		       (list :tag "Maximum scale/zoom"
-			     (const :format "             " maximum-scale)
-			     (choice (const :tag "unset" "")
-				     (string)))
-		       (list :tag "User scalable/zoomable"
-			     (const :format "             " user-scalable)
-			     (choice (const :tag "unset" "")
-				     (const "true")
-				     (const "false"))))))
+  :group 'org-export-yyh5)
 
 ;;; Internal Functions
 
@@ -1081,11 +947,6 @@ produce code that uses these same face definitions."
   "Build a string by concatenating N times STRING."
   (let (out) (dotimes (_ n out) (setq out (concat string out)))))
 
-(defun t-fix-class-name (kwd)	; audit callers of this function
-  "Turn todo keyword KWD into a valid class name.
-Replaces invalid characters with \"_\"."
-  (replace-regexp-in-string "[^a-zA-Z0-9_]" "_" kwd nil t))
-
 (defun t-footnote-section (info)
   "Format the footnote section.
 INFO is a plist used as a communication channel."
@@ -1201,7 +1062,6 @@ INFO is a plist used as a communication channel."
 					viewport-options ", "))))
 
      (format "<title>%s</title>\n" title)
-
      (mapconcat
       (lambda (args) (apply #'t--build-meta-entry args))
       (delq nil (if (functionp t-meta-tags)
@@ -1217,13 +1077,7 @@ INFO is a plist used as a communication channel."
     (when (plist-get info :html-head-include-default-style)
       (org-element-normalize-string t-style-default))
     (org-element-normalize-string (plist-get info :html-head))
-    (org-element-normalize-string (plist-get info :html-head-extra))
-    (when (and (plist-get info :html-htmlized-css-url)
-	       (eq t-htmlize-output-type 'css))
-      (t-close-tag "link"
-		   (format "rel=\"stylesheet\" href=\"%s\" type=\"text/css\""
-			   (plist-get info :html-htmlized-css-url))
-		   info)))))
+    (org-element-normalize-string (plist-get info :html-head-extra)))))
 
 (defun t--build-mathjax-config (info)
   "Insert the user setup into the mathjax template.
@@ -1333,7 +1187,9 @@ communication channel."
 (defun t-inner-template (contents info)
   "Return body of document string after HTML conversion.
 CONTENTS is the transcoded contents string.  INFO is a plist
-holding export options."
+holding export options.
+
+See `org-html-inner-template' for more information"
     (with-temp-buffer
       (insert contents)
       (goto-char (point-min))
@@ -1346,15 +1202,6 @@ holding export options."
       (insert (or (t-footnote-section info) ""))
       (buffer-string)))
 
-  ;; (concat
-  ;;  Table of contents.
-  ;;  (let ((depth (plist-get info :with-toc)))
-  ;;    (when depth (t-toc depth info)))
-  ;;  Document contents.
-  ;;  contents
-  ;;  Footnotes section.
-  ;;  (t-footnote-section info)))
-
 (defun t-format-home/up-default-function (info)
   "format the home/div element"
   (let ((link-left  (org-trim (plist-get info :html-link-left)))
@@ -1363,20 +1210,14 @@ holding export options."
 	(link-rname (org-trim (plist-get info :html-link-rname))))
     (if (and (not (string= link-lname "")) (not (string= link-rname ""))
 	     (not (string= link-left "")) (not (string= link-right "")))
-	(format "
-<nav id=\"home-and-up\">
-<a href=\"%s\"> %s </a>
-<a href=\"%s\"> %s </a>
-</nav>\n"
+	(format "<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n<a href=\"%s\"> %s </a></nav>\n"
 		link-left link-lname link-right link-rname)
       (cond
        ((and (not (string= link-lname "")) (not (string= link-left "")))
-	(format "
-<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+	(format "<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>\n"
 		link-left link-lname))
        ((and (not (string= link-rname "")) (not (string= link-right "")))
-	(format "
-<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+	(format "<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>\n"
 		link-right link-rname))))))
 
 (defun t-template (contents info)
@@ -2885,32 +2726,7 @@ contextual information."
     (&optional async subtreep visible-only body-only ext-plist)
   "Export current buffer to an HTML buffer.
 
-If narrowing is active in the current buffer, only export its
-narrowed part.
-
-If a region is active, export that region.
-
-A non-nil optional argument ASYNC means the process should happen
-asynchronously.  The resulting buffer should be accessible
-through the `org-export-stack' interface.
-
-When optional argument SUBTREEP is non-nil, export the sub-tree
-at point, extracting information from the headline properties
-first.
-
-When optional argument VISIBLE-ONLY is non-nil, don't export
-contents of hidden elements.
-
-When optional argument BODY-ONLY is non-nil, only write code
-between \"<body>\" and \"</body>\" tags.
-
-EXT-PLIST, when provided, is a property list with external
-parameters overriding Org default settings, but still inferior to
-file-local settings.
-
-Export is done in a buffer named \"*Org HTML Export*\", which
-will be displayed when `org-export-show-temporary-export-buffer'
-is non-nil."
+See `org-html-export-as-html' for more information."
   (interactive)
   (org-export-to-buffer 'yyh5 "*Org HTML Export*"
     async subtreep visible-only body-only ext-plist
@@ -2930,30 +2746,7 @@ to convert it."
     (&optional async subtreep visible-only body-only ext-plist)
   "Export current buffer to a HTML file.
 
-If narrowing is active in the current buffer, only export its
-narrowed part.
-
-If a region is active, export that region.
-
-A non-nil optional argument ASYNC means the process should happen
-asynchronously.  The resulting file should be accessible through
-the `org-export-stack' interface.
-
-When optional argument SUBTREEP is non-nil, export the sub-tree
-at point, extracting information from the headline properties
-first.
-
-When optional argument VISIBLE-ONLY is non-nil, don't export
-contents of hidden elements.
-
-When optional argument BODY-ONLY is non-nil, only write code
-between \"<body>\" and \"</body>\" tags.
-
-EXT-PLIST, when provided, is a property list with external
-parameters overriding Org default settings, but still inferior to
-file-local settings.
-
-Return output file's name."
+See `org-html-export-to-html' for more information."
   (interactive)
   (let* ((extension (concat
 		     (when (> (length t-extension) 0) ".")
