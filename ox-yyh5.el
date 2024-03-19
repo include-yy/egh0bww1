@@ -135,7 +135,6 @@
      nil nil t-table-use-header-tags-for-first-column)
     (:html-tag-class-prefix nil nil t-tag-class-prefix)
     (:html-text-markup-alist nil nil t-text-markup-alist)
-    (:html-todo-kwd-class-prefix nil nil t-todo-kwd-class-prefix)
     (:html-toplevel-hlevel nil nil t-toplevel-hlevel)
     (:html-validation-link nil nil t-validation-link)
     (:html-viewport nil nil t-viewport)
@@ -143,7 +142,6 @@
     (:html-table-attributes nil nil t-table-default-attributes)
     (:html-table-row-open-tag nil nil t-table-row-open-tag)
     (:html-table-row-close-tag nil nil t-table-row-close-tag)
-    (:html-xml-declaration nil nil t-xml-declaration)
     (:html-wrap-src-lines nil nil t-wrap-src-lines)
     ;; Redefine regular options.
     (:creator "CREATOR" nil t-creator-string)
@@ -151,12 +149,6 @@
     ;; Retrieve LaTeX header for fragments.
     (:latex-header "LATEX_HEADER" nil nil newline)
     ;;; <yynt> options added by include-yy
-    (:html-head-func "HTML_HEAD_FUNC" nil nil)
-    (:html-new-preamble-func "HTML_PREFUNC" nil nil)
-    (:html-new-preamble "HTML_PRE" nil "" newline)
-    (:html-new-postamble-func "HTML_SUFFUNC" nil nil)
-    (:html-new-postamble "HTML_SUF" nil nil newline)
-    (:html-link-func "HTML_LINK_FUNC" nil nil)
     (:html-headline-cnt nil nil 0)
     )
   )
@@ -301,7 +293,7 @@ but without \"name\" attribute."
   :type 'boolean
   :safe #'booleanp)
 
-(defcustom t-prefer-user-labels t ; <yynt> 使用用户标记
+(defcustom t-prefer-user-labels t
   "When non-nil use user-defined names and ID over internal ones.
 
 By default, Org generates its own internal ID values during HTML
@@ -546,39 +538,12 @@ Otherwise, place it near the end."
   :group 'org-export-yyh5
   :type 'boolean)
 
-;;;; Tags
-
-(defcustom t-tag-class-prefix ""
-  "Prefix to class names for TODO keywords.
-Each tag gets a class given by the tag itself, with this prefix.
-The default prefix is empty because it is nice to just use the keyword
-as a class name.  But if you get into conflicts with other, existing
-CSS classes, then this prefix can be very useful."
-  :group 'org-export-yyh5
-  :type 'string)
-
 ;;;; Template :: Generic
 
 (defcustom t-extension "html"
   "The extension for exported HTML files."
   :group 'org-export-yyh5
   :type 'string)
-
-(defcustom t-xml-declaration
-  '(("html" . "<?xml version=\"1.0\" encoding=\"%s\"?>")
-    ("php" . "<?php echo \"<?xml version=\\\"1.0\\\" encoding=\\\"%s\\\" ?>\"; ?>"))
-  "The extension for exported HTML files.
-%s will be replaced with the charset of the exported file.
-This may be a string, or an alist with export extensions
-and corresponding declarations.
-
-This declaration only applies when exporting to XHTML."
-  :group 'org-export-yyh5
-  :type '(choice
-	  (string :tag "Single declaration")
-	  (repeat :tag "Dependent on extension"
-		  (cons (string :tag "Extension")
-			(string :tag "Declaration")))))
 
 (defcustom t-coding-system 'utf-8
   "Coding system for HTML export.
@@ -1021,10 +986,10 @@ or for publication projects using the :html-head-extra property."
 ;;;; Template :: Viewport
 
 (defcustom t-viewport '((width "device-width")
-			       (initial-scale "1")
-			       (minimum-scale "")
-			       (maximum-scale "")
-			       (user-scalable ""))
+			(initial-scale "1")
+			(minimum-scale "")
+			(maximum-scale "")
+			(user-scalable ""))
   "Viewport options for mobile-optimized sites.
 
 The following values are recognized
@@ -1065,18 +1030,6 @@ https://developer.mozilla.org/en-US/docs/Mozilla/Mobile/Viewport_meta_tag"
 			     (choice (const :tag "unset" "")
 				     (const "true")
 				     (const "false"))))))
-
-;;;; Todos
-
-(defcustom t-todo-kwd-class-prefix ""
-  "Prefix to class names for TODO keywords.
-Each TODO keyword gets a class given by the keyword itself, with this prefix.
-The default prefix is empty because it is nice to just use the keyword
-as a class name.  But if you get into conflicts with other, existing
-CSS classes, then this prefix can be very useful."
-  :group 'org-export-yyh5
-  :type 'string)
-
 
 ;;; Internal Functions
 
@@ -1129,9 +1082,8 @@ targets and targets."
 	   (not user-label))
       nil)
      (t
-      (t-get-reference datum info))))) ; <yynt> 架空 org-export-get-reference
+      (t-get-reference datum info))))) ; 架空 org-export-get-reference
 
-;; <yynt> 魔改的 org-export-get-reference，处理标题 id
 (defun t-get-reference (datum info)
   (let ((cache (plist-get info :internal-references)))
     (or (car (rassq datum cache))
@@ -1155,6 +1107,7 @@ targets and targets."
 	  (push (cons reference-string datum) cache)
 	  (plist-put info :internal-references cache)
 	  reference-string))))
+
 (defun t-format-reference (new)
   (format "org%s" new))
 
@@ -1164,7 +1117,6 @@ INFO is a plist used as a communication channel.  When optional
 arguments CAPTION and LABEL are given, use them for caption and
 \"id\" attribute."
   (format "\n<figure%s>\n%s%s</figure>"
-	  ;; ID. <yynt> 不使用 id
 	  (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
 	  ;; Contents.
 	  contents
@@ -1399,15 +1351,8 @@ INFO is a plist used as a communication channel."
 INFO is a plist used as a communication channel."
   (org-element-normalize-string
    (concat
-    ;; (org-element-normalize-string (plist-get info :html-head))
-    ;; (org-element-normalize-string (plist-get info :html-head-extra))
-    ;; <yynt> 添加了可以添加额外内容的函数 HTML_HEAD_FUNC，它会覆盖 HTML_HEAD 和 HTML_HEAD_EXTRA
-    (org-element-normalize-string
-     (if-let ((fun (plist-get info :html-head-func)))
-	 (funcall (intern fun) info)
-       (concat (org-element-normalize-string (plist-get info :html-head))
-	       (org-element-normalize-string (plist-get info :html-head-extra)))))
-
+    (org-element-normalize-string (plist-get info :html-head))
+    (org-element-normalize-string (plist-get info :html-head-extra))
     (when (and (plist-get info :html-htmlized-css-url)
 	       (eq t-htmlize-output-type 'css))
       (t-close-tag "link"
@@ -1502,22 +1447,14 @@ communication channel."
 			 (format "<p class=\"validation\">%s</p>\n"
 				 validation-link)))))
 		(t
-		 ;; <yynt> 添加了对扩展形式 preamble 和 postamle 的处理
-		 (let ((ways (if (eq type 'preamble)
-				 '(:html-new-preamble-func :html-new-preamble)
-			       '(:html-new-postamble-func :html-new-postamble))))
-		   (if-let ((symstr (plist-get info (car ways))))
-		       (format-spec (funcall (intern symstr) info) spec)
-		     (if-let ((str (plist-get info (cadr ways))))
-			   (format-spec str spec)
-		       (let ((formats (plist-get info (if (eq type 'preamble)
-							  :html-preamble-format
-							:html-postamble-format)))
-			     (language (plist-get info :language)))
-			 (format-spec
-			  (cadr (or (assoc-string language formats t)
-				    (assoc-string "en" formats t)))
-			  spec))))))))))
+		 (let ((formats (plist-get info (if (eq type 'preamble)
+						    :html-preamble-format
+						  :html-postamble-format)))
+		       (language (plist-get info :language)))
+		   (format-spec
+		    (cadr (or (assoc-string language formats t)
+			      (assoc-string "en" formats t)))
+		    spec)))))))
 	(let ((div (assq type (plist-get info :html-divs))))
 	  (when (org-string-nw-p section-contents)
 	    (concat
@@ -1541,7 +1478,7 @@ holding export options."
       (insert "<main>")
       (goto-char (point-max))
       (insert "</main>")
-      (insert (or (org-html-footnote-section info) ""))
+      (insert (or (t-footnote-section info) ""))
       (buffer-string)))
 
   ;; (concat
@@ -1598,13 +1535,6 @@ holding export options."
      (funcall fun info))
    ;; Preamble.
    (t--build-pre/postamble 'preamble info)
-   ;; Document contents.
-   ;; (let ((div (assq 'content (plist-get info :html-divs))))
-   ;;   (format "<%s id=\"%s\" class=\"%s\">\n"
-   ;;           (nth 1 div)
-   ;;           (nth 2 div)
-   ;;           (plist-get info :html-content-class)))
-   ;; Document title.
    (when (plist-get info :with-title)
      (let ((title (and (plist-get info :with-title)
 		       (plist-get info :title)))
@@ -1619,7 +1549,6 @@ holding export options."
 	       (org-export-data subtitle info))
 	    "")))))
    contents
-   ;;(format "</%s>\n" (nth 1 (assq 'content (plist-get info :html-divs))))
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
    ;; Closing document.
@@ -1668,9 +1597,7 @@ INFO is a plist containing export options."
     (format "<span class=\"tag\">%s</span>"
 	    (mapconcat
 	     (lambda (tag)
-	       (format "<span class=\"%s\">%s</span>"
-		       (concat (plist-get info :html-tag-class-prefix)
-			       (t-fix-class-name tag))
+	       (format "<span>%s</span>"
 		       tag))
 	     tags "&#xa0;"))))
 
