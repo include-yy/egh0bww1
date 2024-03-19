@@ -106,6 +106,8 @@
     (:html-head "HTML_HEAD" nil t-head newline)
     (:html-head-extra "HTML_HEAD_EXTRA" nil t-head-extra newline)
     (:subtitle "SUBTITLE" nil nil parse)
+    (:html-head-include-default-style
+     nil "html-style" t-head-include-default-style)
     (:html-allow-name-attribute-in-anchors
      nil nil t-allow-name-attribute-in-anchors)
     (:html-divs nil nil t-divs)
@@ -124,7 +126,6 @@
     (:html-postamble-format nil nil t-postamble-format)
     (:html-preamble-format nil nil t-preamble-format)
     (:html-prefer-user-labels nil nil t-prefer-user-labels)
-    (:html-self-link-headlines nil nil t-self-link-headlines)
     (:html-table-align-individual-fields
      nil nil t-table-align-individual-fields)
     (:html-table-caption-above nil nil t-table-caption-above)
@@ -176,6 +177,16 @@ property on the headline itself.")
     ("\\.\\.\\." . "&#x2026;"))		; hellip
   "Regular expressions for special string conversion.")
 
+(defcustom t-style-default
+  "<style>.self-link:hover{opacity:1;text-decoration:none;background-color:transparent}.header-wrapper{display:flex;align-items:baseline}:is(h2,h3,h4,h5,h6):not(#toc>h2,#abstract>h2){position:relative;left:-.5em}:is(h2,h3,h4,h5,h6):not(#toc>h2)+a.self-link{color:inherit;order:-1;position:relative;left:-1.1em;font-size:1rem;opacity:.5}:is(h2,h3,h4,h5,h6)+a.self-link::before{content:\"§\";text-decoration:none;color:#005a9c;color:var(--heading-text)}:is(h2)+a.self-link{top:-.2em}:is(h3)+a.self-link{top:-.1em}:is(h4,h5,h6)+a.self-link::before{color:#000}</style>"
+  "The default style specification for exported HTML files.
+You can use `t-head' and `t-head-extra' to add to
+this style.  If you don't want to include this default style,
+customize `t-head-include-default-style'.
+
+See default.css in dev directory."
+  :group 'org-export-yyh5
+  :type 'string)
 
 ;;; User Configuration Variables
 
@@ -265,13 +276,6 @@ but without \"name\" attribute."
   :version "24.4"
   :package-version '(Org . "8.0")
   :type 'boolean)
-
-(defcustom t-self-link-headlines nil
-  "When non-nil, the headlines contain a hyperlink to themselves."
-  :group 'org-export-yyh5
-  :package-version '(Org . "9.3")
-  :type 'boolean
-  :safe #'booleanp)
 
 (defcustom t-prefer-user-labels t
   "When non-nil use user-defined names and ID over internal ones.
@@ -916,6 +920,16 @@ single argument (INFO, a communication plist)."
 		 (string :tag "Content value")))
 	  function))
 
+(defcustom t-head-include-default-style t
+  "Non-nil means include the default style in exported HTML files.
+The actual style is defined in `t-style-default' and
+should not be modified.  Use `t-head' to use your own
+style information."
+  :group 'org-export-yyhtml
+  :version "24.4"
+  :package-version '(Org . "8.0")
+  :type 'boolean)
+
 (defcustom t-head ""
   "Org-wide head definitions for exported HTML files.
 
@@ -1331,6 +1345,8 @@ INFO is a plist used as a communication channel."
 INFO is a plist used as a communication channel."
   (org-element-normalize-string
    (concat
+    (when (plist-get info :html-head-include-default-style)
+      (org-element-normalize-string t-style-default))
     (org-element-normalize-string (plist-get info :html-head))
     (org-element-normalize-string (plist-get info :html-head-extra))
     (when (and (plist-get info :html-htmlized-css-url)
@@ -1952,11 +1968,7 @@ holding contextual information."
                      (1- (plist-get info :html-toplevel-hlevel))))
            (text (org-export-data (org-element-property :title headline) info))
            (contents (or contents ""))
-	   (id (t--reference headline info))
-	   (formatted-text
-	    (if (plist-get info :html-self-link-headlines)
-		(format "<a href=\"#%s\">%s</a>" id text)
-	      text)))
+	   (id (t--reference headline info)))
       (if (org-export-low-level-p headline info)
           ;; This is a deep sub-tree: export it as a list item.
           (let* ((html-type (if numberedp "ol" "ul")))
@@ -1967,7 +1979,7 @@ holding contextual information."
 	     (t-format-list-item
 	      contents (if numberedp 'ordered 'unordered)
 	      nil info nil
-	      (concat (t--anchor id nil nil info) formatted-text)) "\n"
+	      (concat (t--anchor id nil nil info) text)) "\n"
 	     (and (org-export-last-sibling-p headline info)
 		  (format "</%s>\n" html-type))))
 	;; Standard headline.  Export it as a section.
@@ -1996,7 +2008,7 @@ holding contextual information."
                                 (format
                                  "<span class=\"secno\">%s</span> "
                                  (mapconcat #'number-to-string numbers ".")))
-                           formatted-text)
+                           text)
                           level
 			  id
 			  (concat (mapconcat #'number-to-string numbers ".") "."))
