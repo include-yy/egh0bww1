@@ -1509,7 +1509,20 @@ holding export options."
    (t--build-head info)
    (t--build-mathjax-config info)
    "</head>\n"
-   "<body>\n"
+   "<body class=\"toc-inline\">\n"
+   ;; generate sidebar
+   (when (plist-get info :with-toc)
+     "\
+<p id=\"toc-nav\">
+<a id=\"toc-jump\" href=\"#toc\">
+<span aria-hidden=\"true\">↑</span>
+<span>Jump to Table of Contents</span>
+</a>
+<a id=\"toc-toggle\" href=\"#toc\">
+<span aria-hidden=\"true\">→</span>
+<span>Pop Out Sidebar</span>
+</a>
+</p>")
    ;; home and up links
    (when-let ((fun (plist-get info :html-format-home/up-function)))
      (funcall fun info))
@@ -1532,7 +1545,10 @@ holding export options."
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
    ;; Closing document.
-   "</body>\n</html>"))
+   "</body>\n"
+   (when (plist-get info :with-toc)
+    "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>")
+   "\n</html>"))
 
 ;;;; Anchor
 
@@ -1679,7 +1695,8 @@ of contents as a string, or nil if it is empty."
     (when toc-entries
       (let ((toc (t--toc-text toc-entries)))
 	(if scope toc
-	  (concat "<nav id=\"toc\">\n"
+	  (concat (format "<nav id=\"toc\" data-count=\"%s\">\n"
+			  (length toc-entries))
 		  (let ((top-level (plist-get info :html-toplevel-hlevel)))
 		    (format "<h%d id=\"table-of-contents\">%s</h%d>\n"
 			    top-level
