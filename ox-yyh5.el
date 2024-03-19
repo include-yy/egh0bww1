@@ -114,7 +114,6 @@
     (:html-footnote-format nil nil t-footnote-format)
     (:html-footnote-separator nil nil t-footnote-separator)
     (:html-footnotes-section nil nil t-footnotes-section)
-    (:html-format-headline-function nil nil t-format-headline-function)
     (:html-format-home/up-function nil nil t-format-home/up-function)
     (:html-indent nil nil t-indent)
     (:html-inline-image-rules nil nil t-inline-image-rules)
@@ -256,24 +255,6 @@ The default for this variable is 2, because we use <h1> for formatting the
 document title."
   :group 'org-export-yyh5
   :type 'integer)
-
-(defcustom t-format-headline-function
-  't-format-headline-default-function
-  "Function to format headline text.
-
-This function will be called with six arguments:
-TODO      the todo keyword (string or nil).
-TODO-TYPE the type of todo (symbol: `todo', `done', nil)
-PRIORITY  the priority of the headline (integer or nil)
-TEXT      the main headline text (string).
-TAGS      the tags (string or nil).
-INFO      the export options (plist).
-
-The function result will be used in the section format string."
-  :group 'org-export-yyh5
-  :version "26.1"
-  :package-version '(Org . "8.3")
-  :type 'function)
 
 ;;;; HTML-specific
 
@@ -1797,8 +1778,7 @@ INFO is a plist used as a communication channel."
 		  (org-export-numbered-headline-p headline info)
 		  (concat (mapconcat #'number-to-string headline-number ".")
 			  ". "))
-	     (apply (plist-get info :html-format-headline-function)
-		    todo todo-type priority text tags :section-number nil)))))
+	     text))))
 
 (defun t-list-of-listings (info)
   "Build a list of listings.
@@ -1999,23 +1979,13 @@ holding contextual information."
            (numbers (org-export-get-headline-number headline info))
            (level (+ (org-export-get-relative-level headline info)
                      (1- (plist-get info :html-toplevel-hlevel))))
-           (todo (and (plist-get info :with-todo-keywords)
-                      (let ((todo (org-element-property :todo-keyword headline)))
-                        (and todo (org-export-data todo info)))))
-           (todo-type (and todo (org-element-property :todo-type headline)))
-           (priority (and (plist-get info :with-priority)
-                          (org-element-property :priority headline)))
            (text (org-export-data (org-element-property :title headline) info))
-           (tags (and (plist-get info :with-tags)
-                      (org-export-get-tags headline info)))
-           (full-text (funcall (plist-get info :html-format-headline-function)
-                               todo todo-type priority text tags info))
            (contents (or contents ""))
 	   (id (t--reference headline info))
 	   (formatted-text
 	    (if (plist-get info :html-self-link-headlines)
-		(format "<a href=\"#%s\">%s</a>" id full-text)
-	      full-text)))
+		(format "<a href=\"#%s\">%s</a>" id text)
+	      text)))
       (if (org-export-low-level-p headline info)
           ;; This is a deep sub-tree: export it as a list item.
           (let* ((html-type (if numberedp "ol" "ul")))
@@ -2035,25 +2005,30 @@ holding contextual information."
 	      (headline-class
 	       (org-element-property :HTML_HEADLINE_CLASS headline))
               (first-content (car (org-element-contents headline))))
-	  ;; <yynt> 此处移除了 headline 的外层 id
-          (format "<%s class=\"%s\">%s%s</%s>\n"
+	  ;; <yynt> 移除多余的 class
+          (format "<%s id=\"%s\">%s%s</%s>\n"
                   (t--container headline info)
-                  (concat (format "outline-%d" level)
-                          (and extra-class " ")
-                          extra-class)
-                  (format "\n<h%d id=\"%s\"%s>%s</h%d>\n"
+		  id
+                  (format "
+<div class=\"header-wrapper\">
+<h%d id=\"%s\"%s>
+%s
+</h%d>
+<a class=\"self-link\" href=\"#%s\" aria-label=\"Permalink for Section %s\"></a>
+</div>\n"
                           level
-                          id
+                          (concat "h-" id)
 			  (if (not headline-class) ""
 			    (format " class=\"%s\"" headline-class))
                           (concat
                            (and numberedp
                                 (format
-                                 "<span class=\"section-number-%d\">%s</span> "
-                                 level
+                                 "<span class=\"secno\">%s</span> "
                                  (concat (mapconcat #'number-to-string numbers ".") ".")))
                            formatted-text)
-                          level)
+                          level
+			  id
+			  (concat (mapconcat #'number-to-string numbers ".") "."))
                   ;; When there is no section, pretend there is an
                   ;; empty one to get the correct <div
                   ;; class="outline-...> which is needed by
@@ -2061,18 +2036,6 @@ holding contextual information."
                   (if (eq (org-element-type first-content) 'section) contents
                     (concat (t-section first-content "" info) contents))
                   (t--container headline info)))))))
-
-(defun t-format-headline-default-function
-    (todo _todo-type priority text tags info)
-  "Default format function for a headline.
-See `t-format-headline-function' for details."
-  (let ((todo (t--todo todo info))
-	(priority (t--priority priority info))
-	(tags (t--tags tags info)))
-    (concat todo (and todo " ")
-	    priority (and priority " ")
-	    text
-	    (and tags "&#xa0;&#xa0;&#xa0;") tags)))
 
 (defun t--container (headline info)
   (or (org-element-property :HTML_CONTAINER headline)
@@ -2455,7 +2418,7 @@ INFO is a plist holding contextual information.  See
 		(let ((path (org-element-property :path link)))
 		  (concat raw-path
 			  "#"
-			  (org-publish-resolve-external-link option path t))))))
+			  (org-publish-resolve-external-link option path t)))))))
 	   (t raw-path)))
 	 (attributes-plist
 	  (org-combine-plists
@@ -2596,7 +2559,7 @@ INFO is a plist holding contextual information.  See
 	(format "<a href=\"%s\"%s>%s</a>" path attributes path)))
      ;; No path, only description.  Try to do something useful.
      (t
-      (format "<i>%s</i>" desc))))))
+      (format "<i>%s</i>" desc)))))
 
 ;;;; Paragraph
 
