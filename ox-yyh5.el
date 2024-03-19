@@ -1521,12 +1521,12 @@ holding export options."
 	   (subtitle (plist-get info :subtitle)))
        (when title
 	 (format
-	  "<header>\n<h1>%s</h1>\n%s</header>\n"
+	  "<header>\n<h1 id=\"title\">%s</h1>\n%s</header>\n"
 	  (org-export-data title info)
 	  (if subtitle
 	      (format
-	       "<p class=\"subtitle\" role=\"doc-subtitle\">%s</p>\n"
-	       (org-export-data subtitle info))
+	       "<p id=\"time-state\"><time datetime=\"%s\">%s</time></p>\n"
+	       (car subtitle) (car subtitle))
 	    "")))))
    contents
    ;; Postamble.
@@ -1681,7 +1681,7 @@ of contents as a string, or nil if it is empty."
 	(if scope toc
 	  (concat "<nav id=\"toc\">\n"
 		  (let ((top-level (plist-get info :html-toplevel-hlevel)))
-		    (format "<h%d>%s</h%d>\n"
+		    (format "<h%d id=\"table-of-contents\">%s</h%d>\n"
 			    top-level
 			    "Table of Contents"
 			    top-level))
@@ -1705,9 +1705,9 @@ and value is its relative level, as an integer."
 	     (setq prev-level level)
 	     (concat
 	      (t--make-string
-	       times (cond ((> cnt 0) "\n<ul>\n<li>")
+	       times (cond ((> cnt 0) "\n<ul class=\"toc\">\n<li class=\"tocline\">")
 			   ((< cnt 0) "</li>\n</ul>\n")))
-	      (if (> cnt 0) "\n<ul>\n<li>" "</li>\n<li>")))
+	      (if (> cnt 0) "\n<ul class=\"toc\">\n<li class=\"tocline\">" "</li>\n<li class=\"tocline\">")))
 	   headline)))
       toc-entries "")
      (t--make-string (- prev-level start-level) "</li>\n</ul>\n"))))
@@ -1727,8 +1727,8 @@ INFO is a plist used as a communication channel."
 	    (concat
 	     (and (not (org-export-low-level-p headline info))
 		  (org-export-numbered-headline-p headline info)
-		  (concat (mapconcat #'number-to-string headline-number ".")
-			  ". "))
+		  (format "<span class=\"secno\">%s</span>"
+			  (mapconcat #'number-to-string headline-number ".")))
 	     text))))
 
 (defun t-list-of-listings (info)
@@ -1975,17 +1975,12 @@ holding contextual information."
                            (and numberedp
                                 (format
                                  "<span class=\"secno\">%s</span> "
-                                 (concat (mapconcat #'number-to-string numbers ".") ".")))
+                                 (mapconcat #'number-to-string numbers ".")))
                            formatted-text)
                           level
 			  id
 			  (concat (mapconcat #'number-to-string numbers ".") "."))
-                  ;; When there is no section, pretend there is an
-                  ;; empty one to get the correct <div
-                  ;; class="outline-...> which is needed by
-                  ;; `org-info.js'.
-                  (if (eq (org-element-type first-content) 'section) contents
-                    (concat (t-section first-content "" info) contents))
+                  contents
                   (t--container headline info)))))))
 
 (defun t--container (headline info)
