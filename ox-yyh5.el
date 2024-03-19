@@ -1364,7 +1364,7 @@ holding export options."
     (if (and (not (string= link-lname "")) (not (string= link-rname ""))
 	     (not (string= link-left "")) (not (string= link-right "")))
 	(format "
-<nav id=\"org-div-home-and-up\">
+<nav id=\"home-and-up\">
 <a href=\"%s\"> %s </a>
 <a href=\"%s\"> %s </a>
 </nav>\n"
@@ -1372,11 +1372,11 @@ holding export options."
       (cond
        ((and (not (string= link-lname "")) (not (string= link-left "")))
 	(format "
-<nav id=\"org-div-home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
 		link-left link-lname))
        ((and (not (string= link-rname "")) (not (string= link-right "")))
 	(format "
-<nav id=\"org-div-home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
+<nav id=\"home-and-up\">\n<a href=\"%s\"> %s </a>\n</nav>"
 		link-right link-rname))))))
 
 (defun t-template (contents info)
