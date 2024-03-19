@@ -410,7 +410,7 @@ in all modes you want.  Then, use the command
   :group 'org-export-yyh5
   :type 'string)
 
-(defcustom t-wrap-src-lines nil
+(defcustom t-wrap-src-lines t
   "If non-nil, wrap individual lines of source blocks in \"code\" elements.
 In this case, add line number in attribute \"data-ox-html-linenr\" when line
 numbers are enabled."
@@ -1542,12 +1542,15 @@ holding export options."
 	       (car subtitle) (car subtitle))
 	    "")))))
    contents
+   ;; back-to-top
+   "<p role=\"navigation\" id=\"back-to-top\"><a href=\"#title\">
+<abbr title=\"Back to Top\">↑</abbr></a></p>"
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
    ;; Closing document.
    "</body>\n"
    (when (plist-get info :with-toc)
-    "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>")
+     "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>")
    "\n</html>"))
 
 ;;;; Anchor
@@ -2708,7 +2711,7 @@ contextual information."
 	   (label (let ((lbl (t--reference src-block info t)))
 		    (if lbl (format " id=\"%s\"" lbl) ""))))
       (if (not lang) (format "<pre class=\"example\"%s>\n%s</pre>" label code)
-	(format "<div class=\"org-src-container\">\n%s%s\n</div>"
+	(format "<div class=\"src-container\">\n%s%s\n</div>"
 		;; Build caption.
 		(let ((caption (org-export-get-caption src-block)))
 		  (if (not caption) ""
