@@ -558,7 +558,7 @@ window.MathJax={tex:{ams:{multlineWidth:'%MULTLINEWIDTH'},tags:'%TAGS',tagSide:'
 
 ;;;; Template :: Postamble
 
-(defcustom t-postamble t ; <yynt> 默认开启 postamble
+(defcustom t-postamble nil
   "Non-nil means insert a postamble in HTML export.
 
 When set to `auto', check against the
@@ -1193,7 +1193,8 @@ See `org-html-inner-template' for more information"
     (with-temp-buffer
       (insert contents)
       (goto-char (point-min))
-      (search-forward "</section>")
+      (search-forward "<section")
+      (beginning-of-line) (insert "\n") (previous-line)
       (when-let ((depth (plist-get info :with-toc)))
 	(insert (format "\n%s\n" (t-toc depth info))))
       (insert "<main>")
@@ -1273,10 +1274,10 @@ holding export options."
 <abbr title=\"Back to Top\">↑</abbr></a></p>"
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
+   (when (plist-get info :with-toc)
+     "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>\n")
    ;; Closing document.
    "</body>\n"
-   (when (plist-get info :with-toc)
-     "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>")
    "\n</html>"))
 
 ;;;; Anchor
@@ -1422,17 +1423,18 @@ of contents as a string, or nil if it is empty."
 			 (org-export-get-relative-level headline info)))
 		 (org-export-collect-headlines info depth scope))))
     (when toc-entries
-      (let ((toc (t--toc-text toc-entries)))
-	(if scope toc
-	  (concat (format "<nav id=\"toc\" data-count=\"%s\">\n"
-			  (length toc-entries))
-		  (let ((top-level (plist-get info :html-toplevel-hlevel)))
-		    (format "<h%d id=\"table-of-contents\">%s</h%d>\n"
-			    top-level
-			    "Table of Contents"
-			    top-level))
-		  toc
-		  "</nav>\n"))))))
+      (let ((toc-entries (cons '("<a href=\"#abstract\">Abstract</a>" . 1) toc-entries)))
+	(let ((toc (t--toc-text toc-entries)))
+	  (if scope toc
+	    (concat (format "<nav id=\"toc\" data-count=\"%s\">\n"
+			    (length toc-entries))
+		    (let ((top-level (plist-get info :html-toplevel-hlevel)))
+		      (format "<h%d id=\"table-of-contents\">%s</h%d>\n"
+			      top-level
+			      "Table of Contents"
+			      top-level))
+		    toc
+		    "</nav>\n")))))))
 
 (defun t--toc-text (toc-entries)
   "Return innards of a table of contents, as a string.
@@ -2381,7 +2383,7 @@ holding contextual information."
     ;; Before first headline: no container, just return CONTENTS.
     (if (not parent)
 	;; the zeroth section
-	(format "<section id=\"abstract\">\n%s</section>" (or contents ""))
+	(format "<div id=\"abstract\">\n%s</div>" (or contents ""))
       (or contents ""))))
 
 ;;;; Radio Target
