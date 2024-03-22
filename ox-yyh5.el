@@ -997,7 +997,7 @@ CONTENT-FORMAT and encoding the result as plain text."
 		      (if content-formatters
 			  (apply #'format content-format content-formatters)
 			content-format)))))
-	  "\">\n")) ; <yynt> 移除了多余的 `/'
+	  "\">\n"))
 
 (defun t--build-meta-info (info)
   "Return meta tags for exported document.
@@ -1579,7 +1579,7 @@ information."
     (if (plist-get attributes :textarea)
 	(t--textarea-block example-block)
       (format "<pre class=\"example\"%s>\n%s</pre>"
-	      (let* ((reference (t--reference example-block info t)) ;; <yynt> 仅在显式 #+NAME 时才生成 ID
+	      (let* ((reference (t--reference example-block info t))
 		     (a (t--make-attribute-string
 			 (if (or (not reference) (plist-member attributes :id))
 			     attributes
@@ -1695,7 +1695,7 @@ holding contextual information."
 
 (defun t--container (headline info)
   (or (org-element-property :HTML_CONTAINER headline)
-      (if (<= (org-export-get-relative-level headline info) 3)
+      (if (<= (org-export-get-relative-level headline info) 5)
 	  "section" "div")))
 
 ;;;; Horizontal Rule
@@ -2246,7 +2246,7 @@ the plist used as a communication channel."
 				  info nil #'t-standalone-image-p))
 			 " </span>"
 			 raw))))
-	    (label (t--reference paragraph info t))) ; <yynt> 仅允许命名时才生成 figure 的 id
+	    (label (t--reference paragraph info t)))
 	(t--wrap-image contents info caption label)))
      ;; Regular paragraph.
      (t (format "<p%s%s>\n%s</p>"
@@ -2369,7 +2369,7 @@ holding contextual information."
                                     (if class (concat class " " block-type)
                                       block-type)))))
     (let* ((contents (or contents ""))
-	   (reference (t--reference special-block info t)) ;; <yynt> 仅命名才有 id
+	   (reference (t--reference special-block info t))
 	   (a (t--make-attribute-string
 	       (if (or (not reference) (plist-member attributes :id))
 		   attributes
@@ -2407,7 +2407,7 @@ contextual information."
 			      listing-number
 			      (org-trim (org-export-data caption info))))))
 		;; Contents.
-		(format "<pre class=\"src src-%s\"%s>\n%s</pre>" ; <yynt> 添加换行符
+		(format "<pre class=\"src src-%s\"%s>\n%s</pre>"
                         lang label code))))))
 
 ;;;; Statistics Cookie
