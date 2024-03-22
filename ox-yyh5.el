@@ -209,7 +209,8 @@ a formatting string to wrap fontified text with.
 
 If no association can be found for a given markup, text will be
 returned as-is."
-  :group 'org-export-yyh5)
+  :group 'org-export-yyh5
+  :type '(list (cons symbol string)))
 
 (defcustom t-indent nil
   "Non-nil means to indent the generated HTML.
@@ -298,7 +299,8 @@ e.g. \"tex:mathjax\".  Allowed values are:
                 LaTeX fragments to HTML.
   SYMBOL        Any symbol defined in `org-preview-latex-process-alist',
                 e.g., `dvipng'."
-  :group 'org-export-yyh5)
+  :group 'org-export-yyh5
+  :type '(symbol))
 
 ;;;; Links :: Generic
 
@@ -331,7 +333,8 @@ link to the image."
 A rule consists in an association whose key is the type of link
 to consider, and value is a regexp that will be matched against
 link's path."
-  :group 'org-export-yyh5)
+  :group 'org-export-yyh5
+  :type '(alist string string))
 
 ;;;; Plain Text
 
@@ -473,7 +476,8 @@ Use utf-8 as the default value."
 The car of each entry is one of `preamble' or `postamble'.
 The cdrs of each entry are the ELEMENT_TYPE and ID for each
 section of the exported document."
-  :group 'org-export-yyh5)
+  :group 'org-export-yyh5
+  :type '(alist symbol (list string)))
 
 (defconst t-checkbox-types
   '((unicode .
@@ -530,7 +534,8 @@ See `format-time-string' for more information on its components."
 
 See `org-html-mathjax-options' for details"
   :group 'org-export-yyh5
-  :package-version '(Org . "9.6"))
+  :package-version '(Org . "9.6")
+  :type '(alist symbol sexp))
 
 (defcustom t-mathjax-template
   "<script>
@@ -744,11 +749,12 @@ or for publication projects using the :html-head-extra property."
 See `org-html-viewport' for more infomation.
 See the following site for a reference:
 https://developer.mozilla.org/en-US/docs/Mozilla/Mobile/Viewport_meta_tag"
-  :group 'org-export-yyh5)
+  :group 'org-export-yyh5
+  :type '(alist symbol string))
 
 ;;; Internal Functions
 
-(defun t-close-tag (tag attr info)
+(defun t-close-tag (tag attr _info)
   "Return close-tag for string TAG.
 ATTR specifies additional attributes.  INFO is a property list
 containing current export state."
@@ -809,7 +815,7 @@ if DATUM's type is not headline, return nil"
 	    (plist-put info :internal-references cache)
 	    newid)))))
 
-(defun t--wrap-image (contents info &optional caption label attrs)
+(defun t--wrap-image (contents _info &optional caption label attrs)
   "Wrap CONTENTS string within an appropriate environment for images.
 INFO is a plist used as a communication channel.  When optional
 arguments CAPTION and LABEL are given, use them for caption and
@@ -1166,7 +1172,7 @@ See `org-html-inner-template' for more information"
       (insert contents)
       (goto-char (point-min))
       (search-forward "<section")
-      (beginning-of-line) (insert "\n") (previous-line)
+      (beginning-of-line) (insert "\n") (forward-line -1)
       (when-let ((depth (plist-get info :with-toc)))
 	(insert (format "\n%s\n" (t-toc depth info))))
       (insert "<main>")
@@ -2324,7 +2330,7 @@ holding contextual information."
 
 ;;;; Section
 
-(defun t-section (section contents info)
+(defun t-section (section contents _info)
   "Transcode a SECTION element from Org to HTML.
 CONTENTS holds the contents of the section.  INFO is a plist
 holding contextual information."
