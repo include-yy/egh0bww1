@@ -122,7 +122,6 @@
     (:html-metadata-timestamp-format nil nil t-metadata-timestamp-format)
     (:html-postamble-format nil nil t-postamble-format)
     (:html-preamble-format nil nil t-preamble-format)
-    (:html-prefer-user-labels nil nil t-prefer-user-labels)
     (:html-table-align-individual-fields
      nil nil t-table-align-individual-fields)
     (:html-table-caption-above nil nil t-table-caption-above)
@@ -262,23 +261,6 @@ By default, when appropriate, anchors are formatted with \"id\"
 but without \"name\" attribute."
   :group 'org-export-yyh5
   :type 'boolean)
-
-(defcustom t-prefer-user-labels t
-  "When non-nil use user-defined names and ID over internal ones.
-
-By default, Org generates its own internal ID values during HTML
-export.  This process ensures that these values are unique and
-valid, but the keys are not available in advance of the export
-process, and not so readable.
-
-When this variable is non-nil, Org will use NAME keyword, or the
-real name of the target to create the ID attribute.
-
-Independently of this variable, however, CUSTOM_ID are always
-used as a reference."
-  :group 'org-export-yyh5
-  :type 'boolean
-  :safe #'booleanp)
 
 ;;;; LaTeX
 
@@ -1687,7 +1669,6 @@ holding contextual information."
 	      (headline-class
 	       (org-element-property :HTML_HEADLINE_CLASS headline))
               (first-content (car (org-element-contents headline))))
-	  ;; <yynt> 移除多余的 class
           (format "<%s id=\"%s\">%s%s</%s>\n"
                   (t--container headline info)
 		  id
@@ -1697,7 +1678,7 @@ holding contextual information."
 <a class=\"self-link\" href=\"#%s\" aria-label=\"Permalink for Section %s\"></a>
 </div>\n"
                           level
-                          (concat "h-" id)
+                          (concat "x-" id)
 			  (if (not headline-class) ""
 			    (format " class=\"%s\"" headline-class))
                           (concat
