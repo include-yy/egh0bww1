@@ -38,6 +38,7 @@
 ;;; Dependencies
 (require 'cl-lib)
 (require 'ox)
+(require 'table)
 
 
 ;;; Define Back-End
@@ -151,7 +152,6 @@
 ;;; Internal Variables
 
 (defvar t-format-table-no-css)
-(defvar htmlize-buffer-places)  ; from htmlize.el
 
 (defvar t--pre/postamble-class "status"
   "CSS class used for pre/postamble.")
@@ -348,21 +348,13 @@ link's path."
 
 ;;;; Src Block
 
-(defcustom t-htmlize-output-type nil ;'inline-css
-  "Output type to be used by htmlize when formatting code snippets.
-Choices are `css' to export the CSS selectors only,`inline-css'
-to export the CSS attribute values inline in the HTML or nil to
-export plain text.  We use as default `inline-css', in order to
-make the resulting HTML self-containing.
-
-See `org-html-htmlize-output-type' for more information."
+(defcustom t-fontify-method nil
+  "Method to fontify code
+- nil  means no highlighting
+- hljs means use highlight.js to render
+- src2h5 means use a (WIP) backend for code fontify"
   :group 'org-export-yyh5
-  :type '(choice (const css) (const inline-css) (const nil)))
-
-(defcustom t-htmlize-font-prefix "org-"
-  "The prefix for CSS class names for htmlize font specifications."
-  :group 'org-export-yyh5
-  :type 'string)
+  :type '(choice (const hljs) (const src2h5) (const nil)))
 
 (defcustom t-wrap-src-lines t
   "If non-nil, wrap individual lines of source blocks in \"code\" elements.
@@ -873,55 +865,6 @@ a value to `t-standalone-image-predicate'."
 
 ;;;; Table
 
-(defun t-htmlize-region-for-paste (beg end)
-  "Convert the region between BEG and END to HTML, using htmlize.el.
-This is much like `htmlize-region-for-paste', only that it uses
-the settings define in the org-... variables."
-  (let* ((htmlize-output-type t-htmlize-output-type)
-	 (htmlize-css-name-prefix t-htmlize-font-prefix)
-	 (htmlbuf (htmlize-region beg end)))
-    (unwind-protect
-	(with-current-buffer htmlbuf
-	  (buffer-substring (plist-get htmlize-buffer-places 'content-start)
-			    (plist-get htmlize-buffer-places 'content-end)))
-      (kill-buffer htmlbuf))))
-
-;;;###autoload
-(defun t-htmlize-generate-css ()
-  "Create the CSS for all font definitions in the current Emacs session.
-Use this to create face definitions in your CSS style file that can then
-be used by code snippets transformed by htmlize.
-This command just produces a buffer that contains class definitions for all
-faces used in the current Emacs session.  You can copy and paste the ones you
-need into your CSS file.
-
-If you then set `t-htmlize-output-type' to `css', calls
-to the function `t-htmlize-region-for-paste' will
-produce code that uses these same face definitions."
-  (interactive)
-  (unless (require 'htmlize nil t)
-    (error "htmlize library missing.  Aborting"))
-  (and (get-buffer "*html*") (kill-buffer "*html*"))
-  (with-temp-buffer
-    (let ((fl (face-list))
-	  (htmlize-css-name-prefix "org-")
-	  (htmlize-output-type 'css)
-	  f i)
-      (while (setq f (pop fl)
-		   i (and f (face-attribute f :inherit)))
-	(when (and (symbolp f) (or (not i) (not (listp i))))
-	  (insert (org-add-props (copy-sequence "1") nil 'face f))))
-      (htmlize-region (point-min) (point-max))))
-  (pop-to-buffer-same-window "*html*")
-  (goto-char (point-min))
-  (when (re-search-forward "<style" nil t)
-    (delete-region (point-min) (match-beginning 0)))
-  (when (re-search-forward "</style>" nil t)
-    (delete-region (1+ (match-end 0)) (point-max)))
-  (beginning-of-line 1)
-  (when (looking-at " +") (replace-match ""))
-  (goto-char (point-min)))
-
 (defun t--make-string (n string)
   "Build a string by concatenating N times STRING."
   (let (out) (dotimes (_ n out) (setq out (concat string out)))))
@@ -1330,43 +1273,29 @@ holding export options."
 ;;;; Src Code
 
 (defun t-fontify-code (code lang)
-  "Color CODE with htmlize library.
+  "Color the code (WIP).
 CODE is a string representing the source code to colorize.  LANG
 is the language used for CODE, as a string, or nil."
-  (when code
-    (cond
-     ;; No language.  Possibly an example block.
-     ((not lang) (t-encode-plain-text code))
-     ;; Plain text explicitly set.
-     ((not t-htmlize-output-type) (t-encode-plain-text code))
-     ;; No htmlize library or an inferior version of htmlize.
-     ((not (progn (require 'htmlize nil t)
-		  (fboundp 'htmlize-region-for-paste)))
-      ;; Emit a warning.
-      (message "Cannot fontify source block (htmlize.el >= 1.34 required)")
-      (t-encode-plain-text code))
-     (t
-      ;; Map language
-      (setq lang (or (assoc-default lang org-src-lang-modes) lang))
-      (let* ((lang-mode (and lang (intern (format "%s-mode" lang)))))
-	(cond
-	 ;; Case 1: Language is not associated with any Emacs mode
-	 ((not (functionp lang-mode))
-	  (t-encode-plain-text code))
-	 ;; Case 2: Default.  Fontify code.
-	 (t
-	  ;; htmlize
-	  (setq code
-		(let ((output-type t-htmlize-output-type)
-		      (font-prefix t-htmlize-font-prefix)
-		      (inhibit-read-only t))
+  (cond
+   ((string= code "") "")
+   ((not lang) (t-encode-plain-text code))
+   ((not t-fontify-method) (t-encode-plain-text code))
+   ((eq t-fontify-method 'hljs) (t-encode-plain-text code))
+   ((not (featurep 'src2h5))
+    (message "src2h5 seems not loaded")
+    (t-encode-plain-text code))
+   (t
+    (setq lang (or (assoc-default lang org-src-lang-modes) lang))
+    (let* ((lang-mode (and lang (intern (format "%s-mode" lang)))))
+      (cond
+       ((not (functionp lang-mode))
+	(t-encode-plain-text code))
+       (t (setq code
+		(let ((inhibit-read-only t))
 		  (with-temp-buffer
-		    ;; Switch to language-specific mode.
 		    (funcall lang-mode)
 		    (insert code)
-		    ;; Fontify buffer.
 		    (font-lock-ensure)
-		    ;; Remove formatting on newline characters.
 		    (save-excursion
 		      (let ((beg (point-min))
 			    (end (point-max)))
@@ -1376,15 +1305,8 @@ is the language used for CODE, as a string, or nil."
 			  (forward-char 1))))
 		    (org-src-mode)
 		    (set-buffer-modified-p nil)
-		    ;; Htmlize region.
-		    (let ((t-htmlize-output-type output-type)
-			  (t-htmlize-font-prefix font-prefix))
-		      (t-htmlize-region-for-paste
-		       (point-min) (point-max))))))
-	  ;; Strip any enclosing <pre></pre> tags.
-	  (let* ((beg (and (string-match "\\`<pre[^>]*>\n?" code) (match-end 0)))
-		 (end (and beg (string-match "</pre>\\'" code))))
-	    (if (and beg end) (substring code beg end) code)))))))))
+		    (src2h5-region (point-min) (point-max))))))))
+    code)))
 
 (defun t-do-format-code
     (code &optional lang refs retain-labels num-start wrap-lines)
@@ -1663,8 +1585,7 @@ holding contextual information."
         (let ((extra-class
 	       (org-element-property :HTML_CONTAINER_CLASS headline))
 	      (headline-class
-	       (org-element-property :HTML_HEADLINE_CLASS headline))
-              (first-content (car (org-element-contents headline))))
+	       (org-element-property :HTML_HEADLINE_CLASS headline)))
           (format "<%s id=\"%s\"%s>%s%s</%s>\n"
                   (t--container headline info)
 		  id
