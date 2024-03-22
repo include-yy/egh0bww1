@@ -809,13 +809,15 @@ if DATUM's type is not headline, return nil"
 	    (plist-put info :internal-references cache)
 	    newid)))))
 
-(defun t--wrap-image (contents info &optional caption label)
+(defun t--wrap-image (contents info &optional caption label attrs)
   "Wrap CONTENTS string within an appropriate environment for images.
 INFO is a plist used as a communication channel.  When optional
 arguments CAPTION and LABEL are given, use them for caption and
 \"id\" attribute."
-  (format "\n<figure%s>\n%s%s</figure>"
+  (print (list "HERE" attrs))
+  (format "\n<figure%s%s>\n%s%s</figure>"
 	  (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
+	  (if attrs (concat " " attrs) "")
 	  ;; Contents.
 	  contents
 	  ;; Caption.
@@ -823,12 +825,13 @@ arguments CAPTION and LABEL are given, use them for caption and
 	    (format "<figcaption>%s</figcaption>\n"
 		    caption))))
 
-(defun t--format-image (source attributes info)
+(defun t--format-image (source attributes info &optional caller)
   "Return \"img\" tag with given SOURCE and ATTRIBUTES.
 SOURCE is a string specifying the location of the image.
 ATTRIBUTES is a plist, as returned by
 `org-export-read-attribute'.  INFO is a plist used as
 a communication channel."
+  (when (eq caller 'link) (setq attributes nil))
   (t-close-tag
    "img"
    (t--make-attribute-string
@@ -2099,7 +2102,7 @@ INFO is a plist holding contextual information.  See
      ((and (plist-get info :html-inline-images)
 	   (org-export-inline-image-p
 	    link (plist-get info :html-inline-image-rules)))
-      (t--format-image path attributes-plist info))
+      (t--format-image path attributes-plist info 'link))
      ;; Radio target: Transcode target's contents and use them as
      ;; link's description.
      ((string= type "radio")
@@ -2232,22 +2235,9 @@ the plist used as a communication channel."
       contents)
      ((t-standalone-image-p paragraph info)
       ;; Standalone image.
-      (let ((caption
-	     (let ((raw (org-export-data
-			 (org-export-get-caption paragraph) info))
-		   (t-standalone-image-predicate
-		    #'t--has-caption-p))
-	       (if (not (org-string-nw-p raw)) raw
-		 (concat "<span class=\"figure-number\">"
-			 (format "Figure %d:"
-				 (org-export-get-ordinal
-				  (org-element-map paragraph 'link
-				    #'identity info t)
-				  info nil #'t-standalone-image-p))
-			 " </span>"
-			 raw))))
+      (let ((caption (org-export-data (org-export-get-caption paragraph) info))
 	    (label (t--reference paragraph info t)))
-	(t--wrap-image contents info caption label)))
+	(t--wrap-image contents info caption label attributes)))
      ;; Regular paragraph.
      (t (format "<p%s%s>\n%s</p>"
 		(if (org-string-nw-p attributes)
