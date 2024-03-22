@@ -171,6 +171,10 @@ property on the headline itself.")
     ("\\.\\.\\." . "&#x2026;"))		; hellip
   "Regular expressions for special string conversion.")
 
+(defvar t--id-attr-prefix "ID-"
+  "Prefix to use in ID attributes.
+This affects IDs that are determined from the ID property.")
+
 (defcustom t-style-default
   "<style>.self-link:hover{opacity:1;text-decoration:none;background-color:transparent}.header-wrapper{display:flex;align-items:baseline}:is(h2,h3,h4,h5,h6):not(#toc>h2,#abstract>h2){position:relative;left:-.5em}:is(h2,h3,h4,h5,h6):not(#toc>h2)+a.self-link{color:inherit;order:-1;position:relative;left:-1.1em;font-size:1rem;opacity:.5}:is(h2,h3,h4,h5,h6)+a.self-link::before{content:\"§\";text-decoration:none;color:#005a9c;color:var(--heading-text)}:is(h2)+a.self-link{top:-.2em}:is(h3)+a.self-link{top:-.1em}:is(h4,h5,h6)+a.self-link::before{color:#000}</style>"
   "The default style specification for exported HTML files.
@@ -357,7 +361,7 @@ link's path."
 
 ;;;; Src Block
 
-(defcustom t-htmlize-output-type 'inline-css
+(defcustom t-htmlize-output-type nil ;'inline-css
   "Output type to be used by htmlize when formatting code snippets.
 Choices are `css' to export the CSS selectors only,`inline-css'
 to export the CSS attribute values inline in the HTML or nil to
@@ -793,52 +797,35 @@ When NAMED-ONLY is non-nil and DATUM has no NAME keyword, return
 nil.  This doesn't apply to headlines, inline tasks, radio
 targets and targets."
   (let* ((type (org-element-type datum))
+	 (custom-id (and (eq type 'headline)
+			 (org-element-property :CUSTOM_ID datum)))
 	 (user-label
-	  (org-element-property
-	   (pcase type
-	     (`headline :CUSTOM_ID)
-	     ((or `radio-target `target) :value)
-	     (_ :name))
-	   datum)))
-    (cond
-     ((and user-label
-	   (or (plist-get info :html-prefer-user-labels)
-	       ;; Used CUSTOM_ID property unconditionally.
-	       (eq type 'headline)))
-      user-label)
-     ((and named-only
-	   (not (memq type '(headline radio-target target)))
-	   (not user-label))
-      nil)
-     (t
-      (t-get-reference datum info))))) ; 架空 org-export-get-reference
+	  (or custom-id
+	      (and (memq type '(radio-target target))
+		   (org-element-property :value datum))
+	      (org-element-property :name datum)
+	      (when-let ((id (org-element-property :ID datum)))
+		(concat t--id-attr-prefix id))
+	      (t--get-headline-reference datum info))))
+    (cond (user-label user-label)
+	  ((and named-only ; no #+NAME: and not headline
+		(not (memq type '(headline radio-target target))))
+	   nil)
+	  (t (org-export-get-reference datum info)))))
 
-(defun t-get-reference (datum info)
-  (let ((cache (plist-get info :internal-references)))
-    (or (car (rassq datum cache))
-	(let* ((crossrefs (plist-get info :crossrefs))
-	       (cells (org-export-search-cells datum))
-	       (new (or (cl-some
-			 (lambda (cell)
-			   (let ((stored (cdr (assoc cell crossrefs))))
-			     (when stored
-			       (let ((old (t-format-reference stored)))
-				 (and (not (assoc old cache)) stored)))))
-			 cells)
-			(when (eq 'headline (org-element-type datum))
-			  (if-let ((numbers (org-export-get-headline-number datum info)))
-			      (concat "-H-" (mapconcat #'number-to-string numbers "➈"))
-			    (concat "-NH-" (number-to-string
-					   (cl-incf (plist-get info :html-headline-cnt))))))
-			(org-export-new-reference cache)))
-	       (reference-string (t-format-reference new)))
-	  (dolist (cell cells) (push (cons cell new) cache))
-	  (push (cons reference-string datum) cache)
-	  (plist-put info :internal-references cache)
-	  reference-string))))
-
-(defun t-format-reference (new)
-  (format "org%s" new))
+(defun t--get-headline-reference (datum info)
+  "return a reference id for headline
+if DATUM's type is not headline, return nil"
+  (when (eq 'headline (org-element-type datum))
+    (let ((cache (plist-get info :internal-references)))
+      (or (car (rassq datum cache))
+	  (let ((newid
+		 (if-let ((numbers (org-export-get-headline-number datum info)))
+		     (concat "orgnh-" (mapconcat #'number-to-string numbers "."))
+		   (format "orguh-%s" (cl-incf (plist-get info :html-headline-cnt))))))
+	    (push (cons newid datum) cache)
+	    (plist-put info :internal-references cache)
+	    newid)))))
 
 (defun t--wrap-image (contents info &optional caption label)
   "Wrap CONTENTS string within an appropriate environment for images.
