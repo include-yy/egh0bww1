@@ -143,7 +143,7 @@
     (:with-latex nil "tex" t-with-latex)
     ;; Retrieve LaTeX header for fragments.
     (:latex-header "LATEX_HEADER" nil nil newline)
-    ;;; <yynt> options added by include-yy
+    ;; <yy> aux counter for unnumbered headline
     (:html-headline-cnt nil nil 0)))
 
 
@@ -2070,8 +2070,6 @@ INFO is a plist holding contextual information.  See
 	 (desc (org-string-nw-p desc))
 	 (path
 	  (cond
-	   ((member type '("http" "https" "ftp" "mailto" "news"))
-	    (url-encode-url (concat type ":" raw-path)))
 	   ((string= "file" type)
 	    ;; During publishing, turn absolute file names belonging
 	    ;; to base directory into relative file names.  Otherwise,
@@ -2079,10 +2077,6 @@ INFO is a plist holding contextual information.  See
 	    (setq raw-path
 		  (org-export-file-uri
 		   (org-publish-file-relative-name raw-path info)))
-	    ;; Possibly append `:html-link-home' to relative file
-	    ;; name.
-	    (let ((home (and (plist-get info :html-link-home)
-			     (org-trim (plist-get info :html-link-home)))))
 	    ;; Maybe turn ".org" into ".html".
 	    (setq raw-path (funcall link-org-files-as-html-maybe raw-path info))
 	    ;; Add search option, if any.  A search option can be
@@ -2093,8 +2087,8 @@ INFO is a plist holding contextual information.  See
 		(let ((path (org-element-property :path link)))
 		  (concat raw-path
 			  "#"
-			  (org-publish-resolve-external-link option path t)))))))
-	   (t raw-path)))
+			  (org-publish-resolve-external-link option path t))))))
+	   (t (url-encode-url (concat type ":" raw-path)))))
 	 (attributes-plist
 	  (org-combine-plists
 	   ;; Extract attributes from parent's paragraph.  HACK: Only
@@ -2131,10 +2125,7 @@ INFO is a plist holding contextual information.  See
       (let ((destination (org-export-resolve-radio-link link info)))
 	(if (not destination) desc
 	  (format "<a href=\"#%s\"%s>%s</a>"
-		  ;; (org-export-get-reference destination info)
-		  ;; <yynt> 修改为 t--reference
-		  ;; https://egh0bww1.com/posts/2023-02-05-28-org-html5-export-sequel/
-		  (t--reference destination info)
+		  (t--reference destination info) ; <yy> use t--reference
 		  attributes
 		  desc))))
      ;; Links pointing to a headline: Find destination and build
@@ -2146,7 +2137,7 @@ INFO is a plist holding contextual information.  See
 	(pcase (org-element-type destination)
 	  ;; ID link points to an external file.
 	  (`plain-text
-	   (let ((fragment (concat "ID-" path))
+	   (let ((fragment (concat t--id-attr-prefix path))
 		 ;; Treat links to ".org" files as ".html", if needed.
 		 (path (funcall link-org-files-as-html-maybe
 				destination info)))
@@ -2168,8 +2159,8 @@ INFO is a plist holding contextual information.  See
 		  (if (and (org-export-numbered-headline-p destination info)
 			   (not desc))
 		      (mapconcat #'number-to-string
-				 (org-export-get-headline-number
-				  destination info) ".")
+				 (org-export-get-headline-number destination info)
+				 ".")
 		    ;; Case 2: Either the headline is un-numbered or
 		    ;; LINK has a custom description.  Display LINK's
 		    ;; description or headline's title.
