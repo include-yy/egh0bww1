@@ -143,7 +143,9 @@
     ;; Retrieve LaTeX header for fragments.
     (:latex-header "LATEX_HEADER" nil nil newline)
     ;; <yy> aux counter for unnumbered headline
-    (:html-headline-cnt nil nil 0)))
+    (:html-headline-cnt nil nil 0)
+    ;; <yy> store zeroth section's output
+    (:html-zeroth-section-output nil nil "")))
 
 
 ;;; Internal Variables
@@ -158,7 +160,7 @@
   '("article" "aside" "audio" "canvas" "details" "figcaption" "div"
     "figure" "footer" "header" "menu" "meter" "nav" "noscript"
     "output" "progress" "section" "summary" "video")
-  "elements in html5.
+  "Elements in html5.
 
 For blocks that should contain headlines, use the HTML_CONTAINER
 property on the headline itself.")
@@ -820,7 +822,6 @@ if DATUM's type is not headline, return nil"
 INFO is a plist used as a communication channel.  When optional
 arguments CAPTION and LABEL are given, use them for caption and
 \"id\" attribute."
-  (print (list "HERE" attrs))
   (format "\n<figure%s%s>\n%s%s</figure>"
 	  (if (org-string-nw-p label) (format " id=\"%s\"" label) "")
 	  (if attrs (concat " " attrs) "")
@@ -1034,10 +1035,10 @@ INFO is a plist used as a communication channel."
 			      (plist-get info :html-viewport))))
        (if viewport-options
 	   (t--build-meta-entry "name" "viewport"
-				       (mapconcat
-					(lambda (elm)
-                                          (format "%s=%s" (car elm) (cadr elm)))
-					viewport-options ", "))))
+				(mapconcat
+				 (lambda (elm)
+                                   (format "%s=%s" (car elm) (cadr elm)))
+				 viewport-options ", "))))
 
      (format "<title>%s</title>\n" title)
      (mapconcat
@@ -1061,21 +1062,85 @@ INFO is a plist used as a communication channel."
   "Insert the user setup into the mathjax template.
 INFO is a plist used as a communication channel."
   (when (and (memq (plist-get info :with-latex) '(mathjax t))
-	     (org-element-map (plist-get info :parse-tree)
-		 '(latex-fragment latex-environment) #'identity info t nil t))
+             (org-element-map (plist-get info :parse-tree)
+                 '(latex-fragment latex-environment) #'identity info t nil t))
     (let ((template (plist-get info :html-mathjax-template))
-	  (options (plist-get info :html-mathjax-options))
-	  (in-buffer (or (plist-get info :html-mathjax) "")))
+          (options (let ((options (plist-get info :html-mathjax-options)))
+                     ;; If the user customized some legacy option, set
+                     ;; the corresponding new option to nil, so that
+                     ;; the legacy user choice overrides the default.
+                     ;; Otherwise, the user did not set the legacy
+                     ;; option, in which case still set the legacy
+                     ;; option but to no value, so that the code can
+                     ;; find its in-buffer value, if set.
+                     `((,(if (plist-member options 'autonumber)
+                             'tags 'autonumber)
+                        nil)
+                       (,(if (plist-member options 'linebreaks)
+                             'overflow 'linebreaks)
+                        nil)
+                       ,@options)))
+          (in-buffer (or (plist-get info :html-mathjax) "")))
       (dolist (e options (org-element-normalize-string template))
-	(let ((name (car e))
-	      (val (nth 1 e)))
-	  (when (string-match (concat "\\<" (symbol-name name) ":") in-buffer)
-	    (setq val
-		  (car (read-from-string (substring in-buffer (match-end 0))))))
-	  (unless (stringp val) (setq val (format "%s" val)))
-	  (while (string-match (concat "%" (upcase (symbol-name name)))
-			       template)
-	    (setq template (replace-match val t t template))))))))
+        (let ((symbol (car e))
+              (value (nth 1 e)))
+          (when (string-match (concat "\\<" (symbol-name symbol) ":")
+                              in-buffer)
+            (setq value
+                  (car (split-string (substring in-buffer
+                                                (match-end 0))))))
+          (when value
+            (pcase symbol
+              (`font
+               (when-let
+                   ((value-new
+                     (pcase value
+                       ("TeX" "mathjax-tex")
+                       ("STIX-Web" "mathjax-stix2")
+                       ("Asana-Math" "mathjax-asana")
+                       ("Neo-Euler" "mathjax-euler")
+                       ("Gyre-Pagella" "mathjax-pagella")
+                       ("Gyre-Termes" "mathjax-termes")
+                       ("Latin-Modern" "mathjax-modern"))))
+                 (setq value value-new)))
+              (`linebreaks
+               (org-display-warning
+                "Converting legacy MathJax option: linebreaks")
+               (setq symbol 'overflow
+                     value (if (string= value "true")
+                               "linebreak"
+                             "overflow")))
+              (`scale
+               (when (stringp value)
+                 (let ((value-maybe (string-to-number value)))
+                   (setq value
+                         (if (= value-maybe 0)
+                             (progn
+                               (org-display-warning
+                                (format "Non-numerical MathJax scale: %s"
+                                        value))
+                               1.0)
+                           value-maybe))))
+               (when (>= value 10)
+                 (setq value
+                       (let ((value-new (/ (float value) 100)))
+                         (org-display-warning
+                          (format "Converting legacy MathJax scale: %s to %s"
+                                  value
+                                  value-new))
+                         value-new))))
+              (`autonumber
+               (org-display-warning
+                "Converting legacy MathJax option: autonumber")
+               (setq symbol 'tags
+                     value (downcase value))))
+            (while (string-match (format "\\(%%%s\\)[^A-Z]"
+                                         (upcase (symbol-name symbol)))
+                                 template)
+              (setq template
+                    (replace-match (format "%s" value)
+                                   t
+                                   t template 1)))))))))
 
 (defun t-format-spec (info)
   "Return format specification for preamble and postamble.
@@ -1168,18 +1233,18 @@ CONTENTS is the transcoded contents string.  INFO is a plist
 holding export options.
 
 See `org-html-inner-template' for more information"
-    (with-temp-buffer
-      (insert contents)
-      (goto-char (point-min))
-      (search-forward "<section")
-      (beginning-of-line) (insert "\n") (forward-line -1)
-      (when-let ((depth (plist-get info :with-toc)))
-	(insert (format "\n%s\n" (t-toc depth info))))
-      (insert "<main>")
-      (goto-char (point-max))
-      (insert "</main>")
-      (insert (or (t-footnote-section info) ""))
-      (buffer-string)))
+    (concat
+     (plist-get info :html-zeroth-section-output)
+     (t--build-toc info)
+     "<main>\n"
+     contents
+     "</main>\n"
+     (t-footnote-section info)))
+
+(defun t--build-toc (info)
+  (when-let ((depth (plist-get info :with-toc)))
+    (concat (t-toc depth info)
+	    "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>\n")))
 
 (defun t-format-home/up-default-function (info)
   "format the home/div element"
@@ -1204,8 +1269,7 @@ See `org-html-inner-template' for more information"
 CONTENTS is the transcoded contents string.  INFO is a plist
 holding export options."
   (concat
-   "<!DOCTYPE html>"
-   "\n"
+   "<!DOCTYPE html>\n"
    (concat "<html"
 	   (format " lang=\"%s\"" (plist-get info :language))
 	   ">\n")
@@ -1217,8 +1281,7 @@ holding export options."
    "<body class=\"toc-inline\">\n"
    ;; generate sidebar
    (when (plist-get info :with-toc)
-     "\
-<p id=\"toc-nav\">
+     "<p id=\"toc-nav\">
 <a id=\"toc-jump\" href=\"#toc\">
 <span aria-hidden=\"true\">↑</span>
 <span>Jump to Table of Contents</span>
@@ -1226,8 +1289,7 @@ holding export options."
 <a id=\"toc-toggle\" href=\"#toc\">
 <span aria-hidden=\"true\">→</span>
 <span>Pop Out Sidebar</span>
-</a>
-</p>")
+</a>\n</p>")
    ;; home and up links
    (when-let ((fun (plist-get info :html-format-home/up-function)))
      (funcall fun info))
@@ -1248,15 +1310,12 @@ holding export options."
 	    "")))))
    contents
    ;; back-to-top
-   "<p role=\"navigation\" id=\"back-to-top\"><a href=\"#title\">
-<abbr title=\"Back to Top\">↑</abbr></a></p>"
+   "<p role=\"navigation\" id=\"back-to-top\">\n<a href=\"#title\">\
+<abbr title=\"Back to Top\">↑</abbr></a>\n</p>\n"
    ;; Postamble.
    (t--build-pre/postamble 'postamble info)
-   (when (plist-get info :with-toc)
-     "<script>window.addEventListener('load',()=>{let e=document.getElementById('toc-toggle'),n=e.children[0],t=e.children[1],i=document.body.classList,d=parseFloat(window.getComputedStyle(document.documentElement).fontSize),o=window.innerWidth/d,r=document.getElementById('toc').dataset.count;o>80&&r>=5&&(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'),e.addEventListener('click',()=>{i.contains('toc-inline')?(i.remove('toc-inline'),i.add('toc-sidebar'),n.innerHTML='←',t.innerHTML='Collapse Sidebar'):i.contains('toc-sidebar')&&(i.remove('toc-sidebar'),i.add('toc-inline'),n.innerHTML='→',t.innerHTML='Pop Out Sidebar')})});</script>\n")
    ;; Closing document.
-   "</body>\n"
-   "\n</html>"))
+   "</body>\n\n</html>"))
 
 ;;;; Anchor
 
@@ -1266,7 +1325,7 @@ holding export options."
 	 (attributes (concat (and id (format " id=\"%s\"" id))
 			     (and name (format " name=\"%s\"" name))
 			     attributes)))
-    (format "<a%s>%s</a>" attributes (or desc ""))))
+    (format "<span%s>%s</span>" attributes (or desc ""))))
 
 ;;;; Src Code
 
@@ -1402,7 +1461,8 @@ of contents as a string, or nil if it is empty."
 		 (org-export-collect-headlines info depth scope))))
     (when toc-entries
       (let ((toc-entries (cons '("<a href=\"#abstract\">Abstract</a>" . 1) toc-entries)))
-	(let ((toc (t--toc-text toc-entries)))
+	(let ((toc (if scope (t--toc-text (cdr toc-entries))
+		     (t--toc-text toc-entries))))
 	  (if scope toc
 	    (concat (format "<nav id=\"toc\" data-count=\"%s\">\n"
 			    (length toc-entries))
@@ -1456,82 +1516,6 @@ INFO is a plist used as a communication channel."
 		  (format "<span class=\"secno\">%s</span>"
 			  (mapconcat #'number-to-string headline-number ".")))
 	     text))))
-
-(defun t-list-of-listings (info)
-  "Build a list of listings.
-INFO is a plist used as a communication channel.  Return the list
-of listings as a string, or nil if it is empty."
-  (let ((lol-entries (org-export-collect-listings info)))
-    (when lol-entries
-      (concat "<div id=\"list-of-listings\">\n"
-	      (let ((top-level (plist-get info :html-toplevel-hlevel)))
-		(format "<h%d>%s</h%d>\n"
-			top-level
-			"List of Listings"
-			top-level))
-	      "<div id=\"text-list-of-listings\">\n<ul>\n"
-	      (let ((count 0)
-		    (initial-fmt (format "<span class=\"listing-number\">%s</span>"
-					 "Listing %d:")))
-		(mapconcat
-		 (lambda (entry)
-		   (let ((label (t--reference entry info t))
-			 (title (org-trim
-				 (org-export-data
-				  (or (org-export-get-caption entry t)
-				      (org-export-get-caption entry))
-				  info))))
-		     (concat
-		      "<li>"
-		      (if (not label)
-			  (concat (format initial-fmt (cl-incf count))
-				  " "
-				  title)
-			(format "<a href=\"#%s\">%s %s</a>"
-				label
-				(format initial-fmt (cl-incf count))
-				title))
-		      "</li>")))
-		 lol-entries "\n"))
-	      "\n</ul>\n</div>\n</div>"))))
-
-(defun t-list-of-tables (info)
-  "Build a list of tables.
-INFO is a plist used as a communication channel.  Return the list
-of tables as a string, or nil if it is empty."
-  (let ((lol-entries (org-export-collect-tables info)))
-    (when lol-entries
-      (concat "<div id=\"list-of-tables\">\n"
-	      (let ((top-level (plist-get info :html-toplevel-hlevel)))
-		(format "<h%d>%s</h%d>\n"
-			top-level
-			"List of Tables"
-			top-level))
-	      "<div id=\"text-list-of-tables\">\n<ul>\n"
-	      (let ((count 0)
-		    (initial-fmt (format "<span class=\"table-number\">%s</span>"
-					 "Table %d:")))
-		(mapconcat
-		 (lambda (entry)
-		   (let ((label (t--reference entry info t))
-			 (title (org-trim
-				 (org-export-data
-				  (or (org-export-get-caption entry t)
-				      (org-export-get-caption entry))
-				  info))))
-		     (concat
-		      "<li>"
-		      (if (not label)
-			  (concat (format initial-fmt (cl-incf count))
-				  " "
-				  title)
-			(format "<a href=\"#%s\">%s %s</a>"
-				label
-				(format initial-fmt (cl-incf count))
-				title))
-		      "</li>")))
-		 lol-entries "\n"))
-	      "\n</ul>\n</div>\n</div>"))))
 
 
 ;;; Transcode Functions
@@ -1587,7 +1571,10 @@ information."
   (let ((attributes (org-export-read-attribute :attr_html example-block)))
     (if (plist-get attributes :textarea)
 	(t--textarea-block example-block)
-      (format "<pre class=\"example\"%s>\n%s</pre>"
+      (if-let ((class-val (plist-get attributes :class)))
+	  (setq attributes (plist-put attributes :class (concat "example " class-val)))
+	(setq attributes (plist-put attributes :class "example")))
+      (format "<pre%s>\n%s</pre>"
 	      (let* ((reference (t--reference example-block info t))
 		     (a (t--make-attribute-string
 			 (if (or (not reference) (plist-member attributes :id))
@@ -1678,9 +1665,11 @@ holding contextual information."
 	      (headline-class
 	       (org-element-property :HTML_HEADLINE_CLASS headline))
               (first-content (car (org-element-contents headline))))
-          (format "<%s id=\"%s\">%s%s</%s>\n"
+          (format "<%s id=\"%s\"%s>%s%s</%s>\n"
                   (t--container headline info)
 		  id
+		  (if (not extra-class) ""
+		    (format " class=\"%s\"" extra-class))
                   (format "
 <div class=\"header-wrapper\">
 <h%d id=\"%s\"%s>%s</h%d>
@@ -1805,28 +1794,13 @@ contextual information."
 
 ;;;; Keyword
 
-(defun t-keyword (keyword _contents info)
+(defun t-keyword (keyword _contents _info)
   "Transcode a KEYWORD element from Org to HTML.
 CONTENTS is nil.  INFO is a plist holding contextual information."
   (let ((key (org-element-property :key keyword))
 	(value (org-element-property :value keyword)))
     (cond
-     ((string= key "HTML") value)
-     ((string= key "TOC")
-      (let ((case-fold-search t))
-	(cond
-	 ((string-match "\\<headlines\\>" value)
-	  (let ((depth (and (string-match "\\<[0-9]+\\>" value)
-			    (string-to-number (match-string 0 value))))
-		(scope
-		 (cond
-		  ((string-match ":target +\\(\".+?\"\\|\\S-+\\)" value) ;link
-		   (org-export-resolve-link
-		    (org-strip-quotes (match-string 1 value)) info))
-		  ((string-match-p "\\<local\\>" value) keyword)))) ;local
-	    (t-toc depth info scope)))
-	 ((string= "listings" value) (t-list-of-listings info))
-	 ((string= "tables" value) (t-list-of-tables info))))))))
+     ((string= key "HTML") value))))
 
 ;;;; Latex Environment
 
@@ -1860,11 +1834,14 @@ INFO is a plist containing export properties."
 	;; temporary buffer so that dvipng/imagemagick can properly
 	;; turn the fragment into an image.
 	(setq latex-frag (concat latex-header latex-frag))))
-    (with-temp-buffer
-      (insert latex-frag)
-      (org-format-latex cache-relpath nil nil cache-dir nil
-			"Creating LaTeX Image..." nil processing-type)
-      (buffer-string))))
+    (org-export-with-buffer-copy
+     :to-buffer (get-buffer-create " *Org HTML Export LaTeX*")
+     :drop-visibility t :drop-narrowing t :drop-contents t
+     (erase-buffer)
+     (insert latex-frag)
+     (org-format-latex cache-relpath nil nil cache-dir nil
+		       "Creating LaTeX Image..." nil processing-type)
+     (buffer-string))))
 
 (defun t--wrap-latex-environment (contents _ &optional caption label)
   "Wrap CONTENTS string within appropriate environment for equations.
@@ -1972,6 +1949,9 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
 ;;;; Link
 
 (defun t-image-link-filter (data _backend info)
+  "Process image links that are inside descriptions.
+DATA is the parse tree.  INFO is and info plist.
+See `org-export-insert-image-links' for more details."
   (org-export-insert-image-links data info t-inline-image-rules))
 
 (defun t-inline-image-p (link info)
@@ -2330,7 +2310,7 @@ holding contextual information."
 
 ;;;; Section
 
-(defun t-section (section contents _info)
+(defun t-section (section contents info)
   "Transcode a SECTION element from Org to HTML.
 CONTENTS holds the contents of the section.  INFO is a plist
 holding contextual information."
@@ -2338,7 +2318,9 @@ holding contextual information."
     ;; Before first headline: no container, just return CONTENTS.
     (if (not parent)
 	;; the zeroth section
-	(format "<div id=\"abstract\">\n%s</div>" (or contents ""))
+	(prog1 ""
+	  (plist-put info :html-zeroth-section-output
+		     (format "<div id=\"abstract\">\n%s</div>\n" (or contents ""))))
       (or contents ""))))
 
 ;;;; Radio Target
@@ -2387,24 +2369,23 @@ contextual information."
 	   (code (t-format-code src-block info))
 	   (label (let ((lbl (t--reference src-block info t)))
 		    (if lbl (format " id=\"%s\"" lbl) ""))))
-      (if (not lang) (format "<pre class=\"example\"%s>\n%s</pre>" label code)
-	(format "<div class=\"src-container\">\n%s%s\n</div>"
-		;; Build caption.
-		(let ((caption (org-export-get-caption src-block)))
-		  (if (not caption) ""
-		    (let ((listing-number
-			   (format
-			    "<span class=\"listing-number\">%s </span>"
-			    (format
-			     "Listing %d:"
-			     (org-export-get-ordinal
-			      src-block info nil #'t--has-caption-p)))))
-		      (format "<label class=\"org-src-name\">%s%s</label>"
-			      listing-number
-			      (org-trim (org-export-data caption info))))))
-		;; Contents.
-		(format "<pre class=\"src src-%s\"%s>\n%s</pre>"
-                        lang label code))))))
+      (format "<div class=\"src-container\">\n%s%s\n</div>"
+	      ;; Build caption.
+	      (let ((caption (org-export-get-caption src-block)))
+		(if (not caption) ""
+		  (let ((listing-number
+			 (format
+			  "<span class=\"listing-number\">%s </span>"
+			  (format
+			   "Listing %d:"
+			   (org-export-get-ordinal
+			    src-block info nil #'t--has-caption-p)))))
+		    (format "<label class=\"org-src-name\">%s%s</label>"
+			    listing-number
+			    (org-trim (org-export-data caption info))))))
+	      ;; Contents.
+	      (format "<pre class=\"src src-%s\"%s>\n%s</pre>"
+                      lang label code)))))
 
 ;;;; Statistics Cookie
 
