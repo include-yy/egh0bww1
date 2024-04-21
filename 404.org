@@ -3,7 +3,7 @@
 #+OPTIONS: num:nil
 #+OPTIONS: toc:nil
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://egh0bww1.com/css/style1.css">
-#+HTML_HEAD: <link rel="icon" type="image/png" size="192x192" href="https://egh0bww1.com/img/lily.svg">
+#+HTML_HEAD: <link rel="icon" type="image/png" sizes="192x192" href="https://egh0bww1.com/img/lily.svg">
 
 #+TITLE: 404
 
