@@ -5,15 +5,13 @@
 #+DATE: [2023-11-17 Fri 11:54]
 #+AUTHOR: 小枣君
 
-#+BEGIN_aside
+#+begin: aside note
 本文转载自[[https://www.zhihu.com/people/xzclass][小枣君]]在知乎上发布的文章《算力简史（完整版）》，原文地址如下：
 
 https://zhuanlan.zhihu.com/p/667310518
 
 https://mp.weixin.qq.com/s/7r_F35EcFGpqRiX6ZjbIeg
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 引言：今天这篇文章，我将给大家详细介绍一下人类算力的演进过程。这是一段波澜壮阔的历史，值得我们驻足与回忆。
 

@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 #+TITLE: 关于 backquote 理解的一个汇总与总结
-#+DATE: [2022-03-14 Mon 22:57]
+#+DATE: [2022-03-14 Mon 22:57]--[2022-06-26 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/9594894][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 我于今年的 2 月 22 日开始在 emacs-china 上写这篇文章[fn::https://emacs-china.org/t/backquote/20060]，并在 3 月 14 日完成。不幸地是，2022年 6 月 20 日 emacs-china 因为一些原因暂时闭站了，随后在今天（也就是 26 日）重新恢复。（顺带一提，adnmb 在 20 日重新以 nmbxd 浮起来了）。
 
@@ -25,8 +25,6 @@
 - racket 8.2
 
 本文中会使用两种 common lisp 实现，它们分别是 embedded common lisp 和 steel bank common lisp。在需要对不同实现做区分时我会在代码块中以注释说明使用的是哪一种。
-
-{{{toc}}}
 
 * 什么是 backquote <2022-02-23 Wed 21:43>
 
@@ -744,6 +742,7 @@ CL-USER> ``(,@,@(list 1 2 3))
 => `(,@1 ,@2 ,@3)
 #+END_SRC
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -757,5 +756,6 @@ CL-USER> ``(,@,@(list 1 2 3))
 [[https://www.pixiv.net/artworks/83888736][file:p3.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment
 
 [fn:2] [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html]]

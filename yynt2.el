@@ -41,9 +41,12 @@
 ;; requests
 ;; 加载自带的 htmlize
 ;; 来自 https://github.com/hniksic/emacs-htmlize
-(require 'htmlize (expand-file-name "./htmlize.el"))
+;; (require 'htmlize (expand-file-name "./htmlize.el"))
 ;; 加载魔改版 html 后端
-(load-file (expand-file-name "./ox-yyhtml.el"))
+;; (load-file (expand-file-name "./ox-yyhtml.el"))
+
+;; 新的后端 ox-w3ctr
+(require 'ox-w3ctr)
 ;; 加载 ox-org，方便调试
 ;; C-c C-e O O 导出 org 文件到 org，主要用于宏展开
 (require 'ox-org)
@@ -517,20 +520,33 @@ fn 应至少接受一个文件路径（不限于文件），并返回表明是�
 	 (when (funcall fn file)
 	   (prog1 t (yynt-b-sqlite-insert filename))))))))
 
+;; (defun yynt-gen-fn-org (file)
+;;     "使用 ox-yyhtml 后端构建某个 org 文件，并原地生成 html"
+;;   (when (string= (file-name-extension file) "org")
+;;     (if-let ((buf (get-file-buffer file))) ; 判断是否打开了文件对应的 buffer
+;; 	(with-current-buffer buf
+;; 	  (prog1 t
+;; 	    (org-export-to-file
+;; 		'w3ctr (format "%s.html" (file-name-base file)))))
+;;       (with-current-buffer (find-file-noselect file)
+;; 	(unwind-protect
+;; 	    (prog1 t
+;; 	      (org-export-to-file
+;; 		  'w3ctr (format "%s.html" (file-name-base file))))
+;; 	  (kill-buffer))))))
+
 (defun yynt-gen-fn-org (file)
-    "使用 ox-yyhtml 后端构建某个 org 文件，并原地生成 html"
+  "使用 ox-yyhtml 后端构建某个 org 文件，并原地生成 html"
   (when (string= (file-name-extension file) "org")
     (if-let ((buf (get-file-buffer file))) ; 判断是否打开了文件对应的 buffer
 	(with-current-buffer buf
-	  (prog1 t
-	    (org-export-to-file
-		'yyhtml (format "%s.html" (file-name-base file)))))
+          (prog1 t
+	    (org-w3ctr-export-to-html)))
       (with-current-buffer (find-file-noselect file)
 	(unwind-protect
-	    (prog1 t
-	      (org-export-to-file
-		  'yyhtml (format "%s.html" (file-name-base file))))
-	  (kill-buffer))))))
+            (prog1 t
+	      (org-w3ctr-export-to-html))
+          (kill-buffer))))))
 
 (defalias 'yynt-gen-org-file (yynt-gen-file-gen 'yynt-gen-fn-org)
   "org 文件生成函数")

@@ -5,11 +5,11 @@
 #+DATE: [2015-10-18]
 #+AUTHOR: yin wang
 
-#+BEGIN_aside
+#+begin: aside note
 本文为王垠在 2015 年 10 月 18 日发表的文章。
 
 [[http://www.yinwang.org/blog-cn/2015/10/18/turing][图灵的光环]]
-#+END_aside
+#+end:
 
 仿佛全世界的人都知道，[[https://en.wikipedia.org/wiki/Alan_Turing][图灵]]（Alan Turing）是个天才，是他创造了计算机科学，是他破解了德国纳粹的 Enigma 密码。他被叫做“计算机之父”。由于他的杰出贡献，计算机科学的最高荣誉，被叫做“图灵奖”。然而根据自己一直以来对图灵机等计算模型的看法，加上一些历史资料，我发现图灵本人的实际成就，相对于他所受到的崇拜，其实相差甚远。
 

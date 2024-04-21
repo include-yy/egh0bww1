@@ -3,11 +3,11 @@
 #+TITLE: 借学习 thunk 之机看看 delay-evaluation
 #+DATE: [2021-03-27 Sat]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64918546][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 Elisp Mannual 在 Evaluation 一章的最后一小节中对 elisp 中的延时/惰性求值进行了介绍。和延时求值相关的函数也不过四五个，拿来水一篇文章是个不错的选择。但如果我把官方文档的用法和示例抄过来放在这里的话，那除了翻译过来看得通顺点的话，剩下的东西就是脱裤子放屁了。
 
@@ -23,8 +23,6 @@ Elisp Mannual 在 Evaluation 一章的最后一小节中对 elisp 中的延时/�
 
 
 阅读本文需要一定的 Lisp 使用经验，没玩过 Lisp 系语言的话，您可以去学一学。
-
-{{{toc}}}
 
 * 什么是延时求值
 

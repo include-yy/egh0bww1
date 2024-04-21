@@ -2,7 +2,7 @@
 #+FILETAGS: robot
 
 #+TITLE: Compilation of Unitree GO1 Information, Simulation Environment Construction, and Physical Robot Dog Control via ROS
-#+DATE: [2023-09-29 Fri 20:41]
+#+DATE: [2023-09-29 Fri 20:41]--[2023-10-25 00:00]
 
 #+DESCRIPTION: This article compiles various resources about the Unitree GO1 robotic dog, providing a comprehensive guide to setting up the simulation environment, as well as methods for controlling the Unitree GO1 robot via ROS
 
@@ -14,8 +14,6 @@ The basic environment used in this article is as follows:
 
 - ROS noetic
 - Ubuntu 20.04 LTS
-
-{{{toc}}}
 
 * Some documents and resources
 
@@ -263,8 +261,8 @@ Here, =yycmd= represents the status values of the robotic dog, while the =x= and
 
 Below is the complete code:
 
-{{{begin_details}}}
-{{{summary(yy.cpp)}}}
+#+caption: yy.cpp
+:yy:
 #+BEGIN_SRC cpp
 /**********************************************************************
  Copyright (c) 2020-2023, Unitree Robotics.Co.Ltd. All rights reserved.
@@ -453,7 +451,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 #+END_SRC
-{{{end_details}}}
+:end:
 
 Place =yy.cpp= in the same directory as =main.cpp=, and modify the =CMakeLists.txt= in the =/unitree_guide/unitree_guide= directory at the position shown in the picture below. After that, re-run =catkin_make=, and you'll have a simulation controller that can accept ROS message controls:
 
@@ -555,8 +553,8 @@ Through this article, we have accomplished the setup of the GO1 simulation envir
 
 Naturally, the [[http://wiki.ros.org/Installation/Source][Wiki]] provides detailed steps on how to compile ROS from source, but it's not directly applicable to Ubuntu 22.04, requiring some modifications. The repository [[https://github.com/tatsuyai713/build_ros_noetic_on_jammy][build_ros_noetic_on_jammy]] offers the modified installation scripts. I am providing them directly here to prevent any issues in case the repository gets deleted in the future:
 
-{{{begin_details}}}
-{{{summary(build_noetic_on_jammy.sh)}}}
+#+caption: build_noetic_on_jammy.sh
+:build:
 #+BEGIN_SRC shell
 #!/bin/bash
 
@@ -596,7 +594,7 @@ cd ..
 
 ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release
 #+END_SRC
-{{{end_details}}}
+:end:
 
 As for the reason behind the necessity to change the compilation standard from 11 to 14 or 17, you can refer to this [[https://github.com/Livox-SDK/livox_ros_driver/pull/110][issue]] for context.
 

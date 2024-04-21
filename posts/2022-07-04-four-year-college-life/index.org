@@ -1,15 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: gossip
 #+TITLE: 我的大学四年的一个总结
-#+DATE: [2022-06-09 Thu 09:36]
+#+DATE: [2022-06-09 Thu 09:36]--[2022-07-04 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/96779572][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 写在前面
 
@@ -471,6 +469,7 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 
 这一部分是我大学期间玩的数量最多的游戏。游戏的顺序大致是我玩的顺序，我尽量使用游戏中的图片。一些印象不深且硬盘找不到的就放不上来了。
 
+#+attr_html: :class data
 | *沙耶の唄*                                   | *お兄ちゃん、朝までずっとギュッてして!* | *美少女万華鏡-理と迷宮の少女*                            |
 | [[./16.PNG]]                                     | [[./17.png]]                                | [[./18.png]]                                                 |
 | *星空的回憶-Wish upon a shooting star-*      | *120円*                                 | *Flowers Blooming at the End of Summer*                  |
@@ -487,6 +486,7 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 
 下面是一些我玩过但是没有完全通关的游戏，或者是仅听说过的游戏，记录一下以后有时间再去看看。
 
+#+attr_html: :class data
 | *rewrite 系列* | *ATRI -My Dear Moments-*                       | *Yumeutsutsu Re:Master*                    |
 | [[./31.jpg]]       | [[./32.jpg]]                                       | [[./33.jpg]]                                   |
 | *まいてつ*     | *さくら、もゆ。-as the Night's,Reincarnation-* | *ドーナドーナいっしょにわるいことをしよう* |
@@ -504,8 +504,8 @@ VN（visual novel）即视觉小说，这里叫 galgame 可能更准确一点。
 
 玩笑话说的差不多了，就这样吧。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/82488792][file:p1.png]]
-{{{end_noscript}}}
+#+end_comment

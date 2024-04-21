@@ -5,13 +5,11 @@
 #+DATE: [2019-11-15 Fri]
 #+AUTHOR: Images
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了一些 IO 术语。
 
 原文地址：https://imageslr.com/2019/block-non-blocking-sync-async.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 从进程调度谈起
 

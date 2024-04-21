@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: orgmode
 #+TITLE: ox-html 浅析与 ox-publish 使用介绍
-#+DATE: [2023-01-23 16:02]
+#+DATE: [2023-01-23 16:02]--[2023-01-26 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/14629113][file:0.png]]
-{{{end_noscript}}}
+#+end_comment
 
 本文简单介绍了 ox-html，为之后 hack HTML 导出后端做准备。同时，本文也会介绍 org-mode 的发布功能，这一功能网上已经有很多资料了，本文更多地是介绍它的基本用法和文档中的一些补充内容。
 
@@ -17,8 +17,6 @@
 
 - emacs 28.2 x86_64 on windows 11
 - org-mode 9.5.5
-
-{{{toc}}}
 
 * ox-html 简单介绍
 
@@ -583,8 +581,8 @@ PROJECT is the current project."
 
 本文简单介绍了 ox-html 和 ox-publish 的一些功能，但是不是很全，只是对我感兴趣的部分做了个笔记而已。在下一篇文章中，我会简单介绍 HTML5 是什么，以及如何使用 ox-html 来导出 HTML5 风格的 HTML 文件。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/28980292][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

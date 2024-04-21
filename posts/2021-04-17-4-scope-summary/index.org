@@ -3,13 +3,11 @@
 #+TITLE: 关于作用域的一个小结
 #+DATE: [2021-04-17 Sat]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/70622839][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 写在前面
 

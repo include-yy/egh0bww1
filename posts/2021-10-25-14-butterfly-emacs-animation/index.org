@@ -1,19 +1,17 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 #+TITLE: 蝴蝶效应与 emacs 动画
-#+DATE: [2021-10-23 Sat 22:44]
+#+DATE: [2021-10-23 Sat 22:44]--[2021-10-25 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/85778545][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 从这个标题你就应该知道了这不是什么正经的技术文章。本文就偶然发现的 emacs butterfly 命令来谈谈 emacs 中如何使用 animate.el 实现简单的动画效果，最后使用经典的 bad apple 来展示一个简单的动画。 bad apple 和 animate.el 的关系可能不是很大了，放在这里仅图一乐。
 
 本文使用的编程环境是 emacs 27.1 on windows
-
-{{{toc}}}
 
 * emacs 与蝴蝶效应
 
@@ -92,6 +90,7 @@ Include-Yy
 
 在维基百科中使用了这样的例子来说明一个弹球动画的产生：
 
+#+attr_html: :class data
 | [[./2.png]] | [[./3.gif]] |
 
 除了动画，有时候我们还会听到“动漫”这个词，它应该是动画和漫画的统称，不过现在大多数人似乎直接将它和日本动画视为同一事物了（包括我）。日本动画也是有它的特指单词的，即 anime[fn::https://en.wikipedia.org/wiki/Anime]。
@@ -524,7 +523,7 @@ f.close()
 
 上面列出的一些问题等到我有时间的时候再去想想，毕竟最主要的工作已经完成了 —— 播放 bad apple。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 {{{begin_div}}}
 #+ATTR_HTML: :class top-down-img
@@ -533,4 +532,4 @@ f.close()
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/923358][file:p2.jpg]]
 {{{end_div}}}
-{{{end_noscript}}}
+#+end_comment

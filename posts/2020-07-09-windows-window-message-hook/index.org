@@ -3,13 +3,11 @@
 #+TITLE: Windows 窗口与消息：钩子
 #+DATE: [2020-07-09 Thu]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://yande.re/pool/show/5776][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 什么是钩子（hook）
 

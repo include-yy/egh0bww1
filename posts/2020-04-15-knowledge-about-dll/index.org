@@ -3,13 +3,11 @@
 #+TITLE: 有关动态链接库的知识
 #+DATE: [2020-04-15 Wed]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77293039][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 什么是动态链接库
 

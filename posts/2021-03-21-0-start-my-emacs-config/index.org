@@ -3,13 +3,11 @@
 #+TITLE: 我的从 0 开始的 emacs 配置
 #+DATE: [2021-03-21 Sun]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/86142125][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 写在前面
 

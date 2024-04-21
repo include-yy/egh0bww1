@@ -3,13 +3,11 @@
 #+TITLE: Windows 的控制台和控制台应用
 #+DATE: [2020-06-17 Wed]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 什么是 console，terminal
 

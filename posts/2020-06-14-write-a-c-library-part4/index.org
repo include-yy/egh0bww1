@@ -3,11 +3,11 @@
 #+TITLE: 写个 C 库 - part4
 #+DATE: [2020-06-14 Sun]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/81957473][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文翻译自 *Writing a C library part 4*
 
@@ -18,8 +18,6 @@
 文章源地址：http://davidz25.blogspot.com/2011/07/writing-c-library-part-4.html
 
 前篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html][part two]] [[http://davidz25.blogspot.com/2011/06/writing-c-library-part-3.html][part three]]
-
-{{{toc}}}
 
 * 辅助设施（Helper）和守护进程
 

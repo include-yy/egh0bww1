@@ -3,11 +3,11 @@
 #+TITLE: 使用 emacs 作为 app 启动器
 #+DATE: [2021-07-29 Thu]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/58025515][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 囿于原先笔记本的孱弱性能和可怜的硬盘大小，借暑假的机会我弄了台 Redmibook Pro 15，虽说只有核显，但 i5-11300h 相对于 i5-7360u 还是有不小的提升，5000 块带来的16g 内存和 512g 固态在我看来还是挺香的。
 
@@ -16,8 +16,6 @@
 本文主要是对 app-launcher 这个 emacs 插件的介绍，以及一些关于桌面效率的讨论。
 
 由于我常用的系统是 Windows，以下演示均在 emacs on windows 27.2 下进行。app-launcher 这个插件是跨平台的，linux 下应该也能很好的使用。
-
-{{{toc}}}
 
 * 桌面的效率问题
 
@@ -116,7 +114,7 @@ XDG 桌面配置规范（XDG Desktop Entry specification）为应用程序和桌
 
 这一节就是 app-launcher 使用的全流程教学，我把我的使用方法记录在这里，希望对你有所帮助。
 
-*** 下载和”安装“ app-launcher
+*** 下载和“安装” app-launcher
 
 第一步自然是下载了，下载的话可以有很多方法，最简单的是：
 
@@ -192,6 +190,7 @@ app-launcher 只提供了运行方法，没有提供修改 .desktop 文件的函
 
 - [[https://stabyourself.net/nottetris2/][Stabyourself.net - Not Tetris 2]]
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -201,6 +200,7 @@ app-launcher 只提供了运行方法，没有提供修改 .desktop 文件的函
 [[https://www.pixiv.net/artworks/64529008][file:p1.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment
 
 * 参考资料
 

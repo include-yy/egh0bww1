@@ -3,15 +3,15 @@
 
 #+TITLE: 2023 年的一个简单的总结
 #+SUBTITLE: 写在 23 年的 12 月
-#+DATE: [2023-06-15 06:27]
+#+DATE: [2023-06-15 06:27]--[2023-12-24 00:00]
 
 #+DESCRIPTION: 对 2023 年的非常简单的总结，基本没有什么内容
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/114478771][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 大学结束的时候我写了篇记录整个过程的文章，到现在已经有差不多一年了，也许是个时候再写个小总结性的[[../2022-07-04-four-year-college-life/index.org][文章]]了。倒也不是说这样的文章非得一年写一篇，当我有做总结的想法时，这可能说明我在某些想法上已经与过去的我有了很大的不同，把这些变化记下来必可活用于下一次。
 
@@ -138,8 +138,8 @@
 
 不管今年咋样，再过一周就是明年了，事已至此，先 Merry Christmas。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/114088463][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

@@ -2,29 +2,27 @@
 #+FILETAGS: emacs
 
 #+TITLE: Emacs 26 Brings Generators and Threads
-#+DATE: [2023-03-24 Fri 21:42]
+#+DATE: [2023-03-24 Fri 21:42]--[2023-03-25 00:00]
 
 #+DESCRIPTION: 本文是对 Chris Wellons 发布在 nullprogram 上的博文的转载和翻译，翻译由 lujun9982 完成
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76724761][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
-#+BEGIN_aside
+#+begin: aside note
 本文作者为 Chris Wellons，最初于 2018 年 5 月 31 日发布在 [[https://nullprogram.com/tags/emacs/][nullprogram]] 上，于 2020 年 1 月 30 日由 lujun9972 在他的博客中发布了[[http://blog.lujun9972.win/emacs-document/blog/2018/06/22/emacs-26-%E5%BC%95%E5%85%A5%E7%9A%84%E7%94%9F%E6%88%90%E5%99%A8%E5%92%8C%E7%BA%BF%E7%A8%8B/index.html][翻译]]。
 
 很大程度上本文可以看作对 lujun9972 翻译的转载，不过我修改了一些词语使之更加通顺。通过阅读本文，读者应该能简单了解一些 emacs 中的 generator 使用知识。
-#+END_aside
+#+end:
 
 最近 Emacs 26.1 [[https://lists.gnu.org/archive/html/emacs-devel/2018-05/msg00765.html][发布]]了。正如你所期待的那样，它会有很多新功能。作为一名 Emacs Lisp [[https://nullprogram.com/tags/emacs/][爱好者]]，对我来说最有趣的两个新特性是[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Generators.html][生成器]]（iter）和[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Threads.html][原生线程]]（thread）。
 
 更正：生成器实际上是在 Emacs 25.1（2016 年 9 月）中引入的，而不是 Emacs 26.1。哎！
 
 更新：[[https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual][ThreadSanitizer(TSan)]] 表明 Emacs 的线程实现存在许多数据争用（data race），这也使得它[[https://hboehm.info/boehm-hotpar11.pdf][完全地不可信]]。在这一问题修复之前， *任何人都不应该在任何目的下使用 Emacs 线程* ，在编译时线程应该被禁用。
-
-{{{toc}}}
 
 * 生成器
 
@@ -202,8 +200,8 @@ Emacs 26 还为我们带来了线程，这些线程的使用方法非常固定�
 
 接下来我可能会分析一下 emacs 中 generator 的实现。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/52424495][file:p2.jpg]] | [[https://www.pixiv.net/artworks/81703594][file:p1.jpg]] |
 | [[https://www.pixiv.net/artworks/54962252][file:p4.jpg]] | [[https://www.pixiv.net/artworks/87979074][file:p3.jpg]] |
-{{{end_noscript}}}
+#+end_comment

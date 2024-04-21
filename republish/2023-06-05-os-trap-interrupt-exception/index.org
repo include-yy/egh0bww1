@@ -5,13 +5,11 @@
 #+DATE: [2020-07-15 Wed]
 #+AUTHOR: Images
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了中断、异常等概念
 
 原文地址：https://imageslr.com/2020/07/09/trap-interrupt-exception.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 前言：异常控制流
 

@@ -5,13 +5,11 @@
 #+DATE: [2020-07-07 Tue]
 #+AUTHOR: Images
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了一些进程相关的概念
 
 原文地址：https://imageslr.com/2020/07/07/process-schedule.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 进程的状态
 

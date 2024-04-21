@@ -3,17 +3,15 @@
 #+TITLE: C 风格字符串缺陷及改进
 #+DATE: [2020-03-02 Mon]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/74372409][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 当人们谈论 C 的问题时，“字符串”的概念永远是首要缺陷之一。你已经用过它们，并且我也谈论过它们的种种缺陷，但是对为什么 C 字符串拥有缺陷，以及为什么一直是这样没有明确的解释。—— /Learn C the hard way/
 
 本文指出了 C 语言字符串的一些问题，并对如何改进操纵字符串提出了一些建议和方案。
-
-{{{toc}}}
 
 * 为什么 C 风格字符串十分糟糕
 
@@ -48,6 +46,7 @@ C 风格的字符串是一个以 '\0' 结尾的字符数组，它的长度并不
 
 gets() 的函数原型如下：
 
+#+caption:
 #+BEGIN_SRC C
   char * gets(char *);
 #+END_SRC
@@ -62,6 +61,7 @@ gets() 没有限制它的读取长度，非常容易溢出。如果溢出，多�
 
 fgets() 的函数原型为：
 
+#+caption:
 #+BEGIN_SRC c
   char * fgets(char *str, int n, FILE *stream);
 #+END_SRC
@@ -72,6 +72,7 @@ fgets() 从指定的流中读取一行，并将内容存储在字符数组 str �
 
 对于 bString 文档中提出的问题，我使用下面的代码进行了实验：
 
+#+caption:
 #+BEGIN_SRC c
   #include <stdio.h>
   #include <stdlib.h>
@@ -112,6 +113,7 @@ fgets() 从指定的流中读取一行，并将内容存储在字符数组 str �
 
 该函数的原型为：
 
+#+caption:
 #+BEGIN_SRC c
   char * strncpy ( char * destination, const char * source, size_t num );
 #+END_SRC
@@ -126,6 +128,7 @@ fgets() 从指定的流中读取一行，并将内容存储在字符数组 str �
 
 例如：
 
+#+caption:
 #+BEGIN_SRC c
   strcpy (p = malloc (13 * sizeof (char)), "Hello,");
   strcat (p, " World");
@@ -143,6 +146,7 @@ C 的字符串是一个字符接着一个字符的连续形式，在某些场景
 
 最简单的例子，例如：
 
+#+caption:
 #+BEGIN_SRC c
   char a[20] = "Hello";
   strcat(a, a);
@@ -200,6 +204,7 @@ Strsafe 的具体内容，可参阅微软[fn:2]的专门文档。
 
 bString 提供了它自己定义的 bString 类型
 
+#+caption:
 #+BEGIN_SRC c
   struct tagbstring {
       int mlen;

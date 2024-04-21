@@ -1,21 +1,19 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: orgmode
 #+TITLE: org-mode 导出宏：org-macro
-#+DATE: [2023-01-15 Sun 22:57]
+#+DATE: [2023-01-15 Sun 22:57]--[2023-01-17 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84249040][file:0.png]]
-{{{end_noscript}}}
+#+end_comment
 
 本文算是我在阅读 org manual 的 13.9 节时的意外收获，原本我只是想学习一下 org 到 HTML 的导出顺便记个笔记，但在读到 13.5 章时发现这 macro 居然意外的好玩，遂记下了一些折腾过程。
 
 本文使用的环境如下：
 
 - emacs 28.2 x86_64 on windows 11
-
-{{{toc}}}
 
 * org-mode 的导出过程
 
@@ -574,7 +572,7 @@ include-yy
 
 以上。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 {{{begin_div}}}
 #+ATTR_HTML: :class top-down-img
@@ -584,4 +582,4 @@ include-yy
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/62443260][file:p3.jpg]]
 {{{end_div}}}
-{{{end_noscript}}}
+#+end_comment

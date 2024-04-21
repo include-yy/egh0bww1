@@ -1,11 +1,10 @@
-#+SETUPFILE: ./cfg.org
-
+#+OPTIONS: ^:{}
+#+OPTIONS: html-style:nil
 #+OPTIONS: num:nil
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style.css">
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/rotate_cd.css">
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="./img/rin.ico">
+#+options: html-preamble:nil
 
-#+HTML_SUFFUNC: yynt-homepage-postamble
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style1.css">
+#+HTML_HEAD: <link rel="icon" type="image/png" size="192x192" href="./img/lily.svg">
 
 #+MACRO: post_n    (eval (yynt-post-homepage-titlelists $1))
 #+MACRO: post_init (eval (yynt-post-init))
@@ -15,60 +14,28 @@
 #+MACRO: re_init (eval (yynt-repost-init))
 #+MACRO: re_clr  (eval (yynt-repost-clr))
 
-#+MACRO: curr_time (eval (yynt-temp-current-time))
 #+TITLE: Home :: include-yy
+#+DATE: [2024-04-21 Sun 21:08]
 
 {{{post_init}}}
 {{{re_init}}}
 
-#+ATTR_HTML: :class top-down-img :id cirno
-[[./img/cirno.jpg]]
+[[./img/dejiko.png]]
 
-#+BEGIN_EXPORT html
-<script>
-let cirno = document.getElementById("cirno")
-let flag = true;
-
-cirno.onclick = () => {
-    if (flag) {
-	cirno.src = "./img/cirno.gif"
-	flag = false
-    } else {
-	cirno.src = "./img/cirno.jpg"
-	flag = true
-    }
-}
-
-let yynt_header = document.getElementsByTagName('header')[0]
-yynt_header.setAttribute("class", "rotation-container")
-
-const yynt_p = new DOMParser()
-const yynt_cds = '<div class="rotationc"><div class="fly_cirno"></div></div><div class="rotationd"><div class="fly_daiyousei"></div></div>'
-const yynt_cd = yynt_p.parseFromString(yynt_cds, 'text/html').body.childNodes
-
-yynt_header.insertBefore(yynt_cd[1], yynt_header.firstElementChild)
-yynt_header.insertBefore(yynt_cd[0], yynt_header.firstElementChild)
-
-document.getElementsByClassName('fly_cirno')[0].addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109530208')
-document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', () => window.location.href='https://www.pixiv.net/artworks/109113009')
-</script>
-#+END_EXPORT
-
-#+BEGIN_nav
-| [[./posts/index.org][POSTS]]  | [[file:posts/tags.org][TAGS]]  | [[./republish/index.org][REPOSTS]] |
-| [[./projecteuler/index.org][EULER]]  | [[*FOLKS][FOLKS]] | [[*ABOUT][ABOUT]]   |
-| [[https://github.com/include-yy/yyelpa/wiki][YYELPA]] | ⑨     | [[file:drafts/index.org][DRAFT]]   |
-#+END_nav
-
-* Recent [[./posts/index.org][Posts]]
+* 最近的 [[./posts/index.org][Posts]]
 
 {{{post_n(10)}}}
 {{{post_clr}}}
 
-* Recent [[file:republish/index.org][Republish]]
+* 最近的 [[file:republish/index.org][Republish]]
 
 {{{re_n(5)}}}
 {{{re_clr}}}
+
+* 其他页面
+
+- [[./posts/tags.org][博客的分类页面]]
+- [[./projecteuler/index.org][ProjectEuler 题解]]
 
 * FOLKS
 
@@ -128,15 +95,10 @@ document.getElementsByClassName('fly_daiyousei')[0].addEventListener('click', ()
 
 *如果您发现某些内容侵犯了著作权，请通过邮件告诉我，我会及时删除。*
 
-[2023-07-09 Sun] /出于页面加载速度的考虑，我将 post 中的文章的封面和尾部图片设置为默认不加载，你可以通过按键 'y' 来切换是否显示这些图片。/
-
 This blog primarily focuses on emacs-related content, with some other topics that I find interesting. All blog posts are published under CC-BY-SA 4.0. If you come across any issues in the articles, you can inform me through an [[https://github.com/include-yy/notes/issues][issue]] or by emailing yy@egh0bww1.com.
 
 You can add the RSS feed to subscribe to this blog. The link is https://egh0bww1.com/rss.xml. If you also have an emacs-related blog or something interesting, I would be happy to include your link in the FOLKS page.
 
 *If you find any content that infringes upon copyright, please inform me via email, and I will promptly remove it.*
 
-
-*include-yy [2023-07-07 Fri 16:46]*
-
-Last modified: {{{curr_time}}}
+*include-yy [2024-04-21 Sun 21:04]*

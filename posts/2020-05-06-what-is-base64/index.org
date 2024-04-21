@@ -3,13 +3,11 @@
 #+TITLE: 什么是base64编码
 #+DATE: [2020-05-06 Wed]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/69450743][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 什么是 Base64
 

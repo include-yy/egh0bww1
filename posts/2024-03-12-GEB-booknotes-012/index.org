@@ -1,23 +1,22 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: gossip
 
-#+TMP: 0
 #+TITLE: GEB 集异璧笔记 --- 第零一二章
-#+DATE: [2024-03-09 Sat 21:18]
+#+DATE: [2024-03-09 Sat 21:18]--[2024-03-12 00:00]
 
 #+DESCRIPTION: 本文是我在阅读侯世达的传奇著作 GEB 时的一些笔记，主要是对一二章的阅读总结
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/14907613][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 按理说我应该接着上一篇[[../2024-02-14-49-write-a-treesitter-parser-wgsl/index.org][文章]]介绍 tree-sitter 提供的 API，但是暂时没什么想写的动力。最近随便翻了翻很早之前就有所耳闻的《哥德尔、埃舍尔、巴赫：集异璧之大成》开头两章，不如写个简单的读书笔记水水博客。以下我们简称这本书为 GEB。
 
 我是从 Scheme 这门编程语言最先了解到侯世达（[[https://en.wikipedia.org/wiki/Douglas_Hofstadter][Douglas Hofstadter]]）这个人的，他提出了 Scheme 中非常有名的 yin-yang puzzle，代码如下：
-{{{begin_details}}}
-{{{summary(yin-yang puzzle)}}}
+
+:yin-yang-puzzle:
 #+BEGIN_SRC elisp
   (let* ((yin ((lambda (cc) (display #\@) cc)
 	       (call/cc (lambda (c) c))))
@@ -45,13 +44,11 @@ const yang = (k) => ((c, k2) => k2(c))(
 const f = (k) => yin((v1) => yang((v2) => v1(v2, k)));
 f((x) => x);
 #+END_SRC
-{{{end_details}}}
+:end:
 
 跟随着 Scheme 的脚步我进一步了解到他的著作 GEB，但这大概已经是四五年前的事情了。在二一年到二二年我迫切地希望建立起某种能够符合自身的知识框架或者说认知框架看了一点书，比如《数学：确定性的丧失》、《机器崛起：遗失的控制论历史》、《万物皆无序-新数字秩序的革命》、等等。 *这个知识框架我到现在都没有建立起来，但我也不再觉得这是非常紧迫的事情了* 。二三年玩了一年 Emacs，玩到年末因为要写个 parser 学了点编译原理的知识，其中关于语言的一些综述性知识似乎为我补全了阅读 GEB 需要的最后一丝动机。到了今年的三月，我终于能够拿起这本书了。
 
 本文使用的书版本为 1996 年 8 月第 1 版，如果你使用的 PDF 共有 1089 页那应该就是同一本（笑），下文中出现的正文页数换算到 PDF 就是加上 36。虽说是读书笔记，本文对书中提及的信息和知识做了一些补充，也许能够帮助音乐白痴（比如我）更好地理解书中的内容。我没有做读书笔记的习惯，本文（以及后续）也算是一次尝试。
-
-{{{toc}}}
 
 * 侯世达何许人也
 
@@ -467,8 +464,8 @@ GEB 第 80 页
 
 GEB 共有 900 多页 20 章，现在从页面上来说完成了 10%，希望今年之内能够看完。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/93208667][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

@@ -3,15 +3,13 @@
 #+TITLE: Win32 编程基础之键盘输入
 #+DATE: [2020-07-13 Mon]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 应用应该能够接收来自用户的键盘输入。键盘输入以投递的方式让应用进行接收。
-
-{{{toc}}}
 
 * 键盘的输入模式
 

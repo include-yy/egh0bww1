@@ -2,15 +2,15 @@
 #+FILETAGS: emacs
 
 #+TITLE: emacs 的加载机制
-#+DATE: [2023-02-09 Thu 02:20]
+#+DATE: [2023-02-09 Thu 02:20]--[2023-03-04 00:00]
 
 #+DESCRIPTION: 本文是对 elisp manual 16 的讲解和分析，较为完整地介绍了一些加载机制的使用和原理
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/38412472][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 在整完博客后，我猛然发现自己的 emacs 配置已经成了一坨静静放在角落的旧物，我甚至都懒得动它。从最开始的单 .emacs 到有目录组织的 init.el，虽然层次感更强了，但在没有专门编写管理插件的情况下要修改配置还得一个一个打开分散的文件，大概这就是让我丧失折腾动力的原因。随着 use-package 加入 emacs 29，也许现在是时候重新拾起单文件配置的思想了。那么我还是先从 emacs 最基本的加载机制开始吧，也许我会在之后对 use-package 的使用和实现进行详细的分析，我有 all-in use-package 的打算（笑）。
 
@@ -30,8 +30,6 @@ decision paralysis over these far outweight their benefits. We'll always recomme
 
 [[https://rescript-lang.org/docs/manual/latest/project-structure][rescript docs -- Project Structure]]
 #+END_QUOTE
-
-{{{toc}}}
 
 * 前置知识
 
@@ -919,8 +917,8 @@ for more details about the different forms of FILE and their semantics."
 
 在下一篇文章中，我会对 emacs 内置的包管理器做一些介绍，不过也说不好，也许是 use-package 呢？
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/68868289][file:p1.jpg]] | [[https://www.pixiv.net/artworks/28288129][file:p2.jpg]] |
 | [[https://www.pixiv.net/artworks/82193242][file:p3.jpg]] | [[https://www.pixiv.net/artworks/74887022][file:p4.jpg]] |
-{{{end_noscript}}}
+#+end_comment

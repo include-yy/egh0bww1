@@ -3,13 +3,11 @@
 #+TITLE: Windows窗口与消息：窗口类
 #+DATE: [2020-06-22 Mon]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/68995269][file:0.jpg]]
-{{{end_noscript}}}
-
-{{{toc}}}
+#+end_comment
 
 * 什么是窗口类
 

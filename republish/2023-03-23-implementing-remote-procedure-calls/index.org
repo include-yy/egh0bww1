@@ -6,16 +6,16 @@
 #+MACRO: blue @@html:<span style="color:#2ab7ca">$1</span>@@
 
 #+TITLE: Implementing Remote Procedure Calls
-#+DATE: 1984 Feb
+#+DATE: [1984-02-01]
 #+AUTHOR: ANDREW D.BIRRELL and BRUCE JAY NELSON
 
-#+BEGIN_aside
+#+begin: aside note
 原文地址如下：
 
 ACM Transactions on Computer Systems, Vol. 2, No. 1, February 1984
 
 https://web.eecs.umich.edu/~mosharaf/Readings/RPC.pdf
-#+END_aside
+#+end:
 
 *ANDREW D. BIRRELL* and *BRUCE JAY NELSON*
 
@@ -44,8 +44,6 @@ General Terms: Design, Experimentation, Performance, Security
 
 Additional Keywords and Phrases: Remote procedure calls, transport layer protocols, distributed
 naming and binding, inter-process communication, performance of communication protocols.
-
-{{{toc}}}
 
 * INTRODUCTION
 

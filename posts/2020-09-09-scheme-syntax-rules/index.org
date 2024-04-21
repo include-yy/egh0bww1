@@ -3,11 +3,11 @@
 #+TITLE: Scheme 的 syntax-rules
 #+DATE: [2020-09-09 Wed]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/79337308][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 谈到 Scheme 的独特之处，除了它那极简语法的 s-expression 外，就是与众不同但又威力强大的宏，或者说是语法拓展（syntactic-extension）了。本文除了作为我对 syntax-rules 的学习总结之外，其实更多的是对宏这一机制的理解与思考。
 
@@ -16,8 +16,6 @@
 本文的内容包括对宏的简单介绍，一些使用宏的例子，以及对 syntax-rules 的简单介绍。Scheme 中还有许多其他的宏机制，如 syntax-case，explicit renaming 和 syntactic closures 等，但 syntax-rules 是 Scheme 标准中规定实现的，其他宏机制将在之后的文章中进行介绍。
 
 让我们从对宏的基本认识开始这篇文章吧。
-
-{{{toc}}}
 
 * 什么是宏
 

@@ -5,13 +5,11 @@
 #+DATE: [2020-02-27 Thu]
 #+AUTHOR: Images
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了 I/O 多路复用
 
 原文地址：https://imageslr.com/2020/02/27/select-poll-epoll.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 从阻塞 I/O 到 I/O 多路复用
 

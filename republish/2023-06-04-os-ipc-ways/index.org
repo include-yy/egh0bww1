@@ -5,13 +5,11 @@
 #+DATE: [2020-02-26 Wed]
 #+AUTHOR: Images
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了进程通信的一些方式。
 
 原文地址：https://imageslr.com/2020/02/26/ipc.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 进程间的通信方式
 

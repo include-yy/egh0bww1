@@ -2,15 +2,15 @@
 #+FILETAGS: elisp
 
 #+TITLE: 在 Emacs 中创建和使用子进程
-#+DATE: [2023-07-19 Wed 02:57]
+#+DATE: [2023-07-19 Wed 02:57]--[2023-07-23 00:00]
 
 #+DESCRIPTION: 本文是对 Elisp Manual 第 39 章的详细讲解，介绍了如何在 Emacs 中使用同步异步子进程，以及如何使用 elisp 创建网络连接
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/63740368][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文是 Elisp Manual 补完计划的一部分，对 Elisp Manual 的第 39 章进行了比较详细的介绍，补充了具体的例子。原本我打算将它作为讲解 jsonrpc 的前置知识放在另一篇文章里，但是内容稍微有点多，不如单独作为一篇文章。
 
@@ -20,8 +20,6 @@
 
 - emacs 28.2 x86_64 on Windows 10
 - Python 3.11.0
-
-{{{toc}}}
 
 * 创建同步子进程
 
@@ -1029,8 +1027,8 @@ Python 端的接受和发送可以这样实现：
 
 现在，我们基本实现了一个非常简陋的，基于标准输入输出的 RPC “框架”。读者可以在此基础上添加一些新玩意，下面是完整代码：
 
-{{{begin_details}}}
-{{{summary(python 代码)}}}
+#+caption: python 代码
+:python:
 #+BEGIN_SRC python
   import json
   import sys
@@ -1052,10 +1050,10 @@ Python 端的接受和发送可以这样实现：
       print(b)
       sys.stdout.flush()
 #+END_SRC
-{{{end_details}}}
+:end:
 
-{{{begin_details}}}
-{{{summary(elisp 代码)}}}
+#+caption: elisp 代码
+:ELISP:
 #+BEGIN_SRC elisp
   ;; -*- lexical-binding: t; -*-
   (defvar yyrpc-callback (lambda (s) (message "hello %s" s)))
@@ -1135,7 +1133,7 @@ Python 端的接受和发送可以这样实现：
   ;; (+ 1 (yyrpc-sub-sync 2 3)) => 0
   ;; (yyrpc-fib-sync 15) => 610
 #+END_SRC
-{{{end_details}}}
+:end:
 
 * 创建网络连接
 
@@ -1286,7 +1284,7 @@ UDP（可能）比 TCP 稍微简单一点，我们只需要发包就行了，但
 
 感谢阅读。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/49710270][file:p1.jpg]] | [[https://www.pixiv.net/artworks/98680917][file:p2.jpg]] | [[https://www.pixiv.net/artworks/27397315][file:p3.jpg]] |
-{{{end_noscript}}}
+#+end_comment

@@ -5,13 +5,11 @@
 #+DATE: [2012-07-04]
 #+AUTHOR: yin wang
 
-#+BEGIN_aside
+#+begin: aside note
 本文来自王垠于 2012 年 7 月 4 日写的博客。
 
 [[http://www.yinwang.org/blog-cn/2012/07/04/dan-friedman][GTF -- Great Teacher-Friedman]]
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 写小人书的老顽童
 

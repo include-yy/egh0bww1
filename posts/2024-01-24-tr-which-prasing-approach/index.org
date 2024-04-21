@@ -2,15 +2,15 @@
 #+FILETAGS: tr
 
 #+TITLE: 【翻译】Which Parsing Approach
-#+DATE: [2024-01-23 Tue 04:30]
+#+DATE: [2024-01-23 Tue 04:30]--[2024-01-24 00:00]
 
 #+DESCRIPTION: 本文是对 Laurence Tratt 的 Which Parsing Approach 的翻译，对常见 parsing 方法进行了介绍，且特别偏向于 LR parsing
 
-#+BEGIN_aside
+#+begin: aside note
 本文使用 ChatGPT 翻译了 Laurence Tratt 的一篇文章，作者介绍了几种常见的 parser，并说明了自己选择 LR parser 的原因。
 
 - [[https://tratt.net/laurie/blog/2020/which_parsing_approach.html][Which Parsing Approach]]
-#+END_aside
+#+end:
 
 我们都知道， parsing 是设计和实现编程语言的重要部分，但它就像是抱子甘蓝（Brussels sprout）：有益于饮食但没有多少人喜欢它的味道。不幸的是，我逐渐意识到，我们对 parsing 的普遍反感是有问题的。尽管许多人认为我们已将 20 世纪 60 年代的进步融入了我们共同的认知，但我担心我们已经退步了，并且我们经常在 parsing 上做出不恰当的决策。如果这听起来像是指责，我并不是这个意思：我过去二十多年一直认为 parsing 很简单，觉得没必要深入了解就能用得好。唉，现实是一个残酷的老师，在这篇文章中，我想分享一些我被迫慢慢学习并承认的教训。
 
@@ -19,8 +19,6 @@
 [[./1.svg]]
 
 在这篇文章的剩余部分中，我将用“pretty print text”的形式来表示树，其中括号让我们可以简洁地表达树的结构。例如，上面的树等同于 =(2-(3*4))= 。我将假设“parsing”意味着“检查与语法的对应关系并构建一个解析树”。我还会尽可能简化其他解析术语和命名法来让内容易于理解且保持适中长度。
-
-{{{toc}}}
 
 * Recursive descent
 
@@ -429,11 +427,11 @@ The article fails to see that both LL and LR are back-tracking less parsers. In 
 
 [fn:1] Parsing Expression Grammars (PEG)s and “parser combinators” in some functional languages are just recursive descent parsers in disguise.
 
-[fn:2] My favourite example of this is best expressed as a Parsing Expression Grammar (PEG): {{{br}}}
+[fn:2] My favourite example of this is best expressed as a Parsing Expression Grammar (PEG): \\
 #+BEGIN_SRC text
   r <- a / ab
 #+END_SRC
-or as a hand-written recursive descent parser: {{{br}}}
+or as a hand-written recursive descent parser: \\
 #+BEGIN_SRC python
   def r(s, i):
       if i + 1 < len(s) and s[i] == "a":
@@ -457,7 +455,7 @@ Both of these parsers successfully parse the string ‘a’ but fail to parse th
 
 [fn:9] Perhaps I was lucky not to study a compilers course myself (my university did not offer one at that point), as it meant I couldn’t develop the most severe of allergic reactions to LR parsing.
 
-[fn:10] From least to most expressive we thus have: regular expressions, LL, LR, unambiguous, CFG. In other words, regular expressions are a strict subset of LL, LL a strict subset of LR, and so on. The most complete description of the hierarchy I know can be found in p89 of [[https://users.math-cs.spbu.ru/~okhotin/talks/grammars_lata_talk.pdf][Alexander Okhotin’s talk]] (where arrows mean “more expressive” and “ordinary” means “CFG”). Note that recursive descent doesn’t fit into this hierarchy at all — formally speaking, we know that it accepts a disjoint set of languages relative to CFGs, but, because PEGs have no underlying theory that we know of, we are unable to precisely define that set further. {{{br}}}
+[fn:10] From least to most expressive we thus have: regular expressions, LL, LR, unambiguous, CFG. In other words, regular expressions are a strict subset of LL, LL a strict subset of LR, and so on. The most complete description of the hierarchy I know can be found in p89 of [[https://users.math-cs.spbu.ru/~okhotin/talks/grammars_lata_talk.pdf][Alexander Okhotin’s talk]] (where arrows mean “more expressive” and “ordinary” means “CFG”). Note that recursive descent doesn’t fit into this hierarchy at all — formally speaking, we know that it accepts a disjoint set of languages relative to CFGs, but, because PEGs have no underlying theory that we know of, we are unable to precisely define that set further. \\
 Another interesting case is the ALL(\star) algorithm which underlies ANTLR. ALL(\star) accepts a strict superset of LL (including many ambiguous grammars), but is disjoint with LR since ALL(\star) doesn’t support left-recursion. However, ANTLR can remove direct left-recursion before invoking ALL(\star), so some grammars that might seem impossible to parse with ALL(\star) can in fact be parsed by it. Bearing in mind that we’re talking about infinite sets, and that I don’t think we have a formal proof of the following statement, I think it would be fair to say that the ALL(\star) subset of CFGs is bigger than the LR subset.
 
 [fn:11] There are larger unambiguous subsets such as [[https://www.sciencedirect.com/science/article/pii/S0022000073800509/pdf?md5=8ac87046af6d6a710bebfcaebaca8591&amp;pid=1-s2.0-S0022000073800509-main.pdf][LR-Regular (or “LRR”) grammars]]. However, as far as I can tell, these are probably not practical. For example, [[https://ecommons.cornell.edu/items/ff818354-43a4-4402-9ef3-5b626ba3207d][it is not decidable as to whether an arbitrary grammar is LRR or not]]. [Update 2020-10-28: a previous version of this footnote suggested that Marpa is LRR-based. It is a generalised parser that can therefore also parse LRR grammars. My apologies for the confusion!] [Update: 2022-12-20: Askar Safin points out that [[https://www.sciencedirect.com/science/article/pii/0022000083900260?via%3Dihub][a later paper than the one I cited shows that it is decidable as to whether an arbitrary grammar is LRR or not]].]
@@ -472,7 +470,7 @@ Another interesting case is the ALL(\star) algorithm which underlies ANTLR. ALL(
 
 [fn:16] The best conflict reports I’ve seen come from [[https://github.com/lalrpop/lalrpop][LALRPOP]].
 
-[fn:17] Off-hand, I can only think of a single example: when Lukas tried to evolve [[https://github.com/softdevteam/grammars/tree/master/java7][this Java 7 grammar]] to Java 8. Until that point, grmtools did not have a way of reporting details about conflicts because I hadn’t needed such a feature! {{{br}}}
+[fn:17] Off-hand, I can only think of a single example: when Lukas tried to evolve [[https://github.com/softdevteam/grammars/tree/master/java7][this Java 7 grammar]] to Java 8. Until that point, grmtools did not have a way of reporting details about conflicts because I hadn’t needed such a feature! \\
 The Java specification used to pride itself on presenting a simple, machine-proven, unambiguous grammar in an appendix. Unfortunately, at some point, this grammar seems to have been dropped from the specification, and I suspect that the new syntax introduced has not been checked for possible ambiguities. We quickly realised that a Java 8 grammar wasn’t important enough to our work for us to invest the time in this, so I don’t know if it is ambiguous or not.
 
 [fn:18] For the insatiably curious, the conflict types mean roughly:

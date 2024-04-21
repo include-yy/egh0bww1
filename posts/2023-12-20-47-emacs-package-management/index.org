@@ -2,14 +2,14 @@
 #+FILETAGS: emacs
 
 #+TITLE: emacs 自带的包管理
-#+DATE: [2023-03-04 Sat 04:10]
+#+DATE: [2023-03-04 Sat 04:10]--[2023-12-20 00:00]
 #+DESCRIPTION: 本文总结了文档中的包管理相关资料，对 emacs 原生包管理的使用给出了一些介绍
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/73923041][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 emacs 24.1 引入的包管理器提供了一些基础功能，如使用 =list-packages= 可以列出所有源中的包，通过 =package-install= 可以安装某个包，等等。除了自带的 package.el 外，社区也有一些不错的包管理，比如 [[https://github.com/progfolio/elpaca][elpaca]], [[https://github.com/quelpa/quelpa][quelpa]], [[https://github.com/dimitri/el-get][el-get]], [[https://github.com/radian-software/straight.el][straight.el]], [[https://github.com/emacscollective/borg][borg]]。在尝试过默认包管理后，我参考 [[https://github.com/manateelazycat/lazycat-emacs][lazycat-emacs]] 选择了 git submodule 管理方式，但我最终发现对我来说这是多此一举，并退回到了 package.el。
 
@@ -18,8 +18,6 @@ emacs 24.1 引入的包管理器提供了一些基础功能，如使用 =list-pa
 本文是对 Emacs Manual 和 Elisp Manual 包管理相关章节（[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Packages.html][Packages]] 和 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Packaging.html][Packaging]]）的总结，主要内容为对如何创建包、如何进行包管理和如何搭建简易 ELPA 的介绍。本文使用的环境如下：
 
 - GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
-
-{{{toc}}}
 
 * 如何创建包
 
@@ -115,8 +113,8 @@ Emacs 会使用 =package-version= 和 =version= 关键字指定版本信息，�
 
 在文档附录中给出了一个包的代码例子，不过它并不完整，这里我给出一个可以实际安装的包，读者可以使用 =package-install-file= 或 =package-install-from-buffer= 尝试。下面代码的许可证部分可以很方便地从各种包中找到并复制：
 
-{{{begin_details}}}
-{{{summary(单文件包的一个简单例子)}}}
+#+caption: 单文件包的一个简单例子
+:package:
 #+BEGIN_SRC elisp
   ;;; asmd.el --- add, sub, mul, div functions -*- lexical-binding:t; -*-
 
@@ -167,7 +165,7 @@ Emacs 会使用 =package-version= 和 =version= 关键字指定版本信息，�
   (provide 'asmd)
   ;;; asmd.el ends here
 #+END_SRC
-{{{end_details}}}
+:end:
 
 读者可以将以上内容复制到一个 buffer 中，然后调用 =package-install-from-buffer= 进行安装。完成安装后即可使用这些函数了（请先 =(require 'asmd)= ，在安装完毕后 emacs 只会添加路径到 =load-path= 并执行一些 autoload 表达式），使用 =C-h P asmd= 可以看到包的详细介绍信息，使用 =list-packages= 可以找到这个包：
 
@@ -237,8 +235,8 @@ Emacs 会使用 =package-version= 和 =version= 关键字指定版本信息，�
   install-info asmd.info dir
 #+END_SRC
 
-{{{begin_details}}}
-{{{summary(asmd.texi)}}}
+#+caption: asmd.texi
+:asmd:
 #+BEGIN_SRC texinfo
   \input texinfo
   @setfilename asmd.info
@@ -317,7 +315,7 @@ Emacs 会使用 =package-version= 和 =version= 关键字指定版本信息，�
 
   @bye
 #+END_SRC
-{{{end_details}}}
+:end:
 
 经过上面操作后，你会得到 =asmd.info= 和 =dir= 两个文件。前者是文档的主体，后者是 info 文件对应的 dir 文件，用来保存一些顶级菜单信息。将两个文件放入源代码目录并打包，我们就获得了一个带有 info 文档支持的多文件包。如果 tar 包或目录中存在名为 =dir= 的文件，那么这个包的安装目录会被认为是一个 Info 目录，这通过调用 =install-info= 完成（当然了我们需要同时提供 dir 和 info 文件）。
 
@@ -1079,8 +1077,8 @@ package-build 提供了 =package-build--create-tar= 用来创建 tar 文件，�
 
 [[./22.png]]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/59128984][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

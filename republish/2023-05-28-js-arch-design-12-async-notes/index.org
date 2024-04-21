@@ -5,13 +5,11 @@
 #+AUTHOR: ^_^肥仔John
 #+DATE: [2015-02-21 Sat 22:39]
 
-#+BEGIN_aside
+#+begin: aside note
 本文转载自 ^_^肥仔John 的文章，介绍了司徒正美著作《JavaScript框架设计》中的第 12 章的内容
 
 文章地址：https://www.cnblogs.com/fsjohnhuang/p/4296831.html
-#+END_aside
-
-{{{toc}}}
+#+end:
 
 * 何为异步
 

@@ -3,11 +3,11 @@
 #+TITLE: 怎么弄一个自己的 blog —— 怎么感觉方向弄错了捏
 #+DATE: [2023-01-12 Thu 22:57]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/104273741][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 按照 LAMP 的顺序的话这篇文章应该介绍 Linux 下 PHP 的安装和使用，但写着写着我突然发现有点不对劲，我到底是来学 LAMP 来了还是学搭博客来了？
 

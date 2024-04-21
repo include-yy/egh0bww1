@@ -1,13 +1,14 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: emacs
 #+TITLE: 在 emacs 中使用模板之 skeleton tempo 和 autoinsert 的使用介绍
-#+DATE: [2022-02-02 Wed 15:54]
+#+DATE: [2022-02-02 Wed 15:54]--[2022-08-31 00:00]
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/85794730][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 最开始了解到 skeleton 是在阅读 emacs manual 的 autotype 一章，这一章介绍了 emacs 自带的模板功能，但是当时我没有使用的需求，而且 yasnippt 和它的官方模板仓库已经足够好用了，所以就一直搁到现在。看了下文件的创建时间，是 2022/02/02，过了六七个月总算是有时间来将它完成了。（笑）
 
@@ -22,8 +23,6 @@
 本文使用的环境如下：
 
 - emacs 28.1 x86_64 on windows 10
-
-{{{toc}}}
 
 * 什么是模板
 
@@ -722,6 +721,7 @@ tempo.el 中的注释建议不要在模板的开头使用它，否则会有比�
 
 - http://blog.jqian.net/post/emacs-skeleton.html
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -733,3 +733,4 @@ tempo.el 中的注释建议不要在模板的开头使用它，否则会有比�
 [[https://www.pixiv.net/artworks/88521374][file:p3.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment

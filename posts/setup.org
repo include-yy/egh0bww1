@@ -1,11 +1,14 @@
-#+SETUPFILE: ../cfg.org
+#+OPTIONS: ^:{}
+#+OPTIONS: html-style:nil
 
 #+AUTHOR: include-yy
 
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../../css/style.css">
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../../img/rin.ico">
-#+HTML_HEAD: <script src="../../js/copycode.js"></script>
-#+HTML_HEAD: <script src="../../js/img_hideshow.js"></script>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../../css/style1.css">
+#+HTML_HEAD: <link rel="icon" type="image/png" size="192x192" href="../../img/lily.svg">
+
+# #+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../../img/lily.ico">
+# #+HTML_HEAD: <script src="../../js/copycode.js"></script>
+# #+HTML_HEAD: <script src="../../js/img_hideshow.js"></script>
 
 #+HTML_LINK_HOME:../../index.html
 #+HTML_LINK_UP:../index.html
@@ -15,5 +18,5 @@
 #+HTML_LINK_RNAME: BLOG
 #+HTML_LINK_RIGHT: ../index.html
 
-#+HTML_HEAD_FUNC: yynt-post-head
-#+HTML_SUFFUNC: yynt-post-postamble
+# #+HTML_HEAD_FUNC: yynt-post-head
+# #+HTML_SUFFUNC: yynt-post-postamble

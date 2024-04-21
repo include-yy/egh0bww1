@@ -1,25 +1,4 @@
-#+OPTIONS: toc:nil
 #+OPTIONS: ^:{}
-
-#+HTML_DOCTYPE: html5
-#+HTML_CONTAINER: section
-#+OPTIONS: html5-fancy:t
 #+OPTIONS: html-style:nil
-#+OPTIONS: html-preamble:t
-#+OPTIONS: html-postamble:t
 
-#+MACRO: toc             #+TOC: headlines 2
-#+MACRO: q               @@html:<q>$1</q>@@
-#+MACRO: br              @@html:<br>@@
-#+MACRO: begin_details   #+BEGIN_details
-#+MACRO: summary         #+HTML: <summary>$1</summary>
-#+MACRO: end_details     #+END_details
-#+MACRO: begin_noscript  #+BEGIN_noscript
-#+MACRO: end_noscript    #+END_noscript
-#+MACRO: begin_div       #+BEGIN_div
-#+MACRO: end_div         #+END_div
 
-# ROBOTO
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.googleapis.com">
-#+HTML_HEAD: <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-#+HTML_HEAD: <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">

@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 #+TITLE: emacs 中的哈希表与多值返回
-#+DATE: [2021-10-09 Sat 17:06]
+#+DATE: [2021-10-09 Sat 17:06]--[2022-01-24 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/84777976][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文是对 elisp manual 上 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Hash-Tables.html][Hash Tables]] 一章的学习总结。除了介绍哈希表相关函数的使用，本文也会简单介绍哈希表的一些知识。考虑到 elisp 和 common lisp 中哈希函数存在一定的差异，本文也会介绍一下 CL 中的多值返回和 cl-lib 中的对应实现。
 
@@ -19,8 +19,6 @@
 
 - emacs-27.2-x86_64 on windows
 - SBCL 2.2.0 on windows
-
-{{{toc}}}
 
 * 数据结构和数据类型
 
@@ -1391,7 +1389,7 @@ VALUE.  In any case, return VALUE.  */)
 
 本哈希表的实现和测试我整合后放在 [[https://gist.github.com/include-yy/4b30d26e2a8b8bcdd46c1bcd717b3756][gist]] 上了，可以方便地获取，这里就不放测试了，放张图说明测试的成功吧（毕竟测试代码也有近两百行......）。
 
-| [[./6.PNG]] |
+[[./6.PNG]]
 
 代码也可以通过下载来获得：[[./yyhash.el][yyhash]] [[./yyhash-test.el][test]]
 
@@ -1409,7 +1407,7 @@ VALUE.  In any case, return VALUE.  */)
 
 2022 新年快乐。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 {{{begin_div}}}
 #+ATTR_HTML: :class top-down-img
@@ -1418,4 +1416,4 @@ VALUE.  In any case, return VALUE.  */)
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/1429115][file:p2.jpg]]
 {{{end_div}}}
-{{{end_noscript}}}
+#+end_comment

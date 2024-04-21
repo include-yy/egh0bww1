@@ -2,7 +2,7 @@
 #+FILETAGS: robot
 
 #+TITLE: unitree GO1 资料整理、仿真环境搭建、以及通过 ROS 控制实体机器狗
-#+DATE: [2023-09-29 Fri 20:41]
+#+DATE: [2023-09-29 Fri 20:41]--[2023-10-24 00:00]
 
 #+DESCRIPTION: 本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法
 
@@ -14,8 +14,6 @@
 
 - ROS noetic
 - Ubuntu 20.04 LTS
-
-{{{toc}}}
 
 * 一些文档和资源
 
@@ -275,8 +273,8 @@ void* YYPanel::run(void *arg) {
 
 以下是完整的代码：
 
-{{{begin_details}}}
-{{{summary(yy.cpp)}}}
+#+caption: yy.cpp
+:yycpp:
 #+BEGIN_SRC cpp
 /**********************************************************************
  Copyright (c) 2020-2023, Unitree Robotics.Co.Ltd. All rights reserved.
@@ -465,7 +463,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 #+END_SRC
-{{{end_details}}}
+:end:
 
 将 =yy.cpp= 放入与 =main.cpp= 相同目录下，并在下图所示的位置修改位于 =/unitree_guide/unitree_guide= 目录下的 =CMakeLists.txt= ，随后重新 =catkin_make= ，我们就得到了可接受 ROS 消息控制的仿真控制器：
 
@@ -567,8 +565,8 @@ ping 192.168.123.161
 
 自然，[[http://wiki.ros.org/Installation/Source][Wiki]] 上提供了如何从源代码编译 ROS 的详细步骤，但是它并不能直接用于 Ubuntu 22.04，我们需要做出一些修改。[[https://github.com/tatsuyai713/build_ros_noetic_on_jammy][build_ros_noetic_on_jammy]] 提供了修改后的安装脚本，这里我直接拿过来免得仓库被删除：
 
-{{{begin_details}}}
-{{{summary(build_noetic_on_jammy.sh)}}}
+#+caption: build_noetic_on_jammy.sh
+:build:
 #+BEGIN_SRC shell
 #!/bin/bash
 
@@ -608,7 +606,7 @@ cd ..
 
 ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release
 #+END_SRC
-{{{end_details}}}
+:end:
 
 至于为啥需要将编译标准从 11 变为 14 或 17，这里有一条 [[https://github.com/Livox-SDK/livox_ros_driver/pull/110][issue]] 可以参考。
 

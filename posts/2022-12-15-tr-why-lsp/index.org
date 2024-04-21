@@ -1,17 +1,15 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: tr
 #+TITLE: 【翻译】Why LSP?
-#+DATE: [2022-12-14 Wed 21:52]
+#+DATE: [2022-12-14 Wed 21:52]--[2022-12-15 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76570526][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文是对 [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]] 一文的翻译，作者是 Alex Kladov（[[https://github.com/matklad][matklad]]），是 [[https://github.com/rust-lang/rust-analyzer][rust-analyzer]] 的作者。本文是我在给自己找例子时的意外发现，文章也不长，应该很快就能读完。作者对编辑器的 M * N 问题给出了他自己的理解。
-
-{{{toc}}}
 
 * 译前背景补充
 
@@ -173,8 +171,8 @@ P.S. 如果你有机会从使用 rust-analyzer 中受益，请考虑赞助 [[htt
 
 [[./matklad.png]]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/77546208][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

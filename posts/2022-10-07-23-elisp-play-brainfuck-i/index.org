@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 #+TITLE: 用 elisp 玩 brainfuck Ⅰ
-#+DATE: [2022-09-14 Wed 15:10]
+#+DATE: [2022-09-14 Wed 15:10]--[2022-10-07 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/76705181][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 老早就听说过 brainfuck 这吊语言，仅凭八个操作符就实现了图灵完备。要实现一个它的解释器也是非常的简单，随便一搜就可以找到常见语言的实现（当然也有 elisp 的）。如果本文只是介绍 brainfuck 的 elisp 实现那大概就没有写的必要了，考虑到我还没学过 PLT（programming language theory）知识，这里不妨借 brainfuck 来入门一下。
 
@@ -25,8 +25,6 @@
 本文使用的编程环境为：
 
 - emacs 28.1 x86_64 on windows 10
-
-{{{toc}}}
 
 * 什么是 brainfuck
 
@@ -1123,6 +1121,7 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 
 以上，去学学编译器。
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -1138,3 +1137,4 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 [[https://www.pixiv.net/artworks/31643135][file:p3.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment

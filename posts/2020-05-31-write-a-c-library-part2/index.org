@@ -3,11 +3,11 @@
 #+TITLE: 写个 C 库 - part2
 #+DATE: [2020-05-31 Sun]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文翻译自 *Writing a C library part 2*
 
@@ -18,8 +18,6 @@
 文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-2.html
 
 前一篇：[[http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html][part one]]
-
-{{{toc}}}
 
 * 事件处理和主循环
 

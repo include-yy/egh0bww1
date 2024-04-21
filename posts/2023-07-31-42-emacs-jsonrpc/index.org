@@ -2,15 +2,15 @@
 #+FILETAGS: elisp
 
 #+TITLE: 在 Emacs 中使用 JSON-RPC
-#+DATE: [2023-03-09 Thu 17:04]
+#+DATE: [2023-03-09 Thu 17:04]--[2023-07-31 00:00]
 
 #+DESCRIPTION: 本文介绍了如何在 emacs 中使用 JSON-RPC 与外部通信
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/99840371][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 受 [[https://github.com/emacs-eaf/emacs-application-framework][eaf]] 和 [[https://github.com/manateelazycat/lsp-bridge][lsp-bridge]] 等使用了 RPC 功能的包的影响，我对使用 RPC *调用外部程序* 有了一定的兴趣。随着 emacs 29 即将发布正式版，我了解到 eglot 这个 LSP 实现在 29 中加入到了 emacs 中，它使用的 jsonrpc.el 在 [[https://www.gnu.org/software/emacs/news/NEWS.27.1][27]] 加入了 emacs（eglot 和 jsonrpc.el 是同一作者）。既然有现成的不如直接学学怎么用。
 
@@ -22,8 +22,6 @@
 
 - emacs 28.2 x86_64 on Windows 10
 - Python 3.11.0
-
-{{{toc}}}
 
 * jsonrpc.el 实现介绍
 
@@ -379,8 +377,7 @@ Content-Length: <base10-number>\r\n\r\n<JSON-data>
 
 我把上面的循环代码简单包装一下再加些注释，方便复制和复用：
 
-{{{begin_details}}}
-{{{summary(jsonrpc_serve)}}}
+:jsonrpc_serve:
 #+BEGIN_SRC python
 import sys
 from jsonrpcserver import method, Success, dispatch, Result
@@ -417,7 +414,7 @@ def jsonrpc_serve(disp):
 # if __name__ == '__main__':
 #     main()
 #+END_SRC
-{{{end_details}}}
+:end:
 
 最后需要说明一下的就是编码问题了，我曾在几个月前尝试用 Python 中的另一个 JSON-RPC 实现与 Emacs 中的 jsonrpc.el 完成 RPC 通信，但是非常奇怪地失败了：我能够在 process buffer 中看到来自 Python 端的响应，但是每次调用 =jsonrpc-request= 都会超时。如果你读过 filter 的实现，你会发现在处理完一条输入后 filter 会删除 buffer 中的内容，所以有内容留存在 process buffer 中肯定不是正常现象。
 
@@ -432,8 +429,8 @@ def jsonrpc_serve(disp):
 - 使用字节流而不是文本流，指定好编码即可，无需关注平台特点（比如换行符）
 
 在 Python 中我们可以轻松使用如下代码创建一个 TCP socket 服务器：
-{{{begin_details}}}
-{{{summary(MyTCPHandler)}}}
+
+:MyTCPHandler:
 #+BEGIN_SRC python
 import socketserver
 from jsonrpcserver import method, Success, dispatch, Result
@@ -479,7 +476,7 @@ if __name__ == '__main__':
     with socketserver.TCPServer((HOST, PORT), MyTCPHandler) as server:
         server.serve_forever()
 #+END_SRC
-{{{end_details}}}
+:end:
 
 在启动 Python 脚本后使用下面的代码，我们可以创建 Python 进程与 Emacs 之间的 TCP 连接：
 
@@ -509,8 +506,7 @@ if __name__ == '__main__':
 
 如果我们想将 1 到 10 按顺序发送给服务端，让它将这些数字按顺序串起来，并在最后返回这个数组，但是我们的请求是无序的。这该怎么做呢？我们可以考虑实现 =jsonrpc-connection-ready-p= 来让某个请求只能在条件满足后发送：
 
-{{{begin_details}}}
-{{{summary(py 服务端)}}}
+:py-server-side:
 #+BEGIN_SRC python
 import sys
 from jsonrpcserver import method, Success, dispatch, Result
@@ -552,7 +548,7 @@ def main():
 if __name__ == '__main__':
     main()
 #+END_SRC
-{{{end_details}}}
+:end:
 
 #+BEGIN_SRC elisp
   ;; -*- lexical-binding: t; -*-
@@ -914,7 +910,7 @@ if __name__ == '__main__':
 
 感谢阅读。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 {{{begin_div}}}
 | [[https://www.pixiv.net/artworks/59465812][file:p1.jpg]] | [[https://www.pixiv.net/artworks/107931451][file:p2.jpg]]  |
@@ -925,4 +921,4 @@ if __name__ == '__main__':
 # https://yande.re/post/show/122686
 | [[https://www.pixiv.net/artworks/91079382][file:p9.jpg]] | [[https://www.pixiv.net/artworks/109860686][file:p10.jpg]] |
 {{{end_div}}}
-{{{end_noscript}}}
+#+end_comment

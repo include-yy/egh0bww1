@@ -3,11 +3,11 @@
 #+TITLE: 写个 C 库 - part1
 #+DATE: [2020-05-18 Mon]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[./0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文翻译自 *Writing a C library part 1*
 
@@ -16,8 +16,6 @@
 作者主页：https://www.blogger.com/profile/18166813552495508964
 
 文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html
-
-{{{toc}}}
 
 * 基本库
 
@@ -33,7 +31,7 @@
 
 最后，尽量不要和[[https://xkcd.com/386/][网上的陌生人]]陷入关于 “臃肿” 的库的荒谬的讨论 —— 这通常是对时间和资源的浪费。
 
-| [[./1.png]] |
+[[./1.png]]
 
 ** 清单
 

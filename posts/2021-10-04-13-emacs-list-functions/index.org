@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 #+TITLE: emacs 中的 list 函数
-#+DATE: [2021-09-04 Sat]
+#+DATE: [2021-09-04 Sat]--[2021-10-04]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/3130111][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文是对于 elisp manual 上关于 list 操作函数的一份整理。除了 elisp 自带的那些函数，本文还会介绍 cl-seq.el，seq.el 和 dash.el 中的 list 函数。
 
@@ -20,8 +20,6 @@
 - seq.el ;; Version: 2.21
 - dash.el ;; Version: 2.19.0
 - cl-lib ;; Version: 1.0
-
-{{{toc}}}
 
 * 一些相关的知识
 
@@ -1449,8 +1447,8 @@ org-mode 提供的 GTD 功能让我可以方便地给函数打勾，就像这样
 
 这回是真的暂时再见了（笑）
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/73073540][file:p1.png]]
-{{{end_noscript}}}
+#+end_comment

@@ -2,15 +2,15 @@
 #+FILETAGS: emacs
 
 #+TITLE: emacs 是如何启动的
-#+DATE: [2023-02-19 Sun 00:57]
+#+DATE: [2023-02-19 Sun 00:57]--[2023-02-23 00:00]
 
 #+DESCRIPTION: 本文根据 Elisp Manual 41.1 节以及 emacs 28.2 的源代码，对 emacs 的启动过程进行了简单介绍
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/92158159][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 原本我准备将这一部分内容放在一篇介绍 emacs 加载机制的文章中，但是写着写着发现这一部分的内容已经足够成为一篇文章了，故单独分出来，以“emacs 是如何启动的”作为题目。
 
@@ -18,8 +18,6 @@
 
 - emacs 28.2 source code
 - emacs 28.2 x86_64 on windows 11
-
-{{{toc}}}
 
 * emacs 的 main 函数
 
@@ -30,8 +28,9 @@
 [[./1.png]]
 
 文档中说到 =normal-top-level= 是 emacs 启动时首先会被调用的函数，但是我在 emacs 源代码中使用 grep 查找这个函数没有找到任何调用，这让我一度非常疑惑。后来我在 main 函数中找到了对 =loadup.el= 的加载过程，它是先通过绑定到 =Vtop_level= 上，再使用 =top_level_1= 进行调用的（我省略了非常多的中间函数调用，你可以顺着 =recursive-edit= 一路找过来）
-{{{begin_details}}}
-{{{summary(main 中对 Vtop_level 的处理，以及 top_level 初始化函数)}}}
+
+#+caption: main 中对 Vtop_level 的处理，以及 top_level 初始化函数
+:top-level:
 #+BEGIN_SRC c
   // emacs.c line 2307
   if (!initialized)
@@ -73,7 +72,7 @@
     return Qnil;
   }
 #+END_SRC
-{{{end_details}}}
+:end:
 
 这个 =loadup.el= 并不一般，它里面包含了非常多的初始化表达式，其中就包括对 =startup.el= 的载入：
 
@@ -528,8 +527,8 @@ emacs 将子目录添加到 =load-path= 中，这是通过运行运行 =load-pat
 
 既然都介绍了 emacs 的启动过程了，不如顺带了解一下各命令行参数的具体作用。通过 =emacs --help= 我们可以获得 emacs 的一些命令行参数：
 
-{{{begin_details}}}
-{{{summary(emacs --help)}}}
+#+caption: emacs --help
+:emacs-help:
 #+BEGIN_SRC text
 emacs --help
 
@@ -628,7 +627,7 @@ the operation of Emacs.  See the main documentation.
 Report bugs to bug-gnu-emacs@gnu.org.  First, please see the Bugs
 section of the Emacs manual or the file BUGS.
 #+END_SRC
-{{{end_details}}}
+:end:
 
 下面我们一条一条的介绍，这里我主要参考了 Emacs Manual 的 Appendix C。
 
@@ -1129,8 +1128,8 @@ emacs server 的实现位于 server.el 中，总行数大概是 1600 行。不�
 
 正如文章开头所说，本文是从“对 emacs 加载机制的介绍”中分出来的，我也没想到能写上这么多。不出意外的话下一篇文章应该是对 =load= 的实现分析以及 emacs 加载机制的介绍了。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/23822730][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment

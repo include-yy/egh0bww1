@@ -2,15 +2,15 @@
 #+FILETAGS: elisp
 #+TMP: 0
 #+TITLE: emacs 的 treesit --- 用 tree-sitter 写 parser
-#+DATE: [2023-09-18 Mon 02:09]
+#+DATE: [2023-09-18 Mon 02:09]--[2024-02-14 00:00]
 
 #+DESCRIPTION: 本文简单介绍了 tree-sitter 的使用方法，并使用 WGSL 作为具体例子
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/114348492][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 emacs 于 29 由[[https://github.com/casouri][付禹安]]引入了 tree-sitter 支持，可以使用原生的 API 操控经过解析得到的代码语法树，而不是只能进行简单的正则匹配（当然，之前也有 [[https://github.com/emacs-tree-sitter/elisp-tree-sitter][emacs-tree-sitter]]）。我对在 emacs 中使用 treesit 编写一些强力插件非常感兴趣，但是我缺少 tree-sitter 和 emacs treesit 的知识。我至少需要知道编写 tree-sitter parser 的方法、tree-sitter parser 和 treesit 的用法，以及编写 emacs major-mode 的方法，老实说还真不少。
 
@@ -23,8 +23,6 @@ emacs 于 29 由[[https://github.com/casouri][付禹安]]引入了 tree-sitter �
 - Windows 10 22H2 19045.3803
 - GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
 - tree-sitter-cli v0.20.8
-
-{{{toc}}}
 
 * （废案）一种新语言：MoonBit
 
@@ -1542,10 +1540,10 @@ wgsl-ts-mode 这个插件是可用的，但是它与 tree-sitter parser 配合�
 
 这后记写的有点怪，不管怎么说也是新的一年了，祝各位新年快乐 :p
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 | [[https://www.pixiv.net/artworks/21904455][file:p1.jpg]]  | [[https://www.pixiv.net/artworks/112579111][file:p2.jpg]]  | [[https://www.pixiv.net/artworks/4579628][file:p7.jpg]] |
 | [[https://www.pixiv.net/artworks/33715929][file:p10.jpg]] | [[https://www.pixiv.net/artworks/1636647][file:p5.jpg]]  | [[https://www.pixiv.net/artworks/2752708][file:p6.jpg]] |
 | [[https://www.pixiv.net/artworks/18090619][file:p12.jpg]] | [[https://www.pixiv.net/artworks/4389817][file:p4.jpg]]  | [[https://www.pixiv.net/artworks/6949910][file:p9.jpg]] |
 | [[https://www.pixiv.net/artworks/88165829][file:p8.jpg]]  | [[https://www.pixiv.net/artworks/64134547][file:p11.jpg]] | [[https://www.pixiv.net/artworks/101318368][file:p3.jpg]] |
-{{{end_noscript}}}
+#+end_comment

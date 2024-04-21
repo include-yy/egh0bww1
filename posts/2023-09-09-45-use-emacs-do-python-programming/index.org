@@ -2,15 +2,15 @@
 #+FILETAGS: emacs
 
 #+TITLE: 使用 emacs 进行 Python 编程
-#+DATE: [2023-09-02 Sat 22:56]
+#+DATE: [2023-09-02 Sat 22:56]--[2023-09-09 00:00]
 
 #+DESCRIPTION: 本文介绍了如何配置 emacs 使之适应 Python 编程
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/104835794][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 在无数次想要用 Emacs 写一些小包但每次都去用 PyCharm 或 VSCode 后，我终于有了足够的兴趣和时间在 Emacs 中搭建一个足够好用的 Python 开发环境。我会尽量选择成熟的、活跃的插件，并尽可能详细地介绍这些插件的用法。
 
@@ -18,8 +18,6 @@
 
 - GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31
 - Python 3.11 on Windows 10
-
-{{{toc}}}
 
 * 来点 Python 豆知识
 
@@ -220,8 +218,8 @@ Python 的类型标注和类型检查工具确实可以让你在一定程度上�
 4. [[https://github.com/jorgenschaefer/elpy/issues/359][Elpy: python-mode.el or python.el ? #359]]
 5. [[https://emacs.stackexchange.com/questions/12787/two-python-modes][Two Python modes]]
 
-{{{begin_details}}}
-{{{summary((对 python.el 和 python-mode.el 的评论))}}}
+#+caption: 对 python.el 和 python-mode.el 的评论
+:comments:
 #+BEGIN_QUOTE
 ---1
 
@@ -233,7 +231,7 @@ I also replaced my home-built configuration with elpy, which has been wonderful.
 
 Yes, this is confusing. python.el (which implements python-mode, sigh) was created by Emacs users for python. The separate package python-mode.el also implements its own python-mode, but was written and is maintained by people connected to the python project. The former is shipped with Emacs. The latter includes a bunch of custom python modules to aid with completion and other things, which it does by interrogating a live python process (python.el also does this, but to a lesser extent).
 #+END_QUOTE
-{{{end_details}}}
+:end:
 
 总的来说，现在的 python.el 应该是优于 python-mode.el 的，而且 python.el 已经内置到了 Emacs 中，这里我们选择对 python.el 进行简单的介绍。python.el 似乎没有成文档的说明，以下内容大多来自源代码中的文档注释。
 
@@ -394,8 +392,8 @@ tree-sitter 是一个 parser generator，它的与众不同之处在于它可以
 
 在看到 [[https://github.com/emacs-mirror/emacs/commit/8cbd4a02a2b9823a6aa7e722af6e3d204f881aed][Delete comment saying that project.el is experimental]] 这个 commit 后，我觉得是时候学一波 project.el 的用法了。也许你听说过一个类似的包：[[https://github.com/bbatsov/projectile][projectile]]，根据作者的评论来看 project.el 应该已经从 projectile “吸收”了不少特性，现在两者在功能上应该没有太大的差距了：
 
-{{{begin_details}}}
-{{{summary(projectile's author's comment on project.el)}}}
+#+caption: projectile's author's comment on project.el
+:comments:
 #+BEGIN_QUOTE
 Both projects are very similar these days, although this wasn't always the case, and still Projectile has an edge when it comes to overall functionality and level of configuration. project.el started out small and I recall the original vision for it was to be a barebone library that provides only essential project-management functionality. However, project.el has been slowly been copying many of Projectile's features over the years (and added a few of its own like the xref integration) and now it probably covers the use-case of most people.
 
@@ -405,7 +403,7 @@ P.S. One under-appreciated advantage of Projectile is that it has way more docum
 
 [[https://www.reddit.com/r/emacs/comments/nf2k5y/comment/gyo3skj/?utm_source=share&utm_medium=web2x&context=3][bozhidarb -- How does projectile compare to the built-in project.el?]]
 #+END_QUOTE
-{{{end_details}}}
+:end:
 
 当然，作者在 README 中也提到了 projectile 与内置的 project.el 进行了集成，而且 projectile 的[[https://melpa.org/#/?q=projectile][生态]]看上去还不错的样子，读者有兴趣可以试试 projectile，这里我只对 project.el 进行介绍，毕竟是 vanilla。
 
@@ -597,6 +595,7 @@ Python 有成吨的测试工具，这里我只对用过的 [[https://docs.pytest
 
 感谢阅读，顺便忆山东兄弟（笑）
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -605,3 +604,4 @@ Python 有成吨的测试工具，这里我只对用过的 [[https://docs.pytest
 [[https://www.pixiv.net/artworks/60575451][file:p1.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment

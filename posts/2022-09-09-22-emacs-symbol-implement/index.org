@@ -1,13 +1,13 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: elisp
 #+TITLE: emacs 的 symbol 类型及其实现
-#+DATE: [2021-10-09 Sat 17:07]
+#+DATE: [2021-10-09 Sat 17:07]--[2022-09-09 00:00]
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/89383520][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 本文简单介绍了 emacs 中的 symbol 类型，同时对 emacs 中的 symbol 实现进行了简单的分析。文章的内容大致可以分为两大部分：
 
@@ -16,8 +16,6 @@
 - 对 symbol C 实现的分析
 
 本文使用的编程环境为 =emacs 28.1 x86-64 on windows= ，源代码为 =emacs 28.1= 。
-
-{{{toc}}}
 
 * 什么是 symbol
 
@@ -1055,6 +1053,7 @@ R.I.P.
 
 就这样。
 
+#+begin_comment
 {{{begin_noscript}}}
 #+NAME: tailimg
 {{{begin_div}}}
@@ -1066,3 +1065,4 @@ R.I.P.
 [[https://www.pixiv.net/artworks/19559081][file:p3.jpg]]
 {{{end_div}}}
 {{{end_noscript}}}
+#+end_comment

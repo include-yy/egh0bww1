@@ -1,13 +1,15 @@
 #+SETUPFILE: ../setup.org
 #+FILETAGS: orgmode
-#+TITLE: 语义元素与 org 的 html5 导出
-#+DATE: [2023-01-26 Thu 20:16]
+#+MACRO: q               @@html:<q>$1</q>@@
 
-{{{begin_noscript}}}
+#+TITLE: 语义元素与 org 的 html5 导出
+#+DATE: [2023-01-26 Thu 20:16]--[2023-01-30 00:00]
+
+#+begin_comment
 #+NAME: headimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/62532046][file:0.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 通过前面的几篇文章，我们学习了 org 导出到 HTML 以及以 emacs 作为静态网站生成器的一些基本知识。本文将在这些知识的基础上对 ox-html 进行一些修改，以生成符合 HTML5 标准且可读的 HTML 文件。
 
@@ -17,8 +19,6 @@
 
 - emacs 28.2 x86_64 on windows 11
 - org-mode 9.5.5
-
-{{{toc}}}
 
 * 什么是语义元素
 
@@ -920,8 +920,8 @@ contextual information."
 
 在完成了本文后，我距离弄个博客出来的目标又近了一步。在这一系列的下一篇文章中我会介绍如何设置适用于 org-mode 导出的 HTML 文件的 CSS。
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/7789482][file:p1.png]]
-{{{end_noscript}}}
+#+end_comment

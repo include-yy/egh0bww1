@@ -5,9 +5,8 @@
 
 # https://chan.sankakucomplex.com/post/show/25065042
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: headimg
-{{{begin_div}}}
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/50042840][file:0.jpg]]
 
@@ -22,16 +21,13 @@
 - 再来个顺便搜到的 [[https://www.bilibili.com/video/BV1Ss411X7Az][远古视频]]，歌还挺好听的
 
 （正文从这里开始，希望上面的东西没有引起你的反感）
-{{{end_div}}}
-{{{end_noscript}}}
+#+end_comment
 
 本文是我在阅读了 elisp debugging 文档后的一些思考，当然也不一定说得上是思考，只能说在用了这么久的 debugger 后我终于对什么是 debugger 有了一些兴趣。对 debugger 的认识是本文的主要目的（话虽如此，还是不可避免偏离了最初的目的，不过好在各小节的顺序不影响阅读）
 
 本文的主要内容不是介绍 emacs 中的 debugger 的用法，而是结合我自身体会以及各种各样的资料，从各个方面来谈一谈 bug，debugging 和 debugger。当然和 emacs 相关的内容肯定是有的。
 
 本文中使用的 emacs 环境为 emacs on windows 27.1
-
-{{{toc}}}
 
 * 什么是调试（debugging）
 
@@ -47,6 +43,7 @@ Grace Hopper 是一个传奇人物，她参加过第二次世界大战，开发�
 
 不得不说，这两位程序员的画像或照片挺不错的（笑）：
 
+#+attr_html: :class data
 | Hopper  | Ada     |
 | [[./1.jpg]] | [[./2.jpg]] |
 
@@ -842,11 +839,11 @@ Elisp 内置的调试器主要是起辅助作用，相比之下 edebug 就是个
 
 （如果题图总是 cirno 的话那我岂不是发不完所有东方角色的图了，干脆之后每篇文章的结尾都放一张不同的？）
 
-{{{begin_noscript}}}
+#+begin_comment
 #+NAME: tailimg
 #+ATTR_HTML: :class top-down-img
 [[https://www.pixiv.net/artworks/64400529][file:p1.jpg]]
-{{{end_noscript}}}
+#+end_comment
 
 * 参考资料
 
