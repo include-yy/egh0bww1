@@ -5,7 +5,14 @@
     <title>include-yy's blog</title>
     <link>https://egh0bww1.com</link>
     <description>My recent 10 articles</description>
-    <pubDate>2024-04-22T01:55:34</pubDate>
+    <pubDate>2024-04-22T10:39:30</pubDate>
+    <item>
+      <title>对 engrave-faces.el 原理的简单分析</title>
+      <link>https://egh0bww1.com/posts/2024-04-13-51-engrave-faces</link>
+      <description>本文简单介绍了 engrave-faces.el 是如何根据高亮的 buffer 生成高亮的 HTML 代码的</description>
+      <category>elisp</category>
+      <pubDate>2024-04-13</pubDate>
+    </item>
     <item>
       <title>如何在 Emacs 中测试代码用时</title>
       <link>https://egh0bww1.com/posts/2024-03-17-50-emacs-benchmark</link>
@@ -68,13 +75,6 @@
       <description>This article compiles various resources about the Unitree GO1 robotic dog, providing a comprehensive guide to setting up the simulation environment, as well as methods for controlling the Unitree GO1 robot via ROS</description>
       <category>robot</category>
       <pubDate>2023-10-25</pubDate>
-    </item>
-    <item>
-      <title>unitree GO1 资料整理、仿真环境搭建、以及通过 ROS 控制实体机器狗</title>
-      <link>https://egh0bww1.com/posts/2023-10-24-unitree-go1-collection</link>
-      <description>本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法</description>
-      <category>robot</category>
-      <pubDate>2023-10-24</pubDate>
     </item>
   </channel>
 </rss>

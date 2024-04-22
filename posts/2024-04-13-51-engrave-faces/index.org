@@ -1,0 +1,362 @@
+#+setupfile: ../setup.org
+#+filetags: elisp
+
+#+title: 对 engrave-faces.el 原理的简单分析
+#+DATE: [2024-03-23 00:11]--[2024-04-13 00:57]
+#+DESCRIPTION: 本文简单介绍了 engrave-faces.el 是如何根据高亮的 buffer 生成高亮的 HTML 代码的
+
+差不多正好是一个月前我看到 [[https://respec.org/docs/][ReSpec Documentation]] 的样式挺好看于是决定自己[[https://github.com/include-yy/notes/commit/725b229e74d2f329b2250cc65489bffe0c277434][整一个]]，写着写着我才发现这是 W3C 的技术报告（Technical Report，简称 TR）专用 CSS：[[https://www.w3.org/StyleSheets/TR/2021/][TR/2021]]，于是移到了一个[[https://github.com/include-yy/notes/commit/e1b772703f05b2410cab53a71b7e1664e9a38bf0][专门的]] repo：[[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]]。目前差不多是完工了，但还有一堆文档以及 README 要写。
+
+本文是我在折腾这个新的后端的代码导出高亮时学到的一点新东西，我不希望导出后端的高亮依赖 htmlize.el，于是裁剪了 engrave-faces.el 这个包的部分来生成代码对应的高亮 HTML 代码。本文整合自我在 emacs-china 发的帖子，算是留个档：[[https://emacs-china.org/t/engrave-faces-el/26860][engrave-faces.el 的实现原理简单分析]]。
+
+本文使用的环境如下：
+
+- GNU Emacs 29.2 (build 2, x86_64-w64-mingw32) of 2024-01-19
+- Org mode version 9.6.15
+
+* Org-mode 的代码导出
+
+经常使用 org-mode 的 HTML 导出功能的朋友应该知道，在调用 =org-html-export-to-html= 时，如果当前 emacs 已经加载了 htmlize 包，那么 ox-html.el 在导出源代码时，会尝试使用 htmlize 渲染代码。在 =org-html-src-block= 这个导出函数中调用了 =org-html-format-code= 来高亮代码，而它又在内部调用了 =org-html-do-format-code= ，再进一步又是 =org-html-fontify-code= 。
+
+在 emacs 中加载了某种语言的 major-mode，且 htmlize 被正确加载的情况下， =org-html-fontify-code= 会使用如下代码进行高亮处理：
+
+#+caption:
+#+begin_src elisp
+  ;; htmlize
+  (setq code
+	(let ((output-type org-html-htmlize-output-type)
+	      (font-prefix org-html-htmlize-font-prefix)
+	      (inhibit-read-only t))
+	  (with-temp-buffer
+	    ;; Switch to language-specific mode.
+	    (funcall lang-mode)
+	    (insert code)
+	    ;; Fontify buffer.
+	    (font-lock-ensure)
+	    ;; Remove formatting on newline characters.
+	    (save-excursion
+	      (let ((beg (point-min))
+		    (end (point-max)))
+		(goto-char beg)
+		(while (progn (end-of-line) (< (point) end))
+		  (put-text-property (point) (1+ (point)) 'face nil)
+		  (forward-char 1))))
+	    (org-src-mode)
+	    (set-buffer-modified-p nil)
+	    ;; Htmlize region.
+	    (let ((org-html-htmlize-output-type output-type)
+		  (org-html-htmlize-font-prefix font-prefix))
+	      (org-html-htmlize-region-for-paste
+	       (point-min) (point-max))))))
+#+end_src
+
+如你所见，其中首先通过启动 major-mode 并调用 =font-lock-ensure= 确保代码被完全高亮，随后将 buffer 交给 =org-html-htmlize-region-for-paste= 处理，这个函数内部会调用 htmlize 相关功能完成 buffer 内容到 HTML 代码的输出。
+
+就目的来说，我们想要输入一串文本，然后得到带高亮的 HTML 输出。就比如对以下代码调用 =engrave-faces-html-buffer= ：（草，写的时候没注意是个错误的实现）
+
+#+caption:
+#+begin_src elisp
+  (defun fib (n)
+    (pcase n
+      ((guard (< n 0)) 0)
+      (0 0) (1 1)
+      (t (+ (fib (1- n) (- n 2))))))
+#+end_src
+
+[[./1.webp]]
+
+如果我们按照“将原始语言转换成另一种语言”来理解编译过程的话，从源代码得到 HTML 也是一个编译过程，大致如下图所示：
+
+[[./2.png]]
+
+* major-mode 与代码高亮
+
+严格来说 major-mode 和高亮并不一定相关，不过几乎所有的 prog-mode 都会提供这个功能，当存在高亮时你能发现当前 buffer 开启了 font-lock-mode。font-lock-mode 能够根据一些规则将 face 属性自动附加到 buffer 中的一块内容中，这些规则可以来自 parser、syntax table 或正则匹配，这和帖子内容关系不大，略过了。Emacs 为一些需要高亮的 token 提供了默认的名字，具体可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Faces-for-Font-Lock.html][Faces for Font Lock]]。LdBeth 之前写过一个如何编写 major-mode 的 font-lock 语法高亮的帖子，这里做个记录：major mode 作者必看：[[https://emacs-china.org/t/major-mode-font-lock/26610][如何用 font-lock 实现语法高亮]]。
+
+如果我们将一串来自某个 prog-mode buffer 中的代码复制到使用 text-mode 的 buffer 的话，你会注意到代码中的高亮被保留了，这是因为我们复制的并不仅仅是文本字符串，还有字符串中的 property list 信息，它也被称为 text properties。使用以下代码，你能够在新创建的 buffer 中看到彩色的 hello world：
+
+#+caption:
+#+begin_src elisp
+  (defun color-hello ()
+    (interactive)
+    (let ((buf (get-buffer-create "*test*"))
+	  (text (concat (propertize "H" 'face '(:foreground "red"))
+			(propertize "e" 'face '(:foreground "orange"))
+			(propertize "l" 'face '(:foreground "yellow"))
+			(propertize "l" 'face '(:foreground "green"))
+			(propertize "o" 'face '(:foreground "cyan"))
+			(propertize "w" 'face '(:foreground "blue"))
+			(propertize "orld" 'face '(:foreground "purple")))))
+      (with-current-buffer buf
+	(insert text))))
+#+end_src
+
+在 org-mode 的 HTML 导出中， =org-html-fontify-code= 首先创建 temp-buffer 并开启语言对应 major-mode，然后插入代码文本并调用 =font-lock-ensure= 完成代码的高亮，随后将代码的导出交给 htmlize 处理；在 engrave-faces 中，核心函数 =engrave-faces-buffer= 也会调用 =font-lock-ensure= ，不过它考虑到了当前 buffer 是否使用了 jit-lock：
+
+#+caption:
+#+begin_src elisp
+  ;; Convince font-lock support modes to fontify the entire buffer
+  ;; in advance.
+  (when (and (boundp 'jit-lock-mode)
+	     (symbol-value 'jit-lock-mode))
+    (jit-lock-fontify-now (point-min) (point-max)))
+  (font-lock-ensure)
+#+end_src
+
+对于存在 major-mode 的编程语言代码，我们可以通过它们的 major-mode 得到带有高亮信息的代码字符串。接下来的问题是如何从 buffer 中获取这些信息。
+
+* 如何从 buffer 获取不同 face 的 token
+
+如果我们能够知道 buffer 中所有字符对应的 text property 的话，我们就能根据其中的 face 属性找到对应的样式，并导出到对应的 CSS，或内嵌于 HTML 标签的 style 属性。为每个字符都赋予属性是很浪费的行为，比如 ~<span style="color: red">a</span><span style="color: red">b</span><span style="color: red">c</span>~ 显然不如 ~<span style="color: red">abc</span>~ 。对此，更合理的方法是以具有相同 property list 的文本为单位来获取内容。
+
+Emacs 为我们提供了获取 text property 变化的函数。 =next-property-change= 可以搜索到与指定位置 text property 不相同的最近位置，在 Elisp Manual 中给出了如何使用该函数的一个例子：（[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Property-Search.html][Property Search]]）
+
+#+caption:
+#+begin_src elisp
+  (while (not (eobp))
+    (let ((plist (text-properties-at (point)))
+	  (next-change
+	   (or (next-property-change (point) (current-buffer))
+	       (point-max))))
+      Process text from point to next-change…
+      (goto-char next-change)))
+#+end_src
+
+对于代码高亮的导出来说，如果我们只关注 =face= 这一个属性，那么可以使用 =next-single-property-change= ，它只在指定的属性发生变化停止并返回对应位置。engrave-faces 中用于检测 =face= 变化的 =engrave-faces--next-face-change= 直接来自 htmlize 中的 =htmlize-next-face-change= ，它的实现如下：
+
+#+caption:
+#+begin_src elisp
+  (defun htmlize-next-face-change (pos &optional limit)
+    ;; (htmlize-next-change pos 'face limit) would skip over entire
+    ;; overlays that specify the `face' property, even when they
+    ;; contain smaller text properties that also specify `face'.
+    ;; Emacs display engine merges those faces, and so must we.
+    (or limit
+	(setq limit (point-max)))
+    (let ((next-prop (next-single-property-change pos 'face nil limit))
+	  (overlay-faces (htmlize-overlay-faces-at pos)))
+      (while (progn
+	       (setq pos (next-overlay-change pos))
+	       (and (< pos next-prop)
+		    (equal overlay-faces (htmlize-overlay-faces-at pos)))))
+      (setq pos (min pos next-prop))
+      ;; Additionally, we include the entire region that specifies the
+      ;; `display' property.
+      (when (get-char-property pos 'display)
+	(setq pos (next-single-char-property-change pos 'display nil limit)))
+      pos))
+#+end_src
+
+上面的四行注释可以理解为在遇到指定了 =face= 的 overlay 时，它会将 overlay 作为整体考虑，即使 overlay 里面可能存在不同 =face= 的 text property。
+
+* 由 token 到 HTML
+
+在 =engrave-faces-buffer= 中，tokenization 和输出是在一个循环中进行的。
+
+#+caption:
+#+begin_src elisp
+  (while (not (eobp))
+    (setq next-change (engrave-faces--next-face-change (point)))
+    (setq text (buffer-substring-no-properties (point) next-change))
+    ;; Don't bother writing anything if there's no text (this
+    ;; happens in invisible regions).
+    (when (> (length text) 0)
+      (princ (funcall face-transformer
+		      (let ((prop (get-text-property (point) 'face)))
+			(cond
+			 ((null prop) 'default)
+			 ((and (listp prop) (eq (car prop) 'quote))
+			  (eval prop t))
+			 (t prop)))
+		      text)
+	     engraved-buf))
+    (goto-char next-change))
+#+end_src
+
+可见在获取 token 文本和 face 属性后，输出工作交给了 =face-transformer= ，在 HTML 后端中该函数为 =engrave-faces-html--face-mapper= ，实现如下：
+
+#+caption:
+#+begin_src elisp
+  (defun engrave-faces-html--face-mapper (faces content)
+    "Create a HTML representation of CONTENT With FACES applied."
+    (let ((protected-content (engrave-faces-html--protect-string content))
+	  (style (engrave-faces-preset-style faces)))
+      (if (string-match-p "\\`[\n[:space:]]+\\'" content)
+	  protected-content
+	(if (and style (eq engrave-faces-html-output-style 'preset))
+	    (concat "<span class=\"" engrave-faces-html-class-prefix
+		    (plist-get (cdr style) :slug) "\">"
+		    protected-content "</span>")
+	  (engrave-faces-html--face-apply faces protected-content)))))
+#+end_src
+
+该函数中的参数 =faces= 来自 =engrave-faces-buffer= 中调用 =get-text-property= 得到的 face 属性，在 =engrave-faces-html--face-mapper= 中它作为 =engrave-faces-preset-style= 的参数来获取具体的对应样式，粗略来说它的工作原理是从 =engrave-faces-preset-style= 这个 alist 中找到符号（如 =font-lock-type-face= ）对应的 face。以下是它的部分项：
+
+#+caption:
+#+begin_src elisp
+  (;; faces.el --- excluding: bold, italic, bold-italic, underline, and some others
+   (default :short "default" :slug "D" :foreground "#000000" :background "#ffffff")
+   (shadow :short "shadow" :slug "h" :foreground "#7f7f7f")
+   (success :short "success" :slug "sc" :foreground "#228b22" :weight bold)
+   (warning :short "warning" :slug "w" :foreground "#ff8e00" :weight bold)
+   (error :short "error" :slug "e" :foreground "#ff0000" :weight bold)
+   ;; font-lock.el
+   (font-lock-comment-face :short "fl-comment" :slug "c" :foreground "#b22222")
+   ...)
+#+end_src
+
+不过 =engrave-faces-preset-style= 已经是个废弃的名字了，现在更好的名字是 =engrave-faces-current-preset-style= 。这个列表与导出后端是无关的，我们可以自定义某些关键字对应的颜色和缩写。 =engrave-faces= 提供了根据当前主题生成对应 preset-style 的命令： =engrave-faces-generate-preset= 。在 =moe-light= 主题中它的输入如下
+
+#+caption:
+#+begin_src elisp
+  (engrave-faces-generate-preset) =>
+  ((default :short "default" :slug "D" :foreground "#5f5f5f" :background "#fdfde7" :slant normal :weight regular)
+   (shadow :short "shadow" :slug "h" :foreground "#7f7f7f") (success :short "success" :slug "sc" :foreground "#a1db00")
+   (warning :short "warning" :slug "w" :foreground "#ff8700" :weight bold) (error :short "error" :slug "e" :foreground "#ff4b4b")
+   (font-lock-comment-face :short "fl-comment" :slug "c" :foreground "#b2b2b2" :slant italic)
+   (font-lock-comment-delimiter-face :short "fl-comment-delim" :slug "cd" :foreground "#b2b2b2" :slant italic)
+   (font-lock-string-face :short "fl-string" :slug "s" :foreground "#ff1f8b") (font-lock-doc-face :short "fl-doc" :slug "d" :foreground "#cc0000")
+   (font-lock-doc-markup-face :short "fl-doc-markup" :slug "m" :foreground "#1f5bff")
+   (font-lock-keyword-face :short "fl-keyword" :slug "k" :foreground "#00af00")
+   (font-lock-builtin-face :short "fl-builtin" :slug "b" :foreground "#b218b2")
+   (font-lock-function-name-face :short "fl-function" :slug "f" :foreground "#ef2929")
+   (font-lock-variable-name-face :short "fl-variable" :slug "v" :foreground "#ff8700")
+   (font-lock-type-face :short "fl-type" :slug "t" :foreground "#18b2b2")
+   (font-lock-constant-face :short "fl-constant" :slug "o" :foreground "#1f5bff")
+   ...)
+#+end_src
+
+=engrave-faces= 也提供了 =engrave-faces-use-theme= 来交互式选择主题来设定当前使用的 preset-face，它会修改 =engrave-faces-current-preset-style= 为选择的主题对应的 preset-style。
+
+如果 =engrave-faces-html-output-style= 为 =preset= 的话，HTML 后端会使用 =ef-= 前缀加上 style 中的 =:slug= （可以理解为短语的意思）组成 CSS 类，附加到文本的 =<span>= 标签中。如果 =engrave-faces-html-output-style= 为 nil 的话，样式就会以 =style= 属性内嵌到 <span> 中，内嵌导出由 =engrave-faces-html--face-apply= 负责。
+
+如果使用内嵌式导出，那么在未指定主题的情况下当前的导出效果会依赖于当前主题。因此使用 =engrave-face-html-output-style= 为默认的 =preset= 有利于样式的一致性。 =engrave-faces-html= 为我们提供了根据主题导出对应 CSS 的函数 =engrave-faces-html-gen-stylesheet= 。我们可以将这段 CSS 嵌入到需要导出的 HTML 文档中。
+
+* 一些杂项
+
+在 engrave-faces.el 的开头 User options 定义部分， =engrave-faces-attributes-of-interest= 确定了需要从 face 中提取的属性，这包括 =:foreground=, =:background=, =:slant=, =:weight=, =:height= 和 =:strike-through= 。如果不想让导出含有刺眼的背景，我们可以去掉 =:background= 。
+
+=engrave-faces-define-backend= 可以用来定义新的导出后端，具体的用法可以参考 engrave-faces 的三个已有后端。=engrave-faces-file= 和 =engrave-faces-buffer= 是导出的核心函数，实际上我上面的分析都是围绕 =engrave-faces-buffer= 开展的。
+
+=engrave-faces-merge-attribute= 可在后端代码中用于从 =faces= 获取具体的 =attributes= 。具体来说的话可以参考以下例子：
+
+#+caption:
+#+begin_src elisp
+  (engrave-faces-merge-attributes 'font-lock-keyword-face) =>
+  (:foreground "#9370db" :background nil :slant nil :weight nil :height nil :strike-through nil)
+#+end_src
+
+=engrave-faces-themes= 定义默认的 face 对应颜色和样式。 =engrave-faces-current-preset-style= 则是当前选中的 faces 样式。我们可以使用 =engrave-faces-generate-preset= 和 =engrave-faces-get-theme= 生成 preset style，并通过 =engrave-faces-use-theme= 命令根据主题选择 preset style。
+
+在 =engrave-faces-html.el= 中，我们可以通过 =engrave-faces-html-output-style= 选择导出使用 CSS 类或内嵌样式，通过 =engrave-faces-html-class-prefix= 设置 CSS 类名的前缀，通过 =engrave-faces-html-gen-stylesheet= 生成主题对应的 CSS 样式。
+
+* 最后的裁剪结果
+
+engrave-faces 除了负责从 buffer 生成导出结果外，还可以从 Emacs 主题中提取一些颜色信息，并根据这些信息生成对应导出后端的 CSS。如果去掉这一部分可以减少很多代码。下面是我最后得到的部分，只有不到 100 行。
+
+
+:org-w3ctr-faces:
+#+caption:
+#+begin_src elisp
+  ;; -*- lexical-binding: t; -*-
+
+  (defun org-w3ctr-faces-buffer (&optional in-buffer out-buffer)
+    "Export the current buffer to HTML and return the output buffer.
+  If IN-BUFFER is not nil, use it instead of current buffer.
+  If OUT-BUFFER is not nil, it will be the output buffer and return value.
+
+  Make sure the current buffer is already fontified with `font-lock-ensure'"
+    (let ((ibuf (or in-buffer (current-buffer)))
+	  (obuf (or out-buffer
+		    (generate-new-buffer "*html*")))
+	  (completed nil))
+      (with-current-buffer ibuf
+	(unwind-protect
+	    (let (next-change text)
+	      (goto-char (point-min))
+	      (while (not (eobp))
+		(setq next-change (org-w3ctr-faces--next-change (point)))
+		(setq text (buffer-substring-no-properties (point) next-change))
+		(when (> (length text) 0)
+		  (princ (org-w3ctr-faces-transformer
+			  (get-text-property (point) 'face)
+			  text)
+			 obuf))
+		(goto-char next-change)))
+	  (setq completed t)))
+      (if (not completed)
+	  (if out-buffer t (kill-buffer obuf))
+	obuf)))
+
+  (defun org-w3ctr-faces--next-change (pos &optional limit)
+    "Find the next face change from POS up to LIMIT.
+
+  This function is lifted from htmlize.
+  This function is lifted from engrave-faces [2024-04-12]"
+    (unless limit
+      (setq limit (point-max)))
+    (let ((next-prop (next-single-property-change pos 'face nil limit))
+	  (overlay-faces (org-w3ctr-faces--overlay-faces-at pos)))
+      (while (progn
+	       (setq pos (next-overlay-change pos))
+	       (and (< pos next-prop)
+		    (equal overlay-faces (org-w3ctr-faces--overlay-faces-at pos)))))
+      (setq pos (min pos next-prop))
+      ;; Additionally, we include the entire region that specifies the
+      ;; `display' property.
+      (when (get-char-property pos 'display)
+	(setq pos (next-single-char-property-change pos 'display nil limit)))
+      pos))
+
+  (defun org-w3ctr-faces--overlay-faces-at (pos)
+    (delq nil (mapcar (lambda (o) (overlay-get o 'face)) (overlays-at pos))))
+
+  (defun org-w3ctr-faces-transformer (prop text)
+    "Transform text to HTML code with CSS"
+    (let ((protected-content (org-w3ctr-faces--protect-string text))
+	  (style (org-w3ctr-faces-get-style prop)))
+      (if (string-match-p "\\`[\n[:space:]]+\\'" text) protected-content
+	(if (not style) protected-content
+	  (concat "<span class=\"ef-"
+		  (plist-get (cdr style) :slug) "\">"
+		  protected-content "</span>")))))
+
+  (defun org-w3ctr-faces--protect-string (text)
+    (dolist (pair '(("&" . "&amp;") ("<" . "&lt;") (">" . "&gt;")) text)
+      (setq text (replace-regexp-in-string (car pair) (cdr pair) text t t))))
+
+  (defconst org-w3ctr-faces-style-plist
+    '(;; faces.el --- excluding: bold, italic, bold-italic, underline, and some others
+      (default :slug "D")
+      (shadow  :slug "h")
+      (success :slug "sc")
+      (warning :slug "w")
+      (error   :slug "e")
+      ;; font-lock.el
+      (font-lock-comment-face :slug "c")
+      (font-lock-comment-delimiter-face :slug "cd")
+      (font-lock-string-face :slug "s")
+      (font-lock-doc-face :slug "d")
+      (font-lock-doc-markup-face :slug "m")
+      (font-lock-keyword-face :slug "k")
+      (font-lock-builtin-face :slug "b")
+      (font-lock-function-name-face :slug "f")
+      (font-lock-variable-name-face :slug "v")
+      (font-lock-type-face :slug "t")
+      (font-lock-constant-face :slug "o")
+      (font-lock-warning-face :slug "wr")
+      (font-lock-negation-char-face :slug "nc")
+      (font-lock-preprocessor-face :slug "pp")
+      (font-lock-regexp-grouping-construct :slug "rc")
+      (font-lock-regexp-grouping-backslash :slug "rb")))
+
+  (defun org-w3ctr-faces-get-style (prop)
+    (cond
+     ((null prop) nil)
+     ((listp prop)
+      (assoc (car prop) org-w3ctr-faces-style-plist))
+     (t (assoc prop org-w3ctr-faces-style-plist))))
+#+end_src
+:end:
+
+上面只生成了 HTML，具体的 CSS 可以使用 =engrave-faces-html-gen-stylesheet= 来根据主题获取。
