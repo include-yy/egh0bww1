@@ -1,4 +1,2 @@
 #+OPTIONS: ^:{}
 #+OPTIONS: html-style:nil
-
-

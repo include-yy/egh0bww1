@@ -1,6 +1,9 @@
-#+SETUPFILE: ../cfg.org
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style.css">
-#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="../img/rin.ico">
+#+options: ^:{}
+#+options: html-style:nil
+#+options: html-preamble:nil
+
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style1.css">
+#+HTML_HEAD: <link rel="icon" type="image/svg+xml" href="../img/lily.svg">
 
 #+OPTIONS: num:nil
 
@@ -16,26 +19,10 @@
 
 #+TITLE: include-yy :: drafts
 
-#+ATTR_HTML: :class top-down-img :id fig
+#+begin_comment
 #+CAPTION: https://www.pixiv.net/artworks/108217855
 [[file:0.jpg]]
-
-#+BEGIN_EXPORT html
-<script>
-let cirno = document.getElementById("fig")
-let flag = 0;
-
-cirno.onclick = () => {
-    if (flag == 0) {
-	cirno.src = "./1.jpg"
-	flag = 1
-    } else if (flag == 1) {
-	cirno.src = "./0.jpg"
-	flag = 0
-    }
-}
-</script>
-#+END_EXPORT
+#+end_comment
 
 {{{dr_init}}}
 
