@@ -1,11 +1,8 @@
 *.html
-
-# https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
-
-!/drafts
-/drafts/*
-!/drafts/setup.org
-!/drafts/index.org
 *~*
-
 *.sqlite3
+
+blog-build
+ox-w3ctr
+yynt
+draft
