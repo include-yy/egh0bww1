@@ -1,6 +1,8 @@
 *.html
 *~*
 *.sqlite3
+yynt*.el
+rss.xml
 
 blog-build
 ox-w3ctr
