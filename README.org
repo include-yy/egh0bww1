@@ -1,3 +1,8 @@
+[2024-05-03 21:39]
+
+目前新的导出后端 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 已经基本完成了，正在重写导出管理工具 yynt.el。
+
+以下文档仅对 v0.1.3 之前的 commits 有效。
 
 * 关于博客的说明
 
