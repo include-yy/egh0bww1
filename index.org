@@ -84,7 +84,7 @@
   - [[https://luoshui.icu/blog/6619a405/][电子玩具 | 我为什么选择 Excel]]
 - [[https://tratt.net/laurie/blog/archive.html][Laurence Tratt: Laurence Tratt]]
   - [[https://tratt.net/laurie/blog/2020/which_parsing_approach.html][Which Parsing Approach?]]
-- [[https://documentation.divio.com/index.html][Documentation System]]
+- [[https://docs.divio.com/documentation-system][Documentation System]]
 - [[https://www.cnblogs.com/Ninputer][Ninputer | 装配脑袋]]
   - [[https://www.cnblogs.com/Ninputer/archive/2007/11/26/972968.html][用Lambda表达式进行函数式编程（续）：用C#实现Y组合子]]
 - [[https://css.celestialy.top/][CLSTY 的网络空间站]]
