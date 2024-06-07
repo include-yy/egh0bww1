@@ -285,7 +285,7 @@ LIMIT ?" (list (or limit 100000)))))
        :collect-ex (yynt-p1s '("index.org" "tags.org"))
        :fn #'yynt/yy-fn
        :no-cache-files '("index.org" "tags.org")
-       :ext-files nil
+       :ext-files '("index.org" "rss.xml")
        :attrs '("title" "filetags" "description")
        :published t
        :convert-fn #'yynt/yy-convert-fn

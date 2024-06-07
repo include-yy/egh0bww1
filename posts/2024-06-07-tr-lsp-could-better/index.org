@@ -1,0 +1,297 @@
+#+TITLE: 「翻译」LSP could have been better
+#+SUBTITLE: Oct 12, 2023
+#+DATE: [2024-06-07 Fri 15:52]--[2024-06-07 Fri 18:02]
+#+FILETAGS: tr
+#+DESCRIPTION: 本文是对 matklad 文章 LSP could have been better 的翻译，表达了作者对 LSP 的一些见解。
+
+#+begin: aside note
+本文是对 matklad 的 /LSP could have been better/ 一文的翻译，原文地址如下：
+
+https://matklad.github.io/2023/10/12/lsp-could-have-been-better.html
+
+我在一年半前翻译过他的 [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]]，译文地址如下：
+
+https://egh0bww1.com/posts/2022-12-15-tr-why-lsp/
+#+end:
+
+#+begin_quote
+We talk about programming like it is about writing code, but the code ends up
+being less important than the architecture, and the architecture ends up being
+less important than social issues.
+
+我们谈论编程时，好像只和写代码有关，但代码最终不如架构重要，而架构最终又不如社会问题重要。
+
+[[https://neugierig.org/software/blog/2020/05/ninja.html][The Success and Failure of Ninja]]
+#+end_quote
+
+之前写的 [[https://matklad.github.io/2022/04/25/why-lsp.html][Why LSP?]] 讨论了 LSP 解决的一些“社会问题”。LSP（作为微软整体战略的一部分）是非常聪明的，因为它让没有基础 IDE 支持的情况变得不被认可（frowned upon）。不过，本文将探讨在 LSP 架构方面我个人认为并不那么出色的部分（特别是考虑到早于 LSP 的 Dart 分析协议，它在某些技术上更优越）。也许这篇文章对设计其他类似 LSP 协议的读者会有帮助！需要注意的是，距离我积极参与 LSP 开发已经有几年了，可能现在的情况有所改善。
+
+让我们来看一下这些属性的优缺点，以下顺序不分先后。
+
+* Focus on Presentation
+:PROPERTIES:
+:CUSTOM_ID: Focus-on-Presentation
+:END:
+
+让我们从架构的一个天才方面开始，我认为这是 LSP 在技术方面取得巨大成功的原因之一。如果你想要构建一个处理 /多种/ 编程语言的工具，一个最大的难题就是如何在不同但最终相似的语言之间找到共同点。最初的尝试是揭示基本的共同点：毕竟，所有语言都有文件、变量、函数、类，对吧？这......也许不一定是死胡同，但肯定是一条荆棘遍布的危险道路 —— 语言是不同的，每种语言至少在某些方面都有其怪异之处，而追求共同点可能会抹去有意义的区别。
+
+那么，LSP 在这里做了什么呢？它根本不提供代码库的语义模型。相反，它专注于展示。不管每种编程语言有多么不同，最终它们都使用相同的代码补全窗口。因此，LSP 是根据在代码补全窗口中显示的内容来制定的，而不是根据底层的语义语言实体。这意味着每种语言都有一个内部的语义模型，这个模型对于特定语言来说是完全保真度的（full fidelity /for this particular language/ ），并用它来提供最佳的代码补全体验。这也是 rust-analyzer 的内部结构：
+
+1. 编译器层处理复杂的语言分析任务，它从较不结构化的信息（源代码文本）中提取更结构化的信息（类型），并显式地跟踪分析层（analysis layers）和阶段（phases）
+2. HIR（high-level intermediate representation，高级中间表示）是围绕编译器的一个外观层（a façade around the compiler），它提供了一个丰富的基于图形的代码对象模型，看起来就像所有派生信息（如类型）都已预先计算好一样
+3. IDE 层使用 HIR 来计算诸如代码补全之类的内容，并将其呈现为 Rust 特定但无语义的 POD 结构（译注，应该是指 Plain Old Data structure），几乎原样显示给用户
+
+这种架构的一个结果是，LSP 请求映射到编辑器小部件，而不是底层的语言概念，即使多个不同的小部件由相同的底层数据支持。例如，LSP 有单独的请求用于：
+
+- 在侧边栏中显示的文件层次结构大纲
+- 在标题中显示的“面包屑”（breadcrumbs）导航
+- 语法感知的范围选择
+- 代码折叠
+
+虽然这四个功能只是 AST 的不同视图，但在 LSP 中没有“获取 AST”的请求。不同的请求允许针对不同的用例进行细致调整，而且细节确实不同！语义选择（semantic selection）可能包含字符串字面量和注释中的一些子语法范围，面包屑需要包括 =if= 表达式的条件，而大纲可能需要去掉不太重要的节点。细心的读者会注意到，面包屑和大纲实际上使用相同的 LSP 请求。即使是 LSP 也没有完全遵循 LSP 的理念！
+
+* Transport
+:PROPERTIES:
+:CUSTOM_ID: Transport
+:END:
+
+在了解 LSP 做对的一件大事之后，让我们看看它在小事上做错了什么。让我们看看信息是如何通过网络传输的。
+
+JSON 实际上没什么问题！许多人抱怨 JSON 很慢，但实际上通常并非如此。有一些边缘情况，特定的客户端库可能会很慢，比如 Swift 和 Emacs 曾经出现过的情况，但 JSON 对于 Rust、Java 和 JavaScript 来说绝对足够快。当然， /理论上/ 有可能出现比 JSON 更好的东西。
+
+（译注：Emacs 最初使用 Elisp 来进行 JSON 编码和解码，后来引入了 jansson，最近有人为 Emacs 编写了内置的 JSON 编解码支持：[[https://lists.gnu.org/archive/html/emacs-devel/2024-03/msg00244.html][I created a faster JSON parser]]，在解码上似乎有 8 到 9 倍的性能提升。这个补丁已经[[https://github.com/emacs-mirror/emacs/commit/a5df4d92e37a176396577ac901b85025a6952376][合并]]，最早出现在 Emacs 30 中。）
+
+我认为理想情况下我们需要一种 WebAssembly 之于 IPC（WebAssembly for IPC）的格式：
+
+- 同时具有文本和二进制编码（译注：WebAssembly 可以是文本格式 (wat) 或二进制格式 (wasm)）
+- 极其简单（stupidly simple）
+- 被彻底地、可读地、精确地定义
+- 总的来说，它是有原则的，并且使用起来令人愉悦
+
+目前还没有这样的格式，所以我们用 JSON，这已经足够好了。
+
+HTTP 分帧是不行的。传输过程中（On the wire）消息是这样分帧的：
+
+#+begin_src text
+  Content-Length: 92 \r\n
+  \r\n
+  Actual message
+#+end_src
+
+也就是：
+
+- 不区分大小写的 “content-length” 头
+- 后面是消息的长度，格式为 ASCII 十进制数
+- 接着是两个 \r\n
+- 然后是实际消息
+
+这类似于 HTTP，但实际上不是 HTTP，所以你需要编写一些自定义代码来处理分帧。这并不难：
+
+#+begin_src rust-ts
+  let mut size = None;
+  let mut buf = String::new();
+  loop {
+      buf.clear();
+      if inp.read_line(&mut buf)? == 0 {
+	  return Ok(None);
+      }
+      if !buf.ends_with("\r\n") {
+	  return Err(invalid_data!("malformed header: {:?}", buf));
+      }
+      let buf = &buf[..buf.len() - 2];
+      if buf.is_empty() {
+	  break;
+      }
+      let mut parts = buf.splitn(2, ": ");
+      let header_name = parts.next().unwrap();
+      let header_value = parts.next().ok_or_else(|| {
+	  invalid_data!("malformed header: {:?}", buf)
+      })?;
+      if header_name.eq_ignore_ascii_case("Content-Length") {
+	  size = Some(
+	      header_value.parse::<usize>().map_err(invalid_data)?,
+	  );
+      }
+  }
+  let size: usize =
+      size.ok_or_else(|| invalid_data!("no Content-Length"))?;
+  let mut buf = buf.into_bytes();
+  buf.resize(size, 0);
+  inp.read_exact(&mut buf)?;
+  let buf = String::from_utf8(buf).map_err(invalid_data)?;
+#+end_src
+
+但是，仍然需要从可变长度头中解码 ASCII 消息长度？这是一种偶然复杂度。只需用换行符分隔 JSON 对象即可：
+
+https://jsonlines.org/
+
+使用 =\n= 作为分隔符的分帧几乎可以在所选的编程语言中直接使用。
+
+擦干眼泪，剥开洋葱的另一层，我们看到了 json-rpc：
+
+#+begin_src json-ts
+{
+    "jsonrpc": "2.0",
+    "method": "initialize",
+    "id": 1,
+    "params": { ... }
+}
+#+end_src
+
+这同样是一些不必要的偶然复杂性。同样，不难处理：
+
+#+begin_src rust-ts
+  fn _write(self, w: &mut dyn Write) -> io::Result<()> {
+      #[derive(Serialize)]
+      struct JsonRpc {
+	  jsonrpc: &'static str,
+	  #[serde(flatten)]
+	  msg: Message,
+      }
+      let text = serde_json::to_string(&JsonRpc {
+	  jsonrpc: "2.0",
+	  msg: self,
+      })?;
+      write_msg_text(w, &text)
+  }
+#+end_src
+
+但是：
+
+- 容易导致复杂性扩展，吸引了包含最新模式的 jsonrpc 框架。（译注：使用 jsonrpc 可能会导致代码和系统变得更加复杂，因为它鼓励使用各种最新的设计模式和架构，这些模式和架构可能引入额外的复杂性。）
+- ="jsonrpc": "2.0"= 是无意义的噪音，你在调试时不得不见到它
+- 错误代码如 =-32601= （啊，这来自于 =xml-rpc= ！）
+- 包含通知。通知在 RPC 中是一个很大的反模式（anti-pattern），原因有些微妙。稍后再详细说明
+
+那么该怎么做呢？可以参考 Dart 的做法，以下是[[https://htmlpreview.github.io/?https://github.com/dart-lang/sdk/blob/8e6a02d899ef62ef5b8405518b36340e609198e2/pkg/analysis_server/doc/api.html][规范]]中的一些摘录：
+
+#+begin: example
+消息由换行符分隔。这特别意味着，JSON 编码过程中不能在消息内引入换行符。本文档中使用换行符是为了提高可读性。
+
+为便于与基于 Lisp 的客户端的互操作性（它们可能无法轻松区分空列表、空映射和空值），允许客户端到服务器的通信将任何“{}”或“[]”实例替换为 null。服务器将始终正确地表示空列表为“[]”和空映射为“{}”。
+
+客户端可以向服务器发出请求，服务器将为每个收到的请求提供响应。 *尽管客户端可以发出的许多请求本质上是信息性的，但我们选择始终返回响应，以便客户端知道请求是否已被接收并且是正确的。*
+
+#+begin_src text
+  request: {
+    "id": String
+    "method": "server.getVersion"
+  }
+  response: {
+    "id": String
+    "error": optional RequestError
+    "result": {
+      "version": String
+    }
+  }
+#+end_src
+#+end:
+
+这基本上是 jsonrpc 的优点部分，包括使用 ="UNKNOWN_REQUEST"= 而不是 =-32601= 。
+
+* Coordinates
+:PROPERTIES:
+:CUSTOM_ID: Coordinates
+:END:
+
+LSP 使用 =(line, column)= 序对来表示坐标。这里的巧妙之处在于，这解决了相当一部分 =\n= vs =\r\n= 的问题 —— 客户端和服务器可能以不同方式表示换行符，但这无关紧要，因为坐标是相同的。
+
+专注于展示提供了另一个动机，因为客户端接收到的位置信息可以直接呈现给用户，而无需解析底层文件。这个我不太好说（I have mixed feelings about this）。
+
+问题在于，列是用 UTF-16 编码单元来计数的。这实在是不太好。原因很多，尤其是 UTF-16 绝对不是应该向用户显示为“列”的正确数字。
+
+没有显而易见的答案可以代替它。我个人最喜欢的方案是计数 UTF-8 编码单元（也就是字节）。你需要 /一些/ 坐标空间。任何合理的坐标空间对展示都没什么用，所以你不妨使用与底层 UTF-8 编码匹配的空间，这样访问子字符串就是 O(1) 的时间复杂度。
+
+使用 Unicode 代码点可能是最可接受的解决方案。代码点本身没什么用——你需要将其转换为字形簇以进行展示，并转换为 UTF-8 编码单元以对字符串进行操作。尽管如此，代码点是一个常见的公分母，如果错误地用于展示，它们更常是正确的，并且它们有一个很好的性质，即任何小于长度的索引在实际字符串中都是有效的。
+
+* Causality Casualty
+:PROPERTIES:
+:CUSTOM_ID: Causality-Casualty
+:END:
+
+如上所述，jsonrpc 单向通知的一个缺点是它们不允许传递错误信号。但这里还有一个更微妙的问题：因为你不会收到通知的响应，所以很难相对于其他事件对其进行排序。Dart 协议对事件的排序非常严格：
+
+#+begin_quote
+没有关于响应返回顺序的保证，但有一个保证是，只要传输机制也能保证，服务器将按请求发送的顺序处理这些请求。
+#+end_quote
+
+这种保证确保了客户端和服务器相互理解彼此的状态。对于每个请求，客户端知道在它之前和之后发生了哪些文件修改。
+
+在 LSP 中，当客户端想要修改服务器上文件的状态时，它会发送一个通知。LSP 也支持服务器发起的编辑操作。现在，如果客户端发送了一个 =didChangeTextDocument= 通知，然后接收到来自服务器的 =workspace/applyEdit= 请求，客户端无法知道该编辑是否考虑到了最新的更改。如果 =didChangeTextDocument= 是一个请求，客户端可以通过查看相应响应和 =workspace/applyEdit= 的相对顺序来确定。
+
+LSP 通过在每次编辑中包含文档的数字版本来掩盖这种基本的因果关系丧失，但这只是一个尽力而为的解决方案。编辑可能会因对不相关文档的更改而失效。例如，在重命名重构时，如果在计算重构之后在新文件中引入了新的用法，更改文件的版本号会错误地告诉你编辑仍然是正确的，但实际上会遗漏这个新用法。
+
+实际上，这是一个小问题 —— 大多数时候它都能正常工作（我 /认为/ 我从未见过因因果关系丧失而导致的实际错误），即使是正确的解决方案也无法将来自客户端的事件与来自文件系统的事件进行排序。但解决方法也非常简单 —— 不要主动丢失因果关系链接！
+
+* Remote Procedural State Synchronization
+:PROPERTIES:
+:CUSTOM_ID: Remote-Procedural-State-Synchronization
+:END:
+
+这触及了我认为 LSP 最大的架构问题。LSP 是一个 RPC 协议 —— 它由“边缘触发”（edge triggered）的请求组成，这些请求会在另一端触发某些操作。但这并不是大多数 IDE 功能的工作方式。实际需要的是“电平触发”（level triggered）的 *状态同步* 。客户端和服务器需要就某些内容 /达成一致/ ，决定采取的行动是次要的。重点是“存在还是不存在”，而不是“该做什么”。
+
+底层是文本文档的同步 —— 服务器和客户端需要就哪些文件存在以及它们的内容达成一致。
+
+以上是派生数据的同步。例如，项目中存在一组错误。这组错误会在底层文本文件更改时发生变化。由于计算这些错误需要时间（有时文件的更改速度比重新计算错误的速度快），这些错误会有一些延迟。
+
+文件大纲、语法高亮、交叉引用信息等都遵循相同的模式。
+
+关键是，预测源代码的哪些更改会使哪些派生数据失效需要特定语言的知识。更改 =foo.rs= 的文本可能会影响 =bar.rs= 的语法高亮（因为语法高亮会受到类型的影响）。
+
+在 LSP 中，高亮和类似功能是通过请求实现的。这意味着要么客户端是错误的并显示过时的高亮结果，要么它保守地在每次更改后重新查询所有高亮结果，从而浪费 CPU，同时在客户端之外发生更新时（例如， =cargo= 完成下载外部 =crate= 时）仍会显示过时的结果。
+
+Dart 模型更灵活、高效且优雅。高亮不是请求，而是 /订阅/ （subscription）。客户端订阅特定文件的语法高亮，服务器在所选文件的高亮发生变化时通知客户端。也就是说，客户端和服务器之间同步了两部分状态：
+
+- 客户端订阅的文件集合
+- 这些文件的语法高亮的实际状态
+
+前者通过在文件集更改时发送整个“当前集合”文件的请求来同步。后者通过发送增量更新来同步。
+
+订阅在文件集和功能方面都是细粒度的。客户端可能会订阅整个项目中的错误，但只订阅当前打开文档中的高亮。
+
+订阅是通过 RPC 实现的，但它们是大多数请求遵循的总体组织模式。LSP 没有等效的机制，并且在向用户显示过时信息方面存在实际问题。
+
+我认为 Dart 在这方面并没有做到极致。如果我理解正确的话，JetBrains Rider 采取了更聪明的做法：
+
+https://www.codemag.com/Article/1811091/Building-a-.NET-IDE-with-JetBrains-Rider
+
+我认为 Rider 协议背后的理念是直接定义你想要在客户端和服务器之间同步的状态。然后，协议通过发送最小的差异来管理状态的“魔法”同步。
+
+* Simplistic Refactorings
+:PROPERTIES:
+:CUSTOM_ID: Simplistic-Refactorings
+:END:
+
+让我们回到一些更接地气的内容，比如重构。不是简单的重构，如重命名，而是复杂的重构，比如“更改签名”：
+
+https://www.jetbrains.com/idea/guide/tips/change-signature/
+
+在这种重构中，用户选择一个函数声明，然后以某种方式重新排列参数（重新排序、删除、添加、重命名、更改类型等），然后 IDE 修复所有调用点。
+
+这种重构复杂的原因在于它是交互式的 —— 这不是一个原子请求“将 =foo= 重命名为 =bar= ”，而是 IDE 和用户之间的对话。用户根据对原始代码的分析和重构的已指定方面来调整许多参数。
+
+LSP 不支持这种工作流。Dart 在某种程度上支持它们，但每个重构都使用自定义消息（也就是说，有一个非常好的多步骤重构的总体协议，但每个重构本质上都通过网络发送 /任何内容/ ，另一端的 IDE 为特定重构硬编码特定的 GUI）。这种单独重构的工作不太理想，但比完全没有这些复杂的重构要好得多。
+
+* Dynamic Registration
+:PROPERTIES:
+:CUSTOM_ID: Dynamic-Registration
+:END:
+
+最后总结一下。LSP 的概念复杂性中有相当一部分来自对动态注册功能的支持。我不理解为什么会有这个功能，rust-analyzer 只使用动态注册来指定应监视哪些文件。如果使用简单的请求（或订阅机制）会简单得多。
+
+* 译后记
+:PROPERTIES:
+:CUSTOM_ID: afterword
+:END:
+
+这篇文章的翻译比我想象的要简单很多，毕竟现在已经是 GPT 时代了，只需要逐段把原文丢到对话框里面，然后在最后加上一句“翻译为中文”就行了，某些比较生硬的翻译可以重新输入然后加上“有更好的翻译吗”。只有很少部分需要自己手动翻译。
+
+由于比较忙加上一直在重构博客的构建管理代码，五月份我没时间写博客，不过目前已经弄得差不多了：
+
+- [[https://github.com/include-yy/yynt][include-yy/yynt --- a simple org publish manager]]
+- [[https://github.com/include-yy/ox-w3ctr][include-yy/ox-w3ctr --- org export backend for W3C TR style]]
+- [[https://github.com/include-yy/egh0bww1][include-yy/egh0bww1 --- source code of include-yy's blog]]
+
+Matklad 换了新的头像：
+
+[[./1.jpg]]
