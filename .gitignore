@@ -4,16 +4,8 @@
 yynt*.el
 rss.xml
 
-blog-build
-ox-w3ctr
-yynt
-drafts
-tmp
-
-css
-js
-img
-
-build-test
-test.sqlite3
-legacy
+/blog-build
+/drafts
+/legacy
+/ox-w3ctr
+/yynt
