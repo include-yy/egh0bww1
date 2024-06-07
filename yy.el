@@ -147,9 +147,13 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
    (yynt/yy-rss-generate-chan-header)
    ;; 单个数据格式为 ((dir . fpath) . alist), key:{title, filetags, yyntrss}
    (mapconcat (lambda (x)
-		(cl-multiple-value-bind (link title desc tag date) x
+		(cl-multiple-value-bind (title link desc tag date) x
 		  (if (or (null link) (null title) (null desc))
 		      (error "yynt-rss: %s misses title or description!" (caar x))
+		    (setq link (concat yynt/yy-rss-link "/"
+				       (if (string= "org" (file-name-extension link))
+					   (file-name-with-extension link "html")
+					 link)))
 		    (yynt/yy-rss-generate-item title link desc tag date))))
 	      (yynt/yy-get-post-rss) "\n")
    "\n</channel>\n</rss>"))
