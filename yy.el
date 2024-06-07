@@ -596,5 +596,30 @@ https://pe-cn.github.io/%s\n
   (interactive (list (completing-read "Select a tag: " (yynt/yy--post-read-tags))))
   (yynt/yy--post-write-tags (remove tag (yynt/yy--post-read-tags))))
 
+
+
+(defun yynt/yy-export-to-html
+    (&optional async subtreep visible-only body-only ext-plist)
+  (let* ((file (buffer-file-name))
+	 (bobj (yynt-get-file-build-object file yynt/yy-project)))
+    (if (not bobj)
+	(user-error "file may not belong to any yynt's any build object")
+      (yynt-with-sqlite yynt/yy-project
+	(cond
+	 ((member file (yynt-buildm-collect bobj))
+	  (yynt-export-files bobj (list file) nil t))
+	 ((member file (yynt-buildm-collect-ex bobj))
+	  (yynt-export-files bobj (list file) t t))
+	 (t (user-error "file may not belong to any yynt's any build object"))))
+      (let ((co-fn (yynt-build--convert-fn bobj)))
+	(funcall co-fn file)))))
+
+(org-export-define-derived-backend 'yy 'w3ctr
+  :menu-entry
+  '(?y "Export to W3C technical reports style html"
+       ((?y "As HTML file" yynt/yy-export-to-html)
+	(?o "As HTML file and open"
+	    (lambda (a s v b)
+	      (org-open-file (yynt/yy-export-to-html nil s v b)))))))
 
 ;;; yy.el ends here
