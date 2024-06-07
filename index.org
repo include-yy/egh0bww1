@@ -82,10 +82,16 @@
 
 *如果您发现某些内容侵犯了著作权，请通过邮件告诉我，我会及时删除。*
 
-This blog primarily focuses on emacs-related content, with some other topics that I find interesting. All blog posts are published under CC-BY-SA 4.0. If you come across any issues in the articles, you can inform me through an [[https://github.com/include-yy/notes/issues][issue]] or by emailing yy@egh0bww1.com.
+This blog primarily focuses on emacs-related content, with some other topics
+that I find interesting. All blog posts are published under CC-BY-SA 4.0. If you
+come across any issues in the articles, you can inform me through an [[https://github.com/include-yy/notes/issues][issue]] or by
+emailing yy@egh0bww1.com.
 
-You can add the RSS feed to subscribe to this blog. The link is https://egh0bww1.com/rss.xml. If you also have an emacs-related blog or something interesting, I would be happy to include your link in the FOLKS page.
+You can add the RSS feed to subscribe to this blog. The link is
+https://egh0bww1.com/rss.xml. If you also have an emacs-related blog or
+something interesting, I would be happy to include your link in the FOLKS page.
 
-*If you find any content that infringes upon copyright, please inform me via email, and I will promptly remove it.*
+*If you find any content that infringes upon copyright, please inform me via
+email, and I will promptly remove it.*
 
 *include-yy [2024-04-21 Sun 21:04]*
