@@ -466,5 +466,135 @@ build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
 		     (lambda (x) (let ((file (yynt-get-file-project-fullname (car x) yynt/yy-project)))
 			       (file-exists-p file)))
 		     res)))))
+
+;; some template for posts, reposts and euler
+;; [YYYY-MM-DD DAY HH:MM]
+(defun yynt/yy-temp-current-time ()
+  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+(defun yynt/yy-temp-post (title tag)
+  (insert (format
+	   "\
+#+TITLE: %s
+#+DATE: %s
+#+FILETAGS: %s
+#+DESCRIPTION: ...
+#+TMP: 0（未完成的草稿） 1（长期笔记）2（垃圾）"
+	   title (yynt/yy-temp-current-time) tag)))
+
+
+(defun yynt/yy-temp-repost ()
+  (insert "\
+#+TITLE:
+#+DATE:
+#+FILETAGS:
+#+AUTHOR:"))
+
+(defun yynt/yy-temp-euler (num)
+  (insert (format
+	   "\
+#+TITLE: Problem %s
+#+DATE:
+#+FILETAGS: 如有必要可添加标签，如 #prime#
+#+DESCRIPTION: 最好小于二十汉字。。汉字汉字汉字汉字汉字
+
+* Problem\n
+*[[https://projecteuler.net/problem=%s]]*\n
+*中文题目*\n
+https://pe-cn.github.io/%s\n
+* Solution"
+	   num num num)))
+
+;; 直接在对应目录创建文件夹和 org 文件
+(defun yynt/yy-create-draft (dirname title tag)
+  "在 draft 目录创建新的草稿"
+  (interactive (list (read-from-minibuffer "Enter dirname: ")
+		     (read-from-minibuffer "Enter title: ")
+		     (completing-read "Select tag: " (yynt/yy--post-read-tags))))
+  (let ((dirpath (file-name-concat (yynt-get-file-project-fullname "drafts" yynt/yy-project)
+				   (concat (format-time-string "%Y-%m-%d-")
+					   dirname))))
+    (make-directory dirpath)
+    (find-file (file-name-concat dirpath "index.org"))
+    (yynt/yy-temp-post title tag)))
+
+(defun yynt/yy-move-draft (dirpath)
+  "将当前所在草稿 org 文件所在文件夹发布到 post"
+  (interactive (list default-directory))
+  (if (not (equal (yynt-get-file-project-fullname "drafts/" yynt/yy-project)
+		  (file-name-directory (directory-file-name default-directory))))
+      (message "currently not in draft source file, quit")
+    (let ((newdir (file-name-concat
+		   (yynt-get-file-project-fullname "posts" yynt/yy-project)
+		   (concat (format-time-string "%Y-%m-%d-")
+			   (substring (yynt-get-file-build-basename
+				       default-directory
+				       yynt/yy-drafts)
+				      11)))))
+      (copy-directory dirpath newdir t t t)
+      (find-file (file-name-concat newdir "index.org"))
+      (set-buffer-file-coding-system 'utf-8)
+      (message "publish draft fin"))))
+
+(defun yynt/yy-create-repost (dirname)
+  "创建新的 republish 文件夹"
+  (interactive (list (read-from-minibuffer "Enter dirname: ")))
+  (let ((dirpath (file-name-concat
+		  (yynt-get-file-project-fullname "republish" yynt/yy-project)
+		  (concat (format-time-string "%Y-%m-%d-")
+			  dirname))))
+    (make-directory dirpath)
+    (find-file (file-name-concat dirpath "index.org"))
+    (set-buffer-file-coding-system 'utf-8)
+    (yynt/yy-temp-repost)))
+
+(defun yynt/yy-create-euler (number)
+  "创建新的 projecteuler 文件"
+  (interactive (list (read-from-minibuffer "Enter problem Number: ")))
+  (let ((filepath (file-name-concat
+		   (yynt-get-file-project-fullname "projecteuler" yynt/yy-project)
+		   (concat number ".org"))))
+    (find-file filepath)
+    (unless (file-exists-p filepath)
+      (set-buffer-file-coding-system 'utf-8)
+      (yynt/yy-temp-euler number))))
+
+(defvar yynt/yy--post-tags-file (yynt-get-file-project-fullname "tags.eld" yynt/yy-project))
+
+(defun yynt/yy--post-read-tags ()
+  "从文件获取所有 tag"
+  (read (with-temp-buffer
+	  (insert-file-contents
+	   yynt/yy--post-tags-file)
+	  (buffer-string))))
+
+(defun yynt/yy--post-write-tags (taglist)
+  "向文件写入 tags"
+  (with-temp-message ""
+    (with-temp-buffer
+      (insert (pp-to-string taglist))
+      (write-file yynt/yy--post-tags-file)))
+  (message "yynt: write tags fin"))
+
+(defun yynt/yy-post-insert-tag ()
+  "当前位置插入 tag"
+  (interactive)
+  (let* ((tags (yynt/yy--post-read-tags))
+	 (selected (completing-read "Select a tag: " tags)))
+    (insert selected)))
+
+(defun yynt/yy-post-add-tags (newtag)
+  "添加新的 tag"
+  (interactive (list (downcase (read-from-minibuffer "Enter a new tag: "))))
+  (let ((tags (yynt/yy--post-read-tags)))
+    (if (and (string-match-p "[[:alnum:]]+" newtag)
+	     (cl-every (lambda (x) (not (string= x newtag))) tags))
+	(yynt/yy--post-write-tags (cons newtag tags))
+      (message "newtag exists or contains non-alnum char"))))
+
+(defun yynt/yy-post-delete-tags (tag)
+  "删除某个 tag"
+  (interactive (list (completing-read "Select a tag: " (yynt/yy--post-read-tags))))
+  (yynt/yy--post-write-tags (remove tag (yynt/yy--post-read-tags))))
+
 
 ;;; yy.el ends here
