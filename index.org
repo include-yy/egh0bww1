@@ -20,6 +20,10 @@
 - [[./posts/tags.org][博客的分类页面]]
 - [[./projecteuler/index.org][ProjectEuler 题解]]
 
+** 可能有用的文章
+
+- [[file:posts/2021-10-04-13-emacs-list-functions/index.org][emacs 的 list 函数]]
+
 * FOLKS
 
 - [[https://www.cnblogs.com/orion-orion/][猎户座]]
