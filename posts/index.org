@@ -8,25 +8,43 @@
 Total number of articles: {{{arch_total}}}
 
 * 2024 {{{arch_num(2024)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2024
+:END:
 
 {{{arch_year(2024)}}}
 
 * 2023  {{{arch_num(2023)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2023
+:END:
 
 {{{arch_year(2023)}}}
 
 * 2022  {{{arch_num(2022)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2022
+:END:
 
 {{{arch_year(2022)}}}
 
 * 2021  {{{arch_num(2021)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2021
+:END:
 
 {{{arch_year(2021)}}}
 
 * 2020  {{{arch_num(2020)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2020
+:END:
 
 {{{arch_year(2020)}}}
 
 * 2019  {{{arch_num(2019)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2019
+:END:
 
 {{{arch_year(2019)}}}
