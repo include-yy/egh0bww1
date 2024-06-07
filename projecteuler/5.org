@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 5
 #+DATE: [2019-02-20 Web 02:49]
 #+DESCRIPTION: 求能被 1 到 20 整除的最小整数

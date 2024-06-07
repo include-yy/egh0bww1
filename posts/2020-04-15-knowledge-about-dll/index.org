@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: 有关动态链接库的知识
 #+DATE: [2020-04-15 Wed]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/77293039][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/77293039][file:dev/0.jpg]]
 
 * 什么是动态链接库
 

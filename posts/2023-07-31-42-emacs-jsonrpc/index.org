@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: 在 Emacs 中使用 JSON-RPC
 #+DATE: [2023-03-09 Thu 17:04]--[2023-07-31 00:00]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文介绍了如何在 emacs 中使用 JSON-RPC 与外部通信
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/99840371][file:0.jpg]]
-#+end_comment
+[[https://www.pixiv.net/artworks/99840371][file:dev/0.jpg]]
 
 受 [[https://github.com/emacs-eaf/emacs-application-framework][eaf]] 和 [[https://github.com/manateelazycat/lsp-bridge][lsp-bridge]] 等使用了 RPC 功能的包的影响，我对使用 RPC *调用外部程序* 有了一定的兴趣。随着 emacs 29 即将发布正式版，我了解到 eglot 这个 LSP 实现在 29 中加入到了 emacs 中，它使用的 jsonrpc.el 在 [[https://www.gnu.org/software/emacs/news/NEWS.27.1][27]] 加入了 emacs（eglot 和 jsonrpc.el 是同一作者）。既然有现成的不如直接学学怎么用。
 

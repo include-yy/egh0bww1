@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: gossip
-
 #+TITLE: GEB 集异璧笔记 --- 第零一二章
 #+DATE: [2024-03-09 Sat 21:18]--[2024-03-12 00:00]
-
+#+FILETAGS: gossip
 #+DESCRIPTION: 本文是我在阅读侯世达的传奇著作 GEB 时的一些笔记，主要是对一二章的阅读总结
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/14907613][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/14907613][file:dev/0.jpg]]
 
 按理说我应该接着上一篇[[../2024-02-14-49-write-a-treesitter-parser-wgsl/index.org][文章]]介绍 tree-sitter 提供的 API，但是暂时没什么想写的动力。最近随便翻了翻很早之前就有所耳闻的《哥德尔、埃舍尔、巴赫：集异璧之大成》开头两章，不如写个简单的读书笔记水水博客。以下我们简称这本书为 GEB。
 
@@ -464,8 +457,4 @@ GEB 第 80 页
 
 GEB 共有 900 多页 20 章，现在从页面上来说完成了 10%，希望今年之内能够看完。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/93208667][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/93208667][file:dev/p1.jpg]]

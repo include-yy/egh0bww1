@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 7
 #+DATE: [2019-02-20 Web 03:10]
 #+DESCRIPTION: 第 10001 个质数是什么

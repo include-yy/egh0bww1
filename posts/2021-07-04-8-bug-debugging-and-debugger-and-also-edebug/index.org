@@ -1,15 +1,11 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
 #+TITLE: bug, debugging, and debugger, and also edebug
 #+DATE: [2021-07-04 Sun]
+#+FILETAGS: emacs
 
 # https://chan.sankakucomplex.com/post/show/25065042
+# [[https://www.pixiv.net/artworks/50042840][file:dev/0.jpg]]
 
 #+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/50042840][file:0.jpg]]
-
 在 2021 年 6 月 28 日 17：31 utc+8，我总算是通关了[[https://gist.github.com/include-yy/188c18b3c76de5eba4d98a3bc19cbb96][地灵殿 ex 关卡]]，这次的文章就使用小五和小石头的图吧。
 
 顺便推荐一些好看的视频：
@@ -837,13 +833,9 @@ Elisp 内置的调试器主要是起辅助作用，相比之下 edebug 就是个
 
 用了 [[https://github.com/tumashu/cnfonts][cnfonts]] 之后，终于可以用 emacs 的 [[https://github.com/jrblevin/markdown-mode][markdown-mode]] 来写写 markdown 了，Windows 上 emacs 默认的中文字体简直不能直视。相比于使用 [[https://github.com/marktext/marktext][marktext]] ，emacs 我用起来更舒服一点。当然 marktext 也是相当优秀的 markdown 编辑器，现在我可以一个用疲了用另一个。
 
-（如果题图总是 cirno 的话那我岂不是发不完所有东方角色的图了，干脆之后每篇文章的结尾都放一张不同的？）
+# （如果题图总是 cirno 的话那我岂不是发不完所有东方角色的图了，干脆之后每篇文章的结尾都放一张不同的？）
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/64400529][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/64400529][file:dev/p1.jpg]]
 
 * 参考资料
 

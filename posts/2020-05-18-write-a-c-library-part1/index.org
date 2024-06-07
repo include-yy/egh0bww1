@@ -1,14 +1,10 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: c
 #+TITLE: 写个 C 库 - part1
 #+DATE: [2020-05-18 Mon]
+#+FILETAGS: c
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[./0.jpg]]
-#+end_comment
+# [[./dev/0.jpg]]
 
+#+begin: aside note
 本文翻译自 *Writing a C library part 1*
 
 作者：davidz
@@ -16,6 +12,7 @@
 作者主页：https://www.blogger.com/profile/18166813552495508964
 
 文章源地址：http://davidz25.blogspot.com/2011/06/writing-c-library-part-1.html
+#+end:
 
 * 基本库
 

@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Windows 窗口与消息：计时器
 #+DATE: [2020-06-26 Fri]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/71984507][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/71984507][file:dev/0.jpg]]
 
 * 计时器简述
 

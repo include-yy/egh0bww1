@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
 #+TITLE: buffer 管理和 ibuffer 的介绍与使用
 #+DATE: [2022-03-15 Tue 15:56]--[2022-03-17 00:00]
+#+FILETAGS: emacs
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/12413285][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/12413285][file:dev/0.jpg]]
 
 本文并不是用来介绍 buffer 相关的 elisp 接口函数的，而是介绍如何使用 emacs 提供的功能来使用和管理 buffer。首先我会介绍 buffer-menu 的使用，随后我会介绍更强大的 ibuffer，它已经内置到 emacs 里面了。
 
@@ -844,25 +839,12 @@ ibuffer-vc 的主要功能是提供了依据仓库的分组，以及一些 sorte
 
 我大概一年前就看到过有人推荐使用 ibuffer，比如这个视频[fn::https://protesilaos.com/codelog/2020-04-02-emacs-intro-ibuffer/]。 但是我也懒得去用，毕竟那个时候也没有什么 buffer 管理的概念，要管理文件的话，IDE 的侧边栏已经够用了。现在看来 ibuffer 的功能还是挺强大的，但我也不知道花在这上面的时间到底值不值（笑）。
 
-#+begin_comment
-春天到了~ ，为了发点可爱的莉莉白我也是蛮拼的（笑）
+# 春天到了~ ，为了发点可爱的莉莉白我也是蛮拼的（笑） /haru desu yo/
 
-/haru desu yo/
+# [[https://www.pixiv.net/artworks/82271708][file:dev/p1.png]]
 
-{{{begin_noscript}}}
-#+NAME: tailimg
-{{{begin_div}}}
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/82271708][file:p1.png]]
+# [[https://www.pixiv.net/artworks/61681037][file:dev/p2.jpg]]
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/61681037][file:p2.jpg]]
+# [[./dev/p3.jpg]]
 
-#+ATTR_HTML: :class top-down-img
-[[./p3.jpg]]
-
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/74220539][file:p4.png]]
-{{{end_div}}}
-{{{end_noscript}}}
-#+end_comment
+# [[https://www.pixiv.net/artworks/74220539][file:dev/p4.png]]

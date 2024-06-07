@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 39
 #+DATE: [2019-06-09 Sun 03:39]
 #+DESCRIPTION: 求能构成最多直角三角形的小于 1000 的总长

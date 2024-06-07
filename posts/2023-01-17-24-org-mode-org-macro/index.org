@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: orgmode
 #+TITLE: org-mode 导出宏：org-macro
 #+DATE: [2023-01-15 Sun 22:57]--[2023-01-17 00:00]
+#+FILETAGS: orgmode
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/84249040][file:0.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/84249040][file:dev/0.png]]
 
 本文算是我在阅读 org manual 的 13.9 节时的意外收获，原本我只是想学习一下 org 到 HTML 的导出顺便记个笔记，但在读到 13.5 章时发现这 macro 居然意外的好玩，遂记下了一些折腾过程。
 
@@ -572,14 +567,9 @@ include-yy
 
 以上。
 
-#+begin_comment
-#+NAME: tailimg
-{{{begin_div}}}
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/97473377][file:p1.png]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/73710237][file:p2.jpg]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/62443260][file:p3.jpg]]
-{{{end_div}}}
-#+end_comment
+
+# [[https://www.pixiv.net/artworks/97473377][file:dev/p1.png]]
+
+# [[https://www.pixiv.net/artworks/73710237][file:dev/p2.jpg]]
+
+# [[https://www.pixiv.net/artworks/62443260][file:dev/p3.jpg]]

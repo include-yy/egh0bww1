@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 38
 #+DATE: [2019-06-09 Sun 04:00]
 #+DESCRIPTION: 求倍数关系的数字相连仅含 1~9 的最大九位数

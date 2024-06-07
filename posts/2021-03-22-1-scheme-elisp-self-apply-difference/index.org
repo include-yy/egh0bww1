@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: 由 (λ(x)(x x)) 看 elisp 与 scheme 之区别
 #+DATE: [2021-03-22 Mon]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/72497361][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/72497361][file:dev/0.jpg]]
 
 首先，让我们来看一个小问题：如何在不使用循环语句和跳转语句的情况下写出死循环程序来？
 

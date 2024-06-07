@@ -1,7 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: math
 #+TITLE: 傅里叶级数与傅里叶变换
 #+DATE: [2020-03-29 Sun]
+#+FILETAGS: math
 
 在数学中，傅里叶级数是由谐波相关的正弦函数加权求和得到。使用合适的权重，一个周期内的函数和可用来近似该区间内的任意函数。离散傅里叶变换（DFT）是傅里叶级数的一个应用例子。
 
@@ -131,6 +130,7 @@ $s_N(x) = \sum\limits_{n = -N}^{N}c_n e^{i\frac{2 \pi nx}{P}}$
 
 表中时域变换与频域变换一一对应。
 
+#+attr_html: :class data
 | 性质               | 时域                                     | 频域                                              |
 |--------------------+------------------------------------------+---------------------------------------------------|
 | 线性性             | $a \cdot f(x) + b \cdot g(x)$            | $a \cdot F[n] + b \cdot G[n]$                     |
@@ -403,6 +403,7 @@ $\hat{h}(\xi) = \hat{f}(\xi) \cdot \hat{g}(\xi)$
 
 对上述部分性质加以整理，可以得到一张表：
 
+#+attr_html: :class data
 | 性质     | 时域                           | 频域（频率）                                                  | 频域 （角频率）                                            |
 |----------+--------------------------------+---------------------------------------------------------------+------------------------------------------------------------|
 | 线性性   | $a\cdot f(x) + b \cdot g(x )$  | $a \cdot \hat{f}(x) + b \cdot \hat{g}(x)$                     | $a\cdot \hat{f}(\omega) + b \cdot \hat{g}(\omega)$         |
@@ -419,14 +420,17 @@ $\hat{h}(\xi) = \hat{f}(\xi) \cdot \hat{g}(\xi)$
 
 下表中，绝对值记为 $abs$ 。使用 $rect(x)$ 来代表门函数[fn::https://en.wikipedia.org/wiki/Rectangular_function]（矩形函数），使用 $tri(x)$ 代表三角形函数[fn::https://en.wikipedia.org/wiki/Triangular_function]，使用 $sgn(x)$ 表示符号函数，它们分别为：
 
+#+attr_html: :class data
 | rect    | tri     | sgn     |
 | [[./1.png]] | [[./2.png]] | [[./3.png]] |
 
 此外，还有 $sinc(x) = \frac{sin(\pi x)}{\pi x}$ ，它也可以被定义成 $sinc(x) = \frac{sin(x)}{x}$ 。下表中使用的都是带 $\pi$ 的 $sinc$ [fn::https://en.wikipedia.org/wiki/Sinc_function]函数。单位阶跃函数（赫维赛德阶跃函数[fn::https://en.wikipedia.org/wiki/Heaviside_step_function]）和单位冲激函数（狄拉克δ函数[fn::https://en.wikipedia.org/wiki/Dirac_delta_function]） $u(x), \delta(x)$ 的图形如下图所示：
 
+#+attr_html: :class data
 | sinc    | u       | delta   |
 | [[./4.png]] | [[./5.png]] | [[./6.png]] |
 
+#+attr_html: :class data
 | 函数                                               | 傅里叶变换（频率）                                          | 傅里叶变换（角频率）                                    |
 |----------------------------------------------------+-------------------------------------------------------------+---------------------------------------------------------|
 | $rect(ax)$                                         | $\frac{1}{abs(a)} \cdot sinc(\frac{\xi}{a})$                | $\frac{1}{abs(a)} \cdot sinc(\frac{\omega}{2 \pi a})$   |
@@ -442,7 +446,8 @@ $\hat{h}(\xi) = \hat{f}(\xi) \cdot \hat{g}(\xi)$
 
 对于周期函数和不满足绝对可积的函数，它们可以借助狄拉克函数 $\delta(x)$ 表示出来：
 
-| 函数                                                | 傅里叶变换（频率）                                                          | 傅里叶变换（角频率）                                                                  |
+#+attr_html: :class data
+| 函数                                                 | 傅里叶变换（频率）                                                           | 傅里叶变换（角频率）                                                                   |
 |-----------------------------------------------------+-----------------------------------------------------------------------------+---------------------------------------------------------------------------------------|
 | $1$                                                 | $\delta(\xi)$                                                               | $2 \pi \delta(\omega)$                                                                |
 | $e^{iax}$                                           | $\delta(\xi - \frac{a}{2\pi})$                                              | $2 \pi \delta(\omega - a)$                                                            |

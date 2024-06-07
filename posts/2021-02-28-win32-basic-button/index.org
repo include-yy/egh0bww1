@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Win32 编程基础之按钮控件
 #+DATE: [2021-02-28 Sun]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://twitter.com/yutamaro43/status/1331958847431270402][file:0.jpg]]
-#+end_comment
+# [[https://twitter.com/yutamaro43/status/1331958847431270402][file:dev/0.jpg]]
 
 按钮是一种控件，用户可以通过点击它来为应用提供输入，它的类名是 =button= 。
 

@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: js
-
 #+TITLE: JS 魔法堂：剖析源码理解 Promises/A 规范
 #+AUTHOR: ^_^肥仔John
 #+DATE: [2014-12-02 Tue 15:27]
+#+FILETAGS: js
 
 #+MACRO: red @@html:<span style="color:red">$1</span>@@
 

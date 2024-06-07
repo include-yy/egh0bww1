@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: GTF -- Great Teacher Friedman
 #+DATE: [2012-07-04]
 #+AUTHOR: yin wang
+#+FILETAGS: blog
 
 #+begin: aside note
 本文来自王垠于 2012 年 7 月 4 日写的博客。

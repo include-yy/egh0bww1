@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: 「恒虚之境」面向对象（OOP）是编程语言发展中的弯路吗？为什么？
 #+DATE: [2019-01-08 Tue 01:24]
 #+AUTHOR: 恒虚之境
+#+FILETAGS:
 
 #+begin: aside note
 https://www.zhihu.com/question/307049097/answer/567669141

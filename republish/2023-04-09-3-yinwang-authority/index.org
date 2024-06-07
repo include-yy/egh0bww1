@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: 我和权威的故事
 #+DATE: [2014-01-04]
 #+AUTHOR: yin wang
+#+FILETAGS: blog
 
 #+begin: aside note
 本文为王垠在 2014 年 1 月 4 日写的文章。

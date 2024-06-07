@@ -1,7 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: math
 #+TITLE: 常见线性常微分方程的解法
 #+DATE: [2020-03-19 Thu]
+#+FILETAGS: math
 
 * 定义
 

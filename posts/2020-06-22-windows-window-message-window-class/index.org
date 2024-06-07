@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Windows窗口与消息：窗口类
 #+DATE: [2020-06-22 Mon]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/68995269][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/68995269][file:dev/0.jpg]]
 
 * 什么是窗口类
 

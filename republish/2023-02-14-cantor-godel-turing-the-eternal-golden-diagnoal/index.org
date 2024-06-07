@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
-#+AUTHOR: 刘未鹏
 #+TITLE: 康托尔、哥德尔、图灵——永恒的金色对角线
 #+DATE: [2006-10-15 Sun]
+#+FILETAGS: blog
+#+AUTHOR: 刘未鹏
 
 #+begin: aside note
 本文是对刘未鹏的文章 /康托尔、哥德尔、图灵——永恒的金色对角线/ 一文的转载，原文地址如下：

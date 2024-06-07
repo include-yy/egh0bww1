@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: 怎么弄个自己的 blog -- 暂且告一段落
 #+DATE: [2023-11-11 Sat 19:52]
-
+#+FILETAGS: blog
 #+DESCRIPTION: 本文总结了自我开始编写简单博客软件到现在的一些进展，以及一些总结
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/112903574][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/112903574][file:dev/0.jpg]]
 
 从我正式开始以大概每个月一两篇开始写起博客来算，现在已经过去了差不多三年半的样子。从最开始发到 CSDN，简书，到发到买的 WordPress 上，到发知乎上，最后到现在总算是有了自己手搓的博客。不管是从时间上还是文章数量上我在写博客上可以说是有一些经历或者说经验了，本文算是做个简单的总结。
 

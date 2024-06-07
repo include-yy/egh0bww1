@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: 什么是 dsl 和作为 dsl 的 cl-loop
 #+DATE: [2021-06-11 Fri]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/84143335][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/84143335][file:dev/0.jpg]]
 
 大约两年前，我在松本行弘的《代码的未来》中首次了解到了 DSL 这个词，但也仅限于了解的程度，毕竟当时我连 C 语言的基本用法都没有完全掌握。前些天学习 cl-loop 的时候，我又突然想了起来。借此机会学习一下 dsl 和 cl-loop 是个不错的选择。
 

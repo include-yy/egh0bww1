@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 26
 #+DATE: [2019-05-22 Wed 01:53]
 #+DESCRIPTION: 求 1000 以内单位分数的最长循环节

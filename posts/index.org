@@ -1,32 +1,10 @@
-#+OPTIONS: ^:{}
-#+OPTIONS: html-style:nil
-#+options: html-preamble:nil
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style1.css">
-#+HTML_HEAD: <link rel="icon" type="image/svg+xml" href="../img/lily.svg">
-
-#+OPTIONS: num:nil
-
-# #+HTML_HEAD_FUNC: yynt-post-index-head
-# #+HTML_SUFFUNC: yynt-post-index-postamble
-
-# #+HTML_LINK_UP:./index.html
-# #+HTML_LINK_HOME:../index.html
-
-#+HTML_LINK_LNAME: HOME
-#+HTML_LINK_LEFT: ../index.html
-#+HTML_LINK_RNAME: TAGS
-#+HTML_LINK_RIGHT: ./tags.html
-
-#+MACRO: arch_init  (eval (yynt-post-init))
-#+MACRO: arch_clr   (eval (yynt-post-clr))
-#+MACRO: arch_year  (eval (yynt-post-year-titlelists $1))
-#+MACRO: arch_num   (eval (yynt-post-year-num $1))
-#+MACRO: arch_total (eval (yynt-post-total))
-
-{{{arch_init}}}
-
 #+TITLE: include-yy :: blog
 #+DATE: [2024-04-22 01:03]
+
+#+MACRO: arch_year  (eval (yynt/yy-post-year-list "." $1))
+#+MACRO: arch_num   (eval (yynt/yy-post-year-num $1))
+#+MACRO: arch_total (eval (yynt/yy-post-total-num))
+
 Total number of articles: {{{arch_total}}}
 
 * 2024 {{{arch_num(2024)}}}
@@ -52,5 +30,3 @@ Total number of articles: {{{arch_total}}}
 * 2019  {{{arch_num(2019)}}}
 
 {{{arch_year(2019)}}}
-
-{{{arch_clr}}}

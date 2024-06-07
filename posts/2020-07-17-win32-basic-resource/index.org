@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Win32 编程基础之资源
 #+DATE: [2020-07-17 Fri]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/41366851][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/41366851][file:dev/0.jpg]]
 
 *资源* 是可以添加到基于 Windows 的应用可执行文件中的二进制数据。资源可以是标准类型资源，也可以是自定义资源。标准资源描述了图标（icon）、光标（cursor）、菜单（menu）、对话框（dialog box）、位图（bitmap）、强化图元文件（enhanced metafile）、字体（font）、加速键表（accelerate table）、消息表入口（message-table entry）、字符串表入口（string-table entry）或版本信息。应用定义的资源（也叫自定义资源）可以包含应用所需的任何类型的资源。
 

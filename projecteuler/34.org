@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-gi
 #+TITLE: Problem 34
 #+DATE: [2019-06-01 Sat 06:51]
 #+DESCRIPTION: 找出各位数字阶乘和等于其本身的数

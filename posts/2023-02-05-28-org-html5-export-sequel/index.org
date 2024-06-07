@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: orgmode
 #+TITLE: 对 org 到 HTML5 导出的补充
 #+DATE: [2023-02-04 Sat 14:08]--[2023-02-05 00:00]
+#+FILETAGS: orgmode
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/90486424][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/90486424][file:dev/0.jpg]]
 
 在上一篇文章折腾过 org 的 HTML 导出后，我本以为这已经差不多了，但是在不断的搜索过程中还能找到其他博客的更好的导出效果，所以说做事尽量还是不要闭门造车（笑）。
 
@@ -200,7 +195,7 @@ targets and targets."
 
 关于图片的一个比较好玩的功能是，如果 org 中的链接是以 =[[high_resolution][low_resolution]]= 的形式给出的，那么这张图片显示 =low_resolution= 的图片，如果你点击它，你会跳转到 =high_resolution= 的位置，比如 =[[https://www.pixiv.net/artworks/90486424][file:./0.png]]= 。行间导出时它会以 ~<a href=xxx><img src=xxxx></a>~ 的形式导出，单独导出时会在外面加上 =<figure>= ，以下是示范效果：
 
-[[https://www.pixiv.net/artworks/90486424][file:./0.jpg]]
+[[https://orgmode.org/][file:./11.svg]]
 
 这个功能运转正常，我也没什么好修改的。
 
@@ -326,7 +321,7 @@ hello
 
 * 后记
 
-所有的代码我都放到了 [[https://gist.github.com/include-yy/2dec9f7fa5aeb0089858e1a01d84096d][gist]]  上，这里就不占用空间了。
+所有的代码我都放到了 [[https://gist.github.com/include-yy/2dec9f7fa5aeb0089858e1a01d84096d][gist]] 上，这里就不占用空间了。
 
 关于 org 的 html 导出到这里应该就告一段落了，之后的改进重点应该是在 CSS 和 JS 上了。如果我还会写和 org 的 html 导出有关的文章，那应该是我在写 org 的 HTML 导出后端的时候（笑）。
 
@@ -337,8 +332,4 @@ hello
 
 Sacha Chua 的 emacs [[https://sachachua.com/dotemacs/index.html][配置]]值得一看，她的 org 导出设定具有借鉴意义。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/50363027][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/50363027][file:dev/p1.jpg]]

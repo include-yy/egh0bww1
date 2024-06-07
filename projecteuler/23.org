@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 23
 #+DATE: [2019-05-22 Wed 01:33]
 #+DESCRIPTION: 求不能被表示成两个盈数之和的正整数之和

@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 16
 #+DATE: [2019-05-21 Tue 12:12]
 #+DESCRIPTION: 求 2^{1000} 的各位数字和

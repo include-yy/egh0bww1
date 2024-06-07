@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: setf 之 CL 的 five gangs 与 elisp 的 high-order approach
 #+DATE: [2022-02-21 Mon 9:08]--[2022-02-22 00:00]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[./0.jpg]]
-#+end_comment
+# [[./dev/0.jpg]]
 
 由标题可知，本文的内容与 =setf= 这个宏有关，这里我假设你已经知道了什么是 =setq= 。本文的主要内容可认为分为两大部分，首先我会展示 =setf= 的使用方法，以及介绍 CL 中 =setf= 的扩展方法。随后我会介绍 emacs 中的 =setf= 机制。在后一部分我会简单分析 emacs 中的实现，它位于 gv.el 文件中，核心代码行数在 200 行左右。
 
@@ -22,7 +17,7 @@
 
 学过一点 Lisp（特指 CL）的人都知道，有个叫 =setq= 的东西，使用它可以方便地设置符号的 =symbol-value= 值，而不必要使用蹩脚的 =set= 。在 CL 中它是个 =special form= ，在 emacs lisp 中它是个 =#<subr>= 。下面的 =setq= 表达式和 =set= 表达式的效果相同：
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC elisp
 (setq a 1) => 1
 (set 'a 1) => 1
 ;; emacs-lisp
@@ -35,7 +30,7 @@
 
 =setf= 可以理解为 =setq= 一般化后的版本。除了符号外，它可以接受一个表达式，然后对表达式想要取值的“位置”进行赋值操作。换句话说，它可以根据 =getter= 表达式来得出对应的 =setter= 表达式，也就是获得 =getter= 对应的逆操作。举例来说的话就是这样：
 
-#+BEGIN_SRC lisp
+#+BEGIN_SRC elisp
 (setq a '(1 2 3))
 (progn (setf (car a) 2) a) => (2 2 3)
 (progn (setf (car (cdr a)) 3) a) => (2 3 3)
@@ -978,17 +973,15 @@ a => (3 1 2)
 
 在去学校的火车上，由于手机没电了且实在闲的无聊，我读完了 gv.el 的实现并完成了本文的一半，剩下的一半总算是在今晚完成了。读完 gv.el 的最大收获是重新学了一遍二阶宏的写法，联想起寒假推的色鸟鸟，二阶堂真红不就是“二阶红”吗（笑）。
 
-[[./1.jpg]]
+# [[./dev/1.jpg]]
 
 寒假快要结束的几天，《保健室的老师与沉迷吹泡泡的助手》汉化出来了，也算是对我的一点慰藉吧（笑）。
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/83340458][file:2.jpg]]
+# [[https://www.pixiv.net/artworks/83340458][file:dev/2.jpg]]
 
 今天（22 号）上午 9:00 出了考研成绩，通过我这 68 分的数学一，我学到了一点，那就是十七乘四得六十八。根据我的专业课和数学课分数，我还学到了一点，那就是 =(reverse "68") => "86"= ，这不就是八六吗（笑）。
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/80917654][file:3.jpg]]
+# [[https://www.pixiv.net/artworks/80917654][file:dev/3.jpg]]
 
 好了，玩笑话说的差不多了，来点正经的东西吧。在查资料的过程中我发现了一个与 CL 相关的日文网站 https://g000001.cddddr.org/ ，上面有接近两千篇内容。这网站的名字也挺别致， =g000001= 正是 =(gensym)= 的第一个返回值，而 =cddddr= 是 =cxr= 的最后一个。在这个网站上可以找到许多 CL 相关的内容，希望对你有所帮助。
 
@@ -998,8 +991,4 @@ a => (3 1 2)
 
 - /On lisp/ - Paul Graham
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/26565465][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/26565465][file:dev/p1.jpg]]

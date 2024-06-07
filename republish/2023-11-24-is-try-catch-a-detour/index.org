@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: 「大宽宽」传统的try-catch异常处理是否是编程语言发展中的弯路？
 #+DATE: [2020-10-19 Mon 14:07]
 #+AUTHOR: 大宽宽
+#+FILETAGS:
 
 #+begin: aside note
 本文来自「大宽宽」在知乎问题[[https://www.zhihu.com/question/425726667/answer/1531780075][传统的try-catch异常处理是否是编程语言发展中的弯路？]]下的回答。

@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: 如何在 Emacs 中测试代码用时
 #+DATE: [2024-03-17 Sun 01:35]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文简单介绍了一些在 Emacs 中测试代码性能的方法
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/116825034][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/116825034][file:dev/0.jpg]]
 
 在编写一些代码并想测试它的运行速度时，我都会写下 =(let ((ti (float-time))) ... (princ (- (float-time) ti)))= ，写得多了我就总结成了一个宏：
 
@@ -274,10 +267,7 @@
 
 [[./p1.jpg]]
 
-#+begin_comment
-#+NAME: tailimg
-| [[https://www.pixiv.net/artworks/84494726][file:p7.jpg]]  | [[https://www.pixiv.net/artworks/108753371][file:p3.jpg]]  | [[https://www.pixiv.net/artworks/31064333][file:p4.jpg]]  |
-| [[https://www.pixiv.net/artworks/27757605][file:p5.jpg]]  | [[https://www.pixiv.net/artworks/103427537][file:p8.jpg]]  | [[https://www.pixiv.net/artworks/84712477][file:p2.jpg]]  |
-| [[https://www.pixiv.net/artworks/23329637][file:p6.jpg]]  | [[https://www.pixiv.net/artworks/58288674][file:p9.jpg]]  | [[https://www.pixiv.net/artworks/57287597][file:p10.jpg]] |
-| [[https://www.pixiv.net/artworks/79883313][file:p11.jpg]] | [[https://www.pixiv.net/artworks/104755087][file:p12.jpg]] | [[https://www.pixiv.net/artworks/35520691][file:p13.jpg]] |
-#+end_comment
+# | [[https://www.pixiv.net/artworks/84494726][file:dev/p7.jpg]]  | [[https://www.pixiv.net/artworks/108753371][file:dev/p3.jpg]]  | [[https://www.pixiv.net/artworks/31064333][file:dev/p4.jpg]]  |
+# | [[https://www.pixiv.net/artworks/27757605][file:dev/p5.jpg]]  | [[https://www.pixiv.net/artworks/103427537][file:dev/p8.jpg]]  | [[https://www.pixiv.net/artworks/84712477][file:dev/p2.jpg]]  |
+# | [[https://www.pixiv.net/artworks/23329637][file:dev/p6.jpg]]  | [[https://www.pixiv.net/artworks/58288674][file:dev/p9.jpg]]  | [[https://www.pixiv.net/artworks/57287597][file:dev/p10.jpg]] |
+# | [[https://www.pixiv.net/artworks/79883313][file:dev/p11.jpg]] | [[https://www.pixiv.net/artworks/104755087][file:dev/p12.jpg]] | [[https://www.pixiv.net/artworks/35520691][file:dev/p13.jpg]] |

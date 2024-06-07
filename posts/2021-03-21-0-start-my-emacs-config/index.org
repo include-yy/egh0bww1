@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
 #+TITLE: 我的从 0 开始的 emacs 配置
 #+DATE: [2021-03-21 Sun]
+#+FILETAGS: emacs
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/86142125][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/86142125][file:dev/0.jpg]]
 
 * 写在前面
 

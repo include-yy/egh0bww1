@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: math
 #+TITLE: FFT 小记
 #+DATE: [2021-11-30 Tue 13:36]--[2021-12-01 00:00]
+#+FILETAGS: math
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/58604150][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/58604150][file:dev/0.jpg]]
 
 本文简要介绍了 FFT 的原理，给出了一种最简单算法的实现，算是我个人的一些小小整合。
 
@@ -47,15 +42,15 @@
 
 现在令 \( F = (\phi_0, \phi_1, \dots, \phi_{N-1})^H \)，从而有 \(Y=FX\)。若令 \( W_N^{n} = e^{-i2\pi \frac nN } \)，则整个矩阵乘式可表示为：
 
-\( \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&W_N^1&W_N^2&\dots&W_N^{N-1}\\1&W_N^2&W_N^4&\dots&W_N^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{N-1}&W_N^{2(N-1)}&\dots&W_N^{(N-1)^2}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \)
+\[ \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&W_N^1&W_N^2&\dots&W_N^{N-1}\\1&W_N^2&W_N^4&\dots&W_N^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{N-1}&W_N^{2(N-1)}&\dots&W_N^{(N-1)^2}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \]
 
 反变换为：
 
-\( \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) = \frac1N\left(\begin{matrix}1&1&1&\dots&1\\1&W_N^{-1}&W_N^{-2}&\dots&W_N^{-(N-1)}\\1&W_N^{-2}&W_N^{-4}&\dots&W_N^{-2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{1-N}&W_N^{2(1-N)}&\dots&W_N^{-(1-N)^2}\end{matrix}\right) \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) \)
+\[ \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) = \frac1N\left(\begin{matrix}1&1&1&\dots&1\\1&W_N^{-1}&W_N^{-2}&\dots&W_N^{-(N-1)}\\1&W_N^{-2}&W_N^{-4}&\dots&W_N^{-2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&W_N^{1-N}&W_N^{2(1-N)}&\dots&W_N^{-(1-N)^2}\end{matrix}\right) \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) \]
 
 若令 \(w = e^{-i2\pi\frac1N}=W_N^1\)，则可将（正）变换表达的更加简单：
 
-\( \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&w&w^2&\dots&w^{N-1}\\1&w^2&w^4&\dots&w^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&w^{N-1}&w^{2(N-1)}&\dots&w^{(N-1)(N-1)}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \)
+\[ \left(\begin{matrix}y_0\\y_1\\y_2\\\vdots\\y_{N-1}\end{matrix}\right) = \left(\begin{matrix}1&1&1&\dots&1\\1&w&w^2&\dots&w^{N-1}\\1&w^2&w^4&\dots&w^{2(N-1)}\\\vdots&\vdots&\vdots&\cdots&\vdots\\1&w^{N-1}&w^{2(N-1)}&\dots&w^{(N-1)(N-1)}\end{matrix}\right) \left(\begin{matrix}x_0\\x_1\\x_2\\\vdots\\x_{N-1}\end{matrix}\right) \]
 
 这个矩阵也被叫做傅里叶矩阵，不过这里我没有写正规化因数 \( \frac{1}{\sqrt{N}} \)。根据情况或惯例，\(w\) 也可取为 \( e^{i2\pi\frac1N} \)。\(w\) 的取值就决定了变换的正逆，如果再加上正规化因数的话，正变换和逆变换只需要调整一下 \(w\) 即可区分。
 
@@ -232,21 +227,21 @@ FFT，即“快速傅里叶变换”，它可以将时间复杂度为 \(O(n^2)\)
 
 FFT 能进行的根本也许就在于傅里叶矩阵不是个普通的矩阵，在于 \(e^{-2i\pi k\frac nN}\) 的良好性质。当 N 为偶数时，\(y_k = \sum\limits_{i=0}^{N-1}W_N^{ki}x_{n}\) 可化为：
 
-\(\begin{align} y_k &= \sum\limits_{i=0}^{\frac N2-1}W_N^{2ki}x_{2i} + \sum\limits_{i=0}^{\frac N2 -1}W_N^{k(2i+1)}x_{2i+1} \notag \\ &= \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} + W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1} \notag \end{align} \quad k=0, 1, 2, \dots, N - 1\)
+\[\begin{align} y_k &= \sum\limits_{i=0}^{\frac N2-1}W_N^{2ki}x_{2i} + \sum\limits_{i=0}^{\frac N2 -1}W_N^{k(2i+1)}x_{2i+1} \notag \\ &= \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} + W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1} \notag \end{align} \quad k=0, 1, 2, \dots, N - 1\]
 
 据此易知： \(Y_{half} = \left(\begin{matrix}I_{\frac N2}&D_{\frac N2}^N\end{matrix}\right) \left(\begin{matrix}F_{\frac N2}&0\\0&F_{\frac N2}\end{matrix}\right)\left(\begin{matrix}X_{even}\\X_{odd}\end{matrix}\right)\)，其中
 
-\(D_n^N= \left(\begin{matrix}1\\&W_N^1\\&&W_N^2\\&&&\ddots\\&&&&W_N^{n-1}\end{matrix}\right)\)
+\[D_n^N= \left(\begin{matrix}1\\&W_N^1\\&&W_N^2\\&&&\ddots\\&&&&W_N^{n-1}\end{matrix}\right)\]
 
 \(Y_{half}\) 表示 Y 向量的前一半。
 
 接着，由 \(W_N^{k + \frac N2} = e^{-2i\pi k\frac1N -i\pi}\ = -W_N^k\) 和 \(W_N^{k+N} = W_N^k\)，从而有
 
-\(y_{k+\frac N2} = \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} - W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1}\)
+\[y_{k+\frac N2} = \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i} - W_N^k \sum\limits_{i=0}^{\frac N2-1}W_{\frac N2}^{ki}x_{2i+1}\]
 
 由上式体现出的 \(y_{k+\frac N2}\) 和 \(y_k\) 之间的关系，我们可以补完向量 Y 的另一半：
 
-\(Y = \left(\begin{matrix}I_{\frac N2}&D_{\frac N2}^N\\I_{\frac N2}&-D_{\frac N2}^N\end{matrix}\right) \left(\begin{matrix}F_{\frac N2}&0\\0&F_{\frac N2}\end{matrix}\right)\left(\begin{matrix}X_{even}\\X_{odd}\end{matrix}\right)\)
+\[Y = \left(\begin{matrix}I_{\frac N2}&D_{\frac N2}^N\\I_{\frac N2}&-D_{\frac N2}^N\end{matrix}\right) \left(\begin{matrix}F_{\frac N2}&0\\0&F_{\frac N2}\end{matrix}\right)\left(\begin{matrix}X_{even}\\X_{odd}\end{matrix}\right)\]
 
 乘掉最左边的形式主义矩阵，可以得到：
 
@@ -258,11 +253,11 @@ FFT 能进行的根本也许就在于傅里叶矩阵不是个普通的矩阵，�
 
 这应该就是最直接的递归公式了。另外，拿掉奇偶分组的 X 向量，我们就得到了 \(F_{2n}\) 与 \(F_n\) 之间的关系：
 
-\(F_{2n} = \left(\begin{matrix}I_n&D_n^{2n}\\I_n&-D_n^{2n}\end{matrix}\right) \left(\begin{matrix}F_n&0\\0&F_n\end{matrix}\right)P_{2n}\)
+\[F_{2n} = \left(\begin{matrix}I_n&D_n^{2n}\\I_n&-D_n^{2n}\end{matrix}\right) \left(\begin{matrix}F_n&0\\0&F_n\end{matrix}\right)P_{2n}\]
 
 其中：
 
-\(P_{2n}=\left(\begin{matrix}1\\&&1\\&&&&1\\&&&&&&\ddots\\&&&&&&&&1&\\&1\\&&&1\\&&&&&1\\&&&&&&&\ddots\\&&&&&&&&&1\end{matrix}\right) \quad \begin{equation}P_{ij} = \begin{cases}1 ,j = 2i + 1, i \le n \\ 1, j=2(i-n), i\ge n+1\\ 0 \ otherwise\end{cases}\end{equation} \)
+\[P_{2n}=\left(\begin{matrix}1\\&&1\\&&&&1\\&&&&&&\ddots\\&&&&&&&&1&\\&1\\&&&1\\&&&&&1\\&&&&&&&\ddots\\&&&&&&&&&1\end{matrix}\right) P_{ij} = \begin{cases}1 ,j = 2i + 1, i \le n \\ 1, j=2(i-n), i\ge n+1\\ 0 \ otherwise\end{cases} \]
 
 傅里叶矩阵能够分解应该是快速傅里叶变换可行的根本原因。
 

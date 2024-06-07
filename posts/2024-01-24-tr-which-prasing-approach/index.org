@@ -1,9 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: tr
-
 #+TITLE: 【翻译】Which Parsing Approach
 #+DATE: [2024-01-23 Tue 04:30]--[2024-01-24 00:00]
-
+#+FILETAGS: tr
 #+DESCRIPTION: 本文是对 Laurence Tratt 的 Which Parsing Approach 的翻译，对常见 parsing 方法进行了介绍，且特别偏向于 LR parsing
 
 #+begin: aside note

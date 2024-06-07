@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: 图灵的光环
 #+DATE: [2015-10-18]
 #+AUTHOR: yin wang
+#+FILETAGS: blog
 
 #+begin: aside note
 本文为王垠在 2015 年 10 月 18 日发表的文章。

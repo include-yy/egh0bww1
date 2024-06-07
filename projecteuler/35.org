@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 35
 #+DATE: [2019-06-02 Sun 15:39]
 #+DESCRIPTION: 求一百万以下的轮换素数

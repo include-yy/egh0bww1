@@ -1,33 +1,11 @@
-#+OPTIONS: ^:{}
-#+OPTIONS: html-style:nil
-#+options: html-preamble:nil
-#+OPTIONS: num:nil
-
-# #+HTML_SUFFUNC: yynt-post-index-postamble
-
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style1.css">
-#+HTML_HEAD: <link rel="icon" type="image/svg+xml" href="../img/lily.svg">
-
-# #+HTML_LINK_UP:./index.html
-# #+HTML_LINK_HOME:../index.html
-
-#+HTML_LINK_LNAME: HOME
-#+HTML_LINK_LEFT: ../index.html
-#+HTML_LINK_RNAME: ARCH
-#+HTML_LINK_RIGHT: ./index.html
-
-#+MACRO: arch_init (eval (yynt-post-init))
-#+MACRO: arch_clr  (eval (yynt-post-clr))
-#+MACRO: arch_tag  (eval (yynt-post-tag-titlelists $1))
-#+MACRO: arch_num  (eval (yynt-post-tag-num $1))
-#+MACRO: arch_total (eval (yynt-post-tag-total))
-
 #+TITLE: include-yy :: blog :: tags
 #+DATE: [2024-04-22 01:08]
 
-{{{arch_init}}}
+#+HTML_LINK_RIGHT: ./index.html
+#+HTML_LINK_RNAME: ARCH
 
-Total number of tag is {{{arch_total}}}.
+#+MACRO: arch_tag (eval (yynt/yy-post-tag-list "." $1))
+#+MACRO: arch_num (eval (yynt/yy-post-tag-num $1))
 
 * elisp {{{arch_num(elisp)}}}
 

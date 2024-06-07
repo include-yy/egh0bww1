@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: C++的接口与非侵入式接口
 #+DATE: [2019-08-19 Mon 00:22]
 #+AUTHOR: 恒虚之境
+#+FILETAGS:
 
 #+begin: aside note
 https://zhuanlan.zhihu.com/p/76862132

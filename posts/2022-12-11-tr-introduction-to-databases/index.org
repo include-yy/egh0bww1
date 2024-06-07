@@ -1,17 +1,14 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: tr
 #+TITLE: 【翻译】Introduction to Databases
 #+DATE: [2022-12-07 Wed 01:55]--[2022-12-11 00:00]
+#+FILETAGS: tr
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/74131508][file:0.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/74131508][file:dev/0.png]]
 
+#+begin: aside note
 本文是对文章 [[https://www.techopedia.com/6/28832/enterprise/databases/introduction-to-databases][Introduction to Databses]] 的翻译，原作者是 [[https://www.techopedia.com/contributors/dixon-kimani][Dixon Kiamani]]。文章简单介绍了什么是数据库、数据库简史、什么是关系型数据库、数据库的一些基本概念、不同种类的数据库，以及一些商业关系型数据库。如果你和我一样从来没有学过数据库，那么本文应该是个不错的开始。
 
 原文最后更新于 2020 年 11 月 20 日。
+#+end:
 
 本翻译由 deepl 强力驱动。
 
@@ -439,8 +436,4 @@ MySQL 在基于网络的后端数据库方面非常流行，可以单独使用�
 
 作者毕竟不是中国人，文中的许多例子和梗对我来说并不是很熟悉，比如银行和星际迷航，貌似我已经将近八年没有去电影院正经看过电影了。也许原文中的一些常识过个几十年就成了需要注解才能看懂的历史词汇，不过这就不是翻译文章的我需要关心的了。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/72631366][file:p1.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/72631366][file:dev/p1.png]]

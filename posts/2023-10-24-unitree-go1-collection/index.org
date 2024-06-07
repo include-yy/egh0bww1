@@ -1,9 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: robot
-
 #+TITLE: unitree GO1 资料整理、仿真环境搭建、以及通过 ROS 控制实体机器狗
 #+DATE: [2023-09-29 Fri 20:41]--[2023-10-24 00:00]
-
+#+FILETAGS: robot
 #+DESCRIPTION: 本文整理了一些关于 unitree GO1 机器狗的资料，给出了搭建仿真环境的全过程，以及通过 ROS 控制 unitree GO1 机器人的方法
 
 我对于折腾 ROS 没有非常狂热的兴趣，只知道它是个用的很多的机器人通信框架（当然这个认识肯定不准确），一直以来也就知道 =source= 一下 setup.bash 和敲个 =catkin_make= ，仅仅读完了 Wiki 上的 tutorial 的水平。某天同学要在 unitree GO1 上验证一下一个轨迹生成算法，但他对 Linux 和 ROS 一窍不通，遂向我寻求合作。正好刚刚完成了 Emacs 上 Python 和 C++ 环境的配置，不如试试这玩意怎么弄，顺便学学 ROS 知识。

@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 32
 #+DATE: [2019-06-01 Sat 05:53]
 #+DESCRIPTION: 求使三个数刚好含有 1~9 9 个数字的 a*b=c

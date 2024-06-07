@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: emacs 中的数字函数
 #+DATE: [2023-03-06 Mon 16:30]--[2023-06-12 00:00]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文总结了 emacs 中的一些数学函数，方便查找
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/89729181][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/89729181][file:dev/0.jpg]]
 
 elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数，但是内容比较分散在不同的小节中了。本文的目的是收集一下 emacs 中的一些数字函数（位运算不知道算不算），方便写代码时查找。由于 emacs 本身也不是用来进行科学计算的，我似乎很难找到以数学计算为目的的包（不算 calc 的话）。
 
@@ -525,8 +518,4 @@ elisp manual 在 Numbers 一章中介绍了 emacs 的数字类型和一些函数
   - 可选参数 =state= 应该是一个 =random-state= 对象。 =cl-random= 会修改这个对象的状态（它用来记录随机数的信息，以得到下一个随机数）。如果 =state= 参数被忽略了， =cl-random= 会使用内部的 =cl--random-state= ，它是默认的 =random-state= 对象。使用相同的 =state= 对象会产生相同的随机序列
   - 可以使用 =cl-make-random-state= 创建一个 =state= 对象
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/49820216][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/49820216][file:dev/p1.jpg]]

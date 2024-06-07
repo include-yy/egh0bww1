@@ -1,10 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: lisp
-
-#+DESCRIPTION: 本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客
-
 #+TITLE: The Lisper -- Matt Might
 #+DATE: [2023-03-26]--[2023-03-27]
+#+FILETAGS: lisp
+#+DESCRIPTION: 本文介绍了为拯救患罕见病儿子而使用人工智能寻求方案的 Lisper Matt Might，文章主要介绍了他写过的一些博客
 
 说起来，我写这篇文章的动机还真够曲折的，首先我想要了解 emacs 与其他进程间通信的方式，然后看了看 RPC 相关的论文，然后就 emacs 为什么没有线程搜索了一些资料，然后重新看了一遍进程线程协程，然后想着总结一下很久前挖的 generator 的坑，想着读懂 emacs 中的 generator 实现，然后开始搜索 CPS，接着看到了 Matt Might 的博客：[[https://matt.might.net/articles/cps-conversion/][How to compile with continuations]]。
 

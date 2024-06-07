@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 4
 #+DATE: [2019-02-20 Web 02:36]
 #+DESCRIPTION: 求两三位数相乘能得到的最大回文数

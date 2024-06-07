@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: os
-
 #+TITLE: 【操作系统】进程间的通信方式
 #+DATE: [2020-02-26 Wed]
 #+AUTHOR: Images
+#+FILETAGS: os
 
 #+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了进程通信的一些方式。

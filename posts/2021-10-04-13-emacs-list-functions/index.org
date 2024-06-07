@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: emacs 中的 list 函数
 #+DATE: [2021-09-04 Sat]--[2021-10-04]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/3130111][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/3130111][file:dev/0.jpg]]
 
 本文是对于 elisp manual 上关于 list 操作函数的一份整理。除了 elisp 自带的那些函数，本文还会介绍 cl-seq.el，seq.el 和 dash.el 中的 list 函数。
 
@@ -193,7 +188,7 @@ cl-defun 可以接受的参数形式可以是以下几种的组合：
 
 我一开始以为库的名字来源是连接符 =-= ，但是看到了 README 上的那张 rainbow-dash 的图后才明白库名的出处，真是一语双关啊（笑）。
 
-[[https://www.pixiv.net/artworks/91881691][file:r.png]]
+# [[https://www.pixiv.net/artworks/91881691][file:dev/r.png]]
 
 目前（2021 年 9 月）dash 库的版本是 2.19.1，下面都以这个版本为准。
 
@@ -1447,8 +1442,4 @@ org-mode 提供的 GTD 功能让我可以方便地给函数打勾，就像这样
 
 这回是真的暂时再见了（笑）
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/73073540][file:p1.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/73073540][file:dev/p1.png]]

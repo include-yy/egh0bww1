@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 43
 #+DATE: [2019-06-09 Sun 03:23]
 

@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: js
-
 #+TITLE: JS 魔法堂：jsDeferred 源码剖析
 #+AUTHOR: ^_^肥仔John
 #+DATE: [2014-12-05 Fri 13:33]
+#+FILETAGS: js
 
 #+begin: aside note
 本文转载自 ^_^肥仔的博客：JS魔法堂：jsDeferred 源码剖析，文章讲解了 jsDeferred 的实现。

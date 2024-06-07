@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 30
 #+DATE: [2019-05-23 Thu 10:32]
 #+DESCRIPTION: 求使得各位数字五次幂之和等于原数字的数字之和

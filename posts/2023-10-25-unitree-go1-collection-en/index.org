@@ -1,14 +1,26 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: robot
-
 #+TITLE: Compilation of Unitree GO1 Information, Simulation Environment Construction, and Physical Robot Dog Control via ROS
 #+DATE: [2023-09-29 Fri 20:41]--[2023-10-25 00:00]
-
+#+FILETAGS: robot
 #+DESCRIPTION: This article compiles various resources about the Unitree GO1 robotic dog, providing a comprehensive guide to setting up the simulation environment, as well as methods for controlling the Unitree GO1 robot via ROS
 
-I'm not extremely passionate about tinkering with ROS; I only know it's a widely used communication framework for robots (though this understanding is certainly not accurate). My experience has been limited to =source= the setup.bash and running =catkin_make=, barely scraping through the tutorials on the Wiki. One day, a friend wanted to test a trajectory generation algorithm on the Unitree GO1, but he was clueless about Linux and ROS, so he sought my collaboration. Having just finished setting up the Python and C++ environments on Emacs, I thought I might as well give this a shot and learn some ROS in the process.
+I'm not extremely passionate about tinkering with ROS; I only know it's a widely
+used communication framework for robots (though this understanding is certainly
+not accurate). My experience has been limited to =source= the setup.bash and
+running =catkin_make=, barely scraping through the tutorials on the Wiki. One
+day, a friend wanted to test a trajectory generation algorithm on the Unitree
+GO1, but he was clueless about Linux and ROS, so he sought my
+collaboration. Having just finished setting up the Python and C++ environments
+on Emacs, I thought I might as well give this a shot and learn some ROS in the
+process.
 
-Though the whole process wasn't exactly complex, for a half-baked enthusiast like me, the pitfalls were pretty much like traps, and getting through the process took quite some effort. This article summarizes some official and unofficial information about the Unitree GO1, detailing how to use the official packages for simulation in ROS, and how to control the actual GO1 robot dog with ROS. Additionally, it briefly explains how to compile ROS from source, which might be handy for running GO1-related code on Linux systems other than Ubuntu 20.04.
+Though the whole process wasn't exactly complex, for a half-baked enthusiast
+like me, the pitfalls were pretty much like traps, and getting through the
+process took quite some effort. This article summarizes some official and
+unofficial information about the Unitree GO1, detailing how to use the official
+packages for simulation in ROS, and how to control the actual GO1 robot dog with
+ROS. Additionally, it briefly explains how to compile ROS from source, which
+might be handy for running GO1-related code on Linux systems other than Ubuntu
+20.04.
 
 The basic environment used in this article is as follows:
 
@@ -17,45 +29,76 @@ The basic environment used in this article is as follows:
 
 * Some documents and resources
 
-
-This article does not assume that the reader has very professional ROS skills, but a basic understanding is still required. If the reader has never used ROS, the following links should help you get started with learning ROS:
+This article does not assume that the reader has very professional ROS skills,
+but a basic understanding is still required. If the reader has never used ROS,
+the following links should help you get started with learning ROS:
 
 - [[http://wiki.ros.org/ROS/Tutorials][ROS Tutorials -- ROS.org]]
-  - This is likely the most authoritative beginner's guide (it's from the official Wiki, after all), but it might not be very user-friendly for beginners in programming or Linux. If you're not familiar with Linux, you might want to check out the tutorial suggested by the Wiki.
+  - This is likely the most authoritative beginner's guide (it's from the
+    official Wiki, after all), but it might not be very user-friendly for
+    beginners in programming or Linux. If you're not familiar with Linux, you
+    might want to check out the tutorial suggested by the Wiki.
 - [[https://www.mathworks.com/help/ros/getting-started-with-ros-toolbox.html?s_tid=CRUX_lftnav][Get Start with ROS Toolbox -- Mathworks]]
-  - Matlab's documentation is generally of very high quality and serves as excellent learning material, especially considering you might use Simulink. In this case, having direct ROS communication from within Matlab is obviously very convenient.
+  - Matlab's documentation is generally of very high quality and serves as
+    excellent learning material, especially considering you might use
+    Simulink. In this case, having direct ROS communication from within Matlab
+    is obviously very convenient.
 - [[https://github.com/sychaichangkun/ROS_Resources][ROS_Resources -- A collection of ROS teaching materials]]
-  - This repo collects some ROS beginner's reference materials, including tutorials from some well-known schools. I haven't gone through them, so I won't make judgments here.
+  - This repo collects some ROS beginner's reference materials, including
+    tutorials from some well-known schools. I haven't gone through them, so I
+    won't make judgments here.
 - [[https://crascit.com/professional-cmake/][Professional CMake]]
-  - Since ROS's build tools are based on CMake, it doesn't hurt to learn more about it. Of course, it makes little sense to read this book in its entirety - spending a few hours browsing should be sufficient.
+  - Since ROS's build tools are based on CMake, it doesn't hurt to learn more
+    about it. Of course, it makes little sense to read this book in its
+    entirety - spending a few hours browsing should be sufficient.
 
-This article assumes that readers have fundamental knowledge and experience in Python/C++ programming, as these are the two main languages used in ROS programming. If not, the following resources should help with getting started:
+This article assumes that readers have fundamental knowledge and experience in
+Python/C++ programming, as these are the two main languages used in ROS
+programming. If not, the following resources should help with getting started:
 
 - [[https://docs.python.org/3/tutorial/index.html][The Python Tutoral -- Python 3.12.0 documentation]]
-  - This is the official introductory tutorial for Python. Going through it should equip you with a good understanding of Python.
+  - This is the official introductory tutorial for Python. Going through it
+    should equip you with a good understanding of Python.
 - [[https://en.wikipedia.org/wiki/Core_Python_Programming][Core Python Programming]]
   - This could perhaps be considered a book for intermediate learners.
 - [[https://www.oreilly.com/library/view/c-primer-fifth/9780133053043/][C++ Primer 5th edition]]
   - A classic introductory book for C++.
 
-Most of the documentation about the Unitree GO1 robotic dog can be found in the [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1][YushuTechUnitreeGo1]] repository. This repo has collected almost all related materials for the GO1 robotic dog: you can find relevant PDF files in the GO1's AfterSalesSupport folder. Here are a few of the more important documents:
+Most of the documentation about the Unitree GO1 robotic dog can be found in the
+[[https://github.com/MAVProxyUser/YushuTechUnitreeGo1][YushuTechUnitreeGo1]] repository. This repo has collected almost all related
+materials for the GO1 robotic dog: you can find relevant PDF files in the GO1's
+AfterSalesSupport folder. Here are a few of the more important documents:
 
 - [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/Go1%20User%20Manual%201.4.pdf][Go1 User Manual 1.4]], which introduces the composition and usage of the robotic dog.
 - [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/Go1%20datasheet%203.0.pdf][Go1 datasheet 3.0]], detailing the specifications of the robot's components.
 - [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/AfterSalesSupport/Go1/EDUseries/Go1_Software_Manual_202112/software_manual_20211201.pdf][software_manual]], the development handbook for GO1.
-- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/AfterSalesSupport/Go1/EDUseries/Go1_Software_Manual_202112/unitree_legged_sdk_manual_20211204.pdf][unitree_legged_sdk_manual]], the documentation for the software development kit used for controlling the GO1 robot.
+- [[https://github.com/MAVProxyUser/YushuTechUnitreeGo1/blob/main/AfterSalesSupport/Go1/EDUseries/Go1_Software_Manual_202112/unitree_legged_sdk_manual_20211204.pdf][unitree_legged_sdk_manual]], the documentation for the software development kit
+  used for controlling the GO1 robot.
 
-All official SDKs or sample codes from unitree can be found at [[https://github.com/unitreerobotics][unitreerobotics]]. The ones most relevant to this article are  [[https://github.com/unitreerobotics/unitree_ros][unitree_ros]], [[https://github.com/unitreerobotics/unitree_guide][unitree_guide]], [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]] and [[https://github.com/unitreerobotics/unitree_legged_sdk][unitree_legged_sdk]].
+All official SDKs or sample codes from unitree can be found at
+[[https://github.com/unitreerobotics][unitreerobotics]]. The ones most relevant to this article are [[https://github.com/unitreerobotics/unitree_ros][unitree_ros]],
+[[https://github.com/unitreerobotics/unitree_guide][unitree_guide]], [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]] and [[https://github.com/unitreerobotics/unitree_legged_sdk][unitree_legged_sdk]].
 
-I trust that readers should have sufficient financial resources or *capabilities* to access the above resources (smile).
+I trust that readers should have sufficient financial resources or
+*capabilities* to access the above resources (smile).
 
 * The Unitree GO1 Code Packages and Their Functions
 
-Though initially, our task only requires setting up the packages and running the simulation, it's crucial to understand the functionalities provided by these packages for any further development. In this section, I will briefly outline the relationship between each package and its documentation for easy reference.
+Though initially, our task only requires setting up the packages and running the
+simulation, it's crucial to understand the functionalities provided by these
+packages for any further development. In this section, I will briefly outline
+the relationship between each package and its documentation for easy reference.
 
-- unitree_legged_sdk: This package offers direct methods to control the GO1 robot dog, with detailed information available in Section 2 of the /software_manual/.
+- unitree_legged_sdk: This package offers direct methods to control the GO1
+  robot dog, with detailed information available in Section 2 of the
+  /software_manual/.
 
-- unitree_ros: This package facilitates the Gazebo simulation environment, allowing control signals to be sent to Gazebo through other ROS nodes to control the robot dog. However, =unitree_ros= only provides low-level control capabilities. This means we must simultaneously coordinate the control of 12 motors on the robot for it to move correctly, necessitating the creation of a comprehensive controller.
+- unitree_ros: This package facilitates the Gazebo simulation environment,
+  allowing control signals to be sent to Gazebo through other ROS nodes to
+  control the robot dog. However, =unitree_ros= only provides low-level control
+  capabilities. This means we must simultaneously coordinate the control of 12
+  motors on the robot for it to move correctly, necessitating the creation of a
+  comprehensive controller.
 
   #+BEGIN_QUOTE
   Here are the ROS simulation packages for Unitree robots, You can
@@ -70,11 +113,23 @@ Though initially, our task only requires setting up the packages and running the
   [[https://github.com/unitreerobotics/unitree_ros][Readme -- unitree_ros]]
   #+END_QUOTE
 
-- unitree_ros_to_real: This package is responsible for converting ROS messages into actual control commands for the real robot. By using it in conjunction with =unitree_ros=, we can manipulate the actual robot through ROS messages. Initially, I assumed that there would be a ROS node operating on the GO1 robot dog, but, in reality, that is not the case. The diagram below illustrates the incorrect understanding and the correct interpretation: =unitree_ros_to_real= translates ROS messages into UDP packets, which are then sent to the actual robot. If the ROS control code we are executing is not located on an Ubuntu machine that is directly communicating with the GO1, we require such an Ubuntu system to perform the message translation.
+- unitree_ros_to_real: This package is responsible for converting ROS messages
+  into actual control commands for the real robot. By using it in conjunction
+  with =unitree_ros=, we can manipulate the actual robot through ROS
+  messages. Initially, I assumed that there would be a ROS node operating on the
+  GO1 robot dog, but, in reality, that is not the case. The diagram below
+  illustrates the incorrect understanding and the correct interpretation:
+  =unitree_ros_to_real= translates ROS messages into UDP packets, which are then
+  sent to the actual robot. If the ROS control code we are executing is not
+  located on an Ubuntu machine that is directly communicating with the GO1, we
+  require such an Ubuntu system to perform the message translation.
 
   [[./1.png]]
 
-- unitree_guide: Building on the foundation provided by =unitree_ros=, this package introduces a set of control algorithms for the GO1, enabling high-level control within the simulation environment. Below is an animated graphic demonstrating the specific control results:
+- unitree_guide: Building on the foundation provided by =unitree_ros=, this
+  package introduces a set of control algorithms for the GO1, enabling
+  high-level control within the simulation environment. Below is an animated
+  graphic demonstrating the specific control results:
 
 
   #+BEGIN_EXPORT html
@@ -93,17 +148,29 @@ Though initially, our task only requires setting up the packages and running the
   </video>
   #+END_EXPORT
 
-In the video, I am able to control the robot dog's movements forward, backward, left, and right using the WASD keys on the keyboard, and switch the robot's motion states with number keys such as =1=, =2=, =4=, etc. You can refer to the detailed control methods in the [[https://github.com/unitreerobotics/unitree_guide#usage][usage]] section.
+In the video, I am able to control the robot dog's movements forward, backward,
+left, and right using the WASD keys on the keyboard, and switch the robot's
+motion states with number keys such as =1=, =2=, =4=, etc. You can refer to the
+detailed control methods in the [[https://github.com/unitreerobotics/unitree_guide#usage][usage]] section.
 
-Next, let's delve into the details of how to install the simulation environment shown in the video on Ubuntu 20.04, as well as how to devise control methods that do not require keyboard input.
+Next, let's delve into the details of how to install the simulation environment
+shown in the video on Ubuntu 20.04, as well as how to devise control methods
+that do not require keyboard input.
 
 * Installation of the Basic Simulation Environment: unitree_guide
 
-To perform simple high-level simulations, we need =unitree_guide=, which relies on =unitree_ros=. Therefore, in this section, I will explain how to install both =unitree_guide= and =unitree_ros=.
+To perform simple high-level simulations, we need =unitree_guide=, which relies
+on =unitree_ros=. Therefore, in this section, I will explain how to install both
+=unitree_guide= and =unitree_ros=.
 
-To successfully install =unitree_ros=, I referred to quite a few sources, such as [[https://qiita.com/devemin/items/1708176248a1928f3b88][this one]], but they didn't seem to work very well. Now, it seems that the most viable method is to use the organization method directly on GitHub, which is what I am going to introduce below.
+To successfully install =unitree_ros=, I referred to quite a few sources, such
+as [[https://qiita.com/devemin/items/1708176248a1928f3b88][this one]], but they didn't seem to work very well. Now, it seems that the most
+viable method is to use the organization method directly on GitHub, which is
+what I am going to introduce below.
 
-To download =unitree_ros= and its dependencies, navigate to the =src= directory of your catkin workspace folder and execute the following commands in sequence. These commands pull the entire project code from GitHub:
+To download =unitree_ros= and its dependencies, navigate to the =src= directory
+of your catkin workspace folder and execute the following commands in
+sequence. These commands pull the entire project code from GitHub:
 
 #+BEGIN_SRC shell
   git clone https://github.com/unitreerobotics/unitree_ros --depth 1
@@ -111,7 +178,9 @@ To download =unitree_ros= and its dependencies, navigate to the =src= directory 
   git submodule update --init --recursive --depth 1
 #+END_SRC
 
-For Ubuntu 20, after installing ROS Noetic, you may also need to install the following components (although some of these might have been included in the Noetic installation):
+For Ubuntu 20, after installing ROS Noetic, you may also need to install the
+following components (although some of these might have been included in the
+Noetic installation):
 
 #+BEGIN_SRC shell
   sudo apt update
@@ -123,7 +192,10 @@ For Ubuntu 20, after installing ROS Noetic, you may also need to install the fol
        liblcm-dev
 #+END_SRC
 
-Next, navigate to the file =unitree_gazebo/worlds/starts.world=, and at the end of the document, modify the <uri> to reflect the actual path (specifically, change the name following 'home' to your own username, and adjust the workspace directory name if it does not match):
+Next, navigate to the file =unitree_gazebo/worlds/starts.world=, and at the end
+of the document, modify the <uri> to reflect the actual path (specifically,
+change the name following 'home' to your own username, and adjust the workspace
+directory name if it does not match):
 
 #+BEGIN_SRC xml
   <include>
@@ -131,22 +203,29 @@ Next, navigate to the file =unitree_gazebo/worlds/starts.world=, and at the end 
   </include>
 #+END_SRC
 
-Afterward, return to the catkin workspace directory and execute catkin_make to complete the installation.
+Afterward, return to the catkin workspace directory and execute catkin_make to
+complete the installation.
 
-To download the [[https://github.com/unitreerobotics/unitree_guide][unitree_guide]] in your workspace, execute the following command in the =src= directory:
+To download the [[https://github.com/unitreerobotics/unitree_guide][unitree_guide]] in your workspace, execute the following command
+in the =src= directory:
 
 #+BEGIN_SRC shell
   git clone https://github.com/unitreerobotics/unitree_guide --depth 1
 #+END_SRC
 
-If you encounter messages during the compilation process indicating that =move_base_msgs= cannot be found, you can download it using the following command:
+If you encounter messages during the compilation process indicating that
+=move_base_msgs= cannot be found, you can download it using the following
+command:
 
 #+BEGIN_SRC shell
   sudo apt install ros-noetic-move-base-msgs
   sudo apt install ros-noetic-move-base
 #+END_SRC
 
-Currently, unitree_guide offers a very basic GO1 simulation motion controller along with a [[https://support.unitree.com/home/zh/Algorithm_Practice/about_unitreeguide][tutorial]]. This might be suitable for some practical tasks. After completing the steps above, readers can try the following commands to run the simulation environment and controller:
+Currently, unitree_guide offers a very basic GO1 simulation motion controller
+along with a [[https://support.unitree.com/home/zh/Algorithm_Practice/about_unitreeguide][tutorial]]. This might be suitable for some practical tasks. After
+completing the steps above, readers can try the following commands to run the
+simulation environment and controller:
 
 #+BEGIN_SRC shell
   roslaunch unitree_guide gazeboSim.launch
@@ -156,13 +235,29 @@ Currently, unitree_guide offers a very basic GO1 simulation motion controller al
 
 ** Change the simulation's Control Panel
 
-(This section requires some knowledge of C++, at least an understanding of concepts like inheritance and callbacks.)
+(This section requires some knowledge of C++, at least an understanding of
+concepts like inheritance and callbacks.)
 
-Here, the "Control Panel" does not refer to the control algorithm but rather something akin to a joystick or game controller. =unitree_guide= only provides keyboard control, so if we want to control the simulated robot's movements by sending ROS messages from an external process, we need to make some minor modifications to the original code. In this section, I will introduce a message Control Panel that I implemented, and incidentally, discuss some details of 'unitree_guide's implementation.
+Here, the "Control Panel" does not refer to the control algorithm but rather
+something akin to a joystick or game controller. =unitree_guide= only provides
+keyboard control, so if we want to control the simulated robot's movements by
+sending ROS messages from an external process, we need to make some minor
+modifications to the original code. In this section, I will introduce a message
+Control Panel that I implemented, and incidentally, discuss some details of
+'unitree_guide's implementation.
 
-The source code for =junior_ctrl= is located in the =main.cpp= within the =unitree_guide/unitree_guide/src= directory. It begins by creating an instance of the =IOROS= class to initialize the IO interfaces. This instance is then used as an instantiation parameter for creating an object of the =CtrlComponents= class, specifying some simulation parameters, such as the simulation time units, and so forth. This object is then used as an instantiation parameter to create a =ControlFrame= object, which continually calls the =run= method for ongoing operation.
+The source code for =junior_ctrl= is located in the =main.cpp= within the
+=unitree_guide/unitree_guide/src= directory. It begins by creating an instance
+of the =IOROS= class to initialize the IO interfaces. This instance is then used
+as an instantiation parameter for creating an object of the =CtrlComponents=
+class, specifying some simulation parameters, such as the simulation time units,
+and so forth. This object is then used as an instantiation parameter to create a
+=ControlFrame= object, which continually calls the =run= method for ongoing
+operation.
 
-Of course, these details are not very important for our purpose; we are just interested in modifying the control interface. Within the constructor of the =IOROS= class, we can find the initialization of the keyboard object:
+Of course, these details are not very important for our purpose; we are just
+interested in modifying the control interface. Within the constructor of the
+=IOROS= class, we can find the initialization of the keyboard object:
 
 #+BEGIN_SRC cpp
   // unitree_guide/unitree_guide/src/interface/IOROS.cpp
@@ -186,7 +281,10 @@ Of course, these details are not very important for our purpose; we are just int
   }
 #+END_SRC
 
-Since we can't provide a Panel parameter to =IOROS= to select a custom Panel, I've defined my own =YYROS= class here. It will release the created =KeyBoard= object and use the constructor parameter as the actual =Panel= object to be used:
+Since we can't provide a Panel parameter to =IOROS= to select a custom Panel,
+I've defined my own =YYROS= class here. It will release the created =KeyBoard=
+object and use the constructor parameter as the actual =Panel= object to be
+used:
 
 #+BEGIN_SRC cpp
 // new class inherited from IOROS
@@ -205,7 +303,9 @@ YYROS::YYROS(CmdPanel *myCmdPanel):IOROS::IOROS() {
 YYROS::~YYROS() {}
 #+END_SRC
 
-Based on the =cmdPanel= type and the superclass of =KeyBoard=, it's not difficult to discern that =KeyBoard= inherits from the =CmdPanel= class. Here, I've reimplemented my own =CmdPanel= by referencing =KeyBoard=:
+Based on the =cmdPanel= type and the superclass of =KeyBoard=, it's not
+difficult to discern that =KeyBoard= inherits from the =CmdPanel= class. Here,
+I've reimplemented my own =CmdPanel= by referencing =KeyBoard=:
 
 #+BEGIN_SRC cpp
 class YYPanel : public CmdPanel {
@@ -227,7 +327,10 @@ private:
 };
 #+END_SRC
 
-=KeyBoard= achieves updates of commands or velocity information by starting a new thread to receive user inputs and update variables. Here, I adopt the same approach, using =pthread_create= to invoke the =spin()= method in a new thread, reading information published from other ROS nodes:
+=KeyBoard= achieves updates of commands or velocity information by starting a
+new thread to receive user inputs and update variables. Here, I adopt the same
+approach, using =pthread_create= to invoke the =spin()= method in a new thread,
+reading information published from other ROS nodes:
 
 #+BEGIN_SRC cpp
 YYPanel::YYPanel() {
@@ -257,7 +360,10 @@ void* YYPanel::run(void *arg) {
 }
 #+END_SRC
 
-Here, =yycmd= represents the status values of the robotic dog, while the =x= and =y= components of =yyvalue= represent the velocity components along the coordinate directions on a plane, and =z= denotes the angular velocity around the z-axis.
+Here, =yycmd= represents the status values of the robotic dog, while the =x= and
+=y= components of =yyvalue= represent the velocity components along the
+coordinate directions on a plane, and =z= denotes the angular velocity around
+the z-axis.
 
 Below is the complete code:
 
@@ -453,11 +559,17 @@ int main(int argc, char **argv)
 #+END_SRC
 :end:
 
-Place =yy.cpp= in the same directory as =main.cpp=, and modify the =CMakeLists.txt= in the =/unitree_guide/unitree_guide= directory at the position shown in the picture below. After that, re-run =catkin_make=, and you'll have a simulation controller that can accept ROS message controls:
+Place =yy.cpp= in the same directory as =main.cpp=, and modify the
+=CMakeLists.txt= in the =/unitree_guide/unitree_guide= directory at the position
+shown in the picture below. After that, re-run =catkin_make=, and you'll have a
+simulation controller that can accept ROS message controls:
 
 [[./3.png]]
 
-Readers can write their own ROS nodes to send data to =yycmd= and =yyvalue=. After starting =yy_ctrl= (=./devel/lib/unitree_guide/yy_ctrl=), the messages they send will be transmitted to the simulation environment. Below is the code I used during testing:
+Readers can write their own ROS nodes to send data to =yycmd= and
+=yyvalue=. After starting =yy_ctrl= (=./devel/lib/unitree_guide/yy_ctrl=), the
+messages they send will be transmitted to the simulation environment. Below is
+the code I used during testing:
 
 #+BEGIN_SRC python
 import rospy
@@ -493,13 +605,25 @@ while not rospy.is_shutdown():
     rate.sleep()
 #+END_SRC
 
-Lastly, it's important to note that you should try to avoid running simulations in a virtual machine environment. Due to performance constraints, there can be a significant deviation from real-time, potentially leading to unexpected results.
+Lastly, it's important to note that you should try to avoid running simulations
+in a virtual machine environment. Due to performance constraints, there can be a
+significant deviation from real-time, potentially leading to unexpected results.
 
 * Controlling the GO1 Robot with ROS
 
-As previously mentioned, we can achieve the conversion of ROS messages into UDP data through [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]]. Just as I was preparing to delve into this, a colleague discovered a package that directly utilizes the SDK: [[https://github.com/dbaldwin/go1-math-motion][go1-math-motion]]. Here's a demonstration video: [[https://www.youtube.com/watch?app=desktop&v=1f_5smH_AYM][Go1 High Level Control with ROS and Turtlesim]]. After completing the package installation and compilation, we simply need to launch the =twist_sub= node and send =geometry_msgs/Twist= type messages to =/cmd_vel= to control the actual GO1 robot dog's movements.
+As previously mentioned, we can achieve the conversion of ROS messages into UDP
+data through [[https://github.com/unitreerobotics/unitree_ros_to_real][unitree_ros_to_real]]. Just as I was preparing to delve into this, a
+colleague discovered a package that directly utilizes the SDK:
+[[https://github.com/dbaldwin/go1-math-motion][go1-math-motion]]. Here's a demonstration video: [[https://www.youtube.com/watch?app=desktop&v=1f_5smH_AYM][Go1 High Level Control with ROS
+and Turtlesim]]. After completing the package installation and compilation, we
+simply need to launch the =twist_sub= node and send =geometry_msgs/Twist= type
+messages to =/cmd_vel= to control the actual GO1 robot dog's movements.
 
-As for establishing a network connection between your Ubuntu machine and GO1, you might consider using an Ethernet cable (preferably a longer one) or connecting to the router on the GO1 (the SSID isn't very clear, but it definitely includes =unitree=). The router's password is eight 8's: =88888888=. If you prefer a wired connection, you can use the following command:
+As for establishing a network connection between your Ubuntu machine and GO1,
+you might consider using an Ethernet cable (preferably a longer one) or
+connecting to the router on the GO1 (the SSID isn't very clear, but it
+definitely includes =unitree=). The router's password is eight 8's:
+=88888888=. If you prefer a wired connection, you can use the following command:
 
 #+BEGIN_SRC shell
 sudo ifconfig eth0 down # eth0 is your PC Ethernet port
@@ -510,7 +634,8 @@ ping 192.168.123.161
 
 The =eth0= mentioned is the name of the wired network card on your machine.
 
-Once all connections are established, we can control the movements of GO1 through code, similar to =circle_walk.cpp= in the go1-math-motion package:
+Once all connections are established, we can control the movements of GO1
+through code, similar to =circle_walk.cpp= in the go1-math-motion package:
 
 #+BEGIN_SRC cpp
   #include "ros/ros.h"
@@ -549,9 +674,17 @@ Once all connections are established, we can control the movements of GO1 throug
 
 * Appendix: Compiling ROS Noetic from Source on Ubuntu 22.04
 
-Through this article, we have accomplished the setup of the GO1 simulation environment on Ubuntu 20.04 and implemented actual control. But what if our system is Ubuntu 22.04 or another Linux system not officially supported by ROS Noetic? In such cases, we might need to compile ROS and other components from source.
+Through this article, we have accomplished the setup of the GO1 simulation
+environment on Ubuntu 20.04 and implemented actual control. But what if our
+system is Ubuntu 22.04 or another Linux system not officially supported by ROS
+Noetic? In such cases, we might need to compile ROS and other components from
+source.
 
-Naturally, the [[http://wiki.ros.org/Installation/Source][Wiki]] provides detailed steps on how to compile ROS from source, but it's not directly applicable to Ubuntu 22.04, requiring some modifications. The repository [[https://github.com/tatsuyai713/build_ros_noetic_on_jammy][build_ros_noetic_on_jammy]] offers the modified installation scripts. I am providing them directly here to prevent any issues in case the repository gets deleted in the future:
+Naturally, the [[http://wiki.ros.org/Installation/Source][Wiki]] provides detailed steps on how to compile ROS from source,
+but it's not directly applicable to Ubuntu 22.04, requiring some
+modifications. The repository [[https://github.com/tatsuyai713/build_ros_noetic_on_jammy][build_ros_noetic_on_jammy]] offers the modified
+installation scripts. I am providing them directly here to prevent any issues in
+case the repository gets deleted in the future:
 
 #+caption: build_noetic_on_jammy.sh
 :build:
@@ -596,10 +729,13 @@ cd ..
 #+END_SRC
 :end:
 
-As for the reason behind the necessity to change the compilation standard from 11 to 14 or 17, you can refer to this [[https://github.com/Livox-SDK/livox_ros_driver/pull/110][issue]] for context.
+As for the reason behind the necessity to change the compilation standard from
+11 to 14 or 17, you can refer to this [[https://github.com/Livox-SDK/livox_ros_driver/pull/110][issue]] for context.
 
 * Epilogue
 
-To conclude this article, I'd like to recommend a repository: [[https://github.com/macc-n/ros_unitree][ros_unitree]]. I stumbled upon this gem on Reddit.
+To conclude this article, I'd like to recommend a repository: [[https://github.com/macc-n/ros_unitree][ros_unitree]]. I
+stumbled upon this gem on Reddit.
 
-If you encounter any issues with the content presented in this article within the specified environments, your feedback would be highly appreciated.
+If you encounter any issues with the content presented in this article within
+the specified environments, your feedback would be highly appreciated.

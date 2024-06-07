@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Windows 窗口与消息：钩子
 #+DATE: [2020-07-09 Thu]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://yande.re/pool/show/5776][file:0.jpg]]
-#+end_comment
+# [[https://yande.re/pool/show/5776][file:dev/0.jpg]]
 
 * 什么是钩子（hook）
 

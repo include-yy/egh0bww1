@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: 使用 emacs 进行 Python 编程
 #+DATE: [2023-09-02 Sat 22:56]--[2023-09-09 00:00]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文介绍了如何配置 emacs 使之适应 Python 编程
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/104835794][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/104835794][file:dev/0.jpg]]
 
 在无数次想要用 Emacs 写一些小包但每次都去用 PyCharm 或 VSCode 后，我终于有了足够的兴趣和时间在 Emacs 中搭建一个足够好用的 Python 开发环境。我会尽量选择成熟的、活跃的插件，并尽可能详细地介绍这些插件的用法。
 
@@ -595,13 +588,6 @@ Python 有成吨的测试工具，这里我只对用过的 [[https://docs.pytest
 
 感谢阅读，顺便忆山东兄弟（笑）
 
-#+begin_comment
-{{{begin_noscript}}}
-#+NAME: tailimg
-{{{begin_div}}}
-| [[https://www.pixiv.net/artworks/75976961][file:p2.jpg]] | [[./p3.jpg]] |
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/60575451][file:p1.jpg]]
-{{{end_div}}}
-{{{end_noscript}}}
-#+end_comment
+# | [[https://www.pixiv.net/artworks/75976961][file:dev/p2.jpg]] | [[./dev/p3.jpg]] |
+
+# [[https://www.pixiv.net/artworks/60575451][file:dev/p1.jpg]]

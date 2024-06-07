@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: os
-
 #+TITLE: 【操作系统】陷阱、中断、异常、信号
 #+DATE: [2020-07-15 Wed]
 #+AUTHOR: Images
+#+FILETAGS: os
 
 #+begin: aside note
 本文来自 [[https://imageslr.com/][Images' blog]]，介绍了中断、异常等概念

@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: 在 Emacs 中创建和使用子进程
 #+DATE: [2023-07-19 Wed 02:57]--[2023-07-23 00:00]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文是对 Elisp Manual 第 39 章的详细讲解，介绍了如何在 Emacs 中使用同步异步子进程，以及如何使用 elisp 创建网络连接
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/63740368][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/63740368][file:dev/0.jpg]]
 
 本文是 Elisp Manual 补完计划的一部分，对 Elisp Manual 的第 39 章进行了比较详细的介绍，补充了具体的例子。原本我打算将它作为讲解 jsonrpc 的前置知识放在另一篇文章里，但是内容稍微有点多，不如单独作为一篇文章。
 
@@ -1284,7 +1277,4 @@ UDP（可能）比 TCP 稍微简单一点，我们只需要发包就行了，但
 
 感谢阅读。
 
-#+begin_comment
-#+NAME: tailimg
-| [[https://www.pixiv.net/artworks/49710270][file:p1.jpg]] | [[https://www.pixiv.net/artworks/98680917][file:p2.jpg]] | [[https://www.pixiv.net/artworks/27397315][file:p3.jpg]] |
-#+end_comment
+# | [[https://www.pixiv.net/artworks/49710270][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/98680917][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/27397315][file:dev/p3.jpg]] |

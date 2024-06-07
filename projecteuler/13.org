@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 13
 #+DATE: [2019-05-21 Tue 10:20]
 #+DESCRIPTION: 求 100 个 50 位数字之和的前十位数字

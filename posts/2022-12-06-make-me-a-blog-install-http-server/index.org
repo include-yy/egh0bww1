@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
 #+TITLE: 怎么弄个自己的 blog —— 安装和使用 HTTP 服务器
 #+DATE: [2022-10-13 Thu 23:22]--[2022-12-06 00:00]
+#+FILETAGS: blog
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/66235651][file:0.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/66235651][file:dev/0.png]]
 
 在上一篇文章中我提到了 blog 最后是以 HTML 页面的形式呈现的，所以我们还是需要一个 HTTP 服务器。虽然我们不一定要将 blog 发到远程服务器上，放在本地自娱自乐也行，但是 blog 不发出来那还叫 blog 吗？我们先从最基本的 HTTP 服务器说起，之后我也会介绍一些其他玩意儿，比如 github-pages，cloudflare worker 等。
 
@@ -306,8 +301,4 @@ user www-data www;
 
 本文中我们介绍了 LAMP 中的 L 和 A，接下来的文章我会介绍 MySQL 和 PHP。感觉对于静态的博客来说这些都用不上了（笑），但是如果我们使用的博客软件中使用了这些技术，那多了解一点还是有好处的。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/60280196#1][file:p1.png]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/60280196#1][file:dev/p1.png]]

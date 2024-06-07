@@ -1,29 +1,9 @@
-#+OPTIONS: ^:{}
-#+OPTIONS: html-style:nil
-#+options: html-preamble:nil
-#+OPTIONS: num:nil
-
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../css/style1.css">
-#+HTML_HEAD: <link rel="icon" type="image/svg+xml" href="../img/lily.svg">
-
-# #+HTML_LINK_UP:./index.html
-# #+HTML_LINK_HOME:../index.html
-
-#+HTML_LINK_LNAME: HOME
-#+HTML_LINK_LEFT: ../index.html
-
-# #+HTML_LINK_FUNC: yynt-euler-home/up-func
-# #+HTML_HEAD_FUNC: yynt-euler-head
-# #+HTML_SUFFUNC: yynt-euler-index-postamble
-
-#+MACRO: eu_init  (eval (yynt-euler-init))
-#+MACRO: eu_clr   (eval (yynt-euler-clr))
-#+MACRO: eu_table (eval (yynt-euler-table))
-
 #+TITLE: include-yy :: projecteuler
 #+DATE: [2023-04-27 Thu 01:54]
 
-[[../img/euler_portrait.png]]
+#+MACRO: eu_table (eval (yynt/yy-euler-table "."))
+
+[[../assets/img/euler_portrait.png]]
 
 * What is Project Euler
 
@@ -53,10 +33,8 @@ However, the rule about sharing solutions outside of Project Euler does not appl
 
 * Problems 1~100 solved by myself
 
-{{{eu_init}}}
 #+attr_html: :class data
 {{{eu_table}}}
-{{{eu_clr}}}
 
 * Summary
 

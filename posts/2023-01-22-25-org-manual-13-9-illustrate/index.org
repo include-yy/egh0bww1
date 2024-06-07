@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: orgmode
 #+TITLE: The Org Manual 13.9 全解
 #+DATE: [2023-01-15 Sun 16:45]--[2023-01-22 00:00]
+#+FILETAGS: orgmode
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/104647968][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/104647968][file:dev/0.jpg]]
 
 本文是对 org manual 的第 13.9 章，即由 org 导出 HTML 功能文档的讲解。如果你不能完全理解文档的内容，希望这篇文章能对你有所帮助。
 
@@ -1012,8 +1007,4 @@ your style specifications may change these, in addition to any of the standard c
 
 在下一篇文章中，我们会简单学习 org HTML 导出后端的实现，然后从头到尾地写出一个自用的 CSS 来（希望吧）。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/65930664][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/65930664][file:dev/p1.jpg]]

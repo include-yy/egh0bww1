@@ -1,7 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: math
 #+TITLE: 布尔函数的表示与化简
-#+DATE: [2020-03-05 Thu]
+#+DATE: [2020-03-05]
+#+FILETAGS: math
 
 在具体介绍布尔函数之前，首先对布尔代数做一个简单的介绍。
 

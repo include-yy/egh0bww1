@@ -1,9 +1,6 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: 【翻译】Evolution of Emacs Lisp
 #+DATE: [2023-05-14 14:51]--[2023-05-21 00:00]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文是对 Evolution of Emacs Lisp 这篇论文的翻译，这篇文章详细介绍了 Emacs Lisp 语言近 30 年的发展历程
 
 #+begin: aside note

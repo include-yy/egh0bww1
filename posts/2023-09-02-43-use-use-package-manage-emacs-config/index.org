@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: 使用 use-package 管理 emacs 配置
 #+DATE: [2023-08-29 Tue 13:24]--[2023-09-02 00:00]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文参考了 use-package 文档，简要介绍了 use-package 的使用方式
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/99989038][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/99989038][file:dev/0.jpg]]
 
 随着 emacs 29 于 2023 年 7 月 30 日发布，懒得自己编译的人总算有了内置的 =use-package= ，这下不得不用了（笑）。本文参考了相关文档，对 =use-package= 的一些主要的关键字进行了简单的介绍。
 
@@ -678,14 +671,8 @@ use-package can interface with ‘package.el’ to install packages on Emacs sta
 
 在 Emacs 30 中我们应该能通过 =:vc= 关键字安装某些来自代码仓库的包，不过我只打算用 =use-package= 做配置管理而不是包管理，本文就不介绍了。
 
-#+begin_comment
-#+NAME: tailimg
-#+BEGIN_div
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/107972093][file:p1.jpg]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/43275278][file:p2.jpg]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/51871646][file:p3.jpg]]
-#+END_div
-#+end_comment
+# [[https://www.pixiv.net/artworks/107972093][file:dev/p1.jpg]]
+
+# [[https://www.pixiv.net/artworks/43275278][file:dev/p2.jpg]]
+
+# [[https://www.pixiv.net/artworks/51871646][file:dev/p3.jpg]]

@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: STL，恨铁不成钢
 #+DATE: [2019-01-09 Wed 23:10]
 #+AUTHOR: 恒虚之境
+#+FILETAGS:
 
 #+begin: aside note
 https://zhuanlan.zhihu.com/p/54461007

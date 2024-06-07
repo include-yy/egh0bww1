@@ -1,15 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: emacs 自带的包管理
 #+DATE: [2023-03-04 Sat 04:10]--[2023-12-20 00:00]
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文总结了文档中的包管理相关资料，对 emacs 原生包管理的使用给出了一些介绍
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/73923041][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/73923041][file:dev/0.jpg]]
 
 emacs 24.1 引入的包管理器提供了一些基础功能，如使用 =list-packages= 可以列出所有源中的包，通过 =package-install= 可以安装某个包，等等。除了自带的 package.el 外，社区也有一些不错的包管理，比如 [[https://github.com/progfolio/elpaca][elpaca]], [[https://github.com/quelpa/quelpa][quelpa]], [[https://github.com/dimitri/el-get][el-get]], [[https://github.com/radian-software/straight.el][straight.el]], [[https://github.com/emacscollective/borg][borg]]。在尝试过默认包管理后，我参考 [[https://github.com/manateelazycat/lazycat-emacs][lazycat-emacs]] 选择了 git submodule 管理方式，但我最终发现对我来说这是多此一举，并退回到了 package.el。
 
@@ -1077,8 +1071,4 @@ package-build 提供了 =package-build--create-tar= 用来创建 tar 文件，�
 
 [[./22.png]]
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/59128984][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/59128984][file:dev/p1.jpg]]

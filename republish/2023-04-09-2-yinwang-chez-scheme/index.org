@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: Chez Scheme 的传说
 #+DATE: [2013-03-28]
 #+AUTHOR: yin wang
+#+FILETAGS: blog
 
 #+begin: aside note
 本文为王垠在 2013 年 3 月 28 日发表的文章。

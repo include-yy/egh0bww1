@@ -1,9 +1,9 @@
-#+setupfile: ../setup.org
-#+filetags: elisp
-
 #+title: 对 engrave-faces.el 原理的简单分析
 #+DATE: [2024-03-23 00:11]--[2024-04-13 00:57]
+#+filetags: elisp
 #+DESCRIPTION: 本文简单介绍了 engrave-faces.el 是如何根据高亮的 buffer 生成高亮的 HTML 代码的
+
+# | [[https://www.pixiv.net/artworks/119104901][file:dev/0.jpg]] | [[https://www.pixiv.net/artworks/118939824][file:dev/1.png]] |
 
 差不多正好是一个月前我看到 [[https://respec.org/docs/][ReSpec Documentation]] 的样式挺好看于是决定自己[[https://github.com/include-yy/notes/commit/725b229e74d2f329b2250cc65489bffe0c277434][整一个]]，写着写着我才发现这是 W3C 的技术报告（Technical Report，简称 TR）专用 CSS：[[https://www.w3.org/StyleSheets/TR/2021/][TR/2021]]，于是移到了一个[[https://github.com/include-yy/notes/commit/e1b772703f05b2410cab53a71b7e1664e9a38bf0][专门的]] repo：[[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]]。目前差不多是完工了，但还有一堆文档以及 README 要写。
 
@@ -360,3 +360,7 @@ engrave-faces 除了负责从 buffer 生成导出结果外，还可以从 Emacs 
 :end:
 
 上面只生成了 HTML，具体的 CSS 可以使用 =engrave-faces-html-gen-stylesheet= 来根据主题获取。
+
+# | [[https://www.pixiv.net/artworks/77584678][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/70367978][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/8886049][file:dev/p3.jpg]] |
+# | [[https://www.pixiv.net/artworks/39731810][file:dev/p7.jpg]] | [[https://www.pixiv.net/artworks/46474043][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/59163553][file:dev/p6.jpg]] |
+# | [[https://www.pixiv.net/artworks/4049541][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/3896418][file:dev/p8.jpg]] | [[https://www.pixiv.net/artworks/51754843][file:dev/p9.jpg]] |

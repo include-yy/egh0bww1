@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 1
 #+DATE: [2019-02-20 Web 01:01]
 #+DESCRIPTION: 求为 3 或 5 的倍数的和

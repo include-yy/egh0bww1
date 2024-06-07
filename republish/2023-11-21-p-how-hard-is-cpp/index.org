@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: 「恒虚之境」C++ 有多难
 #+DATE: [2018-08-24 Fri 11:24]
 #+AUTHOR: 恒虚之境
+#+FILETAGS:
 
 #+begin: aside note
 https://www.zhihu.com/question/30196513/answer/472687364

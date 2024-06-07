@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: 使用 igist 管理 github gist
 #+DATE: [2023-09-04 Mon 15:09]--[2023-09-05 00:00]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文介绍了 emacs igist 插件的用法，并对其实现进行了简单的分析
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/87678063][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/87678063][file:dev/0.jpg]]
 
 在重构 emacs 配置后，我发现实际上我只需要一个文件就可以管理整个配置了，似乎没有必要专门用一个 github repo，使用 gist 管理更加方便。igist 就是在这个思路下被我找到并使用的包。
 
@@ -202,11 +195,6 @@ igist.el 的实现大约有 4000 多行，我简单花了些时间读了读实�
 
 （顺带今天有个朋友暂时是看不到了，正巧碰上刚刚完成这篇文章，以此作为纪念（笑））
 
-#+begin_comment
-{{{begin_noscript}}}
-#+NAME: tailimg
-| [[https://www.pixiv.net/artworks/79263238][file:p1.jpg]] | [[https://www.pixiv.net/artworks/84808107][file:p4.jpg]] | [[https://www.pixiv.net/artworks/33191277][file:p3.jpg]] |
-| [[https://www.pixiv.net/artworks/108179039][file:p6.jpg]] | [[https://www.pixiv.net/artworks/90867242][file:p5.jpg]] | [[https://www.pixiv.net/artworks/101846104][file:p2.jpg]] |
-| [[https://www.pixiv.net/artworks/16295072][file:p7.jpg]] | [[https://www.pixiv.net/artworks/105272071][file:p8.jpg]] | [[https://www.pixiv.net/artworks/100142563][file:p9.jpg]] |
-{{{end_noscript}}}
-#+end_comment
+# | [[https://www.pixiv.net/artworks/79263238][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/84808107][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/33191277][file:dev/p3.jpg]] |
+# | [[https://www.pixiv.net/artworks/108179039][file:dev/p6.jpg]] | [[https://www.pixiv.net/artworks/90867242][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/101846104][file:dev/p2.jpg]] |
+# | [[https://www.pixiv.net/artworks/16295072][file:dev/p7.jpg]] | [[https://www.pixiv.net/artworks/105272071][file:dev/p8.jpg]] | [[https://www.pixiv.net/artworks/100142563][file:dev/p9.jpg]] |

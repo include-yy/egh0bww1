@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: 使用 outline 管理 emacs 配置文件
 #+DATE: [2024-01-09 Tue 10:41]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文简单介绍了如何使用 emacs 内置的 outline-mode 来管理配制文件
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/112397277][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/112397277][file:dev/0.jpg]]
 
 你可能尝试过在 Emacs 中使用 =C-h h= 打开一个叫做 HELLO 的文件，里面收集了许多语言的“你好”，比如こんにちは，안녕하세요，Ciao，ꦲꦭꦺꦴ，Bonjour 等等。但是你如果没有添加各语言的字体可能只会显示一些 Unicode 豆腐块。几个月前我从[[https://qiita.com/styzo/items/28d5d994a293fa704476][这里]]学到了如何设置字体并下载了一大堆的 Noto 字体，补全了这些豆腐：
 
@@ -336,8 +329,4 @@ File Local Variables -- GNU Emacs Lisp Reference Manual
 
 不管怎么说，新的一年开始了，嗨嗨嗨。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/84692487][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/84692487][file:dev/p1.jpg]]

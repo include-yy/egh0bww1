@@ -1,13 +1,11 @@
-#+SETUPFILE: ../setup.org
+#+TITLE: Implementing Remote Procedure Calls
+#+DATE: [1984-02-01]
+#+AUTHOR: ANDREW D.BIRRELL and BRUCE JAY NELSON
 #+FILETAGS: rpc
 
 #+MACRO: red @@html:<span style="color:red">$1</span>@@
 #+MACRO: green @@html:<span style="color:green">$1</span>@@
 #+MACRO: blue @@html:<span style="color:#2ab7ca">$1</span>@@
-
-#+TITLE: Implementing Remote Procedure Calls
-#+DATE: [1984-02-01]
-#+AUTHOR: ANDREW D.BIRRELL and BRUCE JAY NELSON
 
 #+begin: aside note
 原文地址如下：

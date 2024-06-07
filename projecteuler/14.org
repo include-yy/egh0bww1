@@ -1,5 +1,3 @@
-#+SETUPFILE: ./setup.org
-
 #+TITLE: Problem 14
 #+DATE: [2019-05-21 Tue 11:34]
 #+DESCRIPTION: 求小于一百万数中最长的 Collatz 序列

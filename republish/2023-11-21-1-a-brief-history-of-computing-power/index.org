@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS:
-
 #+TITLE: 算力简史
 #+DATE: [2023-11-17 Fri 11:54]
 #+AUTHOR: 小枣君
+#+FILETAGS:
 
 #+begin: aside note
 本文转载自[[https://www.zhihu.com/people/xzclass][小枣君]]在知乎上发布的文章《算力简史（完整版）》，原文地址如下：

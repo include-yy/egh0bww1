@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: Windows 下在 emacs 中使用 localhost 导致的连接创建卡顿以及解决方法
 #+DATE: [2023-07-14 Fri 14:23]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文介绍了 Windows 系统下 emacs 在创建网络连接时可能出现卡顿的原因，并给出了解决方法
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/83670631][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/83670631][file:dev/0.jpg]]
 
 在学完了 Python 的 Socket 后，本着练练手的思路，我编写了通过 Socket 连接 emacs 与本地 Python 进程的代码片段，但比较奇怪的是，我的代码每次连接的时候，emacs 会卡顿大约一秒的时间，此时无法执行任何操作，一秒后恢复正常。虽然感觉有些奇怪，但这只出现在连接创建时，所以我也没怎么放在心上。两周前看了这个[[https://emacs-china.org/t/emacs-windows/24866][帖子]]我才明白了问题所在，既然现在有点时间，不如做个总结。
 
@@ -227,8 +220,4 @@ IPv4 和 IPv6 是不同的网络协议，它们使用不同的地址格式和通
 
 导致 emacs 通过 localhost 创建连接出现问题的原因是本地将 localhost 首先解析为 =::1= ，接着才轮到 =127.0.0.1= 。在代码中使用 =127.0.0.1= 是比较保险的选择，服务端也可以考虑提供双栈服务来规避这个问题。
 
-#+begin_comment
-#+NAME: tailimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/23773957][file:p1.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/23773957][file:dev/p1.jpg]]

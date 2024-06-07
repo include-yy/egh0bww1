@@ -13,3 +13,7 @@ tmp
 css
 js
 img
+
+build-test
+test.sqlite3
+legacy

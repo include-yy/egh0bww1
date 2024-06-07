@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: unwind-protect 的 unwind 是什么意思
 #+DATE: [2021-04-07 Wed]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/69589494][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/69589494][file:dev/0.jpg]]
 
 在elisp中有一个叫做 =unwind-protect= 的特殊形式（special-form），它可以在出现错误或使用 throw 时进行一些清理操作。在 Scheme 中也有一个类似的东西叫做 =dynamic-wind= ，其中也有 =wind= 这个词。在我参考的【1】 【2】文档中详细讲解了它们的用法，但是关于 =wind/unwind= 这个词的来历并没有作详细说明。
 
@@ -16,11 +11,15 @@
 * 百度和谷歌的翻译
 
 对于 wind 的翻译：
+
+#+attr_html: :class data
 | wind | 百度                     | 谷歌               |
 | 名词 | 风；气流；胃气；肠气     | 风；蜿蜒           |
 | 动词 | 蜿蜒；迂回；卷缠；上发条 | 缠绕；蜿蜒；弯曲； |
 
 对于 unwind 的翻译：
+
+#+attr_html: :class data
 | unwind | 百度             | 谷歌     |
 | 名词   | 开卷机           | X        |
 | 动词   | 展开；解开；松开 | 放松；摅 |

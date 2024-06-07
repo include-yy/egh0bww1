@@ -1,19 +1,14 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: win32
 #+TITLE: Windows 的控制台和控制台应用
 #+DATE: [2020-06-17 Wed]
+#+FILETAGS: win32
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[./0.jpg]]
-#+end_comment
+# [[./dev/0.jpg]]
 
 * 什么是 console，terminal
 
 ** console（控制台）
 
-控制台是用于输入和显示系统用户消息的设备，尤指来自于 [[https://en.wikipedia.org/wiki/BIOS][BIOS]] 和 [[https://en.wikipedia.org/wiki/Booting][boot loader]] 的信息。它是由键盘和屏幕组成的物理设备，屏幕一般是文本终端（[[https://en.wikipedia.org/wiki/Text_terminal "Text terminal"][text terminal]]），但也可以是图形终端（[[https://en.wikipedia.org/wiki/Graphical_terminal "Graphical terminal"][graphical terminal]]）。控制台被概括为计算机终端（[[https://en.wikipedia.org/wiki/Computer_terminal "Computer terminal"][computer terminals]]），计算机终端相应地被抽象为了虚拟终端（[[https://en.wikipedia.org/wiki/Virtual_console][virtual consoles]]）和终端模拟器（[[https://en.wikipedia.org/wiki/Terminal_emulator][terminal emulators]]）。现今，与控制台的沟通被抽象化了，通过标准流（[[https://en.wikipedia.org/wiki/Stdin "Stdin"][stdin]], [[https://en.wikipedia.org/wiki/Stdout "Stdout"][stdout]],，和 [[https://en.wikipedia.org/wiki/Stderr "Stderr"][stderr]]）进行，但也许存在系统特定的接口，比如由系统内核使用的那些。
+控制台是用于输入和显示系统用户消息的设备，尤指来自于 [[https://en.wikipedia.org/wiki/BIOS][BIOS]] 和 [[https://en.wikipedia.org/wiki/Booting][boot loader]] 的信息。它是由键盘和屏幕组成的物理设备，屏幕一般是文本终端（[[https://en.wikipedia.org/wiki/Text_terminal "Text terminal"][text terminal]]），但也可以是图形终端（[[https://en.wikipedia.org/wiki/Graphical_terminal "Graphical terminal"][graphical terminal]]）。控制台被概括为计算机终端（[[https://en.wikipedia.org/wiki/Computer_terminal "Computer terminal"][computer terminals]]），计算机终端相应地被抽象为了虚拟终端（[[https://en.wikipedia.org/wiki/Virtual_console][virtual consoles]]）和终端模拟器（[[https://en.wikipedia.org/wiki/Terminal_emulator][terminal emulators]]）。现今，与控制台的沟通被抽象化了，通过标准流（[[https://en.wikipedia.org/wiki/Stdin "Stdin"][stdin]], [[https://en.wikipedia.org/wiki/Stdout "Stdout"][stdout]] 和 [[https://en.wikipedia.org/wiki/Stderr "Stderr"][stderr]]）进行，但也许存在系统特定的接口，比如由系统内核使用的那些。
 
 ** terminal （终端）
 

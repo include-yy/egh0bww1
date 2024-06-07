@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: 用 elisp 玩 brainfuck Ⅰ
 #+DATE: [2022-09-14 Wed 15:10]--[2022-10-07 00:00]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/76705181][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/76705181][file:dev/0.jpg]]
 
 老早就听说过 brainfuck 这吊语言，仅凭八个操作符就实现了图灵完备。要实现一个它的解释器也是非常的简单，随便一搜就可以找到常见语言的实现（当然也有 elisp 的）。如果本文只是介绍 brainfuck 的 elisp 实现那大概就没有写的必要了，考虑到我还没学过 PLT（programming language theory）知识，这里不妨借 brainfuck 来入门一下。
 
@@ -36,6 +31,7 @@ brainfuck 在内存数组上进行操作，它的数据指针初始位置为 0�
 
 下面是对 brainfuck 八指令的描述，在代码中出现的任意其他字符都被视作注释。不做说明的话下表的指针都指数据指针：
 
+#+attr_html: :class data
 | Command | Description                                        |
 | =>=     | 向右移动指针                                       |
 | =<=     | 向左移动指针                                       |
@@ -1121,20 +1117,12 @@ XOR 的实现如下，细节上的东西没必要做过多的描述了：
 
 以上，去学学编译器。
 
-#+begin_comment
-{{{begin_noscript}}}
-#+NAME: tailimg
-{{{begin_div}}}
-感觉写不下去的时候我就会移动到文首看看封面，チルノちゃんくっそ可愛ええ。
+# 感觉写不下去的时候我就会移动到文首看看封面，チルノちゃんくっそ可愛ええ。
 
-来点可爱的妖梦。
+# 来点可爱的妖梦。
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/74190328][file:p1.jpg]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/39015698][file:p2.jpg]]
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/31643135][file:p3.jpg]]
-{{{end_div}}}
-{{{end_noscript}}}
-#+end_comment
+# [[https://www.pixiv.net/artworks/74190328][file:dev/p1.jpg]]
+
+# [[https://www.pixiv.net/artworks/39015698][file:dev/p2.jpg]]
+
+# [[https://www.pixiv.net/artworks/31643135][file:dev/p3.jpg]]

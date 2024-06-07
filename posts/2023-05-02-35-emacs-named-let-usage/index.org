@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
-
 #+TITLE: emacs 的 named-let 使用和实现介绍
 #+DATE: [2023-04-30 Sun 11:40]--[2023-05-02 00:00]
-
+#+FILETAGS: elisp
 #+DESCRIPTION: 本文介绍了 emacs 在 28 中引入的类似 Scheme 的 named let，可用于方便地构造尾递归风格的循环，本文也分析了 named-let 在 emacs 中的实现方式
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/96322989][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/96322989][file:dev/0.jpg]]
 
 在重温 projecteuler 的[[https://projecteuler.net/problem=9][第 9 题]]时，我翻了翻自己之前用 Scheme 实现的代码：
 
@@ -566,13 +559,6 @@ details.
 
 五一快乐。
 
-#+begin_comment
-#+NAME: tailimg
-{{{begin_div}}}
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/25854793][file:p1.jpg]]
+# [[https://www.pixiv.net/artworks/25854793][file:dev/p1.jpg]]
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/77780352][file:p2.jpg]]
-{{{end_div}}}
-#+end_comment
+# [[https://www.pixiv.net/artworks/77780352][file:dev/p2.jpg]]

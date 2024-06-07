@@ -1,16 +1,9 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: emacs
-
 #+TITLE: 在 Emacs 中进行分离式项目环境变量管理 -- direnv
 #+DATE: [2023-10-07 Sat 21:15]--[2023-10-10 00:00]
-
+#+FILETAGS: emacs
 #+DESCRIPTION: 本文介绍 direnv 及其 Emacs 集成，来方便地在 Emacs 中分离不同项目的开发环境
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/100936088][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/100936088][file:dev/0.jpg]]
 
 如果我们想要在 VS IDE 外的环境中中执行 MSVC 提供的一系列工具，我们需要找到 msdevcmd.bat 这个文件并在命令行中运行来配置一些必要的环境变量；如果我们想要进入 ROS 环境则需要执行 =source /opt/ros/<distro>/setup.bash= 以及工作空间中的 bash 脚本；如果我们想要进入 Python venv 环境，我们需要执行 Script 或 bin 目录下的 activate 脚本......
 
@@ -387,12 +380,7 @@ With this package, you can teach Emacs to call the correct version of external p
 
 /Thanks for reading~/
 
-#+begin_comment
-{{{begin_noscript}}}
-#+NAME: tailimg
-| [[https://www.pixiv.net/artworks/22804322][file:f1.jpg]]  | [[https://www.pixiv.net/artworks/6194788][file:f8.jpg]] | [[https://www.pixiv.net/artworks/75784680][file:f9.jpg]] |
-| [[https://www.pixiv.net/artworks/96264245][file:f12.jpg]] | [[https://www.pixiv.net/artworks/30535734][file:f5.jpg]] | [[https://www.pixiv.net/artworks/98964721][file:f6.jpg]] |
-| [[https://www.pixiv.net/artworks/47083826][file:f11.jpg]] | [[https://www.pixiv.net/artworks/40238587][file:f2.jpg]] | [[https://www.pixiv.net/artworks/45795267][file:f3.jpg]] |
-| [[https://www.pixiv.net/artworks/68390656][file:f10.jpg]] | [[https://www.pixiv.net/artworks/57915026][file:f7.jpg]] | [[https://www.pixiv.net/artworks/103270896][file:f4.jpg]] |
-{{{end_noscript}}}
-#+end_comment
+# | [[https://www.pixiv.net/artworks/22804322][file:dev/f1.jpg]]  | [[https://www.pixiv.net/artworks/6194788][file:dev/f8.jpg]] | [[https://www.pixiv.net/artworks/75784680][file:dev/f9.jpg]] |
+# | [[https://www.pixiv.net/artworks/96264245][file:dev/f12.jpg]] | [[https://www.pixiv.net/artworks/30535734][file:dev/f5.jpg]] | [[https://www.pixiv.net/artworks/98964721][file:dev/f6.jpg]] |
+# | [[https://www.pixiv.net/artworks/47083826][file:dev/f11.jpg]] | [[https://www.pixiv.net/artworks/40238587][file:dev/f2.jpg]] | [[https://www.pixiv.net/artworks/45795267][file:dev/f3.jpg]] |
+# | [[https://www.pixiv.net/artworks/68390656][file:dev/f10.jpg]] | [[https://www.pixiv.net/artworks/57915026][file:dev/f7.jpg]] | [[https://www.pixiv.net/artworks/103270896][file:dev/f4.jpg]] |

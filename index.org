@@ -1,37 +1,19 @@
-#+OPTIONS: ^:{}
-#+OPTIONS: html-style:nil
-#+OPTIONS: num:nil
-#+options: html-preamble:nil
-
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./css/style1.css">
-#+HTML_HEAD: <link rel="icon" type="image/svg+xml" href="./img/lily.svg">
-#+options: zeroth-name:nil
-
-#+MACRO: post_n    (eval (yynt-post-homepage-titlelists $1))
-#+MACRO: post_init (eval (yynt-post-init))
-#+MACRO: post_clr  (eval (yynt-post-clr))
-
-#+MACRO: re_n    (eval (yynt-repost-homepage-titlelists $1))
-#+MACRO: re_init (eval (yynt-repost-init))
-#+MACRO: re_clr  (eval (yynt-repost-clr))
-
 #+TITLE: Home :: include-yy
 #+DATE: [2024-04-21 Sun 21:08]
 
-{{{post_init}}}
-{{{re_init}}}
+#+MACRO: po_n (eval (yynt/yy-post-list "./posts" 10))
+#+MACRO: re_n (eval (yynt/yy-repost-list "./republish" 5))
 
-[[./img/dejiko.png]]
+
+[[./assets/img/dejiko.png]]
 
 * 最近的 [[./posts/index.org][Posts]]
 
-{{{post_n(10)}}}
-{{{post_clr}}}
+{{{po_n}}}
 
 * 最近的 [[file:republish/index.org][Republish]]
 
-{{{re_n(5)}}}
-{{{re_clr}}}
+{{{re_n}}}
 
 * 其他页面
 

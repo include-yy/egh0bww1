@@ -1,13 +1,8 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: elisp
 #+TITLE: 关于 backquote 理解的一个汇总与总结
 #+DATE: [2022-03-14 Mon 22:57]--[2022-06-26 00:00]
+#+FILETAGS: elisp
 
-#+begin_comment
-#+NAME: headimg
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/9594894][file:0.jpg]]
-#+end_comment
+# [[https://www.pixiv.net/artworks/9594894][file:dev/0.jpg]]
 
 我于今年的 2 月 22 日开始在 emacs-china 上写这篇文章[fn::https://emacs-china.org/t/backquote/20060]，并在 3 月 14 日完成。不幸地是，2022年 6 月 20 日 emacs-china 因为一些原因暂时闭站了，随后在今天（也就是 26 日）重新恢复。（顺带一提，adnmb 在 20 日重新以 nmbxd 浮起来了）。
 
@@ -26,7 +21,9 @@
 
 本文中会使用两种 common lisp 实现，它们分别是 embedded common lisp 和 steel bank common lisp。在需要对不同实现做区分时我会在代码块中以注释说明使用的是哪一种。
 
-* 什么是 backquote <2022-02-23 Wed 21:43>
+* 什么是 backquote
+
+<2022-02-23 Wed 21:43>
 
 首先我们从认识什么是 =`= 开始。在不同的 Lisp 中它不一定是同一个东西。
 
@@ -94,7 +91,9 @@ CL-USER> (symbol-function 'si:quasiquote)
 
 总之，在 CL 中， =`= 表达式会被内部的 =backquote= 宏处理得到我们想要的结果，至于内部实现其实并不需要怎么关心。
 
-* CL 标准中对于 backquote 的描述 <2022-02-25 Fri 10:43>
+* CL 标准中对于 backquote 的描述
+
+<2022-02-25 Fri 10:43>
 
 这一节主要是介绍一下 X3J13 在 2.4.6 节中的内容。我们可在 [[http://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm][HyperSpec]] 浏览该文档。
 
@@ -198,7 +197,9 @@ CL-USER> (macroexpand '`(apply #'+ 1 ,2 `(3 4 ,(+ 5 6) ,,(+ 7 9))))
 (LIST 'APPLY '#'+ 1 2 (LIST 'LIST 3 4 '(+ 5 6) (+ 7 9)))
 #+END_SRC
 
-* 怎么理解嵌套的 backquote <2022-02-27 Sun 22:45>
+* 怎么理解嵌套的 backquote
+
+<2022-02-27 Sun 22:45>
 
 接下来就是本文最重要的部分了，即对于嵌套 =backquote= 的理解。由于 Scheme/Racket 中的 =quasiquote= 更好理解，所以我们先从它开始，这里参考的是 [[http://www.r6rs.org/final/html/r6rs/r6rs-Z-H-14.html#node_idx_768][r6rs]]。关于简单的 backquote/unquote 上面已经举了一些例子了，这里就不说了，下面是 r6rs 关于嵌套 =quasiquote= 的解释：
 
@@ -298,7 +299,9 @@ CL-USER> `(,@(LIST 1 2) ,@(LIST 3 4))
 (1 2 3 4)
 #+END_SRC
 
-* 几种常见的嵌套 backquote 组合 <2022-03-13 Sun 12:10>
+* 几种常见的嵌套 backquote 组合
+
+<2022-03-13 Sun 12:10>
 
 要拿排列组合来说的话， =,= 和 =,@= 的两两组合只有四种，再加上中间可能出现的 ='= ，那也就只有八种而已。更多的嵌套只不过是从这几种继续堆叠。所以弄清楚了二重嵌套就差不多弄清了其他更复杂的嵌套。
 
@@ -375,7 +378,9 @@ CL-USER> `(,@(LIST 1 2) ,@(LIST 3 4))
 
 可见外层的 =,@= 并未作用到内层展开得到的所有项上，这与 emacs 中的实现有关。
 
-** ④ =,,@= 和 =,',@= <2022-03-14 Mon 16:58>
+** ④ =,,@= 和 =,',@=
+
+<2022-03-14 Mon 16:58>
 
 =,,@= 表示先展平，后对展平的 *各项* 求值：
 
@@ -560,7 +565,9 @@ ec means emacs-china, bk means backquote"
 
 本想着也简化一下 elisp 中的实现贴过来的，不过这一节的内容已经够多了，关于 elisp 我们留到下一节吧。
 
-* elisp 中的 backquote 实现 <2022-03-14 Mon 22:52>
+* elisp 中的 backquote 实现
+
+<2022-03-14 Mon 22:52>
 
 elisp 实现的就是类 Scheme 标准的 =backquote= ，它不能像 CL 一样处理形如 =,,@= ， =,@,@= 的嵌套 =unquote= 。考虑到 emacs lisp 主要继承于 maclisp，它的 =backquote= 与 CL 不一致挺正常的。但至于这种 =backquote= 是否来自 maclisp 我就没有精力进一步考古了。
 
@@ -742,20 +749,10 @@ CL-USER> ``(,@,@(list 1 2 3))
 => `(,@1 ,@2 ,@3)
 #+END_SRC
 
-#+begin_comment
-{{{begin_noscript}}}
-#+NAME: tailimg
-{{{begin_div}}}
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/8247715][file:p1.png]]
+# [[https://www.pixiv.net/artworks/8247715][file:dev/p1.png]]
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/66906462][file:p2.jpg]]
+# [[https://www.pixiv.net/artworks/66906462][file:dev/p2.jpg]]
 
-#+ATTR_HTML: :class top-down-img
-[[https://www.pixiv.net/artworks/83888736][file:p3.jpg]]
-{{{end_div}}}
-{{{end_noscript}}}
-#+end_comment
+# [[https://www.pixiv.net/artworks/83888736][file:dev/p3.jpg]]
 
 [fn:2] [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html]]

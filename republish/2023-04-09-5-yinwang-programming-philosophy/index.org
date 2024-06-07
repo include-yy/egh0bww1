@@ -1,9 +1,7 @@
-#+SETUPFILE: ../setup.org
-#+FILETAGS: blog
-
 #+TITLE: 编程的智慧
 #+DATE: [2015-11-21]
 #+AUTHOR: yin wang
+#+FILETAGS: blog
 
 #+begin: aside note
 本文为王垠在 2015 年 11 月 21 日发表的文章。
