@@ -472,7 +472,7 @@ ORDER BY path DESC" (list tmp))))
 	      yynt/yy-project
 	      "\
 SELECT path FROM YYNT WHERE
-build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
+build_name='drafts' AND ex='0' AND file_name LIKE 'index%'" nil)))
     (format "%s"
 	    (length (cl-remove-if-not
 		     (lambda (x) (let ((file (yynt-get-file-project-fullname (car x) yynt/yy-project)))
