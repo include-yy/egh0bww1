@@ -4,7 +4,6 @@
 #+MACRO: po_n (eval (yynt/yy-post-list "./posts" 10))
 #+MACRO: re_n (eval (yynt/yy-repost-list "./republish" 5))
 
-
 [[./assets/img/dejiko.png]]
 
 * 最近的 [[./posts/index.org][Posts]]

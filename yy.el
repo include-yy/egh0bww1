@@ -17,7 +17,8 @@
 
 (defun yynt/yy-fn (plist in out)
   (if (string-match-p "\\.org$" in)
-      (let ((org-export-coding-system org-w3ctr-coding-system)
+      (let ((default-directory (file-name-directory in))
+	    (org-export-coding-system org-w3ctr-coding-system)
 	    (org-export-use-babel org-w3ctr-use-babel))
 	(org-export-to-file 'w3ctr out
 	  nil nil nil nil plist))
@@ -42,8 +43,10 @@
 (defvar yynt/yy-index)
 (setq yynt/yy-index
       (yynt-create-build
+       :project yynt/yy-project
        :path "index.org"
        :type 0
+       :collect-ex t
        :fn #'yynt/yy-fn
        :no-cache-files t
        :published t
@@ -58,12 +61,13 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"./assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"./assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"./assets/js/fixup.js\"></script>"
+<script src=\"./assets/js/fixup.js\"></script>"
 		 ))))
 
 (defvar yynt/yy-404)
 (setq yynt/yy-404
       (yynt-create-build
+       :project yynt/yy-project
        :path "404.org"
        :type 0
        :fn #'yynt/yy-fn
@@ -81,7 +85,7 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"https://egh0bww1.com/assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"https://egh0bww1.com/assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
+<script src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
 		 ))))
 
 (defun yynt/yy-rss-fn (_plist _in out)
@@ -91,8 +95,10 @@
 (defvar yynt/yy-rss)
 (setq yynt/yy-rss
       (yynt-create-build
+       :project yynt/yy-project
        :path "rss.xml"
        :type 0
+       :collect-ex t
        :fn #'yynt/yy-rss-fn
        :no-cache-files t
        :published t
@@ -129,13 +135,12 @@
 	  (if date (format "\n<pubDate>%s</pubDate>" date) "")))
 
 (defun yynt/yy-get-post-rss ()
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select yynt/yy-project
 		"\
 SELECT title, path, description, filetags, substr(path,7,10) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" (list yynt/yy-rss-post-n))))
+LIMIT ?" nil (list yynt/yy-rss-post-n))))
     items))
 
 (defun yynt/yy-rss-generate ()
@@ -162,6 +167,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 (defvar yynt/yy-euler)
 (setq yynt/yy-euler
       (yynt-create-build
+       :project yynt/yy-project
        :path "projecteuler"
        :type 1
        :collect (yynt-p1 "^[0-9]+\\.org")
@@ -172,7 +178,6 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
        :published t
        :convert-fn #'yynt/yy-convert-fn
        :included-resources '("res")
-       :ext-files '("index.org")
        :info (yynt-combine-plists
 	      yynt/yy-common-plist
 	      '( :html-zeroth-section-tocname nil
@@ -185,7 +190,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"))
+<script src=\"../assets/js/fixup.js\"></script>"))
        :info-ex '( :html-preamble nil
 		   :section-numbers nil
 		   :html-link-lname "HOME"
@@ -195,11 +200,11 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 		   )))
 
 (defun yynt/yy-euler-table (prefix)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT substr(path, 14), filetags, description, date FROM YYNT WHERE
-build_name='projecteuler' AND ex='0'")))
+build_name='projecteuler' AND ex='0'" nil)))
     (setq items (sort items (lambda (a b)
 			      (let ((a0 (string-to-number (car a)))
 				    (b0 (string-to-number (car b))))
@@ -225,6 +230,7 @@ build_name='projecteuler' AND ex='0'")))
 (defvar yynt/yy-repost)
 (setq yynt/yy-repost
       (yynt-create-build
+       :project yynt/yy-project
        :path "republish"
        :type 2
        :collect (yynt-p2 "^2" "\\.\\(htm\\|org\\)$")
@@ -244,7 +250,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "REPUB"
@@ -255,7 +261,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -263,26 +269,27 @@ build_name='projecteuler' AND ex='0'")))
 		   )))
 
 (defun yynt/yy-repost-list (prefix limit)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='republish' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" (list (or limit 100000)))))
-      (mapconcat (lambda (i)
-		   (let* ((name (car i))
-			  (title (cadr i))
-			  (len (length "republish/"))
-			  (time (substring name len (+ len 10))))
-		     (format "- [%s] [[%s][%s]]"
-			     time (file-name-concat prefix (substring name len)) title)))
-		 items "\n")))
+LIMIT ?" nil (list (or limit 100000)))))
+    (mapconcat (lambda (i)
+		 (let* ((name (car i))
+			(title (cadr i))
+			(len (length "republish/"))
+			(time (substring name len (+ len 10))))
+		   (format "- [%s] [[%s][%s]]"
+			   time (file-name-concat prefix (substring name len)) title)))
+	       items "\n")))
 
 
 (defvar yynt/yy-post)
 (setq yynt/yy-post
       (yynt-create-build
+       :project yynt/yy-project
        :path "posts"
        :type 2
        :collect (yynt-p2 "^2" "\\.\\(htm\\|org\\)$")
@@ -302,7 +309,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "BLOG"
@@ -314,7 +321,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname "TAGS"
@@ -322,13 +329,13 @@ LIMIT ?" (list (or limit 100000)))))
 		   )))
 
 (defun yynt/yy-post-list (prefix limit)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" (list (or limit 100000)))))
+LIMIT ?" nil (list (or limit 100000)))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -339,12 +346,12 @@ LIMIT ?" (list (or limit 100000)))))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-list (prefix tag)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
-ORDER BY path DESC" (list tag))))
+ORDER BY path DESC" nil (list tag))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -356,22 +363,22 @@ ORDER BY path DESC" (list tag))))
 
 (defun yynt/yy-post-tag-num (tag)
   (let ((res
-	 (sqlite-select
-	  yynt--sqlite-obj
+	 (yynt-select
+	  yynt/yy-project
 	  "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
-ORDER BY path DESC" (list tag))))
+ORDER BY path DESC" nil (list tag))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-year-list (prefix year)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
-ORDER BY path DESC" (list year))))
+ORDER BY path DESC" nil (list year))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -382,26 +389,27 @@ ORDER BY path DESC" (list year))))
 	       items "\n")))
 
 (defun yynt/yy-post-year-num (year)
-  (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((res (yynt-select
+	      yynt/yy-project
+	      "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
-ORDER BY path DESC" (list year))))
+ORDER BY path DESC" nil (list year))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-total-num ()
-  (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((res (yynt-select
+	      yynt/yy-project
+	      "\
 SELECT COUNT(*) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
+build_name='posts' AND ex='0' AND file_name LIKE 'index%'" nil)))
     (format "%s" (caar res))))
 
 (defvar yynt/yy-drafts)
 (setq yynt/yy-drafts
       (yynt-create-build
+       :project yynt/yy-project
        :path "drafts"
        :type 2
        :collect (yynt-p2 "^2" "\\.\\(htm\\|org\\)$")
@@ -420,7 +428,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "DRFAT"
@@ -432,7 +440,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -440,8 +448,8 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 		   )))
 
 (defun yynt/yy-drafts-tmp-list (prefix tmp)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
+  (let ((items (yynt-select
+		yynt/yy-project
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%' AND tmp=?
@@ -460,9 +468,9 @@ ORDER BY path DESC" (list tmp))))
 	       items "\n")))
 
 (defun yynt/yy-drafts-total-num ()
-  (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((res (yynt-select
+	      yynt/yy-project
+	      "\
 SELECT path FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s"
@@ -484,7 +492,6 @@ build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
 #+DESCRIPTION: ...
 #+TMP: 0（未完成的草稿） 1（长期笔记）2（垃圾）"
 	   title (yynt/yy-temp-current-time) tag)))
-
 
 (defun yynt/yy-temp-repost ()
   (insert "\
@@ -604,19 +611,7 @@ https://pe-cn.github.io/%s\n
 
 (defun yynt/yy-export-to-html
     (&optional async subtreep visible-only body-only ext-plist)
-  (let* ((file (buffer-file-name))
-	 (bobj (yynt-get-file-build-object file yynt/yy-project)))
-    (if (not bobj)
-	(user-error "file may not belong to any yynt's any build object")
-      (yynt-with-sqlite yynt/yy-project
-	(cond
-	 ((member file (yynt-buildm-collect bobj))
-	  (yynt-export-files bobj (list file) nil t))
-	 ((member file (yynt-buildm-collect-ex bobj))
-	  (yynt-export-files bobj (list file) t t))
-	 (t (user-error "file may not belong to any yynt's any build object"))))
-      (let ((co-fn (yynt-build--convert-fn bobj)))
-	(funcall co-fn file)))))
+  (yynt-export-current-buffer (current-buffer) yynt/yy-project))
 
 (org-export-define-derived-backend 'yy 'w3ctr
   :menu-entry

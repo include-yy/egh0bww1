@@ -2,6 +2,7 @@
 #+DATE: [2023-09-29 Fri 20:41]--[2023-10-25 00:00]
 #+FILETAGS: robot
 #+DESCRIPTION: This article compiles various resources about the Unitree GO1 robotic dog, providing a comprehensive guide to setting up the simulation environment, as well as methods for controlling the Unitree GO1 robot via ROS
+#+LANGUAGE: en
 
 I'm not extremely passionate about tinkering with ROS; I only know it's a widely
 used communication framework for robots (though this understanding is certainly
