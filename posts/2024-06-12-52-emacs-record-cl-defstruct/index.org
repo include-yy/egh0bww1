@@ -1,0 +1,820 @@
+#+TITLE: 在 Emacs 中使用 record 和 cl-defstruct
+#+DATE: [2021-10-09 Sat 17:04]--[2024-06-12 Wed 18:03]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文介绍了如何在 emacs 中定义和使用结构，并对其内部实现进行了简单的分析
+#+TMP: 0
+
+# [[https://www.pixiv.net/artworks/45875972][file:dev/0.jpg]]
+
+在编写一些 Emacs 代码时，我总算是有机会使用 =cl-defstruct= 来把一些相关的数据包在一起，算是体验过了 =cl-defstruct= 的功能。本文的目的是记录 =cl-defstruct= 的用法，同时对它的实现展开一些简单的研究。由于 =cl-defstruct= 内部使用 =record= 来表示，因此本文首先会介绍一下 Emacs 的 =record= 类型。
+
+本文使用的环境如下：
+
+- +emacs 27.1+
+- +GNU Emacs 29.1 (build 2, x86_64-w64-mingw32) of 2023-07-31+
+- GNU Emacs 30.0.50 (build 5, x86_64-w64-mingw32) of 2024-05-03
+
+（没想到再次拿起这篇草稿已经是三年后了。文中的删除线部分就是那个时候写的）
+
+* Emacs 中的类型
+
+通过 =cl-defstruct= 我们可以定义新的类型，这里介绍一些 Emacs Lisp 类型的背景知识也许对读者有用？
+
+除了 Lisp 中经典的原子和表之外，Emacs 还提供了其他的常用类型，比如整数（包括大整数）、字符串、向量等等。完整的类型列表可以参考 Elisp manual 的 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Lisp-Data-Types.html][Lisp Data Types]] 一章。在最新的 Emacs 30 中，Lisp Data Types 的 Type Hierarchy 小节给出了一章描述类型关系的图片：
+
+:elisp_type_hierarchy:
+#+attr_html: :class data
+| Type                | Derived Types                                             |
+|---------------------+-----------------------------------------------------------|
+| boolean             | null                                                      |
+| integer             | fixnum bignum                                             |
+| accessor            | oclosure-accessor                                         |
+| cl--class           | cl-structure-class oclosure--class built-in-class         |
+| vector              | timer                                                     |
+| cons                | ppss decoded-time                                         |
+| number              | integer float                                             |
+| integer-or-marker   | integer marker                                            |
+| number-or-marker    | number integer-or-marker                                  |
+| array               | vector string bool-vector char-table                      |
+| oclosure            | accessor advice cconv--interactive-helper advice--forward |
+|                     | save-some-buffers-function cl--generic-nnm                |
+| cl-structure-object | cl--class xref-elisp-location org-cite-processor          |
+|                     | cl--generic-method cl--random-state register-preview-info |
+|                     | cl--generic cl-slot-descriptor uniquify-item registerv    |
+|                     | isearch--state cl--generic-generalizer lisp-indent-state  |
+| record              | cl-structure-object                                       |
+| symbol              | boolean symbol-with-pos                                   |
+| subr                | primitive-function subr-native-elisp special-form         |
+| compiled-function   | primitive-function subr-native-elisp byte-code-function   |
+| function            | oclosure compiled-function interpreted-function           |
+|                     | module-function                                           |
+| list                | null cons                                                 |
+| sequence            | array list                                                |
+| atom                | number-or-marker array record symbol subr function mutex  |
+|                     | font-spec frame tree-sitter-compiled-query                |
+|                     | tree-sitter-node font-entity finalizer tree-sitter-parser |
+|                     | hash-table window-configuration user-ptr overlay process  |
+|                     | font-object obarray condvar buffer terminal thread window |
+|                     | native-comp-unit                                          |
+| t                   | sequence atom                                             |
+:end:
+
+[[./1.jpg]]
+
+一般来说，每种类型都会有判断某个对象是否是该类型的谓词，比如 =null=, =consp=, =listp=, =stringp=, =vectorp= ，等等。Emacs 也提供了返回对象类型的 =type-of= 函数，以下是一些例子：
+
+#+caption: =type-of= 作用于不同类型对象
+#+begin_src elisp
+  (type-of 1) => integer
+  (type-of 1.0) => float
+  (type-of 1.0e+INF) => float
+  (type-of 0.0e+NaN) => float
+  (type-of ?a) => integer
+  (type-of 'quote) => symbol
+  (type-of "hello world") => string
+  (type-of [1 2 3]) => vector
+  (type-of (make-char-table 'abc)) => char-table
+  (type-of (make-bool-vector 10 0)) => bool-vector
+  (type-of nil) => symbol
+  (type-of t) => symbol
+  (type-of ()) => symbol
+  (type-of :key) => symbol
+  (type-of '(1 . 2)) => cons
+  (type-of '(1 2)) => cons
+  (type-of (make-hash-table)) => hash-table
+  (type-of (symbol-function 'cons)) => subr
+  (type-of (make-record 'yyre 10 0)) => yyre
+  (type-of (make-record #s(tt yy) 10 0)) => yy
+#+end_src
+
+在 =cl-lib= 中有一个叫做 =cl-typep= 的函数，它的参数列表是 =(VAL TYPE)= ，它可以判断 =VAL= 是否为 =TYPE= 类型，其中 =TYPE= 可以是一个符号：
+
+#+caption: =cl-typep= 的一些例子
+#+begin_src elisp
+  ;; example of common use
+  (cl-typep 'a 'atom) => t
+  (and (cl-typep nil 'atom) (cl-typep nil 'list)) => t
+  (cl-typep 'a 'symbol) => t
+  (cl-typep 1 'integer) => t
+  (cl-typep 1.0 'float) => t
+  (cl-typep 1 'number) => t
+  (cl-typep ?a 'character) => t
+  (cl-typep "abc" 'string) => t
+  (cl-typep [1 2] 'vector) => t
+  (cl-typep [] 'array) => t
+  (cl-typep '(1) 'list) => t
+  (cl-typep '(1 2) 'cons) => t
+  (cl-typep [1 2 3] 'sequence) => t
+  (cl-typep (make-hash-table) 'hash-table) => t
+  (cl-typep #s(1 2) 'record) => t
+
+  ;;cl-typep with struct
+  (cl-defstruct yy-9 a)
+  (cl-typep (make-yy-9 :a 1) 'yy-9) => t
+  (cl-defstruct (yy-11 (:predicate huhu)) a)
+  (cl-typep (make-yy-11 :a 1) 'yy-11) => t
+  (cl-typep (make-yy-9 :a 1) 'yy-11) => nil
+#+end_src
+
+在 Emacs 30 中新增了一个叫做 =cl-type-of= 的函数，相比 =type-of= 可以更为细致地返回对象的类型：
+
+#+begin_quote
+ ** New function 'cl-type-of'. \\
+This function is like 'type-of' except that it sometimes returns \\
+a more precise type.  For example, for nil and t it returns 'null' \\
+and 'boolean' respectively, instead of just 'symbol'.
+
+NEWS.30
+
+The specific type returned may change depending on Emacs versions, \\
+so we recommend you use ‘cl-typep’, ‘cl-typecase’, or other predicates \\
+rather than compare the return value of this function against \\
+a fixed set of types.
+
+docstring of `cl-type-of'
+#+end_quote
+
+#+caption: =cl-type-of= 的一些例子
+#+begin_src elisp
+  (cl-type-of nil) => null
+  (cl-type-of :foo) => symbols
+  (cl-type-of 'a) => symbol
+  (cl-type-of (1- (expt 2 61))) => fixnum
+  (cl-type-of (expt 2 61)) => bignum
+  (cl-type-of (cons 1 2)) => cons
+#+end_src
+
+通过 =cl-defstruct= 定义的类型会继承 =cl-structure-object= ，而后者继承于 =record= 。下面我们简单说说什么是 =record= ，顺便看看它的 C 实现。
+
+* 什么是 =record=
+
+=record= 对象和 =vector= 对象非常相似，它的字段可被 =aref= 访问，而且它可以使用 =copy-sequence= 拷贝，但是它与 =vector= 相区别以允许用户创建非 Emacs builtin 类型的对象。
+
+在 =record= 对象中，第 1 个字段 =(aref r 0)= 被用来存储它的类型，我们可以通过 =type-of= 获取其类型。根据文档，当前的 =record= 实现最多允许有 4096 个字段（实际上似乎是 4095），相比之下 =vector= 的范围就大得多了。
+
+#+begin_src elisp
+  (make-record 'yy 4094 0) => ok
+  (make-record 'yy 4095 0) => (error "Attempt to allocate a record of 4096 slots; max is 4095")
+  (make-vector 114514 0) => ok
+#+end_src
+
+=record= 对象的类型必须是一个 =symbol= 或类型描述符（type descriptor）。类型描述符也是一个 =record= 对象，它包含了类型的相关信息。类型描述符的第 2 个字段 =(aref r 1)= 必须是表明类型的 =symbol= ，函数 =type-of= 根据这个字段来获取 =record= 的类型，它的其他字段用于扩展目的。在上一节的例子中，你应该注意到了这一条：
+
+#+begin_src elisp
+  (type-of (make-record #s(tt yy) 10 0)) => yy
+#+end_src
+
+=record= 对象的打印表示是 =#s= 加上各字段的打印表示。 =record= 是自求值的（self-evaluating form），对某个 =record= 求值会得到与之相同的 =record= ，当然这也就意味着它不会检查各字段的值是否满足某种约束。为了避免和其他类型出现名字冲突，定义新类型的 Lisp 程序应该使用 package 的命名规范。
+
+与 =record= 相关的函数就三个，判断对象是否为 =record= 的 =recordp= 和用于创建 =record= 的 =record= 与 =make-record= 。其中， =record= 和 =make-record= 的关系就像是 =list= 和 =make-list= 一样。下面是一些简单的例子，用作对上面文字的简单说明：
+
+#+BEGIN_SRC emacs-lisp
+(recordp #s(a 1)) => t
+(recordp [a 1]) => nil
+(record 'yy-record 1 2 3) => #s(yy-record 1 2 3)
+(make-record 'yy-record 5 0) => #s(yy-record 0 0 0 0 0)
+#+END_SRC
+
+本质上来说，所有的 record 对象的类型当然是 =record= ，这样看来似乎没有专门区分 =vector= 和 =record= ，我们只需要约定好位置 0 的元素是类型就行。 *专门的 =record= 类型是为了更好地区分自定义类型和内置类型吧* 。在 record 文档的 Backward Compatibility 一节提到了可以通过 =cl-old-struct-compat-mode= 开启一种兼容模式，这也说明之前的 =cl-defstruct= 使用的内部数据结构可能就是 =vector= 。
+
+** =record= 的 C 实现
+
+如果你熟悉 Emacs 源代码中的 lisp.h 的话，你应该会知道 Emacs Lisp 底层就这几种类型（以及 lisp.h 中的 =Lisp_Type= 枚举类型定义）：
+
+#+begin_src c
+  /* Lisp_Object tagging scheme:
+	  Tag location
+     Upper bits  Lower bits  Type        Payload
+     000.......  .......000  symbol      offset from lispsym to struct Lisp_Symbol
+     001.......  .......001  unused
+     01........  ........10  fixnum      signed integer of FIXNUM_BITS
+     110.......  .......011  cons        pointer to struct Lisp_Cons
+     100.......  .......100  string      pointer to struct Lisp_String
+     101.......  .......101  vectorlike  pointer to union vectorlike_header
+     111.......  .......111  float       pointer to struct Lisp_Float  */
+#+end_src
+
+=record= 类型自然属于其中的 =vectorlike= ， =make-record= 的定义也可以佐证这一点：
+
+#+begin_src c
+  // alloc.c
+  DEFUN ("make-record", Fmake_record, Smake_record, 3, 3, 0,
+	 doc: /* Create a new record.
+  TYPE is its type as returned by `type-of'; it should be either a
+  symbol or a type descriptor.  SLOTS is the number of non-type slots,
+  each initialized to INIT.  */)
+    (Lisp_Object type, Lisp_Object slots, Lisp_Object init)
+  {
+    CHECK_FIXNAT (slots);
+    EMACS_INT size = XFIXNAT (slots) + 1;
+    struct Lisp_Vector *p = allocate_record (size);
+    p->contents[0] = type;
+    for (ptrdiff_t i = 1; i < size; i++)
+      p->contents[i] = init;
+    return make_lisp_ptr (p, Lisp_Vectorlike);
+  }
+#+end_src
+
+在调用 =allocate_record= 为 =record= 分配对象时，如果大小超过了 =PSEUDOVECTOR_SIZE_MASK= 就会出现 =error= ，而 =PSEUDOVECTOR_SIZE_MASK= 的值是 4095。在调用的最后，它通过 =XSETPVECTYPE= 设置向量类型为 =PVEC_RECORD= ：（其他的向量类型可以参考 lisp.h 中的 =pvec_type= 枚举类型）
+
+#+begin_src c
+  // lisp.h enum More_Lisp_Bits
+  PSEUDOVECTOR_SIZE_BITS = 12;
+  PSEUDOVECTOR_SIZE_MASK = (1 << PSEUDOVECTOR_SIZE_BITS) - 1;
+
+  // alloc.c
+  static struct Lisp_Vector *
+  allocate_record (EMACS_INT count)
+  {
+    if (count > PSEUDOVECTOR_SIZE_MASK)
+      error ("Attempt to allocate a record of %"pI"d slots; max is %d",
+	     count, PSEUDOVECTOR_SIZE_MASK);
+    struct Lisp_Vector *p = allocate_vectorlike (count, false);
+    p->header.size = count;
+    XSETPVECTYPE (p, PVEC_RECORD);
+    return p;
+  }
+#+end_src
+
+=record= 和 =recordp= 的定义如下，我觉得没必要做过多解释了：
+
+#+begin_src c
+  DEFUN ("record", Frecord, Srecord, 1, MANY, 0,
+	 doc: /* Create a new record.
+  TYPE is its type as returned by `type-of'; it should be either a
+  symbol or a type descriptor.  SLOTS is used to initialize the record
+  slots with shallow copies of the arguments.
+  usage: (record TYPE &rest SLOTS) */)
+    (ptrdiff_t nargs, Lisp_Object *args)
+  {
+    struct Lisp_Vector *p = allocate_record (nargs);
+    memcpy (p->contents, args, nargs * sizeof *args);
+    return make_lisp_ptr (p, Lisp_Vectorlike);
+  }
+
+  DEFUN ("recordp", Frecordp, Srecordp, 1, 1, 0,
+	 doc: /* Return t if OBJECT is a record.  */)
+    (Lisp_Object object)
+  {
+    if (RECORDP (object))
+      return Qt;
+    return Qnil;
+  }
+
+  INLINE bool
+  RECORDP (Lisp_Object a)
+  {
+    return PSEUDOVECTORP (a, PVEC_RECORD);
+  }
+#+end_src
+
+* 如何使用 =cl-defstruct=
+
+（在 r6rs 中有一个叫做 =define-record-type= 的宏（或者说 syntax extension）和 =cl-defstruct= 很像，它大概也是受到了 CL 的影响。 =define-record-type= 最早出现在 SRFI9[fn::https://srfi.schemers.org/srfi-9/]中。）
+
+某种意义上来说， =cl-defstruct= 就是不带类型的 C 结构，比如我们可以使用以下代码来定义一个三维向量结构：
+
+#+begin_src elisp
+  (cl-defstruct yy-vec3 x y z)
+#+end_src
+
+在对以上代码求值后， =cl-defstruct= 会为我们生成构造函数，拷贝函数，谓词和 getter/setter（通过 =setf= ）。就 =yy-vec3= 这个 =struct= 来说，我们可以得到以下函数：
+
+- =(make-yy-vec3 &key x y z)= ，返回一个类型为 =yy-vec3= 的 =record= 对象
+- =(copy-yy-vec3 arg)= ，返回一个 =yy-vec3= 对象的副本，使用 =copy-sequence=
+- =(yy-vec3-p cl-x)= ，判断参数是否为类型为 =yy-vec3= 的对象
+- =(yy-vec3-[xyz] cl-x)=, =yy-vec3= 的 3 个 getter 函数
+- =(setf (yy-vec3-[xyz] var) val)= ，自动生成的 =setf= =gv-setter=
+
+对于这个结构，以下代码使用了上面自动生成的函数：
+
+#+begin_src elisp
+  (defun yy-vec (x y z)
+    (make-yy-vec3 :x x :y y :z z))
+
+  (defun yy-dot (v1 v2)
+    (let ((x1 (yy-vec3-x v1)) (x2 (yy-vec3-x v2))
+	  (y1 (yy-vec3-y v1)) (y2 (yy-vec3-y v2))
+	  (z1 (yy-vec3-z v1)) (z2 (yy-vec3-z v2)))
+      (+ (* x1 x2) (* y1 y2) (* z1 z2))))
+
+  (defun yy-scale-inplace (v1 s)
+    (setf (yy-vec3-x v1) (* s (yy-vec3-x v1)))
+    (setf (yy-vec3-y v1) (* s (yy-vec3-y v1)))
+    (setf (yy-vec3-z v1) (* s (yy-vec3-z v1))))
+#+end_src
+
+考虑到包里面的所有函数都被建议使用包名作为前缀， =cl-defstruct= 生成的函数也不能例外，我们可以通过 =:constructor= 来指定构造函数名；如果成员中有一个名字为 =p= 就与谓词名冲突了，我们可以通过 =:predicate= 指定谓词的名字；如果不想让 =getter= 函数使用包名加上 =-= 作为前缀，我们可以通过 =:conc-name= 来指定 =getter= 的前缀名；如果我们不想使用默认的 =copy-{name}= 作为拷贝函数，可以通过 =:copier= 指定一个名字，或者指定 =nil= 表示不生成拷贝函数：
+
+#+begin_src elisp
+  (cl-defstruct (yy-vec3 (:conc-name yy-vec3--)
+			 (:constructor yy-vec3--make)
+			 (:predicate yy-vec3p)
+			 (:copier nil))
+    x y z)
+#+end_src
+
+除了能够为整个结构指定属性，结构中的每个字段也可以指定一些属性，这包括：
+
+- =:read-only= ，字段是否只读，若为非 =nil= 值则不为该字段生成 =setf= 的 =gv-setter=
+- =:documentation= ，为字段指定 docstring
+- =:type= ，指定字段的类型，但没有实际作用，只会显示在文档中
+
+如果要指定这些属性，那我们也需要为各字段提供一个默认值：
+
+#+begin_src elisp
+  (cl-defstruct (yy-vec3 (:conc-name yy-vec3--)
+			 (:constructor yy-vec3--make)
+			 (:predicate yy-vec3p))
+    (x 0.0 :type number :documentation "x value of vector")
+    (y 0.0 :type number :documentation "y value of vector")
+    (z 0.0 :type number :documentation "z value of vector"))
+#+end_src
+
+通过上面的代码，我们可以在 =C-h o yy-vec3= 中看到这样的文档：
+
+[[./2.png]]
+
+就日常使用来说，上面就是我们需要用到的所有东西了，不过如果你读过 =cl-defstruct= 的相关文档的话你会注意到还有许多字段没有提到。当然，本文还是会继续介绍下去，虽然实际使用中可能一点也用不上（笑）。
+
+最后，读者可以试试以下代码，应该会陷入一个可通过 =C-g= 退出的死循环：
+
+#+begin_src elisp
+(cl-defstruct yy-test p)
+#+end_src
+
+** 结构的可用选项
+
+以下内容来自 cl-lib 文档的 [[https://www.gnu.org/software/emacs/manual/html_node/cl/Structures.html][Structures]] 一章。
+
+*** =:conc-name=
+
+=:conc-name= 可以用来指定字段访问函数的前缀名，它是一个 =symbol= 。默认的前缀名是结构的名字加上一个 hyphen =-= 。如果指定这个选项为 =nil= ，那么访问函数的名字就是字段名，这样很容易造成名字冲突。
+
+#+caption: 分别指定不同于结构名的前缀，和指定空前缀
+#+BEGIN_SRC emacs-lisp
+(cl-defstruct (y0 (:conc-name yn-)) a b c)
+(yn-a (make-y0 :a 1)) => 1
+
+(cl-defstruct (y1 (:conc-name nil)) y1-a y1-b y1-c)
+(y1-a (make-y1 :y1-a 1)) => 1
+#+END_SRC
+
+虽然关键字的 =value cell= 总是指向它自己，但它的 =function cell= 可以为其他的值，因此在 =:conc-name= 中指定关键字也是可以的：
+
+#+begin_src elisp
+  (cl-defstruct (y2 (:conc-name :hello-)) a b c)
+  (:hello-a (make-y2 :a 1)) => 1
+
+  (symbol-function :hello-a) =>
+  (lambda (cl-x)
+    "Access slot \"a\" of `y2' struct CL-X."
+    (progn (or (progn (and (memq (type-of cl-x) cl-struct-y2-tags) t))
+	       (signal 'wrong-type-argument (list 'y2 cl-x)))
+	   (aref cl-x 1)))
+#+end_src
+
+*** =:constructor=
+
+=:constructor= 用来指定构造函数的名字，它可以多次使用来指定不同的构造函数。它有两种用法：
+
+- 简单的就是 =(:constructor new-name)= ，可以使用 =new-name= 而不是 =make-{structname}= 来作为构造函数名。如果指定 =nil= ，那就不生成默认的构造函数。如果有多个简单形式的 =:constructor= ，则取最后一个来作为构造函数名：
+  #+caption: 通过简单参数指定一个或多个构造函数名
+  #+begin_src elisp
+    (cl-defstruct (y3 (:constructor y3-make)) a b c)
+    (y3-make :a 1) => #s(y3 1 nil nil)
+    (make-y3 :a 1) => Debugger entered--Lisp error: (void-function make-y3)
+
+    (cl-defstruct (y4 (:constructor y4-make)
+		      (:constructor y4-ekam))
+      a b)
+    (y4-ekam :a 1) => #s(y4 1 nil)
+    (y4-make :a 1) => Debugger entered--Lisp error: (void-function y4-make)
+  #+end_src
+
+  （可见在这种情况下，只要指定了 =:constructor= 就不会生成默认构造函数）
+
+- 更复杂的用法则是指定构造名和相应的参数表。参数表是 CL 风格的，可用 =&optional=, =&rest=, =&key= 和 =&aux= ，参数表中与字段名字对应的参数的值会赋给对象对应的字段。若字段名没有出现在参数表中，它在对象中的值就是指定的默认值或 =nil= 。若对应于某字段的 =&optional= 或 =&key= 参数被忽略了，字段值就是 =&optional= 或 =&key= 的默认值或字段默认值：
+
+  #+caption: 不同的构造参数列表
+  #+begin_src elisp
+    (cl-defstruct (y5 (:constructor y5-c1 (a b c))
+		      (:constructor y5-c2 (&key a b c))
+		      (:constructor y5-c3 (x y z &aux (a x) (b y) (c z)))
+		      (:constructor y5-c4 (a &optional (b (+ a 1)) (c 0)))
+		      (:constructor y5-c5 (b a &rest c0 &aux (c (car c0)))))
+      a b c)
+
+    (make-y5 :a 1 :b 2)    => #s(y5 1 2 nil)
+    (y5-c1 1 2 3)          => #s(y5 1 2 3)
+    (y5-c2 :a 1 :b 2 :c 3) => #s(y5 1 2 3)
+    (y5-c3 1 2 3)          => #s(y5 1 2 3)
+    (y5-c4 1)              => #s(y5 1 2 0)
+    (y5-c4 1 0)            => #s(y5 1 0 0)
+    (y5-c4 1 3 3)          => #s(y5 1 3 3)
+    (y5-c5 1 2)            => #s(y5 2 1 nil)
+    (y5-c5 1 2 3 4)        => #s(y5 2 1 3)
+  #+END_SRC
+
+在上面的例子中你应该注意到了，指定复杂构造名不会取消掉默认的构造名 =make-{name}= ，此时我们需要显式指定 =(:constructor nil)= ：
+
+#+begin_src elisp
+  (cl-defstruct (y6 (:constructor nil)
+		    (:constructor y6-c0 (x y z)))
+    x y z)
+
+  (make-y6 :x 1) => Debugger entered--Lisp error: (void-function make-y6)
+  (y6-c0 1 2 3)  => #s(y6 1 2 3)
+#+end_src
+
+*** =:copier=
+
+使用 =:copier= 可以为结构指定一个浅拷贝函数名来替换掉默认的 =copy-{name}= ，它们实际上都是 =copy-sequence= 。若指定 =nil= 则不生成默认拷贝函数：
+
+#+caption: 分别指定 =:copier= 为另一名字和 =nil=
+#+begin_src elisp
+  (cl-defstruct (y7 (:copier y7-copy))
+    a b)
+
+  (y7-copy (make-y7 :a 1))   => #s(y7 1 nil)
+  (copy-y7 (make-y7 :a 1))   => Debugger entered--Lisp error: (void-function copy-y7)
+  (symbol-function 'y7-copy) => copy-sequence
+
+  (cl-defstruct (y8 (:copier nil))
+    a)
+
+  (symbol-function 'copy-y8) => nil
+#+end_src
+
+*** =:predicate=
+
+使用 =:predicate= 可为结构的谓词指定一个名字，它会替换掉默认的 ={name}-p= 。如果指定 =:predicate= 为 =nil= 则不会生成谓词：
+
+#+caption: 指定 =:predicate= 为某一符号，与指定为 =nil=
+#+begin_src elisp
+  (cl-defstruct (y9 (:predicate y9p))
+    a b)
+  (y9p (make-y9 :a 1))          => t
+  (cl-typep (make-y9 :a 1) 'y9) => t
+
+  (cl-defstruct (y10 (:predicate nil))
+    a b)
+  (symbol-function 'y10-p)        => nil
+  (cl-typep (make-y10 :a 1) 'y10) => t
+#+end_src
+
++至于 =cl-typep= 是否修改过以支持非默认名字的谓词，我们可以通过观察源代码或检索 commit 历史来了解。文档的更新速度是慢于代码更新速度的，我怀疑部分文档还停留在没有使用 record 作为内部表示的时候。+
+
+虽然文档中提到了 =cl-typep= 仅在结构的默认谓词 ={name}-p= 存在的情况下才能正常工作，因为它只会查找 ={name}-p= 并使用它来判定。但从上面的例子来看，即使取消掉了默认的谓词， =cl-typep= 也能正常工作。这是因为文档过时了（Emacs 29.2 的文档还是过时的），现在即使指定 =:predicate= 为 =nil= ， =cl-defstruct= 也会为我们生成默认的谓词，并添加到类型符号的 =plist= 中。这来自十年前的一条 commit：
+
+- [[https://github.com/emacs-mirror/emacs/commit/864d69a119e50eaabb80076bf13e3a5b0c8815cd][* lisp/emacs-lisp/cl-macs.el (cl-defstruct): Define an internal predicate]]
+
+根据实现来看，谓词函数会被添加到类型符号的 =cl-deftype-satisfies= 属性中：
+
+#+begin_src elisp
+  (get 'y9 'cl-deftype-satisfies)  => y9p
+  (get 'y10 'cl-deftype-satisfies) => cl--struct-y10-p
+#+end_src
+
+=cl-typep= 使用以下代码来获取可能的谓词，并判断对象是否属于该类型：
+
+#+begin_src elisp
+  ((and (pred symbolp) type (guard (get type 'cl-deftype-satisfies)))
+   (inline-quote (funcall #',(get type 'cl-deftype-satisfies) ,val)))
+  ...
+#+end_src
+
+*** =:include=
+
+=:include= 提供了一种非常受限的类似 C++ 风格的继承功能，它接受一个结构名作为父结构，生成的结构会继承父结构的所有字段，可以视为父结构的一种“特化”。父结构的谓词和访问函数可以接受子结构作为参数，但是反过来则不行，以下例子直接来自文档：
+
+#+caption: “父类” =person= 和“子类” =astronaut=
+#+begin_src elisp
+  (cl-defstruct person first-name (age 0) sex)
+  ⇒ person
+  (cl-defstruct (astronaut (:include person (age 45)))
+    helmet-size
+    (favorite-beverage 'tang))
+  ⇒ astronaut
+
+  (setq joe (make-person :first-name "Joe"))
+  ⇒ #s(person "Joe" 0 nil)
+  (setq buzz (make-astronaut :first-name "Buzz"))
+  ⇒ #s(astronaut "Buzz" 45 nil nil tang)
+
+  (list (person-p joe) (person-p buzz))
+  ⇒ (t t)
+  (list (astronaut-p joe) (astronaut-p buzz))
+  ⇒ (nil t)
+
+  (person-first-name buzz)
+  ⇒ "Buzz"
+  (astronaut-first-name joe)
+  ⇒ Debugger entered--Lisp error:
+  (wrong-type-argument astronaut #s(person :first-name "Joe" :age 0 :sex nil))
+#+end_src
+
+如果 =:include= 中结构名后面还有参数，那么它会替换掉原结构中同名字段的一些属性，比如默认值和文档属性，上面例子中宇航员的年龄体现了这一点。
+
+从这种“继承”方式上来看， =cl-defstruct= 应该只允许“单继承”，事实也确实如此：
+
+#+BEGIN_SRC emacs-lisp
+  (cl-defstruct y11 a)
+  (cl-defstruct y12 b)
+  (cl-defstruct (y13 (:include y11) (:include y12))) =>
+  Debugger entered--Lisp error: (error "Can’t :include more than once")
+#+END_SRC
+
+*** =:noinline=
+
+关于这个选项，文档中只有短短一句话：如果指定了 =:noinline= ，那么结构的函数不会是内联（inline）的。这也说明一般情况下生成的函数是内联函数。从实现来看，如果指定 =:noinline= 的话，用来定义函数的将是 =cl-defsubst= ，它会为函数生成 =compiler macro= 。下面是一个简单的例子：
+
+#+caption: =:noinline= 与 =compiler macro=
+#+begin_src elisp
+  (cl-defstruct y14 a b)
+  (cl-defstruct (y15 :noinline) a b)
+  (symbol-plist 'y14-a) =>
+  (compiler-macro y14-a--cmacro side-effect-free t)
+  (symbol-plist 'y15-a) =>
+  (side-effect-free t)
+#+end_src
+
+*** =:print-function=
+
+在 Common Lisp 中，这个选项可以用来指定用来打印该类型对象的函数。但 Emacs Lisp 没有提供能够 hook Lisp printer 的方法，因此这个选项在 =cl-defstruct= 中会被直接忽略。
+
+*** =:type= 和 =:named=
+
+除了默认使用的 =record= 作为底层表示外， =cl-defstruct= 还允许我们使用 =:type= 指定 =list= 或 =vector= 来使用列表和向量：
+
+#+caption: 类型为 =list= 和 =vector= 的结构
+#+begin_src elisp
+  (cl-defstruct (y16 (:type list)) a b)
+  (make-y16 :a 1 :b 2) => (1 2)
+  (cl-defstruct (y17 (:type vector)) a b)
+  (make-y17 :a 1 :b 2) => [1 2]
+#+end_src
+
+=record= 和 =vector= 在创建时比 =list= 需要更多时间，但它们的访问性能更好， =list= 则是反过来，创建速度更快，但访问位置偏后的字段用的时间会长的多。
+
+很明显地，这些生成的对象就是普通的列表和向量，此时 =cl-defstruct= 并不会为我们生成谓词（即使我们指定了谓词的名字）：
+
+#+begin_src elisp
+  (symbol-function 'y16-p) => nil
+  (symbol-function 'y17-p) => nil
+
+  (cl-defstruct (y18 (:type vector) (:predicate y18p)) a b)
+  (symbol-function 'y18p) => nil
+#+end_src
+
+如果我们在使用 =:type= 时同时使用 =:named= ，那么结构的开头会加上一个标识类型，此时 =cl-defstruct= 就会为我们生成谓词了。这也是 =:named= 唯一有用的时候：和 =:type= 联用：
+
+#+caption: 同时带有 =:type= 和 =:named= 的结构
+#+begin_src elisp
+  (cl-defstruct (y18 (:type list) :named) a b)
+  (cl-defstruct (y19 (:type vector) :named) a b)
+
+  (make-y18 :a 1) => (y18 1 nil)
+  (make-y19 :a 1) => [y19 1 nil]
+  (y18-p '(y18 1 2)) => t
+  (y18-p '(y18))     => t
+  (y19-p [y19 1 2])  => t
+  (y19-p [y19 1])    => nil
+  (y19-p '(y19 1 2)) => nil
+#+end_src
+
+可见对于 =:type= 为 =vector= 的结构，除了判断类型标头外还会检查向量的长度。
+
+*** =:initial-offset=
+
+使用 =:initial-offset= 可以指定在结构的前面要留空的数量，因此它必须是一个非负整数值。对于 =record= ， =:initial-offset= 指定了第一个字段到类型标记之间的空字段数量；对于带有 =:named= 的 =vector= 或 =list= 来说则是指定类型标记之前的留空数量；对于无名 =vector= 和 =list= 则是第一个字段之前的留空数量：
+
+#+caption: 不同底层表示的 =:initial-offset= 效果
+#+begin_src elisp
+  (cl-defstruct (y20 (:initial-offset 1)) a b)
+  (cl-defstruct (y21 (:type vector) :named (:initial-offset 1)) a b)
+  (cl-defstruct (y22 (:type vector) (:initial-offset 1)) a b)
+  (make-y20 :a 1 :b 2) => #s(y20 nil 1 2)
+  (make-y21 :a 1 :b 2) => [nil y21 1 2]
+  (make-y22 :a 1 :b 2) => [nil 1 2]
+#+end_src
+
+如果 =:include= 了其他结构，那么该关键字指定的是在父结构最后一个字段到本结构第一个字段间的留空数量：
+
+#+caption: 带有 =:include= 时的 =:initial-offset= 效果
+#+BEGIN_SRC emacs-lisp
+(cl-defstruct (y23 (:include y20) (:initial-offset 2)) c)
+(make-y23 :a 1 :b 2 :c 3) => #s(y23 nil 1 2 nil nil 3)
+(cl-defstruct (y24 (:include y21) (:initial-offset 2)) c)
+(make-y24 :a 1 :b 2 :c 3) => [nil y24 1 2 nil nil 3]
+(cl-defstruct (y25 (:include y22) (:initial-offset 2)) c)
+(make-y25 :a 1 :b 2 :c 3) => [nil 1 2 nil nil 3]
+#+END_SRC
+
++另外一个问题和 =:include= 有关，那就是子结构是否会继承父结构的类型。+
+
+从上面的例子也可以看出 =:include= 会“继承”父结构的表示类型和 =:named= 属性。
+
+** 一些相关的函数
+
+这是文档中列出的 4 个函数，这里简单抄了下来。
+
+*** =cl-struct-sequence-type=
+
+=(cl-struct-sequence-type STRUCT-TYPE)= 返回某结构类型的内部表示方式，返回值是可以是 =nil= ， =vector= 或 =list= ，为 =nil= 则表示使用的是 =record= ：
+
+#+BEGIN_SRC emacs-lisp
+(cl-defstruct yy26 a)
+(cl-struct-sequence-type 'yy26) => nil
+(cl-defstruct (yy27 (:type vector)) a)
+(cl-struct-sequence-type 'yy27) => vector
+(cl-defstruct (yy28 (:type list)) a)
+(cl-struct-sequence-type 'yy28) => list
+#+END_SRC
+
++=cl-struct-sequence-type= 根据文档来说应该返回 record，list 或 vector，但是当接受类型为 record 的结构名时却返回 nil。这也需要阅读代码来找到原因。+
+
+此处的文档也过时了，文档中说的是当参数 =STRUCT-TYPE= 不是结构时返回 =nil= ，但实际上会直接报错：
+
+#+begin_src elisp
+  (cl-struct-sequence-type nil) =>
+  Debugger entered--Lisp error: (error "nil is not a struct name")
+#+end_src
+
+*** =cl-struct-slot-info=
+
+=(cl-struct-slot-info STRUCT-TYPE)= 返回结构类型对应的字段描述符组成的表，表中元素的格式是 =(name . opts)= ， =name= 是字段名， =opts= 是在 =cl-defstruct= 中指定的选项：
+
+#+BEGIN_SRC emacs-lisp
+  (cl-defstruct yy29
+    (a 0 :documentation "hhh")
+    (b nil)
+    (c 1 :read-only t :documentation "123"))
+  (cl-struct-slot-info 'yy29) =>
+  ((cl-tag-slot)
+   (a 0 :documentation "hhh")
+   (b nil)
+   (c 1 :read-only t :documentation "123"))
+#+END_SRC
+
+*** =cl-struct-slot-offset=
+
+=(cl-struct-slot-offset STRUCT-TYPE SLOT-NAME)= ，返回 =SLOT-NAME= 对应的字段偏移量：
+
+#+BEGIN_SRC emacs-lisp
+  (cl-defstruct yy30 a b c)
+  (mapcar (lambda (x) (cl-struct-slot-offset 'yy30 x)) '(a b c)) => (1 2 3)
+  (cl-defstruct (yy31 (:initial-offset 3)) a b c)
+  (mapcar (lambda (x) (cl-struct-slot-offset 'yy31 x)) '(a b c)) => (4 5 6)
+  (cl-defstruct (yy32 (:type vector)) a b c)
+  (mapcar (lambda (x) (cl-struct-slot-offset 'yy32 x)) '(a b c)) => (0 1 2)
+#+END_SRC
+
+*** =cl-struct-slot-value=
+=(cl-struct-slot-value STRUCT-TYPE SLOT-NAME INST)= ，返回 =SLOT-NAME= 对应字段在 =INST= 对象中的值：
+
+#+BEGIN_SRC emacs-lisp
+  (cl-defstruct yy33 a b c)
+  (let ((o (make-yy33 :a 1 :b 2 :c 3)))
+    (mapcar (lambda (name) (cl-struct-slot-value 'yy33 name o)) '(a b c)))
+  => (1 2 3)
+#+END_SRC
+
+* =cl-defstruct= 的一些实现细节
+
+=cl-defstruct= 的定义位于 cl-macs.el 中，大约有 300 行。这一小节中我会介绍一些实现细节，算是对上一节的补充说明。
+
+** 内部表示其实有 4 种
+
+在 =cl-defstruct= 中，有着这样一段注释：
+
+#+begin_src elisp
+  ;; There are 4 types of structs:
+  ;; - `vector' type: means we should use a vector, which can come
+  ;;   with or without a tag `name', which is usually in slot 0
+  ;;   but obeys :initial-offset.
+  ;; - `list' type: same as `vector' but using lists.
+  ;; - `record' type: means we should use a record, which necessarily
+  ;;   comes tagged in slot 0.  Currently we'll use the `name' as
+  ;;   the tag, but we may want to change it so that the class object
+  ;;   is used as the tag.
+  ;; - nil type: this is the "pre-record default", which uses a vector
+  ;;   with a tag in slot 0 which is a symbol of the form
+  ;;   `cl-struct-NAME'.  We need to still support this for backward
+  ;;   compatibility with old .elc files.
+#+end_src
+
+可见除了 =vector=, =list= 和 =record= ，还有一种 =nil= 类型。不过我们并不能通过指定 =:type= 为 =nil= 来创建它：
+
+#+begin_src elisp
+  (cl-defstruct (yy34 (:type nil)) a b c) =>
+  Debugger entered--Lisp error: (error "Invalid :type specifier: nil")
+#+end_src
+
+在 =cl-defstruct= 内部调用的 =cl-struct-define= 是这样处理 =nil= 类型的：
+
+#+begin_src elisp
+  ;; cl-preloaded.el => cl-struct-define
+  (unless type
+      ;; Legacy defstruct, using tagged vectors.  Enable backward compatibility.
+      (with-suppressed-warnings ((obsolete cl-old-struct-compat-mode))
+	(message "cl-old-struct-compat-mode is obsolete!")
+	(cl-old-struct-compat-mode 1)))
+#+end_src
+
+现在，除非手动调用 =cl-struct-define= 并指定类型参数为 =nil= ， =cl-old-struct-compat-mode= 应该是不会被再触发了。注释中也提到保留这种类型是为了保持对旧字节码的兼容性。
+
+** =cl-defstruct= 与 =eieio=
+
+在处理 =:include= 参数的部分，我看到了这样的注释：
+
+#+begin_src elisp
+  ;; FIXME: Actually, we can include more than once as long as
+  ;; we include EIEIO classes rather than cl-structs!
+#+end_src
+
+也许之后真的会在 =cl-defstruct= 中实现基于 =eieio= 的“多继承”功能吧（笑）。
+
+** 访问函数的调用参数数量检查
+
+在函数使用某个结构的访问函数时，如果你不慎写错了参数数量，在对 =defun= 或类似表达式求值时，你会在 =*Message*= 看到类似这样的输出：
+
+#+begin_src elisp
+  (cl-defstruct yy34 a b c)
+  (defun my-test (y34) (yy34-a))
+#+end_src
+
+#+begin_src text
+  Warning: Optimization failure for yy33-a: Handler: yy33-a--cmacro
+  (wrong-number-of-arguments #[(_cl-whole-arg cl-x) ((cl-block yy33-a--cmacro
+  (cl--defsubst-expand '(cl-x) '(cl-block yy33-a (progn (or (yy33-p cl-x)
+  (signal 'wrong-type-argument (list 'yy33 cl-x))) (aref cl-x 1))) nil nil nil cl-x))) (t)
+  nil "compiler-macro for `yy33-a'."] 3)
+#+end_src
+
+这是因为 =cl-defstruct= 在帮我们生成一些函数时会使用 =cl-defsubst= 来进行“内联”，实际上就是为这些函数添加 =compiler macro= ，而在对表达式求值时表达式首先会被通过 =macroexpand-all= 展开，因此 =compiler macro= 的宏展开错误就会出现在求值时。
+
+如果在 =cl-defstruct= 中指定 =:noinline= 就不会有参数错误警告了：
+
+#+begin_src elisp
+  (cl-defstruct (yy35 :noinline) a b c)
+  (defun my-test (y35) (yy35-a a b))
+#+end_src
+
+** =p= 字段与死循环
+
+在本文的 [[如何使用 =cl-defstruct=][如何使用 =cl-defstruct=]] 一节我提到过一个死循环：
+
+#+begin_src elisp
+  (cl-defstruct yy-test p)
+
+  Error during redisplay: (clear-minibuffer-message) signaled (error "Lisp nesting exceeds ‘max-lisp-eval-depth’")
+  Warning: Optimization failure for yy-test-p: Handler: yy-test-p--cmacro
+  (excessive-lisp-nesting 1601)
+  ...
+#+end_src
+
+这段代码出现问题的原因很简单， =cl-defstruct= 生成的成员访问函数会与生成的谓词函数名发生冲突，但这段代码为什么不直接报错呢？这可能需要一些分析。如果我们简化一下， =cl-defstruct= 的展开式可以是这样的：
+
+#+begin_src elisp
+(progn
+  (cl-defsubst my-test-p (cl-x)
+    (and (vectorp cl-x)
+	 (eq (aref cl-x 0) 'yy)))
+  (cl-defsubst my-test-p (cl-x)
+    (if (not (my-test-p cl-x))
+	(error "wrong!")
+      (aref cl-x 1))))
+#+end_src
+
+实际上没有谓词的定义，上面的第二个 =cl-defsubst= 也会报错，我们可以进一步简化得到：
+
+#+begin_src elisp
+  (cl-defsubst my-test-loop (cl-x)
+    (my-test-loop cl-x))
+#+end_src
+
+这个简单的死循环定义在定义求值阶段就会陷入死循环，还真有意思。死循环自然是因为自指，由于在 =cl-defsubst= 中 =compiler macro= 的定义求值早于 =cl-defun= 的求值，因此在对 =cl-defun= 部分展开求值时又会进行 =compiler macro= 展开，而展开的结果又是自己，因此就是死循环了。这样一来 =cl-defsubst= 中不能出现自调用，因此也就不允许递归。
+
+如果我们指定 =:noinline= 的话就不会出现这个错误，只不过此时的 ={name}-p= 只是访问函数了，而且由于存在自指，运行时还是会死循环：
+
+#+begin_src elisp
+  (cl-defstruct (yy36 :noinline) p)
+  (symbol-function 'yy36-p) =>
+  ;; Emacs 30 closure style
+  #[(cl-x) ((progn
+	      (or (yy36-p cl-x)
+		  (signal 'wrong-type-argument (list 'yy36 cl-x)))
+	      (aref cl-x 1)))
+    (cl-struct-yy36-tags t) nil
+  "Access slot \"p\" of `yy36' struct CL-X."]
+  (yy36-p (make-yy36 :p 1)) => infinty loop
+#+end_src
+
+* 后记
+
+三年前我就开始写这篇文章了，不过这么久也没写完，一方面是当时对 Elisp 不熟悉，另一方便是很少有需要用到 =cl-defstruct= 的地方。我在重构博客时重写了构建工具部分，这一次对结构的使用算是补足了我在 =cl-defstruct= 上的经验，因此本文也就是水到渠成了。
+
+# | [[https://www.pixiv.net/artworks/87480848][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/80283145][file:dev/p3.jpg]] |
+
+# [[https://www.pixiv.net/artworks/80695979][file:dev/p2.jpg]]

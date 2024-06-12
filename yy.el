@@ -7,13 +7,8 @@
 
 ;;; Code:
 
-(if (file-exists-p "yynt/yynt.el")
-    (require 'yynt (file-truename "yynt/yynt.el"))
-  (require 'yynt))
-
-(if (file-exists-p "ox-w3ctr/ox-w3ctr.el")
-    (require 'ox-w3ctr (file-truename "ox-w3ctr/ox-w3ctr.el"))
-  (require 'ox-w3ctr))
+(require 'yynt)
+(require 'ox-w3ctr)
 
 (defun yynt/yy-fn (plist in out)
   (if (string-match-p "\\.org$" in)
@@ -61,7 +56,7 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"./assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"./assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"./assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"./assets/js/fixup.js\"></script>"
 		 ))))
 
 (defvar yynt/yy-404)
@@ -85,7 +80,7 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"https://egh0bww1.com/assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"https://egh0bww1.com/assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
 		 ))))
 
 (defun yynt/yy-rss-fn (_plist _in out)
@@ -135,12 +130,13 @@
 	  (if date (format "\n<pubDate>%s</pubDate>" date) "")))
 
 (defun yynt/yy-get-post-rss ()
-  (let ((items (yynt-select yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT title, path, description, filetags, substr(path,7,10) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" nil (list yynt/yy-rss-post-n))))
+LIMIT ?" (list yynt/yy-rss-post-n))))
     items))
 
 (defun yynt/yy-rss-generate ()
@@ -190,7 +186,7 @@ LIMIT ?" nil (list yynt/yy-rss-post-n))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"../assets/js/fixup.js\"></script>"))
+<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"))
        :info-ex '( :html-preamble nil
 		   :section-numbers nil
 		   :html-link-lname "HOME"
@@ -200,11 +196,11 @@ LIMIT ?" nil (list yynt/yy-rss-post-n))))
 		   )))
 
 (defun yynt/yy-euler-table (prefix)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT substr(path, 14), filetags, description, date FROM YYNT WHERE
-build_name='projecteuler' AND ex='0'" nil)))
+build_name='projecteuler' AND ex='0'")))
     (setq items (sort items (lambda (a b)
 			      (let ((a0 (string-to-number (car a)))
 				    (b0 (string-to-number (car b))))
@@ -250,7 +246,7 @@ build_name='projecteuler' AND ex='0'" nil)))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"../../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "REPUB"
@@ -261,7 +257,7 @@ build_name='projecteuler' AND ex='0'" nil)))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script src=\"../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -269,21 +265,21 @@ build_name='projecteuler' AND ex='0'" nil)))
 		   )))
 
 (defun yynt/yy-repost-list (prefix limit)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='republish' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" nil (list (or limit 100000)))))
-    (mapconcat (lambda (i)
-		 (let* ((name (car i))
-			(title (cadr i))
-			(len (length "republish/"))
-			(time (substring name len (+ len 10))))
-		   (format "- [%s] [[%s][%s]]"
-			   time (file-name-concat prefix (substring name len)) title)))
-	       items "\n")))
+LIMIT ?" (list (or limit 100000)))))
+      (mapconcat (lambda (i)
+		   (let* ((name (car i))
+			  (title (cadr i))
+			  (len (length "republish/"))
+			  (time (substring name len (+ len 10))))
+		     (format "- [%s] [[%s][%s]]"
+			     time (file-name-concat prefix (substring name len)) title)))
+		 items "\n")))
 
 
 (defvar yynt/yy-post)
@@ -309,7 +305,7 @@ LIMIT ?" nil (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"../../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "BLOG"
@@ -321,7 +317,7 @@ LIMIT ?" nil (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script src=\"../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname "TAGS"
@@ -329,13 +325,13 @@ LIMIT ?" nil (list (or limit 100000)))))
 		   )))
 
 (defun yynt/yy-post-list (prefix limit)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
-LIMIT ?" nil (list (or limit 100000)))))
+LIMIT ?" (list (or limit 100000)))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -346,12 +342,12 @@ LIMIT ?" nil (list (or limit 100000)))))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-list (prefix tag)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
-ORDER BY path DESC" nil (list tag))))
+ORDER BY path DESC" (list tag))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -363,22 +359,22 @@ ORDER BY path DESC" nil (list tag))))
 
 (defun yynt/yy-post-tag-num (tag)
   (let ((res
-	 (yynt-select
-	  yynt/yy-project
+	 (sqlite-select
+	  yynt--sqlite-obj
 	  "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
-ORDER BY path DESC" nil (list tag))))
+ORDER BY path DESC" (list tag))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-year-list (prefix year)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
-ORDER BY path DESC" nil (list year))))
+ORDER BY path DESC" (list year))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
 			(title (cadr i))
@@ -389,21 +385,21 @@ ORDER BY path DESC" nil (list year))))
 	       items "\n")))
 
 (defun yynt/yy-post-year-num (year)
-  (let ((res (yynt-select
-	      yynt/yy-project
-	      "\
+  (let ((res (sqlite-select
+		yynt--sqlite-obj
+		"\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
-ORDER BY path DESC" nil (list year))))
+ORDER BY path DESC" (list year))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-total-num ()
-  (let ((res (yynt-select
-	      yynt/yy-project
-	      "\
+  (let ((res (sqlite-select
+		yynt--sqlite-obj
+		"\
 SELECT COUNT(*) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%'" nil)))
+build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s" (caar res))))
 
 (defvar yynt/yy-drafts)
@@ -428,7 +424,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'" nil)))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script src=\"../../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "DRFAT"
@@ -440,7 +436,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'" nil)))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script src=\"../assets/js/fixup.js\"></script>"
+<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -448,8 +444,8 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'" nil)))
 		   )))
 
 (defun yynt/yy-drafts-tmp-list (prefix tmp)
-  (let ((items (yynt-select
-		yynt/yy-project
+  (let ((items (sqlite-select
+		yynt--sqlite-obj
 		"\
 SELECT path, title FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%' AND tmp=?
@@ -468,11 +464,11 @@ ORDER BY path DESC" (list tmp))))
 	       items "\n")))
 
 (defun yynt/yy-drafts-total-num ()
-  (let ((res (yynt-select
-	      yynt/yy-project
-	      "\
+  (let ((res (sqlite-select
+		yynt--sqlite-obj
+		"\
 SELECT path FROM YYNT WHERE
-build_name='drafts' AND ex='0' AND file_name LIKE 'index%'" nil)))
+build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s"
 	    (length (cl-remove-if-not
 		     (lambda (x) (let ((file (yynt-get-file-project-fullname (car x) yynt/yy-project)))
@@ -492,6 +488,7 @@ build_name='drafts' AND ex='0' AND file_name LIKE 'index%'" nil)))
 #+DESCRIPTION: ...
 #+TMP: 0（未完成的草稿） 1（长期笔记）2（垃圾）"
 	   title (yynt/yy-temp-current-time) tag)))
+
 
 (defun yynt/yy-temp-repost ()
   (insert "\
