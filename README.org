@@ -1,21 +1,42 @@
-[2024-05-03 21:39]
-
-目前新的导出后端 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 已经基本完成了，正在重写导出管理工具 yynt.el。
-
-以下文档仅对 v0.1.3 之前的 commits 有效。
-
-* 关于博客的说明
+#+TITLE: egh0bww1 --- include-yy's blog
+#+DATE: [2024-06-19 17:18]
 
 *Welcome to include-yy's blog source.*
 
-本博客使用了 emacs 的 org-mode 的导出功能，将 org 文件导出为 html 文件。虽然 github 支持 org 文件渲染，不过前往网页浏览的体验应该会更好。
+本博客使用了 Emacs 的 =org-mode= 导出功能，将 Org 文件导出为 HTML 文件。虽然 Github 支持 Org 文件渲染，前往网页也许能够获取更好的阅读体验。
+
+https://egh0bww1.com --- Home :: include-yy
+
+* 如何构建本博客
+
+请确保 git 已安装并可在 Emacs 内使用，然后执行以下步骤（第四步不是必须的）：
+
+1. 请使用以下命令安装 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 和 [[https://github.com/include-yy/yynt][yynt]]：
+   #+begin_src text
+     M-x package-vc-install https://github.com/include-yy/ox-w3ctr RET
+     M-x package-vc-install https://github.com/include-yy/yynt     RET
+   #+end_src
+2. 打开 yy.el，在 buffer 中通过 =C-c C-e= (=elisp-eval-region-or-buffer=) 对整个 =buffer= 求值
+3. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来构建整个博客
+4. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来发布整个博客到 =blog-build= 目录
+
+在执行第三步后可在与 org 源文件同位置看到生成的 HTML 文件，第四步是可选的，它会将生成的 HTML 和相关的资源复制到 =blog-build= 目录。
+
+* 关于本博客
+
+** 博客的目录结构
 
 博客目录如下：
 
-- =/img=, =/css=, =/js= 一些全局资源
-- =/posts/*= 发布的文章
-- =/republish/*= 一些转载的文章
-- =/projecteuler= 一些简单 [[https://projecteuler.net/archives][projecteuler]] 题解
+- =assets/*= 一些全局资源
+- =posts/*= 发布的文章
+- =republish/*= 一些转载的文章
+- =projecteuler= 一些简单 [[https://projecteuler.net/archives][projecteuler]] 题解
+- =index.org= 博客主页 Org 源文件
+- =404.org= 404 页面源文件
+- =robots.txt= Robots 文件
+- =tags.eld= 包含所有 TAG 的数据文件
+- =yy.el= 构建工具代码
 
 #+BEGIN_QUOTE
 Problems 1 to 100 provide a wealth of helpful introductory teaching material and if you are able to respect our requirements, then we give permission for those problems and their solutions to be discussed elsewhere.
@@ -23,176 +44,40 @@ Problems 1 to 100 provide a wealth of helpful introductory teaching material and
 https://projecteuler.net/about
 #+END_QUOTE
 
-- =/drafts/*= 草稿，只有配置文件
-- =/index.org= 博客主页 org 源文件
-- =/404.org= 404 页面源文件
-- =/rss.xml= 最新的 RSS 文件
-- =/robots.txt= Robots 文件
-- =/cfg.org= 全局配置文件
-- =/post-tags.el= 用于 posts 的包含所有 tag 的文件
-- =/yynt2.el=, =/ox-yyhtml.el=, =/htmlize.el= 构建工具代码
+博客的 =posts= 和 =projecteuler= 部分使用 CC-BY-SA 4.0。如果您有任何问题，欢迎通过 issue 与我交流。
 
-博客的 posts 和 projecteuler 部分使用 CC-BY-SA 4.0，不遵守我也懒得管，feel free to do what you want（笑）。如果您有任何问题，欢迎通过 issue 与我交流。
-
-Wishlist:
-
-- [ ] 添加生成 sitemap 的功能
-- [ ] 优化一些算法，比如 tag 的归类
-- [ ] 更加函数式
-
-* Related Projects
-
-- [[https://github.com/fniessen/org-html-themes][org-html-themes]] 一些用于 org 的 CSS
-- [[https://github.com/org2blog/org2blog][org2blog]] Blog from Org mode to WordPress
-- [[https://github.com/bastibe/org-static-blog][org-static-blog]] A static site generator using org-mode
-
-* 致谢
-
-感谢 [[https://github.com/gongzhitaao][gongzhitaao]] 的 [[https://github.com/gongzhitaao/orgcss][orgcss]]（展示页：https://gongzhitaao.org/orgcss/） ，这是我最初使用过的 CSS，现在也是在此基础上做了一些简化。
-
-感谢 [[https://github.com/bastibe/org-static-blog][org-static-blog]]，我从中学到了获取 =FILETAGS= 的方法。
-
-感谢 Sacha chua 的 [[https://sachachua.com/blog/2023/01/using-javascript-to-add-a-copy-code-link-to-source-code-blocks-in-my-blog-posts/][Using Javascript to add a "Copy code" link to source code blocks in my blog posts]] 和 [[https://sachachua.com/blog/2023/01/adding-a-custom-header-argument-to-org-mode-source-blocks-and-using-that-argument-during-export/][Adding a custom header argument to Org Mode source blocks and using that argument during export]] ，这让 org 的 src 变得更加易用。
-
-* 生成工具手册
-
-在 yynt2.el 之前，本博客的生成工具是 [[https://github.com/include-yy/notes/blob/9ff4baa30b7ad0150ee9a44e47ab9762767afaab/yynt.el][yynt.el]] ，它通过 =:override= advice 修改了 ox-html 后端的一些默认行为，比如修改 =<meta>= 标签，让 org 不生成随机 id，不生成默认的 CSS，使用更加 HTML5 的标签，等等。虽然勉强够用，但是缺少一些博客常见的功能，比如 TAG 页面，归档页面，RSS。
-
-现在的生成后端直接来自 ox-html，但是在源代码的基础上做了一些改变，变成了现在的 ox-yyhtml.el。我将它的按键注册为 'y'，这样可以在 =C-c C-e= 后通过 =y y= 更新当前 org 的 HTML 生成，这样就不再影响 ox-html 的默认行为。在导出后端之外我还在 yynt2.el 中添加了常见的博客功能，即 tag 和 RSS 生成，这样就不用手动更新 rss 了。
-
-请通过在 =yynt2.el= 中运行 =M-x eval-buffer= 来加载构建工具。
-
-** 博客头的格式
+** 文章的格式
 
 一篇博客应该包含以下头信息：
 
-- =#+SETUPFILE: ../setup.org= 引入配置文件（可以没有）
-- =#+FILETAGS: tags= 文章的 tag，只允许一个
 - =#+TITLE: name= 文章的标题
-- =#+DATE: [YYYY-MM-DD XXX HH:MM]= 文章的创建时间
+- =#+DATE: [YYYY-MM-DD HH:MM]= 或 =[YYYY-MM-DD HH:MM]--[YYYY-MM-DD HH:MM]= ，表示文章的创建时间或创建时间加上完成时间
+- =#+FILETAGS: tags= 文章的 TAG，当前只允许一个
 - =#+DESCRIPTION: ...= 对文章内容的介绍，这部分用于生成 RSS 的 =<description>=
 
-对于 republish 和 projecteuler 也是类似的头结构，不过一般我们不用手写，直接使用 =yynt-temp-post=, =yynt-temp-repost= 和 =yynt-temp-euler= 生成即可。
+对于 republish 和 projecteuler 也是类似的头结构，不过一般我们不用手写，直接使用以下函数创建新的 =post=, =repost= 或 =projecteuler= ：
 
-比较麻烦的是这些函数需要通过 =M-:= 来调用，所以我提供了更方便的函数：
+- =yynt/yy-create-draft= ，在 =drafts= 目录交互式创建新的 =posts= 草稿
+- =yynt/yy-create-repost= ，在 =republish= 目录交互式创建新的 =repost= 项目
+- =yynt/yy-create-euler= ，在 =projecteuler= 目录交互式创建新的 =euler= 项目
 
-- =yynt-create-draft= ，在 =draft= 目录生成草稿，包含必要的头信息
-- =yynt-move-draft= ，将完成的草稿移动到 =posts= 目录
-- =yynt-create-repost= ，在 =republish= 目录创建新文章，生成头信息
-- =yynt-create-euler= ，在 =projecteuler= 目录创建新文章，生成头信息
+** TAG 管理
 
-** 在博客中插入封面和尾图
-
-可以使用 =yynt-headimg= 插入适用于头图的代码，使用 =yynt-tailimg= 插入适用于尾图的代码，它们的效果如下：
-
-#+BEGIN_SRC elisp
-  (yynt-headimg)
-  ,#+BEGIN_noscript
-  ,#+NAME: headimg
-  ,#+ATTR_HTML: :class top-down-img
-
-  ,#+END_noscript
-
-  (yynt-tailimg)
-  ,#+BEGIN_noscript
-  ,#+NAME: tailimg
-  ,#+ATTR_HTML: :class top-down-img
-
-  ,#+END_noscript
-#+END_SRC
-
-我们只需要在 =#+ATTR_HTML= 下面插入图片链接即可。如果您有多张图片需要插入，可以使用如下格式：
-
-#+BEGIN_SRC org
-  ,#+BEGIN_noscript
-  ,#+NAME: headimg
-  ,#+BEGIN_div
-  ,#+ATTR_HTML: :class top-down-img
-  img1 link here
-  ,#+ATTR_HTML: :class top-down-img
-  img2 link here
-  ...
-  ,#+END_div
-  ,#+END_noscript
-
-  or
-
-  ,#+BEGIN_noscript
-  ,#+NAME: headimg
-  | img1 | img2 | img3 |
-  | ...  | ...  | ...  |
-  ,#+END_noscript
-#+END_SRC
-
-我修改了 ox-yyhtml 中的 =t-html5-elements= ，添加了 =noscript= 和 =div= ，这样我们可以使用 =BEGIN_div= 和 =BEGIN_noscript= 块，它们用于图片的隐藏功能目的。
-
-如果你不想让图片被隐藏，可以使用 =yynt-imgattr= 生成简单的 org 指令：
-
-#+BEGIN_SRC elisp
-  (yynt-imgattr)
-  ,#+ATTR_HTML: :class top-down-img
-#+END_SRC
-
-** tag 管理
-
-所以 posts 文章的 tag 都存储在 =/post-tags.el= 中，格式大致如下：
+所以 posts 文章的 TAG 都存储在 =/tags.eld= 中，格式大致如下：
 
 #+BEGIN_SRC elisp
 ("math" "c" "win32" "lisp" "gossip" "git" "emacs" "elisp" "blog" "rescript" "tr" "orgmode")
 #+END_SRC
 
-通过 =yynt--post-read-tags= 和 =yynt--post-write-tags= 我们可以对这个文件中的 tag 进行读写，不过一般不需要使用这样低层的函数，而是以下这些，它们会提供用于选择 tag 的 minibuffer：
+通过 =yynt/yy--post-read-tags= 和 =yynt/yy--post-write-tags= 我们可以对这个文件中的 TAGS 进行读写，不过一般不需要使用这样低层的函数，而是以下这些，它们会提供用于选择 =TAG= 的 minibuffer：
 
-- =yynt-post-add-tags= 向 tag 文件中添加新的 tag
-- =yynt-post-delete-tags= 从 tag 文件中删除某 tag
-- =yynt-post-insert-tag= 在当前位置插入某个 tag
-
-** RSS 生成
-
-调用 =yynt-rss-update= 可以根据 posts 中的文件更新 rss.xml 文件。
-
-** 构建功能
-
-- =yynt-show-log= 显示生成中的 log 输出 buffer
-- =yynt-build-proj= 弹出项目列表，并构建选中的项目
-
-对于一些带有依赖关系的构建，比如更新 posts 中的 org 需要更新主页，rss 等文件，我提供了如下函数：
-
-- =yynt-build-file= 构建当前 org 文件，并构建依赖它内容的文件
-
-** 发布功能
-
-相比于 org-publish 的生成到目标文件，我采取的方式是先原地生成再复制到目标目录。
-
-- =yynt-publish-proj= ，对选中的项目进行构建并发布
-
-我提供了带有依赖关系的发布函数： =yynt-publish-file= ，它会发布所有依赖当前文件的文件。
-
-* 实现注解
-
-** ox-yyhtml.el
-
-- 添加了全新的 =HTML_HEAD_FUNC= 选项，可以接受一个函数名。函数接受 =info= 参数，应该返回插入到 =<head>= 中的内容，若指定了该选项，则 =HTML_HEAD= 和 =HTML_HEAD_EXTRA= 会变得无效
-
-- 为 =preamble= 和 =postamble= 添加了额外的选项： =HTML_PREFUNC= ， =HTML_PRE= ， =HTML_SUFFUNC= ， =HTML_SUF= 。可以在文件中编写 postamble 和 preamble 了，或是通过调用指定的函数得到 postamble 和 preamble，参加各 setup.org 文件了解其用法
-
-- home/up 可以使用更多的名字，而不是只有 =UP= 和 =HOME= ，现在可以用 =HTML_LINK_LEFT= 和 =HTML_LINK_RIGHT= 指定链接，使用 =HTML_LINK_LNAME= 和 =HTML_LINK_RNAME= 指定各自链接的名字，或是直接使用 =HTML_LINK_FUNC= 指定返回字符串的函数
-
-- 为 =org-yyhtml-html5-elemets= 添加了 "div" 和 "noscript"，现在可以在 org 文件中使用 =BEGIN_div= 和 =BEGIN_noscript= 了
-
-其他改动可以在 =ox-yyhtml.el= 中使用 =occur <yynt>= 来观察
-
-** htmlize.el
-
-直接来自 https://github.com/hniksic/emacs-htmlize ，无修改。
-
-** yynt2.el
-
-- 如果要添加新的子目录，可以参考 posts 和 repost 的实现
-
-- 从 f.el 抄了一些小函数，可以考虑将 f.el 作为项目的依赖项
+- =yynt/yy-post-add-tags= 向 TAG 文件中添加新的 TAG
+- =yynt/yy-post-delete-tags= 从 TAG 文件中删除某 TAG
+- =yynt/yy-post-insert-tag= 在当前位置插入某个 TAG
 
 * 一些参考资料
 
+- [[https://github.com/gongzhitaao/orgcss][orgcss]] ，一个不错的 Org CSS 主题
+- [[https://github.com/bastibe/org-static-blog][org-static-blog]]，一个简单的 Org 静态网页生成工具
 - [[https://misohena.jp/blog/2020-12-12-how-to-escape-symbols-in-org-mode.html][org-modeで文字をエスケープする方法]]
   - 如何在 Org 文本中使用一些符号的转义序列（对 =org-entities-help= 的总结）
