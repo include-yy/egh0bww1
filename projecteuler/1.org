@@ -47,3 +47,152 @@ Find the sum of all the multiples of 3 or 5 below 1000.
 #+END_SRC
 
 当然，我们也可以用打表的方法筛出所有是 3 或 5 倍数的数，然后把它们加起来......
+
+#+begin_src elisp
+  (let ((bits (make-bool-vector 1000 nil)))
+    (cl-do ((i 0 (+ i 3))) ((> i 999))
+      (aset bits i t))
+    (cl-do ((j 0 (+ j 5))) ((> j 999))
+      (aset bits j t))
+    (cl-do* ((i 0 (1+ i))
+	     (sum 0 (if (aref bits i) (+ sum i) sum)))
+	((> i 998) sum)))
+  ;; 233168
+#+end_src
+
+* Extension
+
+如果把这个问题扩展一下，我们可以得到如下描述：求在 [a, b) (a \ge 0, b \gt a) 范围内至少是 a_{0}, a_{1}, ... a_{N} (a_{n} \gt 1, N \ge 1, a_{i} \neq a_{j}, i \neq j) 这些数中的一个的倍数的所有数字之和。
+
+对于上面的取余判定方法和打表法，都可以很容易地写出通用的方法来：
+
+
+#+begin_src elisp
+  (defun eu1-% (start end nums)
+    (let ((i start) (sum 0))
+      (while (< i end)
+	(let ((ls nums) temp)
+	  (while (setq temp (pop ls))
+	    (if (= (% i temp) 0)
+		(progn (cl-incf sum i)
+		       (setq ls nil)))))
+	(cl-incf i))
+      sum))
+  (eu1-% 0 1000 '(3 5)) => 233168
+#+end_src
+
+#+begin_src elisp
+  (defun eu1-bits (start end nums)
+    (let* ((length (- end start))
+	   (bits (make-bool-vector length nil))
+	   (bound (1- length))
+	   n (sum 0))
+      (while (setq n (pop nums))
+	(cl-do ((i (% start n) (+ i n))) ((> i bound))
+	  (aset bits i t)))
+      (setq n 0)
+      (while (< n length)
+	(when (aref bits n)
+	  (cl-incf sum (+ start n)))
+	(cl-incf n))
+      sum))
+  (eu1-bits 0 1000 '(3 5)) => 233168
+#+end_src
+
+对于基于通项公式的方法，某个范围 [a, b] 内的等差数列 a_{n} = cn + d 求和的值可以由以下公式给出：
+
+\[S = c \cdot \frac{(n_{max} - n_{min} + 1)(n_{min} + n_{max})}{2} + d(n_{max} - n_{min} + 1)\]
+
+其中：
+
+\[n_{min} = \lceil \frac{a-d}{c}\rceil, n_{max} = \lfloor \frac{b-d}{c} \rfloor\]
+
+稍作修改我们就可以得到在 [a, b) 内的求和值：
+
+#+begin_src elisp
+  (defun eu1-sum (a b c d)
+    (let ((n-min (ceiling (/ (- a d) (+ c 0.0))))
+	  (n-max (let ((r (/ (- b d) c)))
+		   (if (= (* r c) b) (1- r) r))))
+      (+ (/ (* c (+ n-max 1 (- n-min)) (+ n-min n-max)) 2)
+	 (* d (+ n-max 1 (- n-min))))))
+#+end_src
+
+最后，使用容斥定理（[[https://zh.wikipedia.org/wiki/%E6%8E%92%E5%AE%B9%E5%8E%9F%E7%90%86][inclusion-exclusion principle]]），我们可以得到所有这些满足条件的数字取并集后的和：
+
+
+\[
+\left| \bigcup_{i=1}^{n} A_i \right| = \sum_{i=1}^{n} |A_i| - \sum_{1 \le i < j \le n} |A_i \cap A_j| + \sum_{1 \le i < j < k \le n} |A_i \cap A_j \cap A_k| - \cdots + (-1)^{n+1} |A_1 \cap A_2 \cap \cdots \cap A_n|
+\]
+
+以下代码可以根据列表元素进行组合：
+
+#+begin_src elisp
+  (defun eu1-comb (ls)
+    (if (null ls) '(())
+      (let ((rest (eu1-comb (cdr ls))))
+	(append rest (mapcar (lambda (x) (cons (car ls) x)) rest)))))
+
+  (eu1-comb '(3 5 4)) =>
+  (nil (4) (5) (5 4) (3) (3 4) (3 5) (3 5 4))
+#+end_src
+
+接着，我们可以使用以下代码求解：
+
+#+begin_src elisp
+  (defun eu1-form (start end nums)
+    (let ((combs (eu1-comb nums))
+	  (sum 0))
+      (dolist (x combs sum)
+	(let* ((len (length x))
+	       (sgn (expt -1 (1+ len)))
+	       (val (cl-reduce #'* x)))
+	  (when (/= val 1)
+	    (cl-incf sum (* sgn (eu1-sum start end val 0))))))))
+
+  (eu1-form 0 1000 '(3 5)) => 233168
+#+end_src
+
+当然，这种公式做法还可以进一步改进，比如去掉 a_{n} 中有倍数关系的较大的数字，以及改进组合的计算和求和的计算。以下是优化后的公式解法：
+
+#+begin_src elisp
+  (defun eu1-cp (ls)
+    (let (res)
+      (named-let combine ((remaining ls)
+			  (product 1)
+			  (sgn -1))
+	(if (null remaining)
+	    (push (cons sgn product) res)
+	  (combine (cdr remaining) product sgn)
+	  (combine (cdr remaining)
+		   (* product (car remaining))
+		   (* sgn -1))))
+      res))
+  (defun eu1-s (a b c)
+    (let* ((n-min (ceiling (/ a (+ c 0.0))))
+	   (n-max (let ((r (/ b c)))
+		    (if (= (* r c) b) (1- r) r)))
+	   (add (+ n-min n-max))
+	   (sub (- n-max n-min)))
+      (/ (* c (1+ sub) add) 2)))
+  (defun eu1-final (start end nums)
+    (let ((combs (eu1-cp nums))
+	  (sum 0))
+      (dolist (x combs sum)
+	(let ((sgn (car x))
+	      (val (cdr x)))
+	  (when (/= val 1)
+	    (cl-incf sum (* sgn (eu1-s start end val))))))))
+  (eu1-final 0 1000 '(3 5)) => 233168
+#+end_src
+
+对于以上三种不同的方法，对于同样规模的问题，以下是运行时间的区别：
+
+#+begin_src elisp
+  (benchmark-run 10000 (eu1-% 0 1000 '(3 5)))
+  (5.725163 31 1.3109459999999995)
+  (benchmark-run 10000 (eu1-bits 0 1000 '(3 5)))
+  (1.754541 0 0.0)
+  (benchmark-run 10000 (eu1-final 0 1000 '(3 5)))
+  (0.510159 4 0.17571000000000048)
+#+end_src
