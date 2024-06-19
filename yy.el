@@ -56,7 +56,7 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"./assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"./assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"./assets/js/fixup.js\"></script>"
+<script src=\"./assets/js/fixup.js\"></script>"
 		 ))))
 
 (defvar yynt/yy-404)
@@ -80,7 +80,7 @@
 <link rel=\"stylesheet\" type=\"text/css\" href=\"https://egh0bww1.com/assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"https://egh0bww1.com/assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
+<script src=\"https://egh0bww1.com/assets/js/fixup.js\"></script>"
 		 ))))
 
 (defun yynt/yy-rss-fn (_plist _in out)
@@ -109,15 +109,15 @@
   (format-time-string "%Y-%m-%dT%H:%M:%S" nil t))
 
 (defun yynt/yy-rss-generate-chan-header ()
-    (format "\
+  (format "\
 <title>%s</title>
 <link>%s</link>
 <description>%s</description>
 <pubDate>%s</pubDate>\n"
-	    yynt/yy-rss-post-title
-	    yynt/yy-rss-link
-	    yynt/yy-rss-post-description
-	    (yynt/yy-rss-get-current-time)))
+	  yynt/yy-rss-post-title
+	  yynt/yy-rss-link
+	  yynt/yy-rss-post-description
+	  (yynt/yy-rss-get-current-time)))
 
 (defun yynt/yy-rss-generate-item (title link desc &optional tag date)
   (format "<item>
@@ -147,16 +147,17 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
    "<channel>\n"
    (yynt/yy-rss-generate-chan-header)
    ;; 单个数据格式为 ((dir . fpath) . alist), key:{title, filetags, yyntrss}
-   (mapconcat (lambda (x)
-		(cl-multiple-value-bind (title link desc tag date) x
-		  (if (or (null link) (null title) (null desc))
-		      (error "yynt-rss: %s misses title or description!" (caar x))
-		    (setq link (concat yynt/yy-rss-link "/"
-				       (if (string= "org" (file-name-extension link))
-					   (file-name-with-extension link "html")
-					 link)))
-		    (yynt/yy-rss-generate-item title link desc tag date))))
-	      (yynt/yy-get-post-rss) "\n")
+   (mapconcat
+    (lambda (x)
+      (cl-multiple-value-bind (title link desc tag date) x
+	(if (or (null link) (null title) (null desc))
+	    (error "yynt-rss: %s misses title or description!" (caar x))
+	  (setq link (concat yynt/yy-rss-link "/"
+			     (if (string= "org" (file-name-extension link))
+				 (file-name-with-extension link "html")
+			       link)))
+	  (yynt/yy-rss-generate-item title link desc tag date))))
+    (yynt/yy-get-post-rss) "\n")
    "\n</channel>\n</rss>"))
 
 
@@ -186,7 +187,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"))
+<script src=\"../assets/js/fixup.js\"></script>"))
        :info-ex '( :html-preamble nil
 		   :section-numbers nil
 		   :html-link-lname "HOME"
@@ -205,22 +206,22 @@ build_name='projecteuler' AND ex='0'")))
 			      (let ((a0 (string-to-number (car a)))
 				    (b0 (string-to-number (car b))))
 				(< a0 b0)))))
-  (concat "|Problem|Description|TAG|TIME|\n"
-	  "|-+-+-+-|\n"
-	  (mapconcat
-	   (lambda (x)
-	     (let ((path (file-name-concat prefix (nth 0 x)))
-		   (name (string-to-number (nth 0 x)))
-		   (tag (nth 1 x))
-		   (desc (nth 2 x))
-		   (date (nth 3 x)))
-	       (format "|[[file:%s][%s]]|%s|%s|[%s]|"
-		       path name
-		       (or desc " ")
-		       (or tag " ")
-		       (substring date 1 11))))
-	   items
-	   "\n"))))
+    (concat "|Problem|Description|TAG|TIME|\n"
+	    "|-+-+-+-|\n"
+	    (mapconcat
+	     (lambda (x)
+	       (let ((path (file-name-concat prefix (nth 0 x)))
+		     (name (string-to-number (nth 0 x)))
+		     (tag (nth 1 x))
+		     (desc (nth 2 x))
+		     (date (nth 3 x)))
+		 (format "|[[file:%s][%s]]|%s|%s|[%s]|"
+			 path name
+			 (or desc " ")
+			 (or tag " ")
+			 (substring date 1 11))))
+	     items
+	     "\n"))))
 
 
 (defvar yynt/yy-repost)
@@ -246,7 +247,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "REPUB"
@@ -257,7 +258,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -272,15 +273,16 @@ SELECT path, title FROM YYNT WHERE
 build_name='republish' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
 LIMIT ?" (list (or limit 100000)))))
-      (mapconcat (lambda (i)
-		   (let* ((name (car i))
-			  (title (cadr i))
-			  (len (length "republish/"))
-			  (time (substring name len (+ len 10))))
-		     (format "- [%s] [[%s][%s]]"
-			     time (file-name-concat prefix (substring name len)) title)))
-		 items "\n")))
-
+    (mapconcat (lambda (i)
+		 (let* ((name (car i))
+			(title (cadr i))
+			(len (length "republish/"))
+			(time (substring name len (+ len 10))))
+		   (format "- [%s] [[%s][%s]]"
+			   time (file-name-concat
+				 prefix (substring name len))
+			   title)))
+	       items "\n")))
 
 (defvar yynt/yy-post)
 (setq yynt/yy-post
@@ -305,7 +307,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "BLOG"
@@ -317,7 +319,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname "TAGS"
@@ -338,7 +340,8 @@ LIMIT ?" (list (or limit 100000)))))
 			(len (length "posts/"))
 			(time (substring name len (+ len 10))))
 		   (format "- [%s] [[%s][%s]]"
-			   time (file-name-concat prefix (substring name len)) title)))
+			   time (file-name-concat prefix (substring name len))
+			   title)))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-list (prefix tag)
@@ -354,7 +357,8 @@ ORDER BY path DESC" (list tag))))
 			(len (length "posts/"))
 			(time (substring name len (+ len 10))))
 		   (format "- [%s] [[%s][%s]]"
-			   time (file-name-concat prefix (substring name len)) title)))
+			   time (file-name-concat prefix (substring name len))
+			   title)))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-num (tag)
@@ -381,13 +385,14 @@ ORDER BY path DESC" (list year))))
 			(len (length "posts/"))
 			(time (substring name len (+ len 10))))
 		   (format "- [%s] [[%s][%s]]"
-			   time (file-name-concat prefix (substring name len)) title)))
+			   time (file-name-concat prefix (substring name len))
+			   title)))
 	       items "\n")))
 
 (defun yynt/yy-post-year-num (year)
   (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+	      yynt--sqlite-obj
+	      "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
@@ -396,8 +401,8 @@ ORDER BY path DESC" (list year))))
 
 (defun yynt/yy-post-total-num ()
   (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+	      yynt--sqlite-obj
+	      "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s" (caar res))))
@@ -424,7 +429,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../../assets/js/fixup.js\"></script>"
+<script src=\"../../assets/js/fixup.js\"></script>"
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
 		 :html-link-rname "DRFAT"
@@ -436,7 +441,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
-<script type=\"text/javascript\" src=\"../assets/js/fixup.js\"></script>"
+<script src=\"../assets/js/fixup.js\"></script>"
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -451,7 +456,8 @@ SELECT path, title FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%' AND tmp=?
 ORDER BY path DESC" (list tmp))))
     (setq items (cl-remove-if-not
-		 (lambda (x) (let ((file (yynt-get-file-project-fullname (car x) yynt/yy-project)))
+		 (lambda (x) (let ((file (yynt-get-file-project-fullname
+				      (car x) yynt/yy-project)))
 			   (file-exists-p file)))
 		 items))
     (mapconcat (lambda (i)
@@ -460,18 +466,20 @@ ORDER BY path DESC" (list tmp))))
 			(len (length "drafts/"))
 			(time (substring name len (+ len 10))))
 		   (format "- [%s] [[%s][%s]]"
-			   time (file-name-concat prefix (substring name len)) title)))
+			   time (file-name-concat prefix (substring name len))
+			   title)))
 	       items "\n")))
 
 (defun yynt/yy-drafts-total-num ()
   (let ((res (sqlite-select
-		yynt--sqlite-obj
-		"\
+	      yynt--sqlite-obj
+	      "\
 SELECT path FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s"
 	    (length (cl-remove-if-not
-		     (lambda (x) (let ((file (yynt-get-file-project-fullname (car x) yynt/yy-project)))
+		     (lambda (x) (let ((file (yynt-get-file-project-fullname
+					  (car x) yynt/yy-project)))
 			       (file-exists-p file)))
 		     res)))))
 
@@ -488,7 +496,6 @@ build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
 #+DESCRIPTION: ...
 #+TMP: 0（未完成的草稿） 1（长期笔记）2（垃圾）"
 	   title (yynt/yy-temp-current-time) tag)))
-
 
 (defun yynt/yy-temp-repost ()
   (insert "\
@@ -512,24 +519,24 @@ https://pe-cn.github.io/%s\n
 * Solution"
 	   num num num)))
 
-;; 直接在对应目录创建文件夹和 org 文件
 (defun yynt/yy-create-draft (dirname title tag)
-  "在 draft 目录创建新的草稿"
   (interactive (list (read-from-minibuffer "Enter dirname: ")
 		     (read-from-minibuffer "Enter title: ")
-		     (completing-read "Select tag: " (yynt/yy--post-read-tags))))
-  (let ((dirpath (file-name-concat (yynt-get-file-project-fullname "drafts" yynt/yy-project)
-				   (concat (format-time-string "%Y-%m-%d-")
-					   dirname))))
+		     (completing-read "Select tag: "
+				      (yynt/yy--post-read-tags))))
+  (let ((dirpath (file-name-concat
+		  (yynt-get-file-project-fullname "drafts" yynt/yy-project)
+		  (concat (format-time-string "%Y-%m-%d-")
+			  dirname))))
     (make-directory dirpath)
     (find-file (file-name-concat dirpath "index.org"))
     (yynt/yy-temp-post title tag)))
 
 (defun yynt/yy-move-draft (dirpath)
-  "将当前所在草稿 org 文件所在文件夹发布到 post"
   (interactive (list default-directory))
   (if (not (equal (yynt-get-file-project-fullname "drafts/" yynt/yy-project)
-		  (file-name-directory (directory-file-name default-directory))))
+		  (file-name-directory
+		   (directory-file-name default-directory))))
       (message "currently not in draft source file, quit")
     (let ((newdir (file-name-concat
 		   (yynt-get-file-project-fullname "posts" yynt/yy-project)
@@ -544,7 +551,6 @@ https://pe-cn.github.io/%s\n
       (message "publish draft fin"))))
 
 (defun yynt/yy-create-repost (dirname)
-  "创建新的 republish 文件夹"
   (interactive (list (read-from-minibuffer "Enter dirname: ")))
   (let ((dirpath (file-name-concat
 		  (yynt-get-file-project-fullname "republish" yynt/yy-project)
@@ -556,27 +562,26 @@ https://pe-cn.github.io/%s\n
     (yynt/yy-temp-repost)))
 
 (defun yynt/yy-create-euler (number)
-  "创建新的 projecteuler 文件"
   (interactive (list (read-from-minibuffer "Enter problem Number: ")))
   (let ((filepath (file-name-concat
-		   (yynt-get-file-project-fullname "projecteuler" yynt/yy-project)
+		   (yynt-get-file-project-fullname
+		    "projecteuler" yynt/yy-project)
 		   (concat number ".org"))))
     (find-file filepath)
     (unless (file-exists-p filepath)
       (set-buffer-file-coding-system 'utf-8)
       (yynt/yy-temp-euler number))))
 
-(defvar yynt/yy--post-tags-file (yynt-get-file-project-fullname "tags.eld" yynt/yy-project))
+(defvar yynt/yy--post-tags-file
+  (yynt-get-file-project-fullname "tags.eld" yynt/yy-project))
 
 (defun yynt/yy--post-read-tags ()
-  "从文件获取所有 tag"
   (read (with-temp-buffer
 	  (insert-file-contents
 	   yynt/yy--post-tags-file)
 	  (buffer-string))))
 
 (defun yynt/yy--post-write-tags (taglist)
-  "向文件写入 tags"
   (with-temp-message ""
     (with-temp-buffer
       (insert (pp-to-string taglist))
@@ -584,14 +589,12 @@ https://pe-cn.github.io/%s\n
   (message "yynt: write tags fin"))
 
 (defun yynt/yy-post-insert-tag ()
-  "当前位置插入 tag"
   (interactive)
   (let* ((tags (yynt/yy--post-read-tags))
 	 (selected (completing-read "Select a tag: " tags)))
     (insert selected)))
 
 (defun yynt/yy-post-add-tags (newtag)
-  "添加新的 tag"
   (interactive (list (downcase (read-from-minibuffer "Enter a new tag: "))))
   (let ((tags (yynt/yy--post-read-tags)))
     (if (and (string-match-p "[[:alnum:]]+" newtag)
@@ -600,8 +603,8 @@ https://pe-cn.github.io/%s\n
       (message "newtag exists or contains non-alnum char"))))
 
 (defun yynt/yy-post-delete-tags (tag)
-  "删除某个 tag"
-  (interactive (list (completing-read "Select a tag: " (yynt/yy--post-read-tags))))
+  (interactive (list (completing-read "Select a tag: "
+				      (yynt/yy--post-read-tags))))
   (yynt/yy--post-write-tags (remove tag (yynt/yy--post-read-tags))))
 
 
