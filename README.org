@@ -18,7 +18,7 @@ https://egh0bww1.com --- Home :: include-yy
    #+end_src
 2. 打开 yy.el，在 buffer 中通过 =C-c C-e= (=elisp-eval-region-or-buffer=) 对整个 =buffer= 求值
 3. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来构建整个博客
-4. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来发布整个博客到 =blog-build= 目录
+4. 执行命令 =M-x yynt-publish-build= 并在弹出的 minibuffer 中选择 =*t*= 来发布整个博客到 =blog-build= 目录
 
 在执行第三步后可在与 org 源文件同位置看到生成的 HTML 文件，第四步是可选的，它会将生成的 HTML 和相关的资源复制到 =blog-build= 目录。
 
