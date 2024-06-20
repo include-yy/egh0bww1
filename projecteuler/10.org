@@ -87,21 +87,113 @@ Find the sum of all the primes below two million.
 现在让我们来考虑索引问题，现在 1 对应于 3，2 对应于 5，假设我们碰到了某个素数，我们要使用它筛掉它的倍数，那么步进值应该取多少？首先假设这个索引是 i，那么对应的数字就是 2×i+1，(2*i+1)^{2}=4×i^{2}+4×i+1，将这个减一除二就可以得到它在数组中的索引：2(i^{2}+i)。在上面的代码中步进值是 2×i，那么这里应该就是 i（全是奇数，不用跳过偶数了），然后替换为 2×i+1，我们就得到了步进值。下面是实现代码：
 
 #+BEGIN_SRC elisp
-    (defun eu10-sieve-of-Era2 (n)
-      (let* ((bound (/ (1+ n) 2))
-	     (vec (make-bool-vector bound t))
-	     (crosslimit (/ (floor (sqrt n)) 2)))
-	(aset vec 0 nil)
-	(cl-loop for i from 1 to crosslimit
-		 do (when (aref vec i)
-		      (cl-loop for j from (* 2 i (1+ i))
-			       to (1- bound) by (1+ (* i 2))
-			       do (aset vec j nil))))
-	vec))
+  (defun eu10-sieve-of-Era2 (n)
+    (let* ((bound (/ (1+ n) 2))
+	   (vec (make-bool-vector bound t))
+	   (crosslimit (/ (floor (sqrt n)) 2)))
+      (aset vec 0 nil)
+      (cl-loop for i from 1 to crosslimit
+	       do (when (aref vec i)
+		    (cl-loop for j from (* 2 i (1+ i))
+			     to (1- bound) by (1+ (* i 2))
+			     do (aset vec j nil))))
+      vec))
 
-    (cl-loop for a across (eu10-sieve-of-Era2 2000000)
-	     for i from 1
-	     sum (if a (1+ (* i 2)) 0))
+  (+ 2 (cl-loop
+	for a across (eu10-sieve-of-Era2 2000000)
+	for i from 0
+	sum (if a (1+ (* i 2)) 0)))
+  ;; 142913828922
 #+END_SRC
 
 理论上这能快一倍，不过实际可能要慢一会儿。
+
+* Extension
+
+#+begin: note
+除了埃氏筛法外还有线性的欧拉筛法，可以参考这篇文章以及它的中文译文：
+
+- [[https://cp-algorithms.com/algebra/sieve-of-eratosthenes.html][Sieve of Eratosthenes]]
+- [[https://oi-wiki.org/math/number-theory/sieve/][筛法 --- OI Wiki]]
+
+考虑到文章本身使用 CC-BY-SA 4.0，因此我可以在此处适当转载和演绎，以免之后链接失效丢失内容。
+#+end:
+
+** 分块埃氏筛
+
+如你所见，上面的代码中外层循环的范围并不是整个数组的长度，而是范围的平方根。这也就说明就筛选目的来说，我们只需要保留到 √n 的素数就足够了。因为本题的目的是求二百万以下的素数之和，如果我们将 [0, 2000000] 这个区间分块，然后按循环的思路分别筛取块内的素数然后加起来的话，占用的内存将会大大减少（每次循环之后使用的区块就没用了，也就是说只需要筛子占用的内存和单个区块的内存即可，而不需要长度为二百万这样大的数组）。
+
+设 s 是块的大小，那么块的数量就是 =floor(n/s)= ，块 k( k = 0,1, ...) 包含了区间 [ks, ks + s -1] 中的数字。一般来说块的大小取 10^{4} 到 10^{5} 之间。如果块太小会让循环次数太大，如果块太大可能不能很好地匹配 CPU 的缓存。
+
+#+begin_src elisp
+  (defun eu10-sieve-of-Era3 (n)
+    (let* ((s 90000)
+	   (sum -1)
+	   (limit (floor (sqrt n)))
+	   (primes nil)
+	   (vec (make-bool-vector (1+ limit) t))
+	   (block (make-bool-vector s t)))
+      (aset vec 0 nil)
+      (aset vec 1 nil)
+      (cl-loop
+       for i from 4 to limit by 2
+       do (when (aref vec i)
+	    (cl-loop
+	     for j from (* i i) to limit by i
+	     do (aset vec j nil))))
+      (setq primes (nreverse primes))
+      (cl-loop
+       for i from 0 to limit
+       do (when (aref vec i) (push i primes)))
+      (cl-do ((k 0 (1+ k))) ((> (* k s) n) sum)
+	(fillarray block t)
+	(let ((start (* k s)))
+	  (cl-loop
+	   for p in primes
+	   do (let* ((start-index (/ (+ start p -1) p)))
+		(cl-do ((j (- (* (max start-index p) p) start)
+			   (+ j p)))
+		    ((>= j s))
+		  (aset block j nil))))
+	  (cl-do ((i 0 (1+ i)))
+	      ((or (>= i s) (> (+ i start) n)))
+	    (when (aref block i) (cl-incf sum (+ i start))))))))
+
+  (eu10-sieve-of-Era3 2000000)
+  ;; 142913828922
+#+end_src
+
+同样，这个实现也可以通过去掉偶数来进一步改进。
+
+** 欧拉筛
+
+在埃氏筛中某个合数可能被重复多次标记，因此它的复杂度并不是 O(n)，如果让每个合数只被标记一次，那么时间复杂度就是 O(n) 了，这也叫做欧拉筛。
+
+#+begin_src elisp
+  (defun eu10-euler (n)
+    (let* ((vec (make-bool-vector (1+ n) t))
+	   (primes (list 0))
+	   (primes-tail primes)
+	   (sum 0))
+      (aset vec 0 nil)
+      (aset vec 1 nil)
+      (cl-do ((i 2 (1+ i))) ((> i n) sum)
+	(when (aref vec i)
+	  (cl-incf sum i)
+	  (setcdr primes-tail (list i))
+	  (setq primes-tail (cdr primes-tail)))
+	(let ((pri (cdr primes))
+	      (flag t)
+	      tmp)
+	  (while (and flag (setq tmp (pop pri)))
+	    (cond
+	     ((> (* tmp i) n) (setq flag nil))
+	     (t (aset vec (* i tmp) nil)
+		(when (zerop (% i tmp))
+		  (setq flag nil)))))))))
+  (eu10-euler 2000000)
+  ;; 142913828922
+
+#+end_src
+
+关于欧拉筛的原理，此处就不介绍了，读者可以参考其他的更详细的文章。
