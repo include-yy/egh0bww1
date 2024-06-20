@@ -44,14 +44,14 @@ What is the largest prime factor of the number 600851475143 ?
 另一个优化是：我们不需要从 3 开始一直取到 num，这是因为 num 的因数不可能大于 =sqrt(num)= ，我们可以为除数设置一个限制，当除数大于该值时就说明该数为质数：
 
 #+BEGIN_SRC elisp
- (named-let f ((i 3)
-	       (num 600851475143)
-	       (range (floor (sqrt 600851475143))))
-   (cond
-    ((> i range) num)
-    ((zerop (% num i))
-     (f i (/ num i) (floor (sqrt (/ num i)))))
-    (t (f (+ i 2) num range))))
+  (named-let f ((i 3)
+		(num 600851475143)
+		(range (floor (sqrt 600851475143))))
+    (cond
+     ((> i range) num)
+     ((zerop (% num i))
+      (f i (/ num i) (floor (sqrt (/ num i)))))
+     (t (f (+ i 2) num range))))
 #+END_SRC
 
 这个问题本质上就是求取某个数字的所有质因数，只不过题目只要求最大的质因数。

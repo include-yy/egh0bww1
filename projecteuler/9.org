@@ -44,14 +44,16 @@ a^{2} + b^{2} = c^{2}
 	      ((= res 0) (* a b c))
 	      ((> res 0) (f (1+ a)))))))
 
-  (cl-loop for a from 1
-	   do (let ((res (cl-loop for b from a
-				  do (let* ((c (- 1000 a b))
-					    (res (- (+ (* a a) (* b b)) (* c c))))
-				       (cond ((< res 0))
-					     ((= res 0) (cl-return (* a b c)))
-					     ((> res 0) (cl-return nil)))))))
-		(if res (cl-return res))))
+  (cl-loop
+   for a from 1
+   do (let ((res (cl-loop
+		  for b from a
+		  do (let* ((c (- 1000 a b))
+			    (res (- (+ (* a a) (* b b)) (* c c))))
+		       (cond ((< res 0))
+			     ((= res 0) (cl-return (* a b c)))
+			     ((> res 0) (cl-return nil)))))))
+	(if res (cl-return res))))
   ;; 31875000
 #+END_SRC
 

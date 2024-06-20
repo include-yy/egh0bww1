@@ -87,19 +87,19 @@ What is the smallest positive number that is evenly divisible by all of the numb
   ;; 232792560
 #+END_SRC
 
-对于本问题来说手算或者比较简单的 LCM 实现已经足够了，但是当 K 较大时我们需要找到足够高效的算法。一种思路是找到范围内所有数字的质因数分解，然后对每个质数取最大重数（比如 16 有 4 个 2，那么对 20 内的数字，2 的重数就是 4），一种更加聪明的思路是求 =log_p(k)= ，比如 =log_2(20)=4.32= ，我们取下界可以直接得到素数 2 的重数。
+对于本问题来说手算或者比较简单的 LCM 实现已经足够了，但是当 K（对本题来说是 20）较大时我们需要找到足够高效的算法。一种思路是找到范围内所有数字的质因数分解，然后对每个质数取最大重数（比如 16 有 4 个 2，那么对 20 内的数字，2 的重数就是 4），一种更加聪明的思路是求 =log_p(k)= ，比如 =log_2(20)=4.32= ，我们取下界可以直接得到素数 2 的重数。
 
 #+BEGIN_SRC elisp
-(let ((prime-vec [2 3 5 7 11 13 17 19])
-      (check t)
-      (res 0)
-      (bound (floor (sqrt 20))))
-  (cl-reduce '*
-	     (cl-loop for a across prime-vec
-		      do (setq res 1)
-		      do (if check
-			     (if (< a bound)
-				 (setq res (floor (/ (log k) (log a))))
-			       (setq check nil)))
-		      collect (expt a res))))
+  (let ((prime-vec [2 3 5 7 11 13 17 19])
+	(check t)
+	(res 0)
+	(bound (floor (sqrt 20))))
+    (cl-reduce '*
+	       (cl-loop for a across prime-vec
+			do (setq res 1)
+			do (if check
+			       (if (< a bound)
+				   (setq res (floor (/ (log 20) (log a))))
+				 (setq check nil)))
+			collect (expt a res))))
 #+END_SRC

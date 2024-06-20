@@ -87,20 +87,21 @@ Find the sum of all the primes below two million.
 现在让我们来考虑索引问题，现在 1 对应于 3，2 对应于 5，假设我们碰到了某个素数，我们要使用它筛掉它的倍数，那么步进值应该取多少？首先假设这个索引是 i，那么对应的数字就是 2×i+1，(2*i+1)^{2}=4×i^{2}+4×i+1，将这个减一除二就可以得到它在数组中的索引：2(i^{2}+i)。在上面的代码中步进值是 2×i，那么这里应该就是 i（全是奇数，不用跳过偶数了），然后替换为 2×i+1，我们就得到了步进值。下面是实现代码：
 
 #+BEGIN_SRC elisp
-  (defun eu10-sieve-of-Era2 (n)
-    (let* ((bound (/ (1+ n) 2))
-	   (vec (make-bool-vector bound t))
-	   (crosslimit (/ (floor (sqrt n)) 2)))
-      (aset vec 0 nil)
-      (cl-loop for i from 1 to crosslimit
-	       do (when (aref vec i)
-		    (cl-loop for j from (* 2 i (1+ i)) to (1- bound) by (1+ (* i 2))
-			     do (aset vec j nil))))
-      vec))
+    (defun eu10-sieve-of-Era2 (n)
+      (let* ((bound (/ (1+ n) 2))
+	     (vec (make-bool-vector bound t))
+	     (crosslimit (/ (floor (sqrt n)) 2)))
+	(aset vec 0 nil)
+	(cl-loop for i from 1 to crosslimit
+		 do (when (aref vec i)
+		      (cl-loop for j from (* 2 i (1+ i))
+			       to (1- bound) by (1+ (* i 2))
+			       do (aset vec j nil))))
+	vec))
 
-  (cl-loop for a across (eu10-sieve-of-Era2 2000000)
-	   for i from 1
-	   sum (if a (1+ (* i 2)) 0))
+    (cl-loop for a across (eu10-sieve-of-Era2 2000000)
+	     for i from 1
+	     sum (if a (1+ (* i 2)) 0))
 #+END_SRC
 
 理论上这能快一倍，不过实际可能要慢一会儿。
