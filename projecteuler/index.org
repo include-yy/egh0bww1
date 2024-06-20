@@ -31,6 +31,8 @@ However, the rule about sharing solutions outside of Project Euler does not appl
 
 *GOOK LUCK AND HAVE FUN!!!*
 
+https://projecteuler.net/profile/include_yy.png
+
 * Problems 1~100 solved by myself
 
 #+attr_html: :class data
