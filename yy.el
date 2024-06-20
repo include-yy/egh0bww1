@@ -182,7 +182,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 		 :html-link-left "../index.html"
 		 :html-link-lname "HOME"
 		 :html-link-right "./index.html"
-		 :html-link-rname "SUMMARY"
+		 :html-link-rname "SUM"
 		 :html-head "\
 <link rel=\"stylesheet\" type=\"text/css\" href=\"../assets/css/style.css\">
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
