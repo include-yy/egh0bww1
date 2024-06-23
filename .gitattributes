@@ -1,0 +1,3 @@
+*.html -linguist-detectable
+*.htm -linguist-detectable
+*.org linguist-language=Org
