@@ -1,0 +1,119 @@
+#+TITLE: 「翻译」Teaching programming languages in a post-linnaean age
+#+DATE: [2024-06-24 Mon 15:03]--[2024-06-24 Mon 17:00]
+#+FILETAGS: tr
+#+DESCRIPTION: 本文是对论文 Teaching programming languages in a post-linnaean age 的翻译，作者介绍了他认为在 PL 教学上应该做出的一些改进，以及自己的实践
+
+#+begin: aside note
+本文是对论文 Teaching Programming Languages in a Post-Linnaean Age 的翻译，作者是 Shriram Krishnamurthi。
+
+应作者要求，我需要补充以下信息：
+
+- (a) attribute the original (of course you should list yourself as a translator)
+  - 作者是 Shriram Krishnamurthi，PLAI 的作者，译者自然是本人 include-yy
+- (b) make clear that the translation has not been checked
+  - 本文未被原作者检查，故可能存在一些疏漏或错误（This document has not been reviewed by the original author, so there may be some omissions or errors.）
+- (c) link to the original for those who want to see it for themselves
+  - https://dl.acm.org/doi/10.1145/1480828.1480846
+#+end:
+
+Programming language "paradigms" are a moribund and tedious legacy of a bygone
+age. Modern language designers pay them no respect, so why do our courses
+slavishly adhere to them? This paper argues that we should abandon this method
+of teaching languages, offers an alternative, reconciles an important split in
+programming language education, and describes a textbook that explores these
+matters.
+
+- *Categories and Subject Descriptors* :: D.3.3 [Programming Languages]:
+  Language Constructs and Features
+- *General Terms* :: Languages
+- *Keywords* :: Programming languages curriculum
+
+* The Paradigm Shift is a Shift to No Paradigms
+
+上世纪的九十年代见证了编程语言家族的井喷式增长。尽管这个十年伊始还充满了令人窒息的同质化现象（stultifying conformity），但到十年结束时，两股力量已经重塑了语言景观：Scripting 和 Web。Scripting 表明现在大量的编程工作集中在连接库和工具上，而不是创建它们。Web 的标准化、轻量级接口意味着任何语言都可以隐藏在服务器后面。（在互联网上，没有人知道你是一个 Scheme 程序。）由于许多网络程序做的正是脚本语言最擅长的事情，网络将这些语言从业余项目提升为享有广泛公司支持的实体。
+
+#+begin: amendment
+译注：上文中的“在互联网上，没有人知道你是一个 Scheme 程序。”化用了一句经典台词：“在互联网上，没有人知道你是一条狗”（"On the Internet, nobody knows you're a dog"）。这是美国漫画家彼得·施泰纳（Peter Steiner）在 1993 年 7 月 5 日发表在《纽约客》杂志上的一幅漫画中出现的一句台词：
+
+[[./Internet_dog.jpg]]
+#+end:
+
+编程语言（ =PL= ）的教学并未跟上这些发展的步伐。许多书籍中虽然有一些关于 Scripting 和 Web 编程的必备章节，但内容却令人乏味且缺乏深度（chilling unsophistication）。 =PL= 研究揭示了许多关于 Web、反应式、交互和异步编程的本质，但这些内容几乎没有出现在任何教材中。
+
+更为引人注目的是脚本语言对语言组织的启示。大多数书籍严格遵循将语言划分为“函数式”、“命令式”、“面向对象”和“逻辑”阵营的传统分类。我推测，这种分类的欲望是我们学科早期对科学的羡慕所产生的产物：一个试图模仿科学 /实践/ 而非其 /精神/ 的误导性尝试。
+
+然而，我们是一门关于人工造物（artificial）的科学。对于像 Python、Ruby 或 Perl 这样的语言，我们该如何解释？它们的设计者对这些林奈式的分类体系毫无耐心；他们随意借用各种特性，创造出完全无法分类的混合物。在这个后林奈时代，我们如何教授 =PL= ？
+
+多年来，我一直在着力于编写《编程语言：应用与解释》（ /Programming Languages: Application and Interpretation/ ，PLAI），这是我对这个问题的答案。这篇简短的文章阐述了该书背后的一些愿景。
+
+* Students as Language Designers
+
+计算机科学使得创造无需依赖于传统机构，而脚本语言正是这种力量的最好也是最糟糕的体现之一。我告诉学生们，你们中的许多人将会设计编程语言：不是像 Java 那样的大型工业语言，而是小型的脚本语言或领域专用语言，这些语言将提高他们的生产力。一个很好的例子是 =XACML= ，这是一种通过使用领域特定的组合子规则，将访问控制逻辑与程序其余部分分离的语言。因此，这些学生必须学习：（a）识别领域专用语言的适用范围，（b）大多数语言的构建模块，以及（c）避免过去语言设计者所犯的错误。这一愿景指导着本书和我的课程。
+
+* Teaching the Other 90%
+
+教科书领域似乎分为两类：一类是数学严谨性高但可读性低，另一类是可读性高但缺乏严谨性（而且常常甚至是错误的）。这使得教授们处于一个不幸的困境中。我认为编程语言设计应被视为一项 /普及/ 的活动，也就是说每个学生都必须学习。这并不是因为我认为每个学生都 /应该/ 设计语言，而是因为任何学生都 /有可能/ 设计语言。遗憾的是，被过度数学严谨性吓退的学生，不一定会因此放弃创造自己的语言并将其引入世界（译注：过分强调数学严谨性可能会导致学生避开正式的学习渠道，但他们依然可能会自己动手创建语言，这样做可能会带来不良的后果或影响。）。因此， =PLAI= 的语气、内容和风格是为“大多数 90%”的学生设计的：那些不会上高级语言课程的学生，但其中少数人可能会创造语言。
+
+这也对内容有影响。例如，大多数学生头脑中充满了关于垃圾回收的半真半假的知识和错误观念。在许多系中， =PL= 课程是纠正这些错误的唯一机会。这意味着课程应通过将垃圾回收与手动内存管理进行比较来应对这些误解。我还发现，让学生实现一个或两个垃圾回收器，一旦他们看到一个神秘的过程实际上只是一个相对简单的算法（概念上），会产生巨大的效果。
+
+* Languages as Aggregations of Features
+
+如果语言不是通过分类法来定义的，那它们是如何构建的呢？它们是特性的集合。与其将现有语言作为一个整体来研究，这样会将本质与偶然因素混为一谈，不如将它们分解成各个组成特性，然后单独研究这些特性。这样，学生就拥有了一套特性工具包，可以根据需要重新组合。
+
+这种将系统视为特性组合的愿景在软件工程中广泛存在，尤其是在电信等领域。将这种愿景应用于语言设计是自然而然的，特别是在受限的领域中，设计者必须将领域的需求与通用概念（抽象、迭代等）结合起来。
+
+作为设计指导原则，在整个学期中，学生反复审视 Scheme 报告（Scheme report，即 Scheme 标准文档，如著名的 R^{5}RS）的格言：“编程语言的设计不应该是通过堆叠特性来实现，而是通过消除那些使得额外特性显得必要的弱点和限制。”到学期末，我希望学生们对常见脚本语言所犯的错误有更清晰的认识，并弄明白理解和组合有原则的构建模块更为合理。
+
+当然，结合特性也需要推理它们之间的相互作用。 =PLAI= 中有一些关于这方面的练习，我课程的期末项目会迫使学生结合多种特性并理解其后果。然而，在这方面仍有很多工作要做。
+
+* Language Surveys or Interpreters?
+
+现在关于编程语言（ =PL= ）教材的重大分歧：是选择语言概述还是定义解释器？ =PLAI= 的立场是，这个问题实际上是一个无因的冲突^{1}，因此在书中交织了这两种方法。
+
+#+begin: amendment
+‍^{1} With apologies to Beppe Castagna.
+#+end:
+
+概述方法有几个好处。通过使用多种语言，学生被迫跳出当今 Java 的单一文化。（令人高兴的是，每年都有一些学生被 Haskell 或 Prolog 所吸引。）通过编写（小型）应用程序，他们可以感受到某个独特特性（例如惰性求值或回溯）如何带来帮助或困扰。最重要的是，他们会明白 /为什么/ 要更深入地研究这些语言。另一方面，他们对这些特性的理解仅仅是肤浅的，可能永远无法超越几个例子来真正理解其 /本质/ 。此外，他们也没有掌握哪怕是实现语言原型的技能。
+
+解释器方法本质上是前者的对立面。最关键的是，学生们学会了这些特性的意义，但可能从未体会到其影响。将积极求值和惰性求值的区别简化为几行解释器代码是很有趣的，但学生是否理解这一差异带来的巨大后果？
+
+这些权衡并不令人惊讶：它们分别是归纳学习和演绎学习的特殊情况。教育文献关于学习风格的研究告诉我们，我们应该同时使用这两种方法，此外，大多数学生（记得那 90% 吗？）更喜欢采用归纳方式。因此，这正是 =PLAI= 所做的。每个特性的定义解释器之前都有编程活动，这些活动可以在特定语言的上下文中练习该特性。这不仅极大地激发了学生的兴趣，我还认为这有助于他们更好地编写解释器，因为他们已经理解了期望的输入输出行为。最重要的是，他们理解了语言选择对软件工程的影响。
+
+* Where's the Rigor?
+
+一位这篇文章初稿的读者担心，这种研究语言的方法可能不够“严谨”。的确，缺乏严谨性常常是对概述方法的（合理）批评。解释器在这里发挥了作用。解释器只是形式化的语义，但由于它们是程序，所以具有两个优势：（1）它们对更广泛的学生群体来说是易于理解的，（2）它们为学生提供了一种强大的实现工具，用于原型设计自己的语言。
+
+* Innovations
+
+=PLAI= 相较于大多数其他编程语言教材有多项创新。例如，它讨论了类型健全性，这是类型系统和类型推断中常被忽略的话题。它通过 Web 编程的手段讲解 continuations，这种方法非常易于理解，几乎只有最薄弱的学生才无法掌握这个主题。学生通过使用高级接口实现一对垃圾回收器来理解垃圾回收。书中关于反应式编程语言的内容还在不断地扩充中（increasingly features）。如此等等；你可以自己看看（不要钱 --- 就像啤酒一样）：
+
+#+begin_center
+http://www.plai.org/
+#+end_center
+
+* Specialized Languages
+
+一些讲师创建了专门的语言来配合使用 =PLAI= 。Greg Cooper（现在与 Arjun Guha 合作）创建了一对优秀的语言，用于教授垃圾回收。Matthew Flatt 非常有创意地构建了一个动态作用域的 Scheme，这样学生们可以立即看到这种作用域决策的后果。Eli Barzilay 构建了一个惰性求值的 Scheme。虽然我对其中一些的欣赏程度不如其他，但我很高兴看到这个生态在蓬勃发展。
+
+* Acknowledgment
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+感谢 Matthias Felleisen 的启发和 Kathi Fisler 的支持。尽管 =PLAI= 与他们的优秀书籍竞争，Mitch Wand 和 Dan Friedman 仍然非常慷慨。特别感谢 Greg Cooper、Arjun Guha、Matthew Flatt、Eli Barzilay、Robby Findler 以及众多布朗（Brown）大学的助教们的贡献。我也感谢已经采用 =PLAI= 的三十多所大学（以及少数高中）及其教授和学生们的评论和批评。
+
+* 译后记
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+我大概是在 2019 年开始接触到 Lisp 和 Scheme 等语言，这还得感谢王垠的一系列文章（草，每当说到 Scheme 我总得提一嘴王垠），在他的一众早期文章中给我最大影响的应该是这一篇：
+
+- [[https://www.yinwang.org/blog-cn/2017/07/06/master-pl][如何掌握所有的程序语言]]
+
+文中出现的 *重视语言特性，而不是语言* 这一想法和这篇短论文是相同的，也许王垠就看过这篇论文，说不好。
+
+我是在搜索 "is JavaScript a Lisp" 时通过 [[https://raganwald.com/2013/07/19/javascript-is-a-lisp.html][Yes, JavaScript is a Lisp]] 时发现这篇论文的，JavaScript 在设计时就借鉴了一些 Scheme 特性，比如 first-class function。虽然实际上也许差的很远，但是我认为 JavaScript 就是我们这个时代最流行的 Lisp 语言（笑）。
+
+本文介绍的 =PLAI= 应该值得一看，虽然我在看 =SICP= 和 =HTDP= 时就看到过这本书了。如果之后真有设计语言的需要的话，我会试着看看的。这本书已经有人翻译成了中文，所以读起来应该容易不少：https://lotuc.org/PLAI-cn/。
