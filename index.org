@@ -22,6 +22,7 @@
 ** 可能有用的文章
 
 - [[file:posts/2021-10-04-13-emacs-list-functions/index.org][emacs 的 list 函数]]
+- [[file:republish/2024-06-21-diataxis-documentation/index.org][Diátaxis documentation framework]]
 
 * FOLKS
 
