@@ -75,6 +75,8 @@
   - [[https://css.celestialy.top/p/feda224a0/website-link-management-prevent-404/][浅谈网站 URL 管理与预防 404]]
 - [[https://innei.in/][静かな森 - 致虚极，守静笃。]]
   - [[https://innei.in/posts/programming/write-a-nodejs-library-in-2022][在 2022 年，写一个库有多难]]
+- [[https://amodernist.com/index.html][Webpresence of Philip Kaludercic]]
+  - [[https://amodernist.com/texts/medi-macro.html][Meditations on a (Lisp-2) Macro]]
 
 * ABOUT
 
