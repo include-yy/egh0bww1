@@ -903,15 +903,9 @@ if __name__ == '__main__':
 
 感谢阅读。
 
-#+begin_comment
-#+NAME: tailimg
-{{{begin_div}}}
-| [[https://www.pixiv.net/artworks/59465812][file:p1.jpg]] | [[https://www.pixiv.net/artworks/107931451][file:p2.jpg]]  |
-| [[https://www.pixiv.net/artworks/100789840][file:p3.jpg]] | [[https://www.pixiv.net/artworks/98671388][file:p4.jpg]]  |
-
-| [[https://www.pixiv.net/artworks/7611463][file:p5.jpg]] | [[https://www.pixiv.net/artworks/5303429][file:p7.jpg]]  |
-| [[https://www.pixiv.net/artworks/10469436][file:p6.jpg]] | [[https://www.pixiv.net/artworks/58779807][file:p8.jpg]]  |
 # https://yande.re/post/show/122686
-| [[https://www.pixiv.net/artworks/91079382][file:p9.jpg]] | [[https://www.pixiv.net/artworks/109860686][file:p10.jpg]] |
-{{{end_div}}}
-#+end_comment
+# | [[https://www.pixiv.net/artworks/59465812][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/107931451][file:dev/p2.jpg]]  |
+# | [[https://www.pixiv.net/artworks/100789840][file:dev/p3.jpg]] | [[https://www.pixiv.net/artworks/98671388][file:dev/p4.jpg]]  |
+# | [[https://www.pixiv.net/artworks/7611463][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/5303429][file:dev/p7.jpg]]  |
+# | [[https://www.pixiv.net/artworks/10469436][file:dev/p6.jpg]] | [[https://www.pixiv.net/artworks/58779807][file:dev/p8.jpg]]  |
+# | [[https://www.pixiv.net/artworks/91079382][file:dev/p9.jpg]] | [[https://www.pixiv.net/artworks/109860686][file:dev/p10.jpg]] |
