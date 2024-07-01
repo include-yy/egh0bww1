@@ -5,22 +5,24 @@
 
 本博客使用了 Emacs 的 =org-mode= 导出功能，将 Org 文件导出为 HTML 文件。虽然 Github 支持 Org 文件渲染，前往网页也许能够获取更好的阅读体验。
 
-https://egh0bww1.com --- Home :: include-yy
+[[https://egh0bww1.com]] --- Home :: include-yy
 
 * 如何构建本博客
 
-请确保 git 已安装并可在 Emacs 内使用，然后执行以下步骤（第四步不是必须的）：
+请确保 git 已安装并可在 Emacs 内使用，然后执行以下步骤：
 
-1. 请使用以下命令安装 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 和 [[https://github.com/include-yy/yynt][yynt]]：
-   #+begin_src text
-     M-x package-vc-install https://github.com/include-yy/ox-w3ctr RET
-     M-x package-vc-install https://github.com/include-yy/yynt     RET
-   #+end_src
-2. 打开 yy.el，在 buffer 中通过 =C-c C-e= (=elisp-eval-region-or-buffer=) 对整个 =buffer= 求值
-3. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来构建整个博客
-4. 执行命令 =M-x yynt-publish-build= 并在弹出的 minibuffer 中选择 =*t*= 来发布整个博客到 =blog-build= 目录
+请使用以下命令安装 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 和 [[https://github.com/include-yy/yynt][yynt]]：
 
-在执行第三步后可在与 org 源文件同位置看到生成的 HTML 文件，第四步是可选的，它会将生成的 HTML 和相关的资源复制到 =blog-build= 目录。
+#+begin_src text
+  M-x package-vc-install https://github.com/include-yy/ox-w3ctr RET
+  M-x package-vc-install https://github.com/include-yy/yynt     RET
+#+end_src
+
+1. 打开 yy.el，在 buffer 中通过 =C-c C-e= (=elisp-eval-region-or-buffer=) 对整个 =buffer= 求值
+2. 执行命令 =M-x yynt-export-build= 并在弹出的 minibuffer 中选择 =*t*= 来构建整个博客
+3. （可选）执行命令 =M-x yynt-publish-build= 并在弹出的 minibuffer 中选择 =*t*= 来发布整个博客到 =blog-build= 目录
+
+在执行第 2 步后可在与 org 源文件同位置看到生成的 HTML 文件，第 3 步是可选的，它会将生成的 HTML 和相关的资源复制到 =blog-build= 目录。
 
 * 关于本博客
 
@@ -28,10 +30,10 @@ https://egh0bww1.com --- Home :: include-yy
 
 博客目录如下：
 
-- =assets/*= 一些全局资源
-- =posts/*= 发布的文章
-- =republish/*= 一些转载的文章
-- =projecteuler= 一些简单 [[https://projecteuler.net/archives][projecteuler]] 题解
+- =assets/*/*= 一些全局资源
+- =posts/*/*= 发布的文章
+- =republish/*/*= 一些转载的文章
+- =projecteuler/*= 一些简单 [[https://projecteuler.net/archives][projecteuler]] 题解
 - =index.org= 博客主页 Org 源文件
 - =404.org= 404 页面源文件
 - =robots.txt= Robots 文件
