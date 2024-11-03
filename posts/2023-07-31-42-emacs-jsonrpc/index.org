@@ -5,6 +5,13 @@
 
 # [[https://www.pixiv.net/artworks/99840371][file:dev/0.jpg]]
 
+#+begin: issue
+Emacs 28 后 jsonrpc.el 的实现出现了很大变化，导致本文中的部分示例无法正常运行。
+
+有时间我重写一下这篇文章，然后给出新文章的链接。
+
+#+end:
+
 受 [[https://github.com/emacs-eaf/emacs-application-framework][eaf]] 和 [[https://github.com/manateelazycat/lsp-bridge][lsp-bridge]] 等使用了 RPC 功能的包的影响，我对使用 RPC *调用外部程序* 有了一定的兴趣。随着 emacs 29 即将发布正式版，我了解到 eglot 这个 LSP 实现在 29 中加入到了 emacs 中，它使用的 jsonrpc.el 在 [[https://www.gnu.org/software/emacs/news/NEWS.27.1][27]] 加入了 emacs（eglot 和 jsonrpc.el 是同一作者）。既然有现成的不如直接学学怎么用。
 
 可惜的是我没能搜索到多少使用 jsonrpc.el 的教程，只能自己摸索了。本文假设读者对什么是 RPC 有最基本的了解，如果读者不熟悉 JSON-RPC，可简单翻阅[[https://wiki.geekdream.com/Specification/json-rpc_2.0.html][规范文档]]，内容非常简单。
