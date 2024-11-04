@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>demos</title>
+  </head>
+  <body>
+    <p>
+      <label>覆盖率<input type="range" id="rate" min="0" max="100" value="60" step="1"></label>
+      <span id="rateValue">60%</span>
+    </p>
+    <p>
+      <label>刷新间隔<input type="range" id="interval" min="10" max="1000" value="100" step="10"></label>
+      <span id="intervalValue">100ms</span>
+    </p>
+    <p>
+      <button id="startBtn" disabled>Start</button>
+      <button id="toggleBtn" disabled>Run</button>
+      <button id="stepBtn" disabled>Step</button>
+    </p>
+    <p>Log info: <span id="loginfo">Script Executing...</span></p>
+    <canvas id="c0" width="480" height="480" style="background-color: black;"></canvas>
+    <script src="./life.js"></script>
+    <canvas id="c1" height="480" width="480"></canvas>
+    <script src="https://wgpu-matrix.org/dist/2.x/wgpu-matrix.js"></script>
+    <script src="cube.js"></script>
+  </body>
+</html>

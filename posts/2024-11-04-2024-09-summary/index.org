@@ -1,0 +1,554 @@
+#+TITLE: 二二年到二四年的总结
+#+DATE: [2024-09-17 Tue 21:48]--[2024-11-04 Mon 14:01]
+#+FILETAGS: gossip
+#+DESCRIPTION: 本文是对我本人在 2022 年 9 月至 2024 年 9 月期间的一个简单总结，new save point!
+
+#+begin_quote
+除了具体的记录外，本文也可看作一个不可返回的 Save Point，可以作为今后的一个锚点。要想把人生聚集到一个点光凭这篇文章肯定不够，我想到的最有效的方法是 Remake（但是记忆消失了等于没有，所以最好还是异世界转生）。
+
+[[../2022-07-04-four-year-college-life/index.org][我的大学四年的一个总结]]
+
+倒也不是说这样的文章非得一年写一篇，当我有做总结的想法时，这可能说明我在某些想法上已经与过去的我有了很大的不同，把这些变化记下来必可活用于下一次。
+
+[[../2023-12-24-2023-summary/index.org][2023 年的一个简单的总结]]
+#+end_quote
+
+大概是两年三四个月之前，我在大学毕业一个月后写了个大学总结，现在似乎是创建新的不可加载存档的时候了，如果不是某同学找我帮他做中期发表的话应该会更快一点......这里按照“惯例”给出 BGM：[[https://www.bilibili.com/video/BV1W4411T7TN][【鏡音リン】レコード・レド【shr】]]。
+
+（草， +两+ +三+ 四个月没时间写博客感觉有点手生）
+
+本文主要总结了过去两年我做过的一些东西，加上一点思考体会。
+
+* 耍过的一些技术
+
+原本我以为只有 Emacs 或者绝大部分都是 Emacs 相关内容（也确实如此），但稍微想想还能找出不少东西来。相比“技术”叫他们“玩具”也许更适合，有时间的话之后再拿出来玩玩。
+
+** Emacs
+
+我从 19 年就开始用 Emacs，用了差不多五六年了，这两年也花了不少的时间折腾 Emacs，还修过 [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg01817.html][bug#64888]] [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg01942.html][bug#64919]] [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-04/msg01407.html][bug#70526]] 三个小 bug。
+
+*** 写过的博客
+
+从 2022 年 10 月开始算起，我写了 48 篇博客，和 Emacs 相关的大概有 30 篇。这里拣一点比较有印象的：
+
+1. [2022-10-09] [[../2022-10-07-23-elisp-play-brainfuck-i/index.org][用 elisp 玩 brainfuck I]]
+
+  这个时候我应该在看 /Essentials of Programming Language/ （但是现在也没看完），读着读着就想为什么不先去写一个 brainfuck 解释器呢？然后就有了这篇文章。原本的目标是继续写编译 brainfuck 到 Emacs Lisp 甚至 Emacs Lisp 字节码和编译 Emacs Lisp 到 brainfuck 的文章，两年了我居然一点进展都没有，也许我会在未来完成它。
+
+2. [2023-01-17]--[2023-02-05] [[../2023-01-22-25-org-manual-13-9-illustrate/index.org][The Org Manual 13.9 全解]]
+
+  二三年年初我通过文档学习了一下 Emacs Org-mode 的 HTML 导出功能，这主要是为了微调 Org-mode 的导出功能，为博客翻新做技术准备。关于 Org-mode 的笔记或者说“研究”总共有五篇，都写在 1 月中旬到 2 月上旬期间。
+
+3. [2023-02-23] [[../2023-02-23-29-how-emacs-startup/index.org][emacs 是如何启动的]]
+
+  同样是二三年年初，可能是出于 Emacs 文档全收集的目的我写了这篇文章。它介绍了 Emacs 的具体启动过程，能 4 天写完我也是够厉害的。这篇文章主要为了 3 月 4 日的 [[../2023-03-04-30-emacs-load-mechanism/index.org][emacs 的加载机制]]做前置知识准备。
+
+4. [2023-04-02] [[../2023-04-02-33-emacs-generator/index.org][emacs generator 使用及实现介绍]]
+
+  本文介绍了 Emacs 中 generator 的使用和实现。它是我出于对 CPS 变换的兴趣写出来的，通过它我总算是理解了什么是 CPS。再次感谢[[https://www.zhihu.com/people/hoshifuri][梨梨喵]]的[[https://zhuanlan.zhihu.com/p/22721931][CPS变换与CPS变换编译]]，它对我理解和实现 CPS 变换有很大帮助。
+
+5. [2023-05-07] [[../2023-05-07-36-emacs-inlining/index.org][在 emacs 中进行内联]]
+
+  本文简单介绍了内联相关的知识，以及如何在 Emacs 中进行函数内联。写它的动机可能是我对 Elisp Manual 中 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Inline-Functions.html][inline functions]] 一节对 =define-inline= 相关功能有点兴趣。
+
+6. [2023-05-21] [[../2023-05-21-37-tr-evolution-of-emacs-lisp/index.org][【翻译】Evolution of Emacs Lisp]]
+
+  本文是对 Stefan Monnier 和 Michael Sperber 两人论文 /[[https://dl.acm.org/doi/10.1145/3386324][Evolution of Emacs Lisp]]/ 的中文翻译，用了一周完成，想必当时是整天整天地翻。这篇论文介绍了从 Emacs 诞生到 Emacs 27 之间 Emacs Lisp 这门语言的变化，对 Lisp 考古学家是不错的学习材料。这篇文章也是我第一次大规模地使用 ChatGPT 进行翻译，没有它也不可能在一周内弄完。我和 Monnier 进行了一定的沟通，这篇翻译现在挂在他的[[https://www.iro.umontreal.ca/~monnier/][主页]]上：
+
+  [[./1.png]]
+
+  以下是当时的一些沟通内容：
+  :email-with-monnier:
+
+  #+begin_example
+  2023年5月21日 15:50
+  In the last few days I've been reading your 2020 article Evolution of Emacs
+  Lisp, which answered many of the questions I had about Emacs Lisp, such as the
+  emergence of define-inline, Elisp's confusing object-oriented system, and so
+  on.
+
+  I think translating such an article into my native language will help more
+  people to benefit from it, since it is 50 pages long after all. I have now
+  completed the translation using the org-mode format. It has been suggested
+  that I write it in latex to make it more readable, but I am new to latex, so
+  could you please provide me with the Latex source code for the article so that
+  I can keep some of the links and references intact.
+
+  Please forgive me if I have offended you in any way, and let me know if you
+  think it is an invasion of privacy
+
+  Best wishes
+
+  include-yy
+  #+end_example
+  ----------
+  #+begin_example
+  2023年5月21日 22:43
+  Hi,
+
+  > In the last few days I've been reading your 2020 article Evolution of Emacs
+  > Lisp, which answered many of the questions I had about Emacs Lisp, such as
+  > the emergence of define-inline, Elisp's confusing object-oriented system,
+  > and so on.
+
+  I'm glad you liked it!
+  [ "confusing", eh?  :-)  ]
+
+  > I think translating such an article into my native language will help more
+  > people to benefit from it, since it is 50 pages long after all. I have now
+  > completed the translation using the org-mode format.
+
+  Wonderful!
+
+  > It has been suggested that I write it in latex to make it more
+  > readable, but I am new to latex, so could you please provide me with
+  > the Latex source code for the article so that I can keep some of the
+  > links and references intact.
+
+  It's available, with its own Git history and all, at
+
+    https://github.com/mikesperber/hopl-4-emacs-lisp
+
+  Let me know if there's something I can do to help.
+
+  Do you have a URL to your translation (I likely won't be able to read
+  much of it, but I'd like to add a link to it on my web page),
+
+        Stefan
+  #+end_example
+
+  -----------------
+  #+begin_example
+  2023年5月21日 22:49
+  > It's available, with its own Git history and all, at
+  thanks, it'll help me a lot.
+
+  > Do you have a URL to your translation (I likely won't be able to read
+  > much of it, but I'd like to add a link to it on my web page),
+  of course
+  https://egh0bww1.com/posts/2023-05-21-37-tr-evolution-of-emacs-lisp/
+
+  include-yy
+  #+end_example
+  ----------------
+  #+begin_example
+  2023年5月21日 23:43
+  >> Do you have a URL to your translation (I likely won't be able to read
+  >> much of it, but I'd like to add a link to it on my web page),
+  > of course
+  > https://egh0bww1.com/posts/2023-05-21-37-tr-evolution-of-emacs-lisp/
+
+  Wow!  Congratulations!  Somehow this page manages to be rendered better
+  by EWW than by my Firefox (for some reason, Firefox seems to be unable
+  to find a font that covers most of those "CJK IDEOGRAPH" characters (I
+  presume it's Chinese), not sure what's going on, but a welcome surprise
+  in any case).
+
+  This URL doesn't seem very stable, so let me know when you have a better
+  one so I can update my link.
+
+        Stefan
+  #+end_example
+  ----------------
+  #+begin_example
+  2023年5月22日 00:07
+  >  This URL doesn't seem very stable
+  Yes, I'll consider open a github page to place this translated article,
+  the url I sent to you is my blog and it may become unavailable in the future.
+  > I presume it's Chinese
+  You are right :p
+
+  Thanks again for your Wonderful article, I'll let you know after I get a permanent url. :-)
+
+  include-yy
+  #+end_example
+  :end:
+
+7. [2023-06-11] [[../2023-06-11-38-emacs-async-emacs-deferred/index.org][JSDeferred in Emacs]]
+
+  本文使用 Emacs Lisp 在 Emacs 中简单实现了一遍 jsdeferred。记得是我在看《[[https://zh.javascript.info/][现代JavaScript编程]]》时，为了理解 Promise 顺便翻到了[[https://github.com/rubylouvre][司徒正美]]写的《JavaScript 框架设计》，然后了解到了 Promise 的先驱者 [[https://github.com/cho45/jsdeferred][jsdeferred]] 和 Emacs 中的类似实现 [[https://github.com/kiwanami/emacs-deferred][deferred]]，于是决定在 Emacs 中通过重新发明轮子的方式来学习 Promise。
+
+8. [2023-07-23] [[../2023-07-23-41-emacs-process/index.org][在 Emacs 中创建和使用子进程]]
+
+  这篇文章介绍了怎么在 Emacs 中创建同步和异步子进程。本文也是“文档补全”计划的一部分，不过更多的是为了 7 月 31 日发布的 [[../2023-07-31-42-emacs-jsonrpc/index.org][在 Emacs 中使用 JSON-RPC]] 准备的（这篇里面的代码在 Emacs 29 已经不可用了，jsonrpc.el 有较大变化）。我写这两篇很大程度上受到了 [[https://github.com/emacs-eaf/emacs-application-framework][emacs-application-framework]] 和 [[https://github.com/manateelazycat/lsp-bridge][lsp-bridge]] 的影响，即使用外部进程和 RPC 来解决 Emacs 卡顿的问题。
+
+  顺带一提，这两篇文章是我在 8 月底有重要 DDL 的情况下写完的。一时摸鱼一时爽，一直摸鱼一直爽。
+
+9. [2023-09-09] [[../2023-09-09-45-use-emacs-do-python-programming/index.org][使用 emacs 进行 Python 编程]]
+
+  由于 8 月要干大事整个 8 月就没写什么东西，忙完之后的 9 月倒是写了不少。我试着折腾了一下在 Emacs 中配置基础的 Python 编程环境，这篇文章介绍了一些基础的配置和常用插件。下一个月的[[../2023-10-10-46-manage-project-environment-use-direnv/index.org][在 Emacs 中进行分离式项目环境变量管理 – direnv]] 也和环境管理有关。就算折腾好了，我大部分 Python 代码还是在 PyCharm 里写的。
+
+10. [2023-12-20] [[../2023-12-20-47-emacs-package-management/index.org][emacs 自带的包管理]]
+
+  10 月和 11 月在折腾 Unitree GO1，因此也没有什么 Emacs 相关的折腾。（似乎是）在 12 月重构 Emacs 配置文件时，我出于对 Emacs 包管理及生态的兴趣进行了一些研究，学习了如何搭建 Emacs 包档案（Package Archive），以及如何进行更加精细的包管理。这是 23 年最后一篇和 Emacs 相关的文章。
+
+11. [2024-02-14] [[../2024-02-14-49-write-a-treesitter-parser-wgsl/index.org][emacs 的 treesit — 用 tree-sitter 写 parser]]
+
+  Emacs 于 29 由付禹安引入了 tree-sitter 支持，本文参考了 Elisp Manual 文档、Tree-sitter 文档和一些博客，介绍了编写 tree-sitter parser 的基本方法，然后给出了一个粗糙的 WGSL parser：[[https://github.com/include-yy/tree-sitter-wgsl][tree-sitter-wgsl]]。
+
+  按我原来的计划，这一系列要包括 parser 的编写方法，parser 在 Emacs 中的使用方法，和在 Emacs 中 major-mode 的编写方法三部分，现在只是完成了第一部分。Emacs 30 修复了许多 treesit 的 bug，也许我会在 Emacs 30 正式发布后写第二部分。
+
+12. [2024-06-12] [[../2024-06-12-52-emacs-record-cl-defstruct/index.org][在 Emacs 中使用 record 和 cl-defstruct]]
+
+  24 年的二三季度忙于中发和末发也就没什么时间写文章，这篇是拿最后一点空闲时间写的，介绍了如何在 Emacs 中定义和使用结构体。这篇应该是 EIEIO 和 Emacs Lisp OOP 编程（草，从来没用过）的前置知识，不知道之后有没有时间写就是了。
+
+
+博客的草稿箱里面还有不少和 Emacs 相关的内容，之后再看看吧。
+
+*** Emacs China
+
+在我学习 Emacs 的过程中，Emacs-China 这个论坛为我提供了非常多的帮助，里面有许多高质量的帖子。这里简单记录一下当前我的账号状态：
+
+[[./2.png]]
+
+在我发过的帖子里面，下面这些似乎反响不错：
+
+- [2022-02-22] [[https://emacs-china.org/t/backquote/20060][关于 backquote 相关内容的一个汇总与总结]]
+- [2023-05-14] [[https://emacs-china.org/t/evolution-of-emacs-lisp/24494][【翻译】evolution of emacs lisp]]
+- [2024-03-01] [[https://emacs-china.org/t/windows-emacs-msys2-shell/26705][在 Windows 上的 Emacs 中使用 MSYS2 shell]]
+- [2024-03-22] [[https://emacs-china.org/t/engrave-faces-el/26860][engrave-faces.el 的实现原理简单分析]]
+- [2024-05-03] [[https://emacs-china.org/t/windows-emacs-29-2-native-comp/27155][让官方编译的 Windows 版 Emacs 29.2 的 native-comp 特性生效]]
+- [2024-08-12] [[https://emacs-china.org/t/windows-ucrt/27711][Windows 上的 UCRT 的编译问题似乎解决了]]
+
+有时间的话，也许我会整理一下里面的精华帖子，这里比较值得一说的可能是 [[https://emacs-china.org/t/emacstalk/17593][EmacsTalk]]，jiacai2050 邀请了社区里的一些用户讲讲他们如何使用 Emacs：https://emacs.liujiacai.net/podcast/。
+
+** 计算机图形学
+
+你可能听说过所谓的“计算机几大浪漫”，图形学是其中之一，但是我在大学期间所有的入门尝试都失败了，卡在了 OpenGL 环境配置上😂 。后来认识了一个一直想做游戏的朋友，在他的影响下我知道了 Unity，虚幻引擎，GAMES101，DirectX3D 等玩意。现在他也如愿？进入了游戏相关公司，我也算是计算机图形学入门了。
+
+在二二年的十二月，我花了几天使用 ReScript 学完了 [[https://raytracing.github.io/books/RayTracingInOneWeekend.html][Ray Tracing in One Weekend]]，代码放在了 [[https://gist.github.com/include-yy/7962a665731fa1bca7539eddecfff389][gist]] 上。除了周末光追外还有 [[https://raytracing.github.io/books/RayTracingTheNextWeek.html][下周光追]] 和 [[https://raytracing.github.io/books/RayTracingTheRestOfYourLife.html][余生光追]]，等到我有时间学的时候说不定能用上 DX12，而不是 CPU 软渲染。我在完成后花 40 分钟渲染了一张 2560 * 1440 的[[./3.png][图片]]。因为参数问题，图片比较暗。
+
+我第一次编写的 Shader 代码并不是 HLSL 或 GLSL，而是 WGSL（[[https://www.w3.org/TR/WGSL/][WebGPU Shader Language]]）。大概是在二三年的十二月末，我突然发现 Edge 和 Chrome [[https://developer.chrome.com/blog/webgpu-release?hl=zh-cn][早就支持 WebGPU 了]]，然后跟着[[https://codelabs.developers.google.com/your-first-webgpu-app?hl=zh-cn#0][教程]]写了使用 WebGPU 的[[https://gist.github.com/include-yy/5c41d0c9734769938d58ed2720f5430f][生命游戏]]。二四年的五月下旬我发现了 [[https://webgpu.github.io/webgpu-samples/][webgpu-samples]]，然后抄了个旋转方块。这是我唯一写过的两个 WebGPU [[./demo.htm][demo]]。
+
+大概是在二四年的六月底，出于某个原因我开始尝试使用 DirectX12 编写一个简单的 OBJ 模型渲染器，断断续续做到八月二十号左右才完成，我把它放到了 [[https://github.com/include-yy/yyrender][github]] 上。整个渲染器实现了一个简单的 OBJ 文件 loader，几个不同效果的简单 Shader 和一个简单的用户界面，DirectX12 的基础知识基本都来自 /Introduction to 3D Game Programming with DirectX® 12/ 。
+
+[[./4.png]]
+
+这个渲染器不仅仅是我写的第一个比较大的图形学程序，也是我写过的最大的 C++ 项目。不过我之后应该不会有机会用 DirectX12 了，为了不白学一遍，有时间的话我会用 DX12 把 GAMES101 等课程，和 Ray Tracing 系列刷一遍。
+
+（草，写这个渲染器的那段时间，我早上六点睡觉，晚上六点起来，吃完晚饭凌晨三点去罗森吃夜宵，这样的生活至少持续了十几天，只能说还好有流浪猫陪我玩。）
+
+** 一些编程语言
+
+除了常用的 C++，Python 之外，过去两年我还花了一些时间在这些语言上，不过其中的某些我可能连 Hello world 还没写过。
+
+*JavaScript*
+
+JavaScript 算是我比较喜欢的语言，关于 JavaScript 的梗图也不少：
+
+| [[./5.png]]  | [[./6.jpg]]  | [[./7.jpg]]  |
+| [[./8.jpg]]  | [[./9.jpg]]  | [[./10.jpg]] |
+| [[./11.jpg]] | [[./12.jpg]] | [[./13.jpg]] |
+
+我忘了最开始接触 JavaScript 的具体时间和原因了，可能是为了写网页。我现在会写一点 JQuery，但是 Angular、Vue 和 React 没怎么学过。我看过的最好的 JavaScript 教程应该是[[https://zh.javascript.info/][现代 JavaScript 教程]]。我在 22 年的 10 月尝试过写一点和它相关的历史，但估计只能当废稿了，这是其中的一部分：
+
+:javascript-history:
+#+begin_quote
+关于 JS 的一个比较有趣的传闻是 Brendan Eich 用了十天就完成了语言设计，为了蹭 Java 的名气最后取了 JavaScript 这个名字，当然这也是真事就是了，Java 和 JavaScript 的关系就像雷锋和雷峰塔一样。JavaScript 是为了做浏览器脚本语言这个目的而诞生的，它借鉴了多种语言的特性：基本就是 C 的语法，从 Self 语言借鉴了对象原型链，从 Java 借鉴了面向对象的写法，从 Scheme 学来了 first-class function，等等，总之就是个四不像的缝合怪。
+
+1995 年正值第一次浏览器大战的开始，看着 Netscape 这边有了 JavaScript，微软的也给 IE 弄了个类似的语言，叫做 JScript，在 1996 年发布。JScript 和 JavaScript 有比较明显的区别，这对开发者来说当然很不好，对不同的浏览器需要编写不同的代码。1996 年的 11 月 Netscape 向 Ecma 提交了 JavaScript，这也是 JavaScript 标准化的开始。1997 年 6 月 ES1 标准发布，1998 年 6 月 ES2 标准发布，1999 年 12 月 ES3 标准发布。ES4 标准的制定在 2000 年开始（但是最后成了废案）。
+
+照维基百科的说法，第一次浏览器大战从 1995 年打到 2001 年，由 Netscape 对战 Microsoft，最后以 IE 的胜利收场。二十一世纪的头几年 IE 的市场占有率达到了 90% 左右，JScript 这是也成了 Web 客户端脚本的事实标准（de facto standard）。微软一开始还选择性地在 JScript 中实现一些 ES 标准特性，但是最终它放弃了相关支持，这也是 ES4 最后被废除的一个很大原因。
+
+微软在二十一世纪头几年对浏览器的垄断让 JavaScript 的发展停滞了几年，但垄断也没能一直持续下去。在 2004 年，Netscape 的继任者 Mozilla 发布了 Firefox 浏览器，随后的一段时间从 IE 手里抢走了不少市场占有率。2005 年 Mozilla 加入了 ECMA，参与了一些标准化的工作，其中发生了一些事情（具体见 wiki）导致 ES4 的标准化难以进行。这一时期开源社区也有了一些非常重要的发展，比如 Ajax，jQuery 等开源项目。谷歌在 2008 年发布了 Chrome 浏览器，其中的 JavaScript 引擎 V8 比市面上的其他实现都快，它使用了 JIT 编译技术。
+
+在 2009 年的 12 月发生了一件大事，那就是 ES5 标准的发布。这一标准作为最新标准存在了 6 年之久，并在 2015 年被新的 ES6 标准取代。ES6 是非常重要的一版标准，它继承了大部分 ES4 中的内容，引入了非常多的有用特性。此后每一年出一个新的标准，现在已经到了 ES13 了。除了语言标准的稳步迭代外，node 的出现也赋予了 JavaScript 更多的可能。2009 年 Ryan Dahl 创建了 Node.js，这也使得在浏览器外对 JavaScript 的使用激增。node 使用了 V8 引擎，提供了一个浏览器外独立的 JavaScript 运行时系统。node.js 的包管理器 npm 是世界上拥有包数最多的包管理器。
+
+到了现在，JavaScript 给我的感觉就是什么都能做。现在除了使用 JS 外还有许多编译到 JS 的语言可以用，JS 俨然成了 Web 汇编。
+
+/*Any application that can be written in JavaScript, will eventually be written in JavaScript.*/
+
+--- 废稿「在 emacs 里写 JS —— 对 JS 的简单介绍」
+
+#+end_quote
+:end:
+
+我没有写过很多 JavaScript，不过倒是玩过一门编译到 JavaScript 的语言 —— [[https://rescript-lang.org/][ReScript]]。我在二二年的 10 月和 11 月参与到了它的[[https://zhuanlan.zhihu.com/p/581590088][文档中文翻译]]中，11 月还尝试用 ReScript [[../2022-11-27-rescript-neural-network-helloworld/index.org][写了个最简单的 BP 网络]]来测试 MNIST。
+
+关于 JavaScript，一个可能比较让人惊讶的事实是，它是目前最快的动态语言，而且除了浏览器外也存在着许多 JavaScript 运行时，比如 [[https://nodejs.org/en][node.js]]，[[https://deno.com/][deno]]，[[https://bun.sh/][bun]]，[[https://bellard.org/quickjs/][quickjs]] 等等。为了让这些不同的运行时保持一定的互操作性，cloudflare 和其他一些组织[[https://blog.cloudflare.com/zh-cn/introducing-the-wintercg/][创建]]了 [[https://wintercg.org/][WinterCG]]。
+
+# 需要提一嘴司徒正美吗
+
+我很看好 JavaScript 的未来（不过现在前端好像不太行了），有时间学学 TypeScript 去。
+
+*Racket*
+
+从我开始学 Scheme 我就接触过 Racket，但是一直也没有什么时间去读它的文档和写比较大的程序。二三年 2 月 14 日情人节的时候，我打开 DrRacket 时看到了特殊的启动界面：
+
+[[./14.png]]
+
+关于 Racket 这门语言我没什么太多好说的，只提两本书：[[https://beautifulracket.com/][Beautiful Racket]] 和 [[https://www.plai.org/][Programming Languages: Application and Interpretation]]，我一直想花点时间把它们看完，但是...... 对后者我甚至打算把它翻译成中文，目前完成了第二章：[[../2024-07-24-tr-plai3-evaluation/index.org][「翻译」Programming Languages: Application and Interpretation [Evaluation]​]]。
+
+*Rust*
+
+#+begin_quote
+你说得对，但是 Rust 是由 Mozilla 自主研发的一款全新的编译期格斗游戏。编译将发生在一个被称作「Cargo」的构建系统中。在这里，被引用的指针将被授予「生命周期」之力，导引对象安全。你将扮演一位名为「Rustacean」的神秘角色, 在与「Rustc」的搏斗中邂逅各种骨骼惊奇的傲娇报错。征服她们、通过编译同时，逐步发掘「C++」程序崩溃的真相.
+
+--- https://www.zhihu.com/question/649312963/answer/3470824699
+
+#+end_quote
+
+Rust 是一门我一直没有看完新手教程但一直想学的语言，它独特的生命周期管理似乎能够让代码变得非常安全，它的过程宏应该也是直接来自 Lisp 或者 Scheme。也许你了解过一些呼吁使用 Rust 而不是 C++ 的新闻，以及可以在 Linux 内核中使用 Rust 的消息。相比关心这门语言本身，我可能了解八卦更多一点，比如[[https://docs.google.com/document/d/1ErZlwz9bbSI43dNo-rgQdkovm2h5ycuW220mWSOAuok/edit?tab=t.0#heading=h.gjdgxs][Rust 发布商标草案]]（[[https://twitter.com/rust_foundation/status/1644132378858729474][X]]）：
+
+[[./15.jpg]]
+
+如果我以后会从事和 C++ 相关的工作，我认为我应该会[[https://doc.rust-lang.org/book/][开始学 Rust 的]]。
+
+*Zig*
+
+如果说 Rust 我至少看完了一大半教程，那么 Zig 我就只写过 Hello World 了，当前它的官方文档也很少是很大的一个原因（顺带一提，这里有[[https://course.ziglang.cc/][中文教程]]），我不记得我是顺着 Rust 了解到 Zig 还是从 Bun 了解到的了。相比 Rust 它似乎更加底层一点，也更强调与 C/C++ 的交互性，作为工具的 Zig 提供了 C/C++ 编译器和其他一些方便的功能，比如编译 Win32 的 RC 资源文件。下面是张宏波对 C++，Rust 和 Zig 三门语言的比较评价：
+
+:comments-cpp-rust-zig:
+#+begin_quote
+最近打算开一门编译器的课程, 需要一门 low level 的语言实现运行时(VM/GC)，重新审视了几个系统编程语言 C/C++/Rust/Zig，谈谈体会，结论放在最后。
+C 语言基本上可以理解为 portable assembly, 提供稳定的 ABI, 但是就基本上没有其他多余的抽象了，C23 好像会加不少新的东西。C 是一门极简的语言，任何把系统编程做职业的人都应该尝试写一个toy C compiler, 完成后会加深系统的认识。但是 C 提供的标准库，抽象都太少，写起来很累。
+
+Rust 是一门伪装成 high level 语言的 low level 语言，但是确实这几门语言里面最 high level 的。因为底层很多 unsafe 的操作，实现起来很繁琐。所以 Rust 可能更适合 app 开发，但是 app 开发的话很多情况下可以接受 GC, Rust 的卖点主要在性能这块。Rust + GC 会是一个不错的编程语言。
+
+Zig 是一门加强版的C语言，比 Rust 要 low level 很多，通过 comptime 实现了范型，有一定程度的 reflection。因为是一门新的语言，自带的工具要多很多，内置测试功能。但是提供的抽象感觉还是不够用，每一个涉及到内存分配的函数几乎都要传递一个 allocator，虽然初衷可以理解(多线程友好），但是使用起来确实太繁琐了，社区还是非常早期阶段，估计还要两年才能到 1.0 版本。作为一个非常底层的语言，我觉得它有生存空间，但是有限。
+
+C++ 是一个怪兽。上面三种语言能做的事情基本都能做。唯一欠缺的是编译期间的反射支持有限。C++ 的设计出自太多人的大脑，非常不 consistent，基本上每个特征都会互相冲突，套用最近比较时髦的话，新加的 feature 基本上都属于翔上雕花，没有人可以完全掌握这些互相冲突的细节。
+
+但是如果是个人项目的话，可以选择 C 和 C++ 的一个子集，很快能把活干完, 短期内还是觉得 C++ 比较靠谱点，every language sucks, some langauge sucks less..
+
+--- https://www.zhihu.com/question/50121841/answer/2655796837
+#+end_quote
+:end:
+
+同样，如果我之后会用到 C++，这门语言我应该也会学。最近看到[[https://zhuanlan.zhihu.com/p/1755741138][有人]]在这个不支持匿名函数的语言里面玩函数式编程，很有意思。
+
+[[./16.svg]]
+
+** Others
+
+这些技术可能只是听说过或者了解到，也许之后会详细看看。
+
+- Nix，一个 Linux 发行版和包管理器，使用纯函数式的方式进行包管理和系统管理
+- ROS，机器人操作系统，我用它写过一些[[../2023-10-24-unitree-go1-collection/index.org][东西]]，但是我只用过 ROS1 noetic
+- Moonbit，一门国产编程语言，最初支持编译到 WASM，现在似乎支持 Native 了
+
+我很想写一篇分析 OOP 发展历史，顺便对比 OOP 和 FP 的文章，但是现在只写了[[https://zhuanlan.zhihu.com/p/668825501][一小部分]]。
+
+* 玩过的一些游戏
+
+除了 LOL，我花在游戏上的时间远远不及 Emacs，感觉逐渐电子阳痿......这里姑且按照时间顺序列一下，真没几个游戏。
+
+** 东方雪莲华
+
+[[https://space.bilibili.com/615282][北欧晨风]]的最后一个东方同人游戏，也是我这段时间玩的第一个和最后一个东方同人游戏：
+
+[[./18.webp]]
+
+** ひなたのつき
+
+角色看上去很萌对吧，可惜都是......
+
+| [[./32.webp]] | [[./33.webp]] |
+
+** 黑神话：悟空 性能测试工具
+
+二四年的 8 月 19 日，「黑神话：悟空」发售了，不过以我的电脑，似乎很难正常游玩的样子：
+
+[[./17.webp]]
+
+之后换了更好的显卡再试试吧。
+
+** さくら、もゆ
+
+早在二一年还是二二年我就玩过 Favorite 社著名的鸟鸟系列：いろとりどりのセカイ、いろとりどりのヒカリ 和 紅い瞳に映るセカイ。我当时的感觉大概可以用下面这一段话来概括：
+
+#+begin_quote
+因此我才说，真红很好，但是我很累——因为我在剥开悲剧后，发现其中的动机令自己并不太愿意接受后，也会怀疑作者自身的水准。创造的全新世界观虽然完整而恢弘，但是其中的细节中又充满着小小的遗憾，甚至会在日后被摧毁，也令我不知作何感想。
+
+什么是“伪造的故事”，什么又是“真实的世界”？
+
+作为一个创作者，我还是希望自己的笔下还是多些欢笑，少些悲伤——因为我所面对的悲伤太多，欢笑太少。
+
+--- [[https://zhuanlan.zhihu.com/p/107341922][吴四六 「真红很好，但是我很累——《五彩斑斓的世界》碎嘴吐槽」]]
+#+end_quote
+
+在二二年的 9 月，由萌译汉化的樱花萌放发布了，我在之前就对这部作品很感兴趣，但是本身不会日语加上 VNR 翻译的完全看不懂也没什么办法。不过我也没想到我在九月中旬打开的游戏会在两年后的国庆才结束：
+
+| [[./19.png]] | [[./20.png]] |
+
+在结束了整个游戏之后，我感到了一阵久违的怅然若失，上一次有这种感觉可能还是玩「腐姬」的时候。带着这种感觉，我花了几个小时把[[https://tieba.baidu.com/f?kw=%E6%A8%B1%E8%8A%B1%E8%90%8C%E6%94%BE][樱花萌放吧]]的帖子翻了个遍，找到了一些比较有意思的内容：
+
+[[./37.webp]]
+
+| [[./29.jpg]] | [[./22.jpg]] | [[./23.jpg]] |
+
+| [[./21.jpg]] | [[./26.jpg]] |
+| [[./24.jpg]] | [[./25.jpg]] |
+| [[./27.jpg]] | [[./28.jpg]] |
+
+网上能找到不少不错的对这个游戏的分析或者说是完后感，也许某一天我也会写一篇，我很有可能会再玩一遍（老实说现在对整个剧情还是很迷糊）。很多关于樱花萌放的文章里都提到这是一部爱与勇气的童话，「愛と勇気の歌」。
+
+| [[./30.webp]] | [[./31.webp]] |
+
+[[./34.webp]]
+
+「[[https://www.bilibili.com/video/BV18C4y1N7zx][满月的夜会]]」是我在这个游戏里面最喜欢的 BGM 之一，整个游戏的配乐都很好听。
+
+| [[./35.webp]] | [[./36.webp]] |
+
+* 想过的一些问题
+
+很难说这两年我只想过这点问题，不过现在只能想起来这些了（如果九月份有时间写就好了）。不过总结和回忆性的内容隔一段时间来写应该更好，会过滤掉一些不那么重要的东西。
+
+** 生活是随机的吗？
+
+在两年前的总结中，我这样写到：「一切都在宇宙大爆炸时已经决定，但未来对我们来说仍是未知的」。那时的我认为未来是确定的，但是对我们来说是未知的，然后也没有往下讨论了。既然未来是未知的，那么是否确定似乎并不重要，而随机事件却是个会经常碰到的东西。这里让我们尝试讨论下生活的随机性。
+
+（我对概率统计等相关认知很浅薄，除概率与统计课程外的知识来源可能就是一些[[https://zhuanlan.zhihu.com/p/28551569][科普文章]]，学过的知识也快忘完了。但是我也没有时间专门为了写总结去复习一下，下面的一些内容可能仅仅是借用了“概率”这个词而已。最近通过[[https://zhuanlan.zhihu.com/p/714131077][这篇文章]]我了解到了有本叫做《概率论沉思录》的书，有时间看看去。）
+
+从字典上的定义来说，「随机」可以用作形容词和副词，前者表示「不设条件的，任意的」，比如随机采样；后者表示「跟着情况的变化，掌握时机」，例句为“密切关注经济的发展，随机调整农业政策”。这里我们讨论的随机性（Randomness）可能和形容词意相近一点。举例来说的话，等公交车或者火车准不准时，投掷硬币或者骰子得到的正反面和点数，极地大乱斗时匹配到的队友和得到的英雄，买彩票中不中奖（大额的可能不是）都是随机事件。再大胆一点，从一个人的出生到死亡，他所有经历过的事件都应该是随机的，没有不存在随机性的事物。
+
+*所以，对于这一小节标题中的问题，我的回答是肯定的。* 在这样“全随机”的世界中，为什么不是所有人一出生就直接被车创死呢？汽车出现在产房的可能性远远小于公路上，而且并不是每个过马路的人都被创死了。一件事情“可能”发生意味着它不是一定会发生和不是一定不会发生，正好我们有个很好的工具来描述这种“可能性”，它就是 *概率* 。
+
+如果一件事几乎不可能发生，那么它的概率值会非常接近于 0，反之则非常接近 1。对于一些比较简单的事件，比如投掷硬币或骰子，我们可以“算”出它的概率来，不严谨地说这叫做 *先验概率* ；对于一些影响因素比较复杂的事件，比如车祸，我们可能更倾向于使用统计方法得到概率的近似值，这叫做 *后验概率* 。也许理论上来说事件是否发生都可以[[https://www.zhihu.com/question/315066546/answer/617542909][算]]出来，但需要计算资源几乎不可能达到， *概率也可看作人类认识复杂现实世界的一种妥协* 。
+
+某种意义上来说，「随机」这个词的两层意思是统一的，形容词义的「任意」意味着我们很难从这件事中发现出什么规律来，但副词词义的「跟着情况的变化」又表明我们可以根据“情况”做出应对，能够应对说明我们已经对“情况”有了（可能是统计意义上）了解和认识。我们会在做事时尽量选择成功率高的方法，同时尽量规避一些常见的错误和问题，这样的趋利避害是生物的一种本性，也是主观能动性的一种体现。「即使是决定论者在过马路时也会左右看看」。
+
+关于概率知识的介绍就此打住，也许我上面写的东西只是表示我部分否定了两年前的「决定论」认识。关于随机性我更想讨论另一个问题：面对生活的随机和不确定性，个人的努力是不是有用的？两年前的我的回答肯定是否，不过现在可能不那么确定。对于这个问题，一个可能的回答是：
+
+#+begin_quote
+生活像是在玩基地大乱斗，你可以在一把比赛中发挥很好，出针对性出装，可有可能你根本摇不到喜欢的英雄，碰不到诗人的队友，随机到 5 个射手，哪怕你尽力了，还是会被冲烂。但就算这种情况，你也确实可以拼命多杀几个，而且你有骰子，往往有可以再选一次的机会，就算胜率会收敛到系统的 50%，就算连跪我们还是会玩，过程开心就好。
+#+end_quote
+
+或者是：
+
+#+begin_quote
+我是认为命运确实很顽固，但可以靠自己的实践理性做出改变。
+
+从实践理性上讲的话，纵使我可能一生贫困潦倒，但仍然拥有意志为自我立法的能力，从而笼摄整个现象界。
+#+end_quote
+
+** 信息过载与分散的注意力
+
+信息随网络的发展逐渐变得无处不在，信息匮乏也慢慢变成了信息过载（information overload），由此也逐渐出现了一些有趣的现象，比如信息的碎片化，刷短视频上瘾，信息茧房等等。目前我对「信息过载」这一现象的认识主要来自一些视频和碎片文章，不是太好举例，不过我这两年碰巧看过一些相关的书，比如「知识的边界」（2012）、「万物皆无序——新数字秩序的革命」（2007）和「浅薄：互联网如何毒化了我们的大脑」（2010）。虽然这些书离二〇二四至少都有十多年了，不过书中的内容用在 GPT 之前应该是没问题的，为了写这一部分我又找出 PDF 看了看。
+
++（不过我这毕竟不是正经的读书笔记，应该没有太多引用和说明，笔记(有生之年)之后再写去。）+
+
+在维基百科中，[[https://en.wikipedia.org/wiki/Information_overload][information overload]] 这一词条有这样的描述：信息过载是指当一个人对问题有太多信息时，难以理解问题并有效做出决策，并且通常与过多的日常信息有关；在现代信息时代，信息过载是指在工作环境环境中，信息过载会分散注意力且难以管理，例如垃圾邮件、电子邮件通知、即时消息、推文和 Facebook 更新。简单来说，信息过载可以理解为 *过量的信息分散了我们的注意力* ，让我们很难静下心来专注地做一件事。不过注意力分散这件事好就好在 *他不是一个人的问题* ，也不仅仅是 *我们这个时代才有的* 问题......
+
+这个选题有点太大了，不如单独作为一篇文章来写。dog250（浙江温州皮鞋湿，下雨进水不会胖）的[[https://zhuanlan.zhihu.com/p/825504185][从介质失效看互联网时代的信息过载]]这篇文章写的不错，这里我转载一下：
+
+:dog250:
+#+begin: note
+
+来读一篇文章：[[https://mp.weixin.qq.com/s/PYoedRB8MotdcYDYNzpl7A][90 年代的硬盘已大规模变砖]]，没啥好担心的，好事。
+
+结合我两年前的粗浅认知[[https://zhuanlan.zhihu.com/p/492510560][互联网时代无信息]]，按照 “动” 的观念看，当信息越来越多，信息密度越来越大时，信息的寿命就会越来越短，信息的碎片也会越来越小。这在本质上由人脑消化信息的带宽是有限的这个生物学事实决定。
+
+还是下面的这个老图，坐标重新解释一下：
+
+[[./38.jpg]]
+
+如果信息只生不灭，信息成本将快速增加，这可通过排队论解释。把人脑对信息的消化看作流量带宽，所有未能及时消化的信息就进入 buffer，而 buffer 排队将直接消耗时间，无论是检索时间，辨别时间，还是存储空间交换的时间，都是时间，我依然可以用 E = bw / delay 模型来解释它。
+
+每天获取不到信息和每天被信息轰炸，用 E 模型解释，效果是一样的：
+
+[[./39.jpg]]
+
+为了让信息过载不至于持续恶化，信息必须有消失机制，而介质的失效将会对此非常有效。
+
+以上将信息看作标量，如果将信息看作矢量，它本身拥有适者拷贝的自我演化机制，受欢迎的信息在介质失效前就会被拷贝，作为标量的信息数量由于介质失效减少了，但作为矢量的信息本身却因为重拷贝生存了下来。我用演化而不是进化恰想说明生存下来的信息是受欢迎的，而不一定是主观上 “更好” 的，适者生存，而不是优者生存。
+
+1990 年代出了海量的流行歌曲，但只有极小的部分流传了下来，其它的或许永久消失了。明清肯定也出现过海量小说，但只有包括四大名著在内的不多著作永久流传下来，总体上消失的信息量非常大，而消失机制的途径就是介质失效，由于其本身不被欢迎，在介质失效前未被拷贝，就永远没了。
+
+正是 “介质总会失效” 阻止了信息持续过载，就像有限 buffer 一定会 overflow 一样，介质的失效提供了一个有限的 buffer。
+
+从石头，甲骨，竹简，纸，一直到硬盘，云，介质失效时间越来越短，信息寿命就越来越短，信息的自然选择越来越快，很多热点因此昙花一现，这就是流量时代的本质。古时候的书保存在相对永久的竹简或纸上，珍藏版让不同人读到它的意义大于让同一个人读第二次，书非借不能读也，信息成本主要在传输而非检索和存储。
+
+如今珍藏版越来越没有必要了，因为传输成本(tcp/ip)降低了，增加的是存储和检索成本，无论是云服务器帮你存储和检索还是你自己在 nas 里存储和检索。人脑的信息处理带宽有极限，E = bw / delay，处理时延 + 检索时延就是总 delay，信息太多等于信息太少，少即是多。
+
+与数据传输系统一致，不同流量存在 buffer 挤兑，不同信息之间也在争抢人脑带宽，有多少人收藏了很多电子书没看完一本，又有多少人正看书被弹窗响铃打断，所以 kindle 就很好，沉浸式独占带宽，符合良性 little 定律行为，消除了 buffer 挤兑的无效成本，我一再强调，即使是 bbr，多流共存也要付出 buffer queuing 时间成本，因为公平性必然要付出效率的代价，这个代价表现为 buffer 动力学描述的过程，它需要时间，E = bw / delay 的分母上增加一点点。
+
+另一个预测，随着信息越来越多，信息传输单位也会越来越小，大文件，长时间传输不复存在了。100 个短视频和 1 个 3 小时的电影以及一个 7 分钟对该电影的解说，你选哪一个？1960 年代大批 4 小时以上的分集电影，上下集，上中下集的电影，1970 年代后普遍 2 小时的电影，为什么 1990 年代就少了，进入 21 世纪，电影普遍就定在 1 小时 30 分了。
+
+最后，看一下信息茧房。
+
+儿子五岁吃饭不好，后来我发现我老婆每次都给他摆一桌子丰盛的饭菜，包括主食，素菜，肉菜，饮料，水果...，结果他总是把最甜的部分按甜度顺序吃完，于是我建议一样一样给他，吃完再给另一样，营养价值最低的饮料和水果则放在最后。果然，他吃饭好了很多。
+
+亚当斯密当年提出的纯市场经济忽略了 “有限理性”，即人们是没有能力完全理性决策的，人都是短视的，这是理论的 bug，而信息时代的信息消费则利用了这个 bug 给内容提供方带来了巨大的利润。
+
+原理很简单，孩子爱吃甜食，就只给他甜食，形成正反馈，滚动正向激励，唱卡拉 OK 的人都经历过话筒的嚎叫吧。
+
+给小孩一桌子菜，他完全没有理性，所以会无条件优先摄入甜的，但给一个成年人一桌子菜，他可能会担心发胖所以不那么过分，但人的选择行为可以慢慢调教，即使是成年人，顺势让人看到他想看到的，减少他不想看到的，双向奔赴。
+
+铺天盖地的信息袭击所有有限理性的人，为流量收入而由算法构建的信息茧房便很容易将人包裹，就像小孩子优先吃糖一样，乐在其中，这就是现在全民反智，全民弱智的根源。正确的做法应是负反馈，糖过量就减少，但显然卖糖的就赚不到钱了。
+
+总之，包括本文说的信息消化，tcp/ip 传输，人的吃喝拉撒，只要是有进有出的系统，都可以用 little 定律和 buffer 动力学解释和优化，E = bw / delay 是普适的，都归它管
+
+再举个类似的例子，人在饥荒时饥不择食，能吃的都有营养，这是匮乏时代，但营养过剩后，博主们便开始鄙视廉价的碳水了，可大多数博主(连高中都没毕业的那些搞体育健身的)连碳水的化学式以及生化过程都一无所知，大 v 持续洗脑，造成了人们对碳水的普遍仇视。这就是一个典型的茧房，因为你想瘦，他们就会让你断掉你最容易获得的，而不是吃的最多的，为什么不是脂肪，因为脂肪比碳水贵，覆盖不了太多人群，流量显然就不如喷碳水。可是这一切都是信息的灌输，你有独立思考过吗？我的意思是，我说的也不一定对。
+
+浙江温州皮鞋湿，下雨进水不会胖。
+
+#+end:
+:end:
+
+之前有个朋友问我还记不记得十年前发生了什么，老实说从小学到大学的同学和朋友我基本上都快忘光了，在这个逐渐“活在当下”的环境中倒也无所谓，因为神圣的互联网连接着我们。
+
+** Others
+
+这里就是我的一点碎碎念了，每一段可以看作独立内容。
+
+有人告诉我“做技术死路一条”，感觉很有道理。
+
+当你不再焦虑，怀疑的时候，觉得什么都这么定下来了，也没什么可以期待了，你的青春就结束了。草，那我的青春可能离结束还有几个月到一年的时间，还没有完全收敛。
+
+现在我感觉时间是越过越快，不过这也有助于比较长时间内做好一件事。
+
+#+begin_quote
+DL 搞拟合能不能拿物理学奖，根本上取决于委员会那群 moron 是不是知道物理学的内核是啥：我们之所以说牛顿奠基物理学，是因为牛顿是用公理演绎体系解释自然现象的，但凡偏离这个路线的，按照物理学的基本内涵根本不能算物理。论拟合，古希腊托勒密就可以把行星周期轨迹拟合到很高的精度，使得日历几百年才需要修正一次，但没人认为托勒密建立了物理。托勒密作为数学家很清醒得说，虽然我这模型精度不错，但只是表象，问题的实质我是不了解的。你可以创立 AI 诺贝尔奖给 hinton Lecun altermam Elon 都行，但你给物理，就是在鸠占鹊巢，本质上在加速这个浮躁吹牛时代已经冷门的数理科学的死亡，是邪恶的做法。其实只要稍微了解世界各个国家的现状的人很容易知道总体上人类文明处于衰退期。比如欧美学术界（其他地区我不敢妄议）早就被脑残白左占领，他们除了吹牛，就是研究如何 justify 儿童变性或者人类有多少性别. pure evil.
+
+--- https://www.zhihu.com/pin/1827466717133139968
+#+end_quote
+
+# https://www.zhihu.com/question/777943030/answer/4521055067
+
+* 未来的一些目标
+
+从长远的目标来看，虽然我还没准备好怎么去死（这孩子将来是要死的——鲁迅「立论」），近段时间还是有些事情可以做的。我还剩两三个月的时间可以自由挥霍，不过这也是最后的时间了。
+
+在这里列一下未来目标和列愿望清单感觉没太大区别，写了我又不一定会去做，不过它至少可以提醒我去做。
+
+** 整理个人资料
+
+一般干完一件事或者经历过一个阶段后，我会把这期间涉及到的资料分类整理好放到硬盘里面做好备份。这样做的一个缺点是缺少一些索引元信息，在文件较多时文件名和树状目录的索引能力比较有限，有时候需要找很久才能找到。对于这个问题，我能想到的最好的方法是把这一阶段发生的事情以流水账的形式记录下来，然后通过超链接或者图片直接索引到具体的文件（当然是通过 Org-mode 生成 HTML）。
+
+除了对这两年的整理，时间充足的话也可以整理下从我出生到现在的资料，之后真没时间了（正好趁着双十一买点 U 盘硬盘回来）。这些工作做完了之后可以去看看自己在互联网上的足迹，我已经记不清注册过多少账号了，有点感觉整个人弥散到了整个互联网中一样......
+
+** 之后会写的东西
+
+这里正好总结一下上文中出现的未完成的目标，以及除此之外我想继续了解的东西。这既包括一些比较具体的目标，也有一些大致的方向。
+
+对于 Emacs，我在二三年的总结中说到“关于 emacs 的深入研究，我自认为我已经到头了（实在是没时间写了）”。原先我打算写一本结合了 Emacs maunal 和 Elisp manual 的详细介绍 emacs 各方面的书，但这对我并没有什么意义，也许对读者也是这样，大部分 Emacser（包括我）并不需要太多 Elisp 知识，用好别人的包写好自己的配置已经足够满足绝大部分需求了。不过话是这么说，我应该会像叶文彬前辈那样写一本更加现代化的《[[https://aandds.com/attachments/elisp_tutor.pdf][Elisp 入门]]》出来，但这也是长时间的积累之后了。我比较确定之后（明年开始）会写的有：
+
+- 「Emacs 的 treesit」第二，三部分，分别介绍 Emacs 的 treesitter API 和如何在 Emacs 中写 major-mode
+- 「Emacs 的模式匹配 —— pcase 与 cond*」，介绍 Emacs 中模式匹配的用法和实现
+- 「Emacs 中的 Error Handling」，错误处理是我一直一来非常想弄清楚的一个问题
+- 「Emacs 与 OOP」，介绍 Emacs 中的 OOP 设施与它“复杂”的 OOP 历史
+- 「如何编译 Emacs」，介绍如何在不同操作系统上使用工具链获取完全功能的 Emacs
+
+最后，如果我实在闲的蛋疼，我会花点时间学习一下 Emacs 的源代码结构，尝试用 cmake 或者其他构建工具替换掉 autotools 那一套，顺便裁剪出一个可用的最小 Emacs Lisp 解释器出来。
+
+对计算机图形学和 DX12，我准备以 GAMES101 为纲把之前学的 DX12 知识总结一遍，不然我就都忘了白学一遍，之后应该不可能会有 DX12 的编程需求了。
+
+对于 /Programming Languages: Application and Interpretation/ 这本书，我会找时间完成它的翻译，顺便把它读完。
+
+有时间把樱花萌放的玩后感写了。
+
+** 之后的几个月？
+
+在整理完个人资料（可能顺便写了几篇文章）之后，我应该还会有最多一个月的空闲时间，这段时间我可以去学点东西（比如看完 /Essentials of Programming Languages/ ），出去玩玩，或者在家里面打打游戏睡睡觉。
+
+* 后记
+
+原本我打算在最后一小节介绍下本博客的发展历史，不过[[../2023-11-11-make-me-a-blog-break-here/index.org][已经写过了]]，那就算了。
+
+相比我最初的计划，本文已经删了不少，如果以一种比较乐观的角度来看，那我完全可以抛掉现在的所有东西直接往前走了，不用写什么总结，不过我显然没那么强。
+
+@@html:<ins>@@祈祷着今后你的人生，永远都有幸福的魔法相伴。@@html:</ins>@@
+
+[[https://x.com/Pst_owo/status/1853237088965243011][file:p1.webp]]
