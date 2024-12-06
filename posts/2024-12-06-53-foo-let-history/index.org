@@ -1,0 +1,867 @@
+#+TITLE: if-let, when-let 等 FOO-LET 宏的变化历史
+#+DATE: [2024-12-03 Tue 10:49]--[2024-12-06 Fri 16:51]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文介绍了 if-let, when-let 等宏的发展历史
+#+TMP: 0
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/124090382][file:dev/3.jpg]] | [[https://www.pixiv.net/artworks/124402420][file:dev/1.jpg]] |
+| [[https://www.pixiv.net/artworks/124393156][file:dev/2.jpg]] | [[https://www.pixiv.net/artworks/124893040][file:dev/0.jpg]] |
+#+end_comment
+
+最近因为一直在等 Emacs 30 的发布，时不时会看看最新的 commit，某天发现之前的一条提交包含了大量的改动， =if/when-let= 被标记为废弃，且 Emacs 源代码中的 =if/when-let= 全都替换成了 =if/when-let*= ：[[https://github.com/emacs-mirror/emacs/commit/8903106bb783c2825233c149b6799960aacdea57][Mark if-let and when-let obsolete]]。
+
+今天（2024-11-29）闲来无事看了一下 emacs-devel 里面的相关讨论，我发现一个比较有意思的事情是 =foo-let= 历史上似乎有许多的争议和变化。本文会整理一下从 =foo-let= 出现到现在的变化过程。希望我写完这篇文章的时候 Emacs 30.1 已经正式发布了。
+
+本文首先会介绍 Emacs 中 =foo-let= 系列宏的用法，随后介绍 =foo-let= 在 Emacs Lisp 和其他 Lisp 方言中的变化历史。本文整理自 Emacs China 帖子 [[https://emacs-china.org/t/if-when-let-and-let-foo-let/28417][if/when-let(\star) 和 and-let\star 的演变历史（也就是 foo-let(\star)）]]。本文使用的环境如下：
+
+- GNU Emacs 31.0.50 (build 3, x86_64-w64-mingw32) of 2024-12-03 (commit [[https://github.com/emacs-mirror/emacs/commit/fef05ba8f409738625167991e811c2ab50f5b047][fef05ba]])
+
+* Emacs 中的 FOO-LET
+
+这里我们使用当前最新 Emacs 中的 =foo-let= 进行介绍，希望能让不熟悉的读者简单了解其使用方法与内部实现。这些宏包括 =if-let/let*=, =when-let/let*=, =and-let*= 和 Emacs 29 新添加的 =while-let= 。
+
+** =if-let*=
+
+除 =and-let*= 外，其他的 =foo-let= 都在内部使用了 =if-let*= 。这是它的参数列表和 =docstring= ：
+
+#+begin_src elisp
+  (defmacro if-let* (varlist then &rest else)
+    "Bind variables according to VARLIST and evaluate THEN or ELSE.
+  Evaluate each binding in turn, as in `let*', stopping if a
+  binding value is nil.  If all are non-nil return the value of
+  THEN, otherwise the value of the last form in ELSE, or nil if
+  there are none.
+
+  Each element of VARLIST is a list (SYMBOL VALUEFORM) that binds
+  SYMBOL to the value of VALUEFORM.  An element can additionally be
+  of the form (VALUEFORM), which is evaluated and checked for nil;
+  i.e. SYMBOL can be omitted if only the test result is of
+  interest.  It can also be of the form SYMBOL, then the binding of
+  SYMBOL is checked for nil."
+    ...)
+#+end_src
+
+可见， =if-let*= 是 =if= 和 =let*= 的结合体，首先对 =VARLIST= 进行 =let*= 绑定，然后根据绑定的值判断执行 =THEN= 还是 =ELSE= 表达式。 =if-let*= 对绑定求值的描述是“逐个求值且在遇到空值时停止，若绑定无空值则返回 =THEN= 的值，否则返回 =ELSE= 的值或空值”。在 =VARLIST= 中的绑定除了是 =(SYMBOL VALUEFORM)= 形式外，还可以省略掉绑定名字为 =(VALUEFORM)= 。以下例子可以简单说明 =if-let*= 的用法：
+
+#+begin_src elisp
+  (if-let* ((x 1)
+  	  (y (+ x 1)))
+      (+ x y) x)
+  => 3
+
+  (if-let* ((x 1)
+  	  ((booleanp x)))
+      x (+ x 1))
+  => 2
+#+end_src
+
+需要注意的是，“遇到空值时停止”意味着 =if-let*= 是 *短路求值* 的，它并不会对所有绑定求值后再判断绑定是否全为真，以下宏展开结果可以说明这一点：
+
+#+begin_src elisp
+  (macroexpand '(if-let* ((x 1) (y 2)) (+ x y) x))
+  => (let* ((x (and t 1))
+  	  (y (and x 2)))
+       (if y (+ x y) x))
+#+end_src
+
+最后， =if-let*= 表达式的值是 =THEN= 或 =ELSE= 表达式的值，若绑定中存在空值且无 =ELSE= 表达式，那么 =if-let*= 表达式的值为空值：
+
+#+begin_src elisp
+  (if-let* ((nil)) 1) => nil
+#+end_src
+
+** =when-let*= 和 =and-let*=
+
+=when-let*= 就是不带 =ELSE= 的 =if-let*= ，它的实现如下所示：
+
+#+begin_src elisp
+  (defmacro when-let* (varlist &rest body)
+    "Bind variables according to VARLIST and conditionally evaluate BODY.
+  Evaluate each binding in turn, stopping if a binding value is nil.
+  If all are non-nil, return the value of the last form in BODY.
+
+  The variable list VARLIST is the same as in `if-let*'.
+
+  See also `and-let*'."
+    (declare (indent 1) (debug if-let*))
+    (list 'if-let* varlist (macroexp-progn body)))
+#+end_src
+
+=and-let*= 的实现与 =if-let*= 非常相似，但是存在一些细微差异，它的 =docstring= 说明了这一点：
+
+#+begin_src elisp
+  (defmacro and-let* (varlist &rest body)
+    "Bind variables according to VARLIST and conditionally evaluate BODY.
+  Like `when-let*', except if BODY is empty and all the bindings
+  are non-nil, then the result is the value of the last binding.
+
+  Some Lisp programmers follow the convention that `and' and `and-let*'
+  are for forms evaluated for return value, and `when' and `when-let*' are
+  for forms evaluated for side-effect with returned values ignored."
+    ;; ^ Document this convention here because it explains why we have
+    ;;   both `when-let*' and `and-let*' (in addition to the additional
+    ;;   feature of `and-let*' when BODY is empty).
+    ...)
+#+end_src
+
+可见若 =and-let*= 的 =BODY= 为空且绑定全非空时它将返回绑定的最后一个表达式，而不是返回空值。 =docstring= 也提到了 =and-let*= 更关注表达式的值，而 =when-let*= 更关注副作用。以下是一些简单的 =and-let*= 例子：
+
+#+begin_src elisp
+  (and-let* ((x 1) (y 2) ((+ x y))))
+  => 3
+  (and-let* ((x '(1 2 3))
+  	   ((not (null x))))
+    (cdr x))
+  => (2 3)
+#+end_src
+
+** +=if-let= 和 =when-let=+
+
+就像本文开头提到的那样， =if-let= 和 =when-let= 在最新的 Emacs 中被废弃了，说不好会在几个 Emacs 主版本后被移除。以下是它们的实现：
+
+#+begin_src elisp
+  (defmacro if-let (spec then &rest else)
+    "Bind variables according to SPEC and evaluate THEN or ELSE.
+  This is like `if-let*' except, as a special case, interpret a SPEC of
+  the form \(SYMBOL SOMETHING) like \((SYMBOL SOMETHING)).  This exists
+  for backward compatibility with an old syntax that accepted only one
+  binding."
+    (declare (indent 2)
+             (debug ([&or (symbolp form)  ; must be first, Bug#48489
+                          (&rest [&or symbolp (symbolp form) (form)])]
+                     body))
+             (obsolete if-let* "31.1"))
+    (when (and (<= (length spec) 2)
+               (not (listp (car spec))))
+      ;; Adjust the single binding case
+      (setq spec (list spec)))
+    (list 'if-let* spec then (macroexp-progn else)))
+
+  (defmacro when-let (spec &rest body)
+    "Bind variables according to SPEC and conditionally evaluate BODY.
+  Evaluate each binding in turn, stopping if a binding value is nil.
+  If all are non-nil, return the value of the last form in BODY.
+
+  The variable list SPEC is the same as in `if-let'."
+    (declare (indent 1) (debug if-let)
+             (obsolete "use `when-let*' or `and-let*' instead." "31.1"))
+    ;; Previously we expanded to `if-let', and then required a
+    ;; `with-suppressed-warnings' to avoid doubling up the obsoletion
+    ;; warnings.  But that triggers a bytecompiler bug; see bug#74530.
+    ;; So for now we reimplement `if-let' here.
+    (when (and (<= (length spec) 2)
+               (not (listp (car spec))))
+      (setq spec (list spec)))
+    (list 'if-let* spec (macroexp-progn body)))
+#+end_src
+
+与各自的 =let*= 版本不同的是， =if/when-let= 支持当仅存在一个绑定时去掉 =VARLIST= 的外层括号，即允许如 =(if-let (x 1) x 0)= 的写法。在当前这个版本这大概是唯一的区别了，其他没什么好说的。
+
+** =while-let=
+
+=while-let= 相比起前面几个宏就比较新了，在 29.1 才加入 Emacs，它的实现如下：
+
+#+begin_src elisp
+  (defmacro while-let (spec &rest body)
+    "Bind variables according to SPEC and conditionally evaluate BODY.
+  Evaluate each binding in turn, stopping if a binding value is nil.
+  If all bindings are non-nil, eval BODY and repeat.
+
+  The variable list SPEC is the same as in `if-let*'."
+    (declare (indent 1) (debug if-let))
+    (let ((done (gensym "done")))
+      `(catch ',done
+         (while t
+           ;; This is `if-let*', not `if-let', deliberately, despite the
+           ;; name of this macro.  See bug#60758.
+           (if-let* ,spec
+               (progn
+                 ,@body)
+             (throw ',done nil))))))
+#+end_src
+
+这里有两点需要注意：(1) =while-let= 使用了 =let*= 而不是它名字中的 =let= [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-01/msg01021.html][bug#60758: 29.0.60; while-let uses if-let* convention in contradiction t]] ；(2) =let*= 绑定发生在 =while= 内而不是 =while= 外，这与 =if/when/and-let*= 行为并不一致，第一次使用时可能会感觉非常反直觉：[[https://lists.gnu.org/archive/html/emacs-devel/2024-11/msg00320.html][Is this a bug in while-let or do I missunderstand it?]]。
+
+#+begin_src elisp
+  (while-let ((run t))
+    (setq run nil))
+  => infinite loop...
+#+end_src
+
+根据 =while-let= 的实现来看，每次循环都会重新执行 =if-let*= 绑定，直到绑定中出现空值。这意味着我们无法在绑定完成后通过 *直接修改绑定值* 来终止循环。如果想要仅通过绑定为空来终止循环，绑定对应的表达式需要最终变化为空值，而不能全是非空常值：
+
+#+begin_src elisp
+  (let* ((ls1 (list 1 2 3))
+         (ls2 (copy-sequence ls1)))
+    (list (let (curr-v (res 0))
+  	  (while (setq curr-v (pop ls1))
+  	    (cl-incf res curr-v))
+  	  res)
+  	(let ((res 0))
+  	  (while-let ((curr-v (pop ls2)))
+  	    (cl-incf res curr-v))
+  	  res)))
+  => (6 6)
+#+end_src
+
+当前 Emacs 中使用 =while-let= 的代码主要集中在 ERC 中，读者可以找找更复杂的使用例子：
+
+[[./5.png]]
+
+* LET VS LET*
+
+如你所见，现在，Emacs 中除 =if-let*= 外的所有 =foo-let= 都在内部使用了 =if-let*= （ =and-let*= 没有直接使用 =if-let*= 但实现极其相似且使用 =let*= 而不是 =let= ）。也许这能够说明现在的 Emacs 用户（？）或维护者（？）更倾向于使用 =let*= 而不是 =let= 。尽管 =let*= 更接近一般编程语言的变量绑定语句，我在写代码时非必要不会用 =let*= ，因为 =let= 比 =let*= 短而且不用按 =SHIFT+8= 组合键。
+
+这两个 =special-form= 对 Lisper 来说应该是熟悉的不能再熟悉了，而且很多人在初学 Lisp 时应该被 =let= 坑过（比如 Emacs 中的 =void-variable= 错误），不知道读者有没有想过为什么不是只有 =let*= ，以及默认使用哪一个更好的问题。我将在这一节结合 stack overFlow 上的 [[https://stackoverflow.com/questions/554949/let-versus-let-in-common-lisp/][LET versus LET* in Common Lisp]] 帖子尝试回答这两个问题。
+
+** 作为匿名函数调用语法糖的 =let= 和 =let*=
+
+如果你选择了 Scheme 作为首先接触到的 Lisp 语言，那么你最初对 =let= 的认识很可能是 =lambda= 调用表达式的语法糖， /The Scheme Programming Lanugage/ 一书的第二章第 27 页是这样写的（习题 3.1.3 还要求读者使用 =define-syntax= 写出 =let*= 的定义）：
+
+#+begin_quote
+In fact, a let expression is a syntactic extension defined in terms of lambda
+and procedure application, which are both core syntactic forms. In general, any
+expression of the form
+
+#+begin_src scheme
+  (let ((var expr) ...) body1 body2 ...)
+#+end_src
+
+is equivalent to the following.
+
+#+begin_src scheme
+  ((lambda (var ...) body1 body2 ...)
+   expr ...)
+#+end_src
+--- /The Scheme Programming Lanugage 4th edition/
+#+end_quote
+
+这里借用一下 [[https://stackoverflow.com/a/587837][Rainer Joswig]] 的回答中的示例代码， =let= 和 =let*= 可以理解为如下展开：
+
+#+begin_src scheme
+  ;; https://stackoverflow.com/a/587837
+  (let ((a1 b1) (a2 b2) ... (an bn))
+    (some-code a1 a2 ... an))
+  =>
+  ((lambda (a1 a2 ... an)
+     (some-code a1 a2 ... an))
+   b1 b2 ... bn)
+
+  (let* ((a1 b1) (a2 b2) ... (an bn))
+    (some-code a1 a2 ... an))
+  =>
+  ((lambda (a1)
+     ((lambda (a2)
+        ...
+        ((lambda (an)
+           (some-code a1 a2 ... an))
+         bn))
+      b2))
+   b1)
+#+end_src
+
+仅从 =let= 是 =lambda= 函数调用表达式的语法扩展这一点来看的话， =let= 早于 =let*= 出现是很好理解的： =let= 对应于匿名函数调用而 =let*= 是其嵌套形式，应该出现在 =let*= 之后。与 Common Lisp 中明确规定 =let= 绑定 *表达式* 顺序求值（见 [[https://www.lispworks.com/documentation/HyperSpec/Body/s_let_l.htm][CLHS]]，Elisp 和 [[https://docs.racket-lang.org/reference/let.html#%28form._%28%28lib._racket%2Fprivate%2Fletstx-scheme..rkt%29._let%29%29][Racket]] 也是如此实现的）不同，Scheme 标准并未规定 =let= 绑定求值顺序：
+
+#+caption: r5rs（左）和 r7rs（右）对 =let= 的描述，注意 *Semantics*
+| [[./3.png]] | [[./4.png]] |
+
+（实际实现中出于性能效率或其他考虑， =let= 和 =let*= 一般不会实现为展开到匿名函数调用的语法扩展，读者可以看看 Emacs 中 =let= 的源代码，或者尝试在自己使用的 Scheme 实现的 REPL 中执行 =(expand '(let ((x 1)) x))= 观察结果。）
+
+** “并行”的 =let= 与“顺序”的 =let*=
+
+如上所述，在 r5rs 和 r7rs 中并未规定 =let= 的绑定表达式的求值顺序，但是实现上可能大多采取了顺序求值的方法，在 Chez 和 Racket 中，以下代码在 REPL 中会输出 =3216= 而不是 =1236= ：
+
+#+begin_src scheme
+  (let ((a (begin (display 3) 1))
+        (b (begin (display 2) 2))
+        (c (begin (display 1) 3)))
+    (+ a b c))
+#+end_src
+
+所以，如果我们说到 =let= 的并行性的话，准确来说指的是 *绑定建立* 的并行性，而不是 *绑定值求值* 的并行性：
+
+#+begin_quote
+The main difference in Common List between =LET= and =LET*= is that symbols in
+=LET= are bound in parallel and in =LET*= are bound sequentially. /Using LET
+does not allow the init-forms to be executed in parallel nor does it allow the
+order of the init-forms to be changed/. The reason is that Common Lisp allows
+functions to have side-effects. Therefore, the order of evaluation is important
+and is always left-to-right within a form. Thus, in LET, the init-forms are
+evaluated first, left-to-right, then the bindings are created, +left-to-right+
+in parallel. In =LET*=, the init-form is evaluated and then bound to the symbol
+in sequence, left-to-right.
+
+[[https://www.lispworks.com/documentation/HyperSpec/Body/s_let_l.htm][CLHS: Special Operator LET, LET*]]
+#+end_quote
+
+=let= 和 =let*= 的区别应该体现在绑定的可见性上：
+
+#+begin_src elisp
+  ;; https://stackoverflow.com/a/555007
+  (let ((c 1)) (let ((c 2) (a (+ c 1))) a))
+  => 2
+
+  (let ((c 1)) (let* ((c 2) (a (+ c 1))) a))
+  => 3
+#+end_src
+
+** 到底要选哪个呢？
+
+#+MACRO: green @@html:<b style="color:green;">$1</b>@@
+#+MACRO: red   @@html:<b style="color:red;">$1</b>@@
+
+对于这个问题，万能回答当然是“该用 =let= 就用 =let= ，该用 =let*= 就用 =let*= ”，那么什么时候“该用”什么呢？就这个问题可以分为正反两派：(1) 任何时候都优先用 =let*= ，(2) 在不得不使用顺序绑定时用 =let*= ，其他时候用 =let= 。Emacs 的一些维护者们应该是前着，为了敲代码方便我是后者。下面有请正反方上场（パチパチパチ）。
+
+#+begin_quote
+{{{green(支持 <code>let</code>)}}}
+
+=LET= makes code understanding *easier*. One sees a bunch of bindings and one can
+read each binding individually without the need to understand the
+top-down/left-right flow of 'effects' (rebindings). *Using =LET*= signals to the
+programmer (the one that reads code) that the bindings are not independent*, but
+there is some kind of top-down flow - which complicates things.
+
+https://stackoverflow.com/a/587837
+#+end_quote
+
+#+begin_quote
+{{{green(支持 <code>let</code>)}}}
+
+You don't /need/ =LET=, but you normally /want/ it.
+
+=LET= suggests that you're just doing standard parallel binding with nothing tricky going on. =LET*= induces restrictions on the compiler and suggests to the user that there's a reason that sequential bindings are needed. In terms of *style*, =LET= is better when you don't need the extra restrictions imposed by =LET*=.
+
+https://stackoverflow.com/a/555136
+#+end_quote
+
+#+begin_quote
+*中立* 偏 {{{green(支持 <code>let</code>)}}}
+
+*In LISP, there's often a desire to use the weakest possible constructs*. Some style guides will tell you to use === rather than =eql= when you know the compared items are numeric, for example. The idea is often to specify what you mean rather than program the computer efficiently.
+
+*However*, there can be actual efficiency improvements in saying only what you mean, and not using stronger constructs. If you have initializations with =LET=, they can be executed in parallel, while =LET*= initializations have to be executed sequentially. I don't know if any implementations will actually do that, but some may well in the future.
+#+end_quote
+
+#+begin_quote
+{{{green(支持 <code>let</code>)}}}
+
+I use =LET= in preference to =LET*= because it tells the reader something about
+how the data flow is unfolding. In my code, at least, if you see a =LET*= you
+know that values bound early will be used in a later binding. Do I "need" to do
+that, no; but I think it's helpful. That said I've read, rarely, code that
+defaults to =LET*= and the appearance of LET signals that the author really
+wanted it. I.e. for example to swap meaning of two vars.
+
+https://stackoverflow.com/a/15036570
+#+end_quote
+
+#+begin_quote
+{{{red(支持 <code>let*</code>)}}}
+
+In addition to [[https://stackoverflow.com/questions/554949/let-versus-let-in-common-lisp/587837#587837][Rainer Joswig's]] answer, and from a purist or theoretical point of
+view. Let & Let* represent two programming paradigms; functional and sequential
+respectively.
+
+As of to why should I just keep using Let* instead of Let, well, you are taking
+the fun out of me coming home and thinking in pure functional language, as
+opposed to sequential language where I spend most of my day working with :)
+
+https://stackoverflow.com/a/3463512
+#+end_quote
+
+#+begin_quote
+{{{red(支持 <code>let*</code>)}}}
+
+Lisp 应当取消 =let=, 全部改用 =let*=
+
+实际编程中必须用 =let= 不可的情况只占1%, 而且大不了重新取一个名字 OK, =let*= 可以覆盖 99.9% 的情况.
+
+可惜 =let= 和 =let*= 沿用太久, 现在大家都习惯了更没人改了
+
+https://emacs-china.org/t/lisp-let/22031/12
+#+end_quote
+
+很难说我找到了足够数量的样本或者说样本的选取是否公正，我在写 Elisp 代码时还是时不时会因为使用 =let= 而遇到 =void-variable= 问题，也许我之后会转向使用 =let*= ，但我因为懒使得转向使用 =let*= 这件事情不太可能。
+
+#+caption: https://emacs-china.org/t/if-when-let-and-let-foo-let/28417/9 [2024-12-06 17:40]
+[[./6.png]]
+
+* 其他 Lisp 中的 FOO-LET
+
+=foo-let= 在 Lisp 系语言中的出现时间远早于 Emacs 中 =if-let= 等宏的引入（Emacs 在 25.1 中添加了 =if-let= 和 =when-let= ，见 NEWS.25）。你可以在 Common Lisp，Scheme 和 Clojure 等语言中找到它们。
+
+** Clojure: =if/when-let=
+
+[[https://stevelosh.com/blog/2018/07/fun-with-macros-if-let/][Fun with macros: If-let and When-let]] 这篇博客介绍了如何在 Common Lisp 中实现这一系列 =foo-let= ，作者在开头提到他首先从 Clojure 中了解到这些宏的存在的。在 [[https://clojuredocs.org/clojure.core][clojure.core]] 中可以找到 =when-let= 和 =if-let= 。这两个宏出现在 Clojure 1.0 中，而 Clojure 1.0 [[https://clojure.blogspot.com/2009/05/clojure-10.html][发布]]于 2009 年 5 月 4 日， =if/when-let= 的出现时间只会更早。
+
+有意思的是，Clojure 中没有 =let*= ， =let= 的默认行为和其他一众 Lisp 中的 =let*= 类似，而且绑定使用单个向量的语法。也许某些 Lisper 不喜欢 Clojure 中的一些设计，但我认为使用 =let= 替换掉 =let*= 绝对是个好主意。
+
+#+begin_src clojure
+  (let [x 1 y (+ x 1) z (+ y 1)]
+    (+ x y z))
+  => 6
+#+end_src
+
+与 Emacs Lisp 不同，Clojure 的 =if/when-let= 仅允许一个绑定，Emacs Lisp 中 =if/when-let= 在仅存在一个绑定时的简化语法可能受到了 Clojure 的影响。下面是 Clojure 中 =if-let= 的实现，由于逗号（ =,= ）挪作他用了，准引用中的反引用使用 =~= 和 =~@= 代替：
+
+#+begin_src clojure
+  ;; https://github.com/clojure/clojure/blob/clojure-1.11.1/src/clj/clojure/core.clj#L1858
+  (defmacro if-let
+    "bindings => binding-form test
+
+    If test is true, evaluates then with binding-form bound to the value of
+    test, if not, yields else"
+    {:added "1.0"}
+    ([bindings then]
+     `(if-let ~bindings ~then nil))
+    ([bindings then else & oldform]
+     (assert-args
+      (vector? bindings) "a vector for its binding"
+      (nil? oldform) "1 or 2 forms after binding vector"
+      (= 2 (count bindings)) "exactly 2 forms in binding vector")
+     (let [form (bindings 0) tst (bindings 1)]
+       `(let [temp# ~tst]
+          (if temp#
+            (let [~form temp#]
+              ~then)
+            ~else)))))
+#+end_src
+
+Clojure 的 =when-let= 实现与 =if-let= 高度相似，这里就不给出源代码了。
+
+在 emacs-devel 邮件列表中能找到的最早的和 =if/when-let= 相关的邮件可能是 2013 年 7 月 13 日的 [[https://lists.gnu.org/archive/html/emacs-devel/2013-07/msg00466.html][Sweeter Emacs Lisp]]，fgallina 提到了 Clojure 中的 =if/when-let= ，随后 Dmitry Gutov [[https://lists.gnu.org/archive/html/emacs-devel/2013-07/msg00469.html][指出]]它们在 dash.el 中已经实现了（[[https://github.com/magnars/dash.el/commit/139610257a765532e6aa86110a21056812682f85][-if/when-let]] [2013-04-10], [[https://github.com/magnars/dash.el/commit/e870be867c8557c7a660a6350336bc9eca0cc101][-if/when-let*]] [2013-04-24]）。此时 Stefan Monnier 在这个列表下[[https://lists.gnu.org/archive/html/emacs-devel/2013-07/msg00503.html][推销]]他的 =pcase= 并[[https://lists.gnu.org/archive/html/emacs-devel/2013-07/msg00673.html][表示]]他对 =if/when-let= 没有太大的兴趣。
+
+在 fgallina（Fabián Ezequiel Gallina）发出上面那封邮件一年多后，他将 =if/when-let= 和两个 threading macro 添加到了 Emacs 中：[[https://github.com/emacs-mirror/emacs/commit/c08f8be29f4f6d107da5cc38d614519df7a6ab11][New if-let, when-let, thread-first and thread-last macros.]] [2024-06-30]，在 emacs-devel 中与此次提交相关的邮件有一封：[[https://lists.gnu.org/archive/html/emacs-devel/2014-06/msg00599.html][Re: trunk r117448: New if-let, when-let, thread-first and thread-last macros.]]。
+
+综上，Clojure 对 Emacs Lisp 的 =if/when-let= 的添加有直接影响。
+
+** Scheme: =and-let*=
+
+早在 1999 年，在 SRFI（[[https://srfi.schemers.org/][Scheme Requests for Implementation]]）中就出现了 =and-let*= 提案：[[https://srfi.schemers.org/srfi-2/][SRFI 2: AND-LET*: an AND with local bindings, a guarded LET* special form]]。
+
+#+begin_quote
+Like an ordinary AND, an AND-LET* special form evaluates its arguments --
+expressions -- one after another in order, till the first one that yields
+#f. Unlike AND, however, a non-#f result of one expression can be bound to a
+fresh variable and used in the subsequent expressions. AND-LET* is a cross-breed
+between LET* and AND.
+#+end_quote
+
+和 Emacs Lisp 一样， =and-let*= 是 =let*= 和 =and= 的结合体，我们可以在短路求值的过程中绑定某些值到名字，并在之后利用它们。文档给出了以下例子：
+
+#+begin_src scheme
+(and-let* ((my-list (compute-list)) ((not (null? my-list))))
+  (do-something my-list))
+
+(define (look-up key alist)
+    (and-let* ((x (assq key alist))) (cdr x)))
+
+(or
+ (and-let* ((c (read-char))
+            ((not (eof-object? c))))
+   (string-set! some-str i c)
+   (set! i (+ 1 i)))
+ (begin (do-process-eof)))
+#+end_src
+
+现在的 Scheme 实现们似乎都没有实现 =and-let*= 。
+
+顺带一提，这个文档中还提到了 /anaphoric macro/ =aand= ，不过 =and-let*= 允许多个绑定而不只有 =it= 。关于什么是 /anaphoric macro/ 可以参考[[https://courses.cs.umbc.edu/331/resources/lisp/onLisp/14anaphoricMacros.pdf][这份文档]]，这是 /On Lisp/ 的第 14 章，这是 =aif= 和 =aand= 的定义（这里也有关于 /anaphoric macro/ 的上古讨论：[[https://lists.gnu.org/archive/html/emacs-devel/2014-08/msg00150.html][anaphora in emacs-lisp?]] [2014-08-08], [[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00189.html][Anaphoric macros: increase visibility]] [2017-01-13]）：
+
+#+begin_src lisp
+(defmacro aif (test-form then-form &optional else-form)
+  `(let ((it ,test-form))
+     (if it ,then-form ,else-form)))
+
+(defmacro aand (&rest args)
+  (cond ((null args) t)
+	((null (cdr args)) (car args))
+	(t `(aif ,(car args) (aand ,@(cdr args))))))
+#+end_src
+
+=and-let*= 在 emacs-devel 中最早出现的地方也是上面提到的那封邮件的[[https://lists.gnu.org/archive/html/emacs-devel/2013-07/msg00675.html][回复]]， =and-let*= 也在 2017 年 2 月 4 日被 holomorph 以 =when-let*= 别名的形式加入 Emacs：[[https://github.com/emacs-mirror/emacs/commit/be10c00d3d64d53a7f31441d42f6c5b1f75b9916][Rename to if-let* and when-let*]]，并在随后的 9 月 13 日变更为独立实现：[[https://github.com/emacs-mirror/emacs/commit/4612b2a2b37026bef5a9b8e92878a15dabb9b261][Implement and-let*]]。
+
+** Common Lisp
+
+在 Common Lisp 的标准中找不到 =foo-let= ，可以搜到的是支持 =when-let= 和 =when-let*= 的 Lispworks（[[https://www.lispworks.com/documentation/lw60/LW/html/lw-943.htm][34 The LISPWORKS Package]]），和一个叫做 [[https://alexandria.common-lisp.dev/][Alexandria]]（亚历山大里亚）的库，它支持 =if-let= 和 =when-let(*)= 。很难说这些 =foo-let= 最初出现的具体时间是什么时候，Alexandria 最初[[https://gitlab.common-lisp.net/alexandria/alexandria/-/commit/d670d4fbe0abc3bb16d9f4c67e19e4b265882ee9][添加]]这些宏的时间是 18 年前（2006 年 11 月 7 日），它们的出现肯定早于 2006 年。
+
+[[./1.png]]
+
+在最初的提交中，这四个宏的结构基本一致，可以用下面的代码来表示：
+
+#+begin_src lisp
+  (defmacro if-let/let* (bindings then-form &optional else-form)
+    (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                             (list bindings)
+                             bindings))
+           (variables (mapcar #'car binding-list)))
+      `(let/let* ,binding-list
+  	       (if (and ,@variables)
+  		   ,then-form
+  		   ,else-form))))
+
+  (defmacro when-let/let* (bindings &body forms)
+    (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                             (list bindings)
+                             bindings))
+           (variables (mapcar #'car binding-list)))
+      `(let/let* ,binding-list
+  	       (when (and ,@variables)
+  		 ,@forms))))
+#+end_src
+
+可见它们全都是先对 binding 求值后再判断所有的 binding 是否都非空来执行后续表达式，不像 Emacs Lisp 那样有短路逻辑。2008 年 6 月 1 日 =if-let*= 被[[https://gitlab.common-lisp.net/alexandria/alexandria/-/commit/130ac5c40c1295f5291162e94bcc9b444d050ed9][移除]]了，这个移除倒是很好理解，如果绑定求值过程中遇到空值且后续的绑定依赖之前的绑定，那么不能保证所有的绑定计算都能正常进行。
+
+[[./2.png]]
+
+在移除 =if-let*= 的 commit 中， =when-let*= 的实现变为了如下代码，现在它是短路求值的：
+
+#+begin_src lisp
+  (defmacro when-let* (bindings &body forms)
+    (let ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                            (list bindings)
+                            bindings)))
+      (labels ((bind (bindings forms)
+                 (if bindings
+                     `((let (,(car bindings))
+                         (when ,(caar bindings)
+                           ,@(bind (cdr bindings) forms))))
+                     forms)))
+        `(let (,(car binding-list))
+           (when ,(caar binding-list)
+             ,@(bind (cdr binding-list) forms))))))
+#+end_src
+
+此后经过[[https://gitlab.common-lisp.net/alexandria/alexandria/-/commit/3b849bc0116ea70f215ee6b2fbf354e862aaa9dd][修正]]得到了最终的 =when-let*= ：
+
+#+begin_src lisp
+  (defmacro when-let* (bindings &body body)
+    (let ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                            (list bindings)
+                            bindings)))
+      (labels ((bind (bindings body)
+                 (if bindings
+                     `(let (,(car bindings))
+                        (when ,(caar bindings)
+                          ,(bind (cdr bindings) body)))
+                     `(progn ,@body))))
+        (bind binding-list body))))
+#+end_src
+
+最终的 binding.lisp 如下：
+
+:Alexandria-binding:
+#+begin_src lisp
+  (in-package :alexandria)
+
+  (defmacro if-let (bindings &body (then-form &optional else-form))
+      "Creates new variable bindings, and conditionally executes either
+  THEN-FORM or ELSE-FORM. ELSE-FORM defaults to NIL.
+
+  BINDINGS must be either single binding of the form:
+
+   (variable initial-form)
+
+  or a list of bindings of the form:
+
+   ((variable-1 initial-form-1)
+    (variable-2 initial-form-2)
+    ...
+    (variable-n initial-form-n))
+
+  All initial-forms are executed sequentially in the specified order. Then all
+  the variables are bound to the corresponding values.
+
+  If all variables were bound to true values, the THEN-FORM is executed with the
+  bindings in effect, otherwise the ELSE-FORM is executed with the bindings in
+  effect."
+      (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                               (list bindings)
+                               bindings))
+           (variables (mapcar #'car binding-list)))
+      `(let ,binding-list
+         (if (and ,@variables)
+             ,then-form
+             ,else-form))))
+
+  (defmacro when-let (bindings &body forms)
+      "Creates new variable bindings, and conditionally executes FORMS.
+
+  BINDINGS must be either single binding of the form:
+
+   (variable initial-form)
+
+  or a list of bindings of the form:
+
+   ((variable-1 initial-form-1)
+    (variable-2 initial-form-2)
+    ...
+    (variable-n initial-form-n))
+
+  All initial-forms are executed sequentially in the specified order. Then all
+  the variables are bound to the corresponding values.
+
+  If all variables were bound to true values, then FORMS are executed as an
+  implicit PROGN."
+    (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                             (list bindings)
+                             bindings))
+           (variables (mapcar #'car binding-list)))
+      `(let ,binding-list
+         (when (and ,@variables)
+           ,@forms))))
+
+  (defmacro when-let* (bindings &body body)
+    "Creates new variable bindings, and conditionally executes BODY.
+
+  BINDINGS must be either single binding of the form:
+
+   (variable initial-form)
+
+  or a list of bindings of the form:
+
+   ((variable-1 initial-form-1)
+    (variable-2 initial-form-2)
+    ...
+    (variable-n initial-form-n))
+
+  Each INITIAL-FORM is executed in turn, and the variable bound to the
+  corresponding value. INITIAL-FORM expressions can refer to variables
+  previously bound by the WHEN-LET*.
+
+  Execution of WHEN-LET* stops immediately if any INITIAL-FORM evaluates to NIL.
+  If all INITIAL-FORMs evaluate to true, then BODY is executed as an implicit
+  PROGN."
+    (let ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                            (list bindings)
+                            bindings)))
+      (labels ((bind (bindings body)
+                 (if bindings
+                     `(let (,(car bindings))
+                        (when ,(caar bindings)
+                          ,(bind (cdr bindings) body)))
+                     `(progn ,@body))))
+        (bind binding-list body))))
+#+end_src
+:end:
+
+根据出现时间来看，Clojure 也许受到了 Alexandria 的影响，Emacs Lisp 也许受到了他们两者再加上 Scheme 的影响。Clojure 的 =if/when-let= 由于只允许一个绑定不存在短路求值问题；Common Lisp 的 =if/when-let= 没有短路求值， =when-let*= 使用了短路求值；Emacs Lisp 的 =if/when-let= 从一开始就是短路求值的。
+
+* FOO-LET in Emacs: 2014~2024
+
+现在我们能够确定 Emacs Lisp 中 =foo-let= 的诞生受到了来自 Clojure, Common Lisp 和 Scheme 的影响。从 2014 年到现在 =foo-let= 也有了不少的变化，我们最终也迎来了 =if/when-let= 的废弃。在这一节中我会根据 emacs-devel 和 bug-gnu-emacs 邮件列表和 Emacs 中 =foo-let= 的实现改变来尝试找出变化出现的原因。
+
+** 14: =if/when-let= 的诞生
+
+=if-let= 和 =when-let= 最早出现于 Emacs 25.1，在 commit c08f8be 中：[[https://github.com/emacs-mirror/emacs/commit/c08f8be29f4f6d107da5cc38d614519df7a6ab11][New if-let, when-let, thread-first and thread-last macros.]]，提交时间是 2014 年 6 月 30 日（Emacs 25.1 发布于 2016 年 9 月，隔了两年多），提交者是 fgallina（Fabián Ezequiel Gallina）。该[[https://github.com/emacs-mirror/emacs/blob/c08f8be29f4f6d107da5cc38d614519df7a6ab11/lisp/emacs-lisp/subr-x.el][实现]]位于 subr-x.el 中。
+
+在 Emacs 中，最初版本的 =foo-let= 仅包含 =if/when-let= ，且 =when-let= 几乎可以认为是不含 =ELSE= 子表达式的 =if-let= 。 =if-let= 内部使用了 =let*= 而不是 =let= 。需要注意的是，此时的实现里 binding 就已经是 *短路求值* 的了，读者可以参考 =internal--build-binding= 的[[https://github.com/emacs-mirror/emacs/blob/c08f8be29f4f6d107da5cc38d614519df7a6ab11/lisp/emacs-lisp/subr-x.el#L100][实现]]来明白这一点。
+
+如果我是 2014 年的 fgallina，此时我能参考的代码有 Clojure, Alexandria 和 [[https://github.com/magnars/dash.el/commit/e870be867c8557c7a660a6350336bc9eca0cc101][dash.el]] （Clojure 对它影响很大），于是“我”选择采用 Clojure 的顺序 =let= 和 Alexandria 的短路求值。
+
+在 fgallina 提交 =if/when-let= 两个月后，emacs-devel 上就出现了为什么名字不带 =*= 的讨论：[[https://lists.gnu.org/archive/html/emacs-devel/2014-08/msg00191.html][if-let and when-let: parallel or sequential]] [2014-08-09]。
+
+#+begin_quote
+I noticed that the new `if-let' and `when-let' in trunk's subr-x create
+their bindings sequentially (like `let*' rather than `let'). Would there
+be any interest in renaming these to `if-let*' and `when-let*', and
+adding parallel-binding versions under the current names?
+
+It's obviously a tiny matter in the scheme of things, but I do think
+it's worth sticking to the existing naming convention given the history
+and context.
+
+(If this change would be welcome, and nobody beats me to it, I would be
+happy to submit a patch and copyright assignment.)
+#+end_quote
+
+对此，Stefan Monnier 表示“并行”的版本[[https://lists.gnu.org/archive/html/emacs-devel/2014-08/msg00200.html][很难想到有什么用]]，Harald Hanche-Olsen 注意到了 =if/when-let= 是[[https://lists.gnu.org/archive/html/emacs-devel/2014-08/msg00234.html][短路求值的]]。这一次讨论没有什么结果，从 14 年到 16 年间 =if/when-let= 的实现几乎没有什么变化。
+
+顺带一提，fgallina 是 python.el 的作者，不过他已经很久没有活动过了。
+
+** 17: =let/let*= 之争
+
+在 17 年初关于 Anaphoric macros 的讨论中， =if/when-let= 又被重新提起：[[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00189.html][Anaphoric macros: increase visibility]] [2017-01-13]。Michael Heerdegen 表示[[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00252.html][使用 if-let* 而不是 if-let 会更好]]，同时他也希望使用 =and-let= 或 =and-let*= 替换掉 =when-let= 。对此 Tino Calancha 表示[[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00260.html][赞同]]并给出了自己的修改建议：
+
+#+begin_src text
+A possible starting point is puting all together in
+subr-x.el after a heading
+
+;;; Anaphoric macros.
+
+and perform the improvements in naming discussed in this thread:
+
+1) Move `ibuffer-aif', `ibuffer-awhen' to subr-x.el and rename as
+   `if-it', `when-it'.  Add aliases to them `aif', `awhen'.
+
+2) `if-let' --> `if-let*'.  Add alias `if-let' for
+   backward compatibility.
+
+3) `when-let' --> `when-let*' (or `and-let*').  Add alias.
+
+Once they are all together is easier to see what macro is missing
+which could be useful.
+#+end_src
+
+holomorph（Mark Oteiza）同样[[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00255.html][赞同]] Michael Heerdegen 的改名建议，他在 2017 年 2 月 4 日对 =if/when-let= 进行了重命名：[[https://github.com/emacs-mirror/emacs/commit/be10c00d3d64d53a7f31441d42f6c5b1f75b9916][Rename to if-let* and when-let*]]，同时将 =if/when/and-let= 作为 =if/when-let*= 的别名：
+
+#+begin_src elisp
+  (defalias 'if-let 'if-let*)
+  (defalias 'when-let 'when-let*)
+  (defalias 'and-let* 'when-let*)
+#+end_src
+
+#+begin_src text
+Further, I think it's even more bizarre that if-let and when-let grew
+the single tuple special case, where one can write
+
+  (if-let (foo bar) (message "%S" foo) (message "oh no"))
+          ^^^^^^^^^
+
+What makes these binding things special? May as well add brackets and
+whatever else from other lisps.
+
+Mark Oteiza --- https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00255.html
+#+end_src
+
+（Tino Calancha 的[[https://lists.gnu.org/archive/html/emacs-devel/2017-01/msg00212.html][回复]]可能是 =while-let= 第一次出现在 emacs-devel 中的地方。）
+
+** 17: =and-let*= 的独立实现
+
+6 个月后，Mark Oteiza 突然想起来自己实现的 =and-let*= 还没放到 subr-x.el 中：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2017-08/msg01075.html][bug#28254: 26.0.50; SRFI-2 and-let*]]。由于最初的实现与 =when-let*= 存在较大区别，Mark 不太愿意把它和其他 =foo-let= 放到一起。不过在他和 Michael Heerdegen 的[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2017-09/msg00127.html][不懈努力]]下总算是完成了：[[https://github.com/emacs-mirror/emacs/commit/4612b2a2b37026bef5a9b8e92878a15dabb9b261][Implement and-let*]] [2017-09-13]，这是一个很大的提交，所有的 =foo-let= 实现都有变化，这当然也包括新的 =and-let*= 实现。
+
+实现变化后， =if-let*= 不能像初始的 =if-let= 那样在仅有单个 =binding= 时可以省略掉所有 =binding= 外面的括号了（比如 =(if-let (x 1) x 2)= ）。除此之外，现在的 =if-let*= 允许 =binding= 仅包含表达式，也就是说除了 =(var expr)= 外还允许 =(expr)= ，比如 =(if-let* ((1) (2)) 3 4)= 。emacs-devel 上对这一行为进行了讨论：[[https://lists.gnu.org/archive/html/emacs-devel/2017-09/msg00255.html][Re: [Emacs-diffs] master 4612b2a 1/2: Implement and-let*]]。值得一说的是这一提交让绑定中的单个符号成为待求值项而不是会绑定到 =nil= ，具体的讨论可以参考 Mark 和 Michael 的讨论，具体来说就是以下代码执行的不同：
+
+#+begin_src elisp
+  ;; https://lists.gnu.org/archive/html/bug-gnu-emacs/2017-09/msg00054.html
+  ;; origin
+  (if-let* (x) "dogs" "cats") => "cats"
+  (if-let* (x (y 2)) "dogs" "cats") => (void-function y)
+  (if-let* (x (y 1) (z 2)) "dogs" "cats") => "cats"
+
+  ;; fixed
+  (if-let* (x) "dogs" "cats") => (void-variable x)
+  (if-let* (x (y 2)) "dogs" "cats") => (void-variable x)
+  (if-let* (x (y 1) (z 2)) "dogs" "cats") => (void-variable x)
+#+end_src
+
+就像我们在开头说的那样，Emacs Lisp 中的 =and-let*= 与 =if-let*= 具有及其相似的实现，它与 =if-let*= 的最大不同是若 =body= 不存在或 =body= 的值为 =nil= 时会使用 =and-let*= 的最后一个 =binding= 值作为整个表达式的返回值。重新实现的 =if/when-let= 和 =when-let*= 都在内部使用了 =if-let*= ，且 =if/when-let= 被[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2017-09/msg00417.html][标记为废弃]]。
+
+在这一提交的一个月后，emacs-devel 上有一条没什么实质内容的讨论：[[https://lists.gnu.org/archive/html/emacs-devel/2017-10/msg00524.html][Something weird with when-let*/if-let*]]。
+
+** 18: 撤销废弃 =if/when-let=
+
+2018 年 1 月 9 日，Damien Cassou 在 26.0.90 上测试包时发现 =when-let= 被废弃了：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-01/msg00244.html][bug#30039: 26.0.90; [26.1] Making my code warning free is impossible with when-let]]。他建议在 25 中引入 =when-let*= 或在 26 中暂时不废弃 =if/when-let= 并在之后废弃它们。Nicolas Petton [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-01/msg00246.html][表示]]前者几乎不可能同时支持后者，他希望通过修改 byte-compiler 来消除掉某些 warning，不过 Eli [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-01/msg00630.html][拒绝]]了这个 [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-01/msg00629.html][patch]]。
+
+2018 年 2 月 11 日，Stefan Monnier 再次讨论起了 =foo-let= ：[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00323.html][if-let/if-let*/and-let/..]]，他主要谈到两个问题：(1) 既然已经有了 =when-let*= ， =and-let*= 是否多余？(2) =let= 的“并行性”对 =foo-let= 没有太大意义，不如不要并行绑定的版本？此外他还提到由于先前的 commit 废弃了 =if/when-let= 导致第三方包出现了许多烦人的废弃警告（obsolescence warnings）。Mark 对在 =foo-let= 名字中使用 =*= 的解释是“不带 =*= 非常令人困惑且我们考虑之后移除掉不带 =*= 的版本”。对此 Stefan 的[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00343.html][回应]]是：
+
+#+begin_src text
+> Is the benefit of slightly reducing confusion (I really find it hard to
+> believe the confusion is serious, since the dependencies between the
+> different steps would make it rather inconvenient to provide a real
+> "parallel-let" semantics) worth the burden of those
+> compatibility/obsolescence issues (I'd also mention the confusing
+> aspect of having an extra * for a construct that doesn't exist without
+> a *, even though traditionally the * is used to mark an "alternative"
+> definition, as in list*, mapcar*, ...).
+#+end_src
+
+简单来说，Stefan 认为在 =foo-let= 这个存在明显前后依赖的绑定步骤中引入“并行 let”语义非常不方便，而且他也提到 Lisp 传统中 =*= 通常表示另一种选择（而不一定就是顺序绑定，比如 cl-lib 中的 =cl-list*= ）。fgallina 当时选择 =let= 而不是 =let*= 在这个意义上倒是很能说得通。
+
+对于问题 (1)，Michael [[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00369.html][认为]] =and/when/if= 都应该存在；对于问题 (2)，他认为带 =*= 更符合直觉一些，即使 =*= 传统上表示的是另一种选择。Mark 也[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00371.html][认为]]应该保留 =and-let*= 和 =foo-let= 的 =*= 后缀。
+
+Stefan 的提议是将 =foo-let= 作为 =foo-let*= 的别名或者反过来。Mark 提到这样可能会破坏 =if-let= 的兼容性（上面我们提到了 =if-let*= 不支持单个绑定的特殊语法，如果新实现的 =if-let= 不支持这一语法就会出现兼容问题）。Stefan 对此的观点是[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00410.html][保留这一语法]]，Michael 表示[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00662.html][支持]]，同时他也希望 =if-let= 能回到 Clojure 那样的仅允许单个绑定的实现，但这一不兼容的改动可能会破坏第三方包。
+
+在 2018 年 2 月 21 日，Michael Heerdegen [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-02/msg00851.html][告知]] Damien 他将取消掉 =if/when-let= 的废弃，Damien 很高兴。2018 年 3 月 6 日，Michael Heerdegen 将所有的 =foo-let*= 定义为 =foo-let= 的别名：[[https://github.com/emacs-mirror/emacs/commit/af4697faa1f5b643f63a9ea61aa205a4c1432e23][Define if-let* and derivatives as aliases for if-let etc]]。这一改动使得 =if-let*= 也支持仅存在单个 binding 时可以忽略括号。 *至此，上半场结束* 。如果这一改动能保留到现在可能就不会出现 =foo-let= 被废弃的问题了。
+
+在 Michael 安装 patch 后，Eli [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00162.html][希望]] Michael 解释为什么要在 26.1 RC1 阶段提出这个修改。Michael 的[[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00219.html][回复]]算是对整个事件进行了总结，感兴趣的同学可以去看看。对此，Eli [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00274.html][表示]]理解，然后表示“为什么不仅仅取消掉废弃呢”，Michael [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00316.html][表示]]这样会偏离将 =if-let*= 作为 =if/when-let= 别名的目标，因为先前的 =if/when-let*= 并不支持特殊的单绑定语法。对此他的建议是 (I) 保留他的提交 (II) 撤销提交并取消 =if/when-let= 的废弃，随后在 26.2 版本再进行修改。对此，Eli [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00317.html][建议]]暂时保持实现不变然后收集意见，Michael [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00321.html][表示]]这不是经验的问题，他不希望现存的 =foo-let/let*= 之间的细微差别带来不必要的误解。
+
+最终，Eli [[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00329.html][认为]] =if-let/let*= 的差异不是什么大问题，Michael 也[[https://lists.gnu.org/archive/html/emacs-devel/2018-03/msg00341.html][同意]]了这一决定。在 2018 年 3 月 7 日，关于 =foo-let= 的 commit 被 [[https://github.com/emacs-mirror/emacs/commit/f6bd7e06861142371994ff9ce54dd62573809fa5][revert]]，Michael 在随后的 3 月 27 日去掉了 =if-let= 和 =when-let= 的 =obsolete= 标记：[[https://github.com/emacs-mirror/emacs/commit/441fe201ea129709ac9807b9b6b30caa45bbd293][De-obsolete if-let' and when-let']]。
+
+这一次改动的唯一成果就是取消了 =if/when-let= 的废弃。在 2018 年 =and-let*= 的实现还有一次小修改：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2018-06/msg00641.html][bug#31840: and-let* expands to if instead of when]] [2018-06-19]，之后从 18 年到 22 年邮件列表上就没有什么关于 =foo-let= 的讨论了。2022 年 4 月 30 日，larsmagne（Lars Ingebrigtsen）将 =FOO-let= 系列从 =subr-x.el= 移动到了 =subr.el= ，似乎是为了避免 bootstramp 问题：[[https://github.com/emacs-mirror/emacs/commit/b05a103ea7a26b2f4099a613015d9f1abdc39a4d][Move the when-let family of macros to subr.el]]。
+
+** 22: =while-let= 的诞生
+
+2022 年 9 月 28 日，larsmagne 添加 =while-let= 到 Emacs 中：[[https://github.com/emacs-mirror/emacs/commit/12f63c18f6d5][Add new macro 'while-let']]。最初它在内部使用了 =if-let= ，后面[[https://lists.gnu.org/archive/html/emacs-devel/2022-09/msg01992.html][修正]]了：[[https://github.com/emacs-mirror/emacs/commit/0e72d4793c332f2eaba05130ea08e9809813f599][Tweak while-let definition]] [2022-09-29] 。Philip Kaludercic 顺便问 larsmagne 为什么不使用 =while-let*= 作为名字，以下是 larsmagne 的回答：
+
+#+begin_quote
+Philip Kaludercic <philipk@posteo.net> writes:
+
+> In that case ought the macro not be called `while-let*'?
+
+Nope.  We're pretending that the * versions of these macros don't exist
+(by not mentioning them in the manual), and we're likewise pretending
+that if-let doesn't have wider semantics than the * version (by not
+mentioning that, either).
+
+https://lists.gnu.org/archive/html/emacs-devel/2022-09/msg01993.html
+#+end_quote
+
+这可能说明 larsmagne 在 =if-let= 和 =if-let*= 两个名字间更喜欢前者。后面他们还讨论了 [[https://lists.gnu.org/archive/html/emacs-devel/2022-10/msg01307.html][and-let* 是否必要]]，不过这和 =while-let= 没什么关系了。
+
+从 bug#60758 来看，Daniel Mendler 希望 =while-let= 内部使用 =if-let= 而不是 =if-let*= 来支持 =if-let= 的单绑定语法  ：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-01/msg01021.html][bug#60758: 29.0.60; while-let uses if-let* convention in contradiction to the docstring]] [2023-01-12]。Sean Whitton 表示同意并提交了修改：[[https://github.com/emacs-mirror/emacs/commit/083badc9c122a802080552e7771e78ee47c01e3c][083badc]] [2023-01-13]。随后 Michael Heerdegen [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-01/msg01139.html][指出]] =if-let= 的单绑定语法只是为了兼容性，并希望新的代码中不要再使用它，在后续的讨论中 Michael 提到了先前关于 =foo-let= 的讨论。最后， Sean 的修改被 [[https://github.com/emacs-mirror/emacs/commit/f16bd1ead430294ff90cb4c3f0aba608a719a2e7][revert]] 了。
+
+在 2024 年 11 月 8 日，arthur miller 表示 =while-let= 似乎不是很好理解：[[https://lists.gnu.org/archive/html/emacs-devel/2024-11/msg00320.html][Is this a bug in while-let or do I missunderstand it?]]，总的来说他希望 =while-let= 像 =if/when-let= 那样先 =let= 再 =if/when= ，而不是先 =while= 再 =let= 。由于这一讨论和 =let/let*= 不太相关，这里我就不详细介绍了。
+
+** 24: 再次废弃 =if/when-let=
+
+从 2022 年到 2024 年 =foo-let= 似乎没有什么大动静，除了 bugfix：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-02/msg00723.html][bug#69108: false-positive warning "variable ‘_’ not left unused" in if-let* and if-let]]。
+
+2024 年 10 月 17 日， *Stefan Monnier* （ +万 恶 之 源+ ）打破了寂静，他又开始讨论起了 =and-let*= 存在的必要性：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg00973.html][bug#73853: 31.0.50; and-let* is useless]]，他在 2018 年已经这样[[https://lists.gnu.org/archive/html/emacs-devel/2018-02/msg00323.html][做过一次了]]。对此 Michael Heerdegen 再一次解释到： =and-let*= 更多用于表达式求值而 =when-let*= 用于副作用，不过他也同意现在 =(if|when|and)-let(*)= 这些名字的共存只是暂时的：
+
+#+begin_src text
+  [ I think we have too many (if|when|and)-let(*) for our own good: we
+      should pick some winners and deprecate the other ones.   ]
+  -- Stefan
+
+  AFAIR the non-star versions exist for backward compatibility only - so I
+  would rather get rid of these.  Parallel existence of these non-star
+  vs. star versions should be a temporary state, it complicates the matter
+  for an epsilon gain.
+  -- Michael
+#+end_src
+
+对于 Stefan 想要废弃 non-star 版本这一想法，Augusto Stoffel [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg01268.html][认为]]应该移除的反而是带 =*= 的版本，没有 non-star 名字对应的 =something*= 显得很奇怪。Michael Heerdegen 还是[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg01273.html][保留]]他之前的观点：带 =*= 更能体现求值顺序。Sean Whitton 也[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg01288.html][认为]]应该保留的是 =foo-let*= 。
+
+在经过一些[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg01067.html][讨论]]（读者有兴趣可以读完这个列表，我就不展开了）后，2024 年 10 月 24 日，由 spwhitton（Sean Whitton）创建的 commit 真正废弃了 =if-let= 和 =when-let= ：[[https://github.com/emacs-mirror/emacs/commit/8903106bb783c2825233c149b6799960aacdea57][Mark if-let and when-let obsolete]]。这是一个很大的 commit，Emacs 源代码中所有的 =if-let= 和 =when-let= 都被替换为了带 =*= 版本， =if-let= 和 =when-let= 被标记为 =obsolete= 。从这个 commit 到 2024 年 12 月之间还有两个小改进：[[https://github.com/emacs-mirror/emacs/commit/eb1756a8a551d345397b0ef52cac8b8c62f4f1f2][Improve marking if-let and when-let obsolete]] 和 [[https://github.com/emacs-mirror/emacs/commit/e4abb06e5bf982a4688de0638b1eeecf4ff38d95][Reimplement so as to avoid bug#74530.]]。 *某种意义上来说，Michael 想在 Emacs 26.1 做到的事总算在 31.0.50 完成了。*
+
+对于这一改动，Jonas Bernoulli（[[https://github.com/tarsius][tarsius]]，magit 作者）用了很长的回复来表达他的不满：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg01740.html][bug#73853: 31.0.50; Should and-let* become a synonym for when-let*?]]。他认为 emacs-devel 总是仓促地做出决定导致了不幸的错误。后续 11 月的讨论[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-11/msg00029.html][在这里]]。
+
+#+begin_src text
+  FWIW, I don't see a huge rush here.  Emacs 31 is still far away, and
+  while some package authors are meticulously tracking master, an effort
+  that is of course greatly appreciated, the overwhelming majority don't.
+  So this won't affect the lions share of Emacs Lisp users any time soon.
+
+  Stefan Kangas
+  https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-11/msg00038.html
+#+end_src
+
+就这一系列变化的暂时结果来看，Emacs 抛弃了 =(if-let (var val) ...)= 的语法，只使用 =if-let*= ， =when-let*= 和 =and-let*= 。如果我们忽略掉 =when-let*= 和 =and-let*= 的细微区别的话，可以认为剩下的只有 =if-let*= 和 =when-let*= 了。
+
+** 总结
+
+草，看了这么一大圈总算是看完了，简单做个总结吧：
+
+1. =if/when-let= 由 Fabián Ezequiel Gallina 在 Emacs 25.1 中引入：[[https://github.com/emacs-mirror/emacs/commit/c08f8be29f4f6d107da5cc38d614519df7a6ab11][c08f8be]]。该实现不含带 =*= 的版本，这一决定可能受到了 Clojure 的影响，也可能是作者认为 =*= 表示 alternative，即（原形式的）替代选择。
+2. Mark Oteiza（和 Michael Heerdegen）将 =if/when-let= 重命名为 =if/when-let*= ：[[https://github.com/emacs-mirror/emacs/commit/be10c00d3d64d53a7f31441d42f6c5b1f75b9916][be10c00]]。他们认为 =let*= 相比 =let= 更能体现 =foo-let= 的绑定顺序求值，随后他们实现了 =and-let*= ：[[https://github.com/emacs-mirror/emacs/commit/4612b2a2b37026bef5a9b8e92878a15dabb9b261][4612b2a]]，并将 =if/when-let= 标记为废弃，这一举动引起了一些使用 =if/when-let= 的包作者的不满。
+3. 在 Stefan Monnier 的建议下，Michael Heerdegen 尝试将 =foo-let*= 实现为 =foo-let= 的别名，并取消 =if/when-let= 的废弃：[[https://github.com/emacs-mirror/emacs/commit/af4697faa1f5b643f63a9ea61aa205a4c1432e23][af4697f]]。但由于此时 Emacs 26.1 即将发布，此提交被[[https://github.com/emacs-mirror/emacs/commit/f6bd7e06861142371994ff9ce54dd62573809fa5][回退]]，他只能做到取消 =if/when-let= 的废弃标记：[[https://github.com/emacs-mirror/emacs/commit/441fe201ea129709ac9807b9b6b30caa45bbd293][441fe20]]。
+4. Lars Ingebrigtsen 实现了 =while-let= ：[[https://github.com/emacs-mirror/emacs/commit/12f63c18f6d5][12f63c1]]。
+5. 经过讨论后，Sean Whitton 再次废除了 =if/when-let= ：[[https://github.com/emacs-mirror/emacs/commit/8903106bb783c2825233c149b6799960aacdea57][8903106]]。
+
+我认为最理想的情况是从一开始我们就只有 =if/when/and-let= ，而不是现在的 =if/when/and-let*= 。但是“ =let= 表示并行绑定而 =let*= 表示顺序绑定”这个概念太过深入人心以至于 =foo-let= 会被自然而然地认为是并行绑定，从这个意义上来说使用 =if/when/and-let*= 反倒是件好事（但是要多打一个 =*= 😠）。
+
+那么 Emacs 会一直保持这样不再变化了吗？至少我希望是这样，不要再因为命名问题破坏兼容性了，今天刚更新完最新 Emacs 就发现配置文件中使用的 =if-let= 导致了 warning。
+
+* 后记
+
+草，我居然能有时间把这篇写完，不过到我写完为止 Emacs 30.1 还是没有发布。
+
+这应该是我在 2024 年的最后一篇文章，预祝 25 年新年快乐。
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/114992306][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/80431119][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/106273879][file:dev/p6.jpg]] |
+| [[https://www.pixiv.net/artworks/67281051][file:dev/p7.jpg]] | [[https://www.pixiv.net/artworks/26444275][file:dev/p8.jpg]] | [[https://www.pixiv.net/artworks/8250496][file:dev/p3.jpg]] |
+| [[https://www.pixiv.net/artworks/41091061][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/27281280][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/38144892][file:dev/p9.jpg]] |
+#+end_comment
