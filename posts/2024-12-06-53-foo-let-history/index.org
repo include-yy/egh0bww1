@@ -2,7 +2,6 @@
 #+DATE: [2024-12-03 Tue 10:49]--[2024-12-06 Fri 16:51]
 #+FILETAGS: elisp
 #+DESCRIPTION: 本文介绍了 if-let, when-let 等宏的发展历史
-#+TMP: 0
 
 #+begin_comment
 | [[https://www.pixiv.net/artworks/124090382][file:dev/3.jpg]] | [[https://www.pixiv.net/artworks/124402420][file:dev/1.jpg]] |
