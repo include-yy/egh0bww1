@@ -130,9 +130,7 @@
 	  (if date (format "\n<pubDate>%s</pubDate>" date) "")))
 
 (defun yynt/yy-get-post-rss ()
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT title, path, description, filetags, substr(path,7,10) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
@@ -146,7 +144,6 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
    "<rss version=\"2.0\">\n"
    "<channel>\n"
    (yynt/yy-rss-generate-chan-header)
-   ;; 单个数据格式为 ((dir . fpath) . alist), key:{title, filetags, yyntrss}
    (mapconcat
     (lambda (x)
       (cl-multiple-value-bind (title link desc tag date) x
@@ -197,9 +194,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 		   )))
 
 (defun yynt/yy-euler-table (prefix)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT substr(path, 14), filetags, description, date FROM YYNT WHERE
 build_name='projecteuler' AND ex='0'")))
     (setq items (sort items (lambda (a b)
@@ -266,9 +261,7 @@ build_name='projecteuler' AND ex='0'")))
 		   )))
 
 (defun yynt/yy-repost-list (prefix limit)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
 build_name='republish' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
@@ -327,9 +320,7 @@ LIMIT ?" (list (or limit 100000)))))
 		   )))
 
 (defun yynt/yy-post-list (prefix limit)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'
 ORDER BY path DESC
@@ -345,9 +336,7 @@ LIMIT ?" (list (or limit 100000)))))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-list (prefix tag)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
 ORDER BY path DESC" (list tag))))
@@ -362,19 +351,14 @@ ORDER BY path DESC" (list tag))))
 	       items "\n")))
 
 (defun yynt/yy-post-tag-num (tag)
-  (let ((res
-	 (sqlite-select
-	  yynt--sqlite-obj
-	  "\
+  (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
 ORDER BY path DESC" (list tag))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-year-list (prefix year)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
@@ -390,9 +374,7 @@ ORDER BY path DESC" (list year))))
 	       items "\n")))
 
 (defun yynt/yy-post-year-num (year)
-  (let ((res (sqlite-select
-	      yynt--sqlite-obj
-	      "\
+  (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
 substr(path, 7, 4)=?
@@ -400,9 +382,7 @@ ORDER BY path DESC" (list year))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-total-num ()
-  (let ((res (sqlite-select
-	      yynt--sqlite-obj
-	      "\
+  (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
 build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s" (caar res))))
@@ -449,9 +429,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 		   )))
 
 (defun yynt/yy-drafts-tmp-list (prefix tmp)
-  (let ((items (sqlite-select
-		yynt--sqlite-obj
-		"\
+  (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%' AND tmp=?
 ORDER BY path DESC" (list tmp))))
@@ -471,9 +449,7 @@ ORDER BY path DESC" (list tmp))))
 	       items "\n")))
 
 (defun yynt/yy-drafts-total-num ()
-  (let ((res (sqlite-select
-	      yynt--sqlite-obj
-	      "\
+  (let ((res (yynt-select* "\
 SELECT path FROM YYNT WHERE
 build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
     (format "%s"
