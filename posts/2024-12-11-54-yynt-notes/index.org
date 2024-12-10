@@ -1,0 +1,398 @@
+#+TITLE: 对 Org 导出管理工具 yynt 的介绍与实现注解
+#+DATE: [2024-12-08 Sun 20:48]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文介绍了我实现的 Org 导出管理工具的用法和它的一些实现细节，可以看作简单的备忘笔记
+
+#+begin_comment
+[[https://www.pixiv.net/artworks/65431550][file:dev/0.png]]
+#+end_comment
+
+八个月前写的 Org 导出管理小工具 [[https://github.com/include-yy/yynt][yynt]] 用到现在应该挺稳定了，是时候完善一下文档了。昨天 [2024-12-08] 晚上花了两个小时才弄明白写的时候的设计思路，这里顺便也记一下免得之后忘了又要想一遍。
+
+本文的前一半会介绍 yynt 的用法，以及它和 =ox-publish= 的区别，写完了 GPT 转英文当 README 去，如果读者感觉 =ox-publish= 用起来不是很方便可以试试我的 yynt；后一半会介绍 =yynt= 的一些实现细节，希望其中的一些思路能够对有编写类似 elisp 功能需求的同学提供帮助。
+
+本文使用的 Emacs 如下：
+
+- GNU Emacs 31.0.50 (build 3, x86_64-w64-mingw32) of 2024-12-03 (commit [[https://github.com/emacs-mirror/emacs/commit/fef05ba8f409738625167991e811c2ab50f5b047][fef05ba]])
+
+* 简介
+
+如果我假设读者对 Org-mode 有一定了解而且使用过 Org 的导出和发布功能的话，这一段写起来会容易很多，因此这里直接给出一篇介绍其用法的博客：[[https://taingram.org/blog/org-mode-blog.html][Building a Emacs Org-Mode Blog]]。如果读者使用其他的博客工具（如 Wordpress, Hugo）且对使用 Emacs 写博客没什么兴趣，本文可能对你没有太大的帮助。
+
+我在一开始用过 =ox-publish= 作为博客发布工具，但是我遇到了以下这些问题：
+
+- 时间戳缓存文件目录路径为本地路径，如果博客放在 Onedrive 等云盘中，不同 PC 无法共享缓存（顺带一提， =ox-publish= 中缓存文件还是绝对路径）
+- 我们可以在项目配置中指定一些导出选项（如 =:with-toc= 和 =:language= ），但若不同位置的文件需要不同的配置则需要定义一个新的项目，不够灵活
+- 某些文件中的内容需要根据其他文件来生成（比如生成文章列表和 Tag 分类）， =ox-publish= 没有考虑到此类需求（当然这是我的问题）
+- 相比 Org 文件，资源文件的后缀比较丰富，需要较长的正则，写起来很麻烦
+
+在我使用 Org 写博客时，我希望有一个文件能够汇总来自其他文件的信息，比如标题和分类，这就需要我读取某些文件的内容，同时这个文件是特殊的，它可能因为其他文件的变化而重新导出。为了避免重复读取文件，我可以在导出普通文件时将某些信息存储下来，在导出特殊文件时利用这些信息。同时，我可以要求在导出普通文件后也执行特殊文件的导出来保证信息最新。
+
+为了达到上面这些目标，我实现了基于 Emacs SQLite 支持的缓存功能，在普通文件导出时它会记录导出时间，发布时间，文件路径，文件头关键字字符串等数据。这些时间戳信息可用于导出或发布时的增量更新，文件关键字信息可用于特殊文件的导出，而不用多次读取文件，用户可以设置需要读取的关键字。
+
+我将文件分为普通文件和 =ex= 文件，前者在导出过程中更早导出，后者可以利用前者在数据库中的信息。某一项目中的普通文件可以成为另一项目中 =ex= 文件的依赖项，在多个项目同时导出时，我让 =ex= 文件的导出始终晚于所有普通文件。
+
+相比于在文件夹中放置博客文件，然后集中放置资源（如图片，视频，代码文件等）到某一文件夹，我更喜欢为每篇博客准备一个文件夹，文件夹内放置 Org 文件和它附属的资源文件。我为不同的目录结构准备了不同的项目类型：0 表示单个文件，1 表示单层目录，2 表示二层目录。相比 =ox-publish= 那样的递归查找导出文件，明确地区分不同目录结构可能更加清晰。
+
+就像 =ox-publish= 一样， =yynt= 是一个 Org 导出到其他类型文件（如 HTML，Markdown）的管理工具，它可以通过编写发布配置来管理一系列 Org 文件和它们附带的资源文件的发布。对于博客的构建，这类管理工具可以帮我们保留原目录结构并在目标位置生成 HTML 并移动附属资源文件。与 =ox-publish= 相比， =yynt= 在以下特性上有所不同：
+
+- 对于单个项目， =ox-publish= 使用文件名后缀（可递归）匹配需要导出的文件，使用 =:include= 和 =:exclude= 来设定需要包括和排除（前者优先级高于后者）的文件。 =yynt= 将导出单位分为 0（单个文件），1（单层目录）和 2（二层目录）三种类型，使用用户定义的函数获取需要导出的文件列表
+
+- =ox-publish= 使用 =:components= 将不同项目组合为一个大项目同一发布，但无法描述项目间的依赖关系。 =yynt= 中构建对象这一概念对应于 =ox-publish= 中的项目，且可以描述构建对象间的简单关系（构建对象的某一文件依赖另一构建对象）
+
+- =ox-publish= 使用哈希表存储发布时间戳，哈希表保存在 =org-publish-timestamp-directory= 下的 ={project-name}.cache= 文件中。 =yynt= 使用 SQLite 管理时间戳，数据库文件位置可由用户指定，用户可添加除导出发布时间戳外的额外字段，在导出发布时进行获取和存储
+
+- =ox-publish= 支持生成 sitemap，并支持远程上传（可能需要折腾）。 =yynt= 不提供这些支持
+
+- =ox-publish= 直接将文件发布到目标目录， =yynt= 首先原地生成后再复制到目标目录
+
+至少目前位置我感觉 =yynt= 满足了我发布和管理博客的需求。下面让我简单介绍一下 =yynt= 的用法。
+
+* 用法
+
+要安装 =yynt= ，可以使用 =package-vc-install= ：
+
+#+begin_src elisp
+(package-vc-install "https://github.com/include-yy/yynt")
+#+end_src
+
+然后在配置文件或者其他地方加上 =(require 'yynt)= 就能正常使用了。我使用 =yynt= 来管理我的博客导出和发布，可以参考我的[[https://github.com/include-yy/egh0bww1/blob/master/yy.el][脚本]]来学习用法。
+
+** 创建项目
+
+在 =yynt= 中，项目可以类比 =ox-publish= 中的组合对象，它由一个或多个构建对象组成。我们可以使用 =yynt-create-project= 来创建项目对象， =yynt-create-project= 具有如下参数：
+
+#+begin_src elisp
+  (defun yynt-create-project (name pubdir cache cache-items &optional directory) ...)
+#+end_src
+
+- =NAME= ，项目名符号
+  - 项目名不能为 =t=, =nil= 和关键字
+- =PUBDIR= ，发布目录
+  - 若为相对路径则相对于项目的根目录
+- =CACHE= ，缓存文件名
+  - 若为相对路径则相对于项目所在目录，为 =nil= 则表示项目不使用缓存
+- =CACHE-ITEMS= ，关键字列表
+  - 在导出和发布过程中从 Org 文件开头搜集的关键字组成的列表
+- =DIRECTORY= ，项目根目录
+  - 若省略则为当前调用发生时所在目录
+
+在调用 =yynt-create-project= 后，它会创建并返回一个 =yynt-project= 对象，如果 =CACHE= 不为 =nil= ，它会创建并初始化数据库文件。创建的项目会存储在 =yynt-project-list= 列表中，用户可以使用 =yynt-choose-project= 这个命令设定当前对象项目。我们可以使用 =yynt-create-build= 创建属于项目的构建对象。
+
+数据库初始化时，如果检测到已存在数据库，且 =CACHE-ITEMS= 与数据库已存在的字段不匹配，那么会重新初始化数据库，且保留仍存在字段数据。
+
+如果在 =yynt-project-list= 已经存在同名对象， =yynt-create-project= 会使用新的对象替换掉旧对象。
+
+这是一个简单的项目对象创建例子：
+
+#+begin_src elisp
+  (yynt-create-project
+   'egh0bww1
+   "blog-build" "build.sqlite3"
+   '("title" "filetags" "description" "date" "tmp"))
+#+end_src
+
+** 创建构建对象
+
+我们可以使用 =yynt-create-build= 来创建挂靠到项目上的构建对象，这个函数的参数相当复杂（16 个关键字参数）：
+
+#+begin_src elisp
+  (cl-defun yynt-create-build (&key project path type collect info collect-ex
+  				  info-ex fn attrs no-cache-files ext-files
+  				  published convert-fn included-resources
+  				  collect-2 excluded-fn-2)
+    ...)
+#+end_src
+
+- =:project= ，构建对象所属的项目对象
+- =:path= ，构建对象所在位置，是相对于项目的相对路径
+
+  对于 0 型对象， =:path= 就是相对于项目的文件路径。不同对象的路径不能相同
+- =:type= ，构建对象的类型，可以是数字 012
+- =:collect= ，返回需要导出的文件列表的函数
+
+  =:collect= 接受的函数要使用构建对象为参数，并返回需要导出文件的绝对路径组成的列表，即 =(bobj) => (list of abs-path)= ，以下是一个非常简单的例子：
+
+  #+begin_src elisp
+    (lambda (bobj)
+      (mapcar (lambda (x) (file-name-concat (yynt-build--path bobj) x))
+    	  '("1.org" "2.org" "3.org")))
+  #+end_src
+
+  =yynt= 提供了几个获取文件列表的辅助函数： =yynt-p1=, =yynt-p1s= 和 =yynt-p2= 。 =yynt-p1= 接受正则，并返回根据正则在构建对象所在目录找到符合正则的文件的函数， =yynt-p1s= 接受一个文件列表，并返回使用构建对象路径展开为绝对路径的文件路径列表的函数：
+
+  #+begin_src elisp
+    :collect (yynt-p1 "^[0-9]+\\.org")
+    :collect-ex (yynt-p1s '("index.org" "tags.org"))
+  #+end_src
+
+  =yynt-p2= 主要用于 2 型构建对象，它接受两个正则字符串作为参数，前者用于匹配构建对象目录中的子目录，后者用于在子目录中匹配需要被导出的文件。它返回一个可用作 =:collect= 的函数对象，以下是一个使用例子：
+
+  #+begin_src elisp
+    :collect (yynt-p2 "^2" "\\.\\(htm\\|org\\)$")
+  #+end_src
+
+  对于 0 型项目， 仅通过 =:path= 就可以确定需要导出的文件，这个参数没有效果。
+
+- =:info= ，Org 导出中的选项 =plist= 列表
+
+  该列表用于指定导出由 =:collect= 获取的文件时的选项。具体的选项可以参考 [[https://orgmode.org/manual/Publishing-options.html][Options for the exporters]]，或者是使用的特定后端提供的选项。以下是一个简单的例子：
+  #+begin_src elisp
+    :info '( :with-sub-superscript {} ; #+options: ^:{}
+    	 :html-head-include-default-style nil ; #+options: html-style:nil
+    	 )
+  #+end_src
+- =:collect-ex= ，类似 =:collect= ，但是用来获取额外的文件
+
+  从设计上来说， =:collect= 用于获取普通的被导出文件，而 =:collect-ex= 用于获取特殊的被导出文件，它们可能需要根据普通文件的内容（如标题，Tag 等元信息）生成内容。
+
+  对于 0 型对象，如果该参数为 =t= ，那么对象中的文件属于 ex 文件而不是普通文件。
+- =:info-ex= ，用于 =ex= 文件的 =plist= 选项列表
+
+  在导出 =ex= 文件时， =:info-ex= 会与 =:info= 合并，作用于来自 =:collect-ex= 的文件。 =:info-ex= 具有更高的优先级。对于 0 型项目， =:info-ex= 不起作用；对于 2 型项目， =:info= 用于二层目录内的文件， =:info-ex= 用于一层目录内的文件。
+
+- =:fn= ，导出函数
+
+  =:fn= 接受一个函数，该函数有导出选项 =plist= ，输入文件绝对路径 =in= 和输出文件绝对路径 =out= 三个参数，它会导出当前 buffer 并输出结果到输出文件路径，若函数不引发错误则认为导出成功。
+
+  Org 的各导出后端都定义了导出功能，我们可以调用统一导出函数 =org-export-to-file= ，它会将当前 buffer 导出并保存在指定的文件，以下是 =org-export-to-file= 调用例子和一个可以作为 =:fn= 参数的示例函数：
+
+  #+begin_src elisp
+    (org-export-to-file 'html "index.html"
+      nil nil nil nil plist)
+
+    (defun yynt/yy-fn (plist in out)
+      (if (string-match-p "\\.org$" in)
+          (let ((default-directory (file-name-directory in))
+    	    (org-export-coding-system org-w3ctr-coding-system)
+    	    (org-export-use-babel org-w3ctr-use-babel))
+    	(org-export-to-file 'w3ctr out
+    	  nil nil nil nil plist))
+        t))
+  #+end_src
+
+- =:attrs= ，导出文件时需要从文件中提取的关键字列表 =CACHE-ITEMS= 列表
+
+  在导出时， =yynt= 会收集 Org 文件开头的关键字信息，具体的关键字选取与项目的 =CACHE-ITEMS= 成员有关，比如 =title=, =filetags=, =description=, =date= 等等。我们可以通过 =:attrs= 指定需要获取的关键字，这些关键字必须属于项目的 =CACHE-ITEMS= 。以下是一个博客头例子：
+
+  #+begin_src org
+    ,#+TITLE: 对 Org 导出管理工具 yynt 的介绍与实现注解
+    ,#+DATE: [2024-12-08 Sun 20:48]
+    ,#+FILETAGS: elisp
+    ,#+DESCRIPTION: 本文介绍了我实现的 Org 导出管理工具
+  #+end_src
+
+- =:no-cache-files= ，不导出的文件列表，为相对于构建对象的相对路径
+
+  我们可以通过 =:no-cache-files= 指定无需缓存的文件，这意味着这些文件的导出与发布信息不会记录在数据库中，数据库不会存储和它们相关的任何信息，包括 =:attrs= 。
+
+  一般来说这一选项仅用于来自 =:collect-ex= 的文件。对于 0 型项目，指定该选项为 =t= 表示文件不会被缓存。
+
+- =:ext-files= ，依赖该项目的外部文件，为相对于项目的相对路径
+
+  =:ext-files= 可以指定构建对象外的依赖该项目内容的文件。当某个构建对象被导出或发布时，其外部文件也会被导出或发布，但不包括外部文件所在的构建对象。
+
+  当某一文件依赖另一项目的一些信息（如数据库中的元信息）时，这一参数能够实现文件在另一项目更新时自动更新导出或发布。
+
+- =:published= ，构建对象是否发布，默认为 =nil= ，即不发布
+
+- =:convert-fn= ，转换输入文件路径为输出文件路径的函数
+
+  以下是一个可能的实现：
+  #+begin_src elisp
+  (defun yynt/yy-convert-fn (file)
+    (if (string= "org" (file-name-extension file))
+        (file-name-with-extension file "html")
+      file))
+  #+end_src
+
+- =:included-resources= ，构建对象包含的资源，可以是文件和目录路径
+
+  对于 12 型对象，这些资源路径相对于构建对象；对于 0 型对象，它们相对于项目根目录。
+- =:collect-2= ，返回构建对象中需要导出的子目录绝对路径列表的函数
+
+  这个函数主要为 2 型构建对象的发布服务，0 型和 1 型不会使用它们。 =:collect-2= 接受一个函数，该函数接受构建对象为参数，并返回 2 型项目中所有需要导出的子目录绝对路径组成的列表。 =yynt= 提供的 =yynt-c2= 可以用于这个目的，它接受一个正则来返回匹配构建对象根目录下满足条件的子目录的函数：
+
+  #+begin_src elisp
+    :collect-2 (yynt-c2 "^2")
+  #+end_src
+
+- =:excluded-fn-2= ，一个函数，接受 2 型构建对象和其子目录作为参数，返回判断子目录中的文件和文件夹是否需要在发布中排除的谓词函数
+
+  该函数的子目录参数为相对于构建对象根目录的路径。谓词函数接受子目录中文件相对于子目录的路径作为参数，若返回 =t= 说明该文件需要在发布时被排除，否则应该移动到发布位置。下面是一个解释性的例子：
+  #+begin_src elisp
+    (lambda (_bobj subdir)
+      (cond
+       ;; in subdirectory path1
+       ((string= subdir path1)
+        ;; pred that exclude all org file
+        (lambda (filename)
+          (string-match-p "\\.org$" filename)))
+       ((string= subdir path2)
+        ;; pred that exclude all png file
+        (lambda (filename)
+          (string-match-p "\\.png" filename)))
+       ((string= subdir path2) pred2)
+       ...
+       ;; exclude no file
+       (t (lambda (_f) nil))))
+  #+end_src
+  一句话来说， =:excluded-fn-2= 可以用来判断 2 型项目中各子目录中哪些文件不需要发布。 =yynt= 提供了一个辅助函数 =yynt-e2= ，它接受一个正则，它所生成的函数会排除掉所有子目录中满足正则条件的文件：
+
+  #+begin_src elisp
+    :excluded-fn-2 (yynt-e2 "\\(dev\\)\\|\\(\\.org$\\)")
+  #+end_src
+
+这是一些来自我配置文件的例子：
+
+#+begin_src elisp
+  ;; type 0
+  (yynt-create-build
+   :project yynt/yy-project
+   :path "index.org" :type 0
+   :collect-ex t
+   :fn #'yynt/yy-fn
+   :no-cache-files t
+   :published t
+   :convert-fn #'yynt/yy-convert-fn
+   :included-resources '("assets")
+   :info (yynt-combine-plists
+  	yynt/yy-common-plist
+  	'( :section-numbers nil
+  	   :html-preamble nil
+  	   :html-zeroth-section-tocname nil)))
+  ;; type 1
+  (yynt-create-build
+   :project yynt/yy-project
+   :path "projecteuler" :type 1
+   :collect (yynt-p1 "^[0-9]+\\.org")
+   :collect-ex (yynt-p1s '("index.org"))
+   :fn #'yynt/yy-fn
+   :attrs '("description" "filetags" "date")
+   :no-cache-files '("index.org")
+   :published t
+   :convert-fn #'yynt/yy-convert-fn
+   :included-resources '("res")
+   :info (yynt-combine-plists
+  	yynt/yy-common-plist
+  	'( :html-zeroth-section-tocname nil
+  	   :author "include-yy"
+  	   :html-link-left "../index.html"
+  	   :html-link-lname "HOME"
+  	   :html-link-right "./index.html"
+  	   :html-link-rname "SUM"))
+   :info-ex '( :html-link-lname "HOME"
+  	     :html-link-left "../index.html"
+  	     :html-link-right ""
+  	     :html-link-rname ""
+  	     ))
+  ;; type 2
+  (yynt-create-build
+   :project yynt/yy-project
+   :path "posts" :type 2
+   :collect (yynt-p2 "^2" "\\.\\(htm\\|org\\)$")
+   :collect-ex (yynt-p1s '("index.org" "tags.org"))
+   :fn #'yynt/yy-fn
+   :no-cache-files '("index.org" "tags.org")
+   :ext-files '("index.org" "rss.xml")
+   :attrs '("title" "filetags" "description")
+   :published t
+   :convert-fn #'yynt/yy-convert-fn
+   :collect-2 (yynt-c2 "^2")
+   :excluded-fn-2 (yynt-e2 "\\(dev\\)\\|\\(\\.org$\\)")
+   :info (yynt-combine-plists
+  	yynt/yy-common-plist
+  	'(:author "include-yy"))
+   :info-ex '( :html-preamble nil
+  	     :section-numbers nil
+  	     :html-zeroth-section-tocname nil))
+#+end_src
+
+** 导出与发布
+
+在完成一篇博客或编写过程中想要预览当前成果时，我们可以在博客所在 buffer 中使用 =yynt-export-file= 命令，它会导出当前 buffer 所在文件，并更新必要的特殊文件和外部文件。如果我们想要导出某个构建对象则可以使用 =yynt-export-build= 命令，它会根据 =yynt-current-project= 弹出 minibuffer 来让我们选择构建对象（ =*t*= 是特殊的，它表示构建整个项目中的构建对象）。如果我们仅想要构建当前文件，可以使用 =yynt-export-current-buffer= ，它不考虑任何依赖关系。
+
+在我们想要发布一篇博客时， =yynt-publish-file= 命令可以在考虑依赖的情况下发布当前文件以及依赖该文件的问题，比如附属资源， =ex= 文件和外部文件。我们可以使用 =yynt-publish-build= 来发布某个构建对象。由于 =yynt= 缓存了时间戳等信息，导出和发布操作都是增量的。
+
+在进行导出时， =yynt= 会首先导出各项目的普通文件，接着导出 =ex= 文件，最后是 =external= 文件，这样可以保证 =ex= 或 =external= 文件在获取数据库信息时数据库是最新的。
+
+=yynt= 在导出和发布时将日志信息输出到 =*yynt*= buffer，我们可以通过 =yynt-logger= 命令查看它的输出。
+
+** 利用缓存数据库
+
+数据库中的表名为 =YYNT=, 它的结构如下：
+
+#+begin_src text
+;; The database has the following format:
+;; | path | fixed_field | ... | attrs | ... |
+#+end_src
+
+其中 =path= 是文件相对于项目根目录的路径， =fiexed_field= 为 =yynt-project-fixed_fields= 中的字段，即 =file_name=, =build_name=, =ex=, =export_time= 和 =publish_time= 。其中：
+
+- =file_name= 是文件名，无任何路径前缀
+- =build_name= 是文件所属的构建对象名
+- =ex= 标记文件是否是特殊文件。1 是 0 非
+- =export_time= 和 =publish_time= 分别记录导出和发布时间
+
+=attrs= 来自项目的 =CACHE-ITEMS= ，为用户自定义的从 Org 文件头获取的关键字信息。
+=yynt= 提供了 =yynt-select= 和 =yynt-select*= 两个函数来读取数据库，前者需要指定项目对象和上下文等信息，后者仅需指定查询语句，由于 =yynt-export/publish-file/object= 系列函数会确保数据库上下文，使用后者要方便的多。以下是简单使用例子：
+
+#+begin_src elisp
+  (yynt-select* "\
+  SELECT path, title FROM YYNT WHERE
+  build_name='posts' AND ex='0' AND file_name LIKE 'index%'
+  ORDER BY path DESC
+  LIMIT ?" (list (or limit 100000)))
+#+end_src
+
+使用这些获取到的数据行，我们可以进一步生成 Org 或 HTML 代码。我们可以使用 Org 的宏来实现在导出时插入内容（宏需要返回插入内容字符串，具体可以参考 [[https://orgmode.org/manual/Macro-Replacement.html][Macro Replacement]]）：
+
+#+begin_src org
+  # define macro
+  ,#+MACRO: foo (eval "hello")
+  # use macro
+  {{{foo}}}
+#+end_src
+
+我们可以使用 =yynt-delete-missing-cache= 来删除当前项目的数据库中对应文件不存在的条目。
+
+* 实现
+
+这一部分可能比较琐碎，只是留个记录防止自己忘了。此处使用来自 [[https://github.com/include-yy/yynt/tree/54ab1b333344af9e318e6a48806e0225e2a773cc][54ab1b3]] 的代码。
+
+要判断文件是否属于某个项目，我采取的办法是文件是否位于某个项目目录之内，使用 =file-in-directory-p= 可以完成该任务，但是这个函数的效率不高。在 yynt.el 的 232 行，我将这个功能实现为判断项目路径是否为文件路径的从开头开始匹配的字串。由于这个实现的效率足够高，我在 24 年 5 月末 6 月初实现 =yynt-get-file-project-basename= 时，直接在函数内部使用了 =yynt--in-project-p= ，而不是假设文件属于项目。原本 =yynt-get-file-project-basename= 应该分为内部版本和外部版本，内部版本不做参数检查。
+
+在数据库读写操作中，我定义了一个宏 =yynt-with-sqlite= ，它类似于 =with-current-buffer= 等宏，提供一个数据库环境，在开头打开数据库然后在末尾关闭，还使用了 =unwind-protect= 来确定数据库能够关闭。如果一直打开某个数据库可能会导致 OneDrive 或其他云盘无法同步数据库文件。及时释放资源也是比较好的实践。
+
+我在 6 月份注释掉了 =yynt-execute= ，可能是因为不按照 =yynt= 内部写好的方式操控数据库容易破坏数据，如果我们想要用它可以从 yynt.el 的 388 行找到他的定义。
+
+=yynt-select= 太难用，由于导出和发布时数据库处于打开状态，若我们在文件导出时需要进行查询，此时已经有了数据库环境。我添加了 =yynt-select*= 来更方便地进行查询。
+
+在 =yynt-build= 对象中， =name= 并不在 =yynt-create-build= 的参数列表中，但它是 =yynt-build= 对象的成员。它在 =yynt-create-build= 中被初始化为构建对象相对于项目的路径。这个 =name= 可以用于从数据库中筛选属于某个构建对象的文件。
+
+对于 0 型对象，由于它没有自己的根目录（毕竟 =:path= 只能指定文件），它的 =:included-resources= 资源的路径是相对于项目根目录的，具体可以参考 yynt.el 的 597 行。在 611 行， =yynt-create-build= 会检查构建对象的所有资源是否真实存在。
+
+对于 2 型对象， =:collect= 用于获取二层目录中的 Org 文件，而 =:collect-ex= 用于获取一层目录中的 Org 文件。一层可能有一些普通的文件（它们不依赖其他文件的内容），但是 yynt 仍认为它们是特殊的，毕竟由 =:collect-ex= 负责收集。也许我们可以使用 =:collect= 来收集这些文件，但是如果 =:info= 中含有路径相关的选项这样可能会导致错误。也许我需要为 2 型对象添加 =:collect-1= 参数来专门获取一层目录中的普通文件，以及添加 =:info-1= 和 =:info= 合并得到可用于它们的选项。不过我目前的博客没有这个需求，在 2 型构建对象中的一层目录的 Org 文件都是特殊文件。有需要的时候可以考虑添加 =:collect-1= 和 =:info-1= ，但这也会使 =yynt-create-build= 的参数列表更加复杂。
+
+yynt 会收集 Org 文件的前 =yynt--keywords-extract-bound= 范围内的关键字，这个值当前是 2048。
+
+在构建实践比较中，如果数据库中没有这一数据则会与 2000 年 1 月 1 日零点比较，毕竟当前时间不可能早于它了。它出现在 1059 行（ =yynt--publish-attach-file-cached= ）和 836 行（ =yynt--do-export= ）。
+
+在 782 行到 804 行定义了一些 getter 和调用对象中的函数成员的辅助函数，如果我用 EIEIO 似乎可以定义一些方法而不是使用 =define-inline= 。
+
+调用构建对象的导出函数时（806 行），我在外面包了一层 =condition-case-unless-debug= ，如果导出函数引发错误那么它会捕获掉不影响其他文件的导出。我们可以用 =toggle-debug-on-error= 来取消这个错误捕获。
+
+* 后记
+
+目前 yynt 应该是稳定下来了，希望 Emacs 和 Org 不要有什么大的变化，免得我还得改。
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/72278307][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/89840862][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/76399455][file:dev/p3.jpg]] |
+| [[https://www.pixiv.net/artworks/109465987][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/75179139][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/64726955][file:dev/p9.jpg]] |
+| [[https://www.pixiv.net/artworks/58204212][file:dev/p7.jpg]] | [[https://www.pixiv.net/artworks/92161925][file:dev/p8.jpg]] | [[https://www.pixiv.net/artworks/40172209][file:dev/p6.jpg]] |
+
+| [[https://www.pixiv.net/artworks/113874171][file:dev/p10.jpg]] | [[https://www.pixiv.net/artworks/85611190][file:dev/p11.jpg]] | [[https://www.pixiv.net/artworks/60566361][file:dev/p16.jpg]] |
+| [[https://www.pixiv.net/artworks/77131067][file:dev/p13.jpg]] | [[https://www.pixiv.net/artworks/45337195][file:dev/p17.jpg]] | [[https://www.pixiv.net/artworks/113403063][file:dev/p15.jpg]] |
+| [[https://www.pixiv.net/artworks/83692208][file:dev/p12.jpg]] | [[https://www.pixiv.net/artworks/66551452][file:dev/p14.jpg]] | [[https://www.pixiv.net/artworks/55446148][file:dev/p18.jpg]] |
+| [[https://www.pixiv.net/artworks/36889784][file:dev/p19.jpg]] | [[https://www.pixiv.net/artworks/56707447][file:dev/p20.jpg]] | [[https://www.pixiv.net/artworks/88078117][file:dev/p21.jpg]] |
+#+end_comment
