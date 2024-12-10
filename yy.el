@@ -13,7 +13,7 @@
 (defun yynt/yy-fn (plist in out)
   (if (string-match-p "\\.org$" in)
       (let ((default-directory (file-name-directory in))
-	    (org-export-coding-system org-w3ctr-coding-system)
+	    (org-export-coding-system 'utf-8-unix)
 	    (org-export-use-babel org-w3ctr-use-babel))
 	(org-export-to-file 'w3ctr out
 	  nil nil nil nil plist))
@@ -598,3 +598,7 @@ https://pe-cn.github.io/%s\n
 	      (org-open-file (yynt/yy-export-to-html nil s v b)))))))
 
 ;;; yy.el ends here
+
+;; Local Variables:
+;; coding: utf-8-unix
+;; End:
