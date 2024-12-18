@@ -56,3 +56,5 @@
 {{{arch_tag(rescript)}}}
 ** robot {{{arch_num(robot)}}}
 {{{arch_tag(robot)}}}
+** frontend {{{arch_num(frontend)}}}
+{{{arch_tag(frontend)}}}

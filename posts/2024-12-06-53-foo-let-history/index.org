@@ -292,6 +292,8 @@ in parallel. In =LET*=, the init-form is evaluated and then bound to the symbol
 in sequence, left-to-right.
 
 [[https://www.lispworks.com/documentation/HyperSpec/Body/s_let_l.htm][CLHS: Special Operator LET, LET*]]
+
+--- https://stackoverflow.com/a/562975
 #+end_quote
 
 =let= 和 =let*= 的区别应该体现在绑定的可见性上：
@@ -340,6 +342,8 @@ https://stackoverflow.com/a/555136
 *In LISP, there's often a desire to use the weakest possible constructs*. Some style guides will tell you to use === rather than =eql= when you know the compared items are numeric, for example. The idea is often to specify what you mean rather than program the computer efficiently.
 
 *However*, there can be actual efficiency improvements in saying only what you mean, and not using stronger constructs. If you have initializations with =LET=, they can be executed in parallel, while =LET*= initializations have to be executed sequentially. I don't know if any implementations will actually do that, but some may well in the future.
+
+https://stackoverflow.com/a/554994
 #+end_quote
 
 #+begin_quote
