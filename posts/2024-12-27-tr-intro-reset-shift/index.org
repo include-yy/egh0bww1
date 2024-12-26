@@ -329,7 +329,7 @@ f : int -> int = <fun>
 #+begin_src tuareg
 # let f = reset (fun () -> 3 + shift (fun k -> k) - 1) ;;
 f : int => int = <​fun>
-#}
+#
 #+end_src
 
 但是，由于绑定到 =f= 的不是一个文本上的值 (not textually a value,「値」ではなく)，我们得到的是一个弱多态 (weakly polymorphic, 弱い多相) 的续体，只能在具有特定答案类型的上下文中使用。在 OchaCaml 中，函数的这种特殊状态由一个新的箭头类型 ==>= 表示。有关 ==>= 的详细信息，请参见第 3.4 节。在这里，我们通过 η-展开 =f= 的定义来避免这种情况。
