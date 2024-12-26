@@ -1,0 +1,1395 @@
+#+TITLE: 「翻译」Introduction to Programming with Shift and Reset
+#+DATE: [2024-12-24 21:44]--[2024-12-26 22:34]
+#+FILETAGS:fp
+#+DESCRIPTION: 本文整理了 Spore 对 Introduction to Programming with Shift and Reset 这篇论文的翻译，并部分使用 GPT 润色
+
+#+begin: note
+本文整理演绎自 Spore 在知乎上的翻译“shift/reset编程入门系列”，共三篇：
+
+- [[https://zhuanlan.zhihu.com/p/549749059][【译】shift/reset 编程入门 (0)&(1)：前言和概述]]
+- [[https://zhuanlan.zhihu.com/p/549940820][【译】shift/reset 编程入门 (2)：应用]]
+- [[https://zhuanlan.zhihu.com/p/550155045][【译】shift/reset 编程入门 (3)：理论]]
+
+译文对应原文如下：
+
+- [[http://pllab.is.ocha.ac.jp/~asai/cw2011tutorial/main-j.pdf][「日」shift/reset プログラミング入門]] [[file:main-j.pdf][file]]
+
+  浅井健一, 平成 23 年 9 月 23 日
+- [[http://pllab.is.ocha.ac.jp/~asai/cw2011tutorial/main-e.pdf][「英」Introduction to Programming with Shift and Reset]] [[file:main-e.pdf][file]]
+
+  Kenichi Asai, Oleg Kiselyov, September 23, 2011
+
+:verbose:
+以下是原译文前言：
+
+#+begin_quote
+本文译自浅井健一先生的《shift/reset プログラミング入門（Introduction to Programming with Shift and Reset）》。找了一圈之后发现整个知乎上都没人教怎么使用 delimited continuation，遂翻译。
+
+一些说明：
+
+- 虽然文中说有任意函数式编程语言的经验即可，但例子和练习题用的是一个 Caml 变体，所以想要获得最佳阅读体验还是要了解 OCaml 或其他 ML 系编程语言的基础语法。
+  - Rust 不算。
+- 译文同时参考日语和英语版本，两版本如有不同则以正确/易懂一方为准。
+- 部分译者的评论或解释用〔〕标注。原文的引用和注释则尽量还原（但由于知乎的限制只能混在一起了）。
+- 译者翻译相关文献的经验并不丰富，如有任何错漏或可改进处请务必指出。
+
+接下来开始正文内容。
+#+end_quote
+
+原译者可能主要参考日文版本论文，本文更倾向英文版本，在原翻译的基础上做出了可能比较多的改变。（当然现在我们有 ChatGPT 和 Gemimi 等工具可用，改进起来也方便。）
+
+Continuation 有多种翻译方法，比如延续，续体。ChatGPT 喜欢「续体」，Gemimi 喜欢「延续」，本文使用「续体」。
+:end:
+#+end:
+
+续体 (continuation, 継続) 的概念在编程中自然地出现：条件分支会从两种可能的未来中选择一个续体；抛出异常会丢弃续体的一部分；尾调用（tail-call, 末尾呼び出し）或“goto”会继续沿着当前的续体执行。尽管每种语言都会隐式地操作续体，但显式地将续体作为一等 (first class) 对象进行操作的做法却很少见，因为这种操作被认为比较困难。
+
+本教程（チュートリアル）旨在以一种轻松易懂的方式介绍续体的概念，并通过控制操作符 =shift= 和 =reset= 展示如何使用一等有界 (delimited) 续体进行编程。在不假设任何续体相关基础知识的前提下，本教程将帮助读者编写简单的协程和非确定性搜索 (non-deterministic search)。通过本教程，读者将更容易理解并欣赏 CW 2011 上的相关演讲内容。
+
+我们假设读者对函数式编程语言（如 OCaml、Standard ML、Scheme 和 Haskell）具有基本的了解，但不需要具备续体相关的先验知识。希望读者带上电脑动手实践编程。
+
+* Introduction
+
+续体表示「计算中剩余的部分」（「その後の計算」）。续体操作是一种强大的工具，可以实现复杂的程序控制流，同时不会破坏程序的整体结构。续体是异常处理（例外処理）的一种泛化形式，但其表达能力要远远强于异常处理。
+
+在程序中显式处理续体的传统方法是将程序转换为续体传递风格 (Continuation-Passing Style，CPS, 継続渡し形式)[fn:13]。然而，这种方法要求我们将整个程序（或至少是我们希望操作续体的部分）转换为 CPS。如果我们希望在更加符合直觉的程序风格中操作续体，我们就需要借助控制操作符。
+
+控制操作符中最出名的是 Scheme 和 Standard ML 的 =call/cc= 。然而， =call/cc= 捕获的续体是包含所有未来计算的完整续体。实际上，我们想要操作的续体中的大部分只是计算的一部分。这些续体被称为有界续体或部分 (partial) 续体。
+
+有多种控制操作符可以捕获有界续体，例如 Felleisen 的 =control/prompt= [fn:6]、Danvy 和 Filinski 的 =shift/reset= [fn:4] 以及 Gunter、Rémy 和 Riecke 的 =cupto/prompt= [fn:8]。在本教程中，我们使用 =shift/reset= ，因为它们的基础最为牢固，具有健全完整的公理化 [fn:9] 以及多态性 [fn:2]。此外，由于它与 CPS 有明确联系，已经有许多 =shift/reset= 的应用被提出来了。
+
+在本教程中，我们将通过各种示例介绍使用 =shift= 和 =reset= 进行编程，以体验使用 =shift= 和 =reset= 的编程风格。
+
+** Implementation of =shift= and =reset=
+
+在多种编程语言中，有许多使用 =shift= 和 =reset= 的方法。
+
+- Filinski [fn:5] 证明了可以使用 =call/cc= 和 reference cell 来模拟 =shift/reset= 。通过此方法可以在 Scheme 和 Standard ML 中使用 =shift/reset= 。在这种模拟中，必须为每个上下文预先确定答案类型（answer type, 后文介绍）。
+- Gasbichler 和 Sperber 在 Scheme48 上直接实现了 =shift/reset= [fn:7]。据报告称这个实现比使用 =call/cc= 模拟的方法性能更好。
+- Racket 支持多种控制运算符，其中包括 =shift/reset= 。
+- Kiselyov 在 Delimcc 库 [fn:10] 中为 OCaml、Scheme 和 Haskell 实现了有界控制。
+- Masuko 和 Asai 在 MinCaml 编译器中直接实现了 =shift/reset= [fn:11]。它支持带答案类型修改 (answer-type modification) 和多态性的类型系统。相同的思想用在了 OchaCaml 的实现上，OchaCaml 是带有 =shift/reset= 的 Caml Light 的扩展 [fn:12]。
+
+在本教程中，我们使用 OchaCaml 来解释和演示使用 =shift/reset= 进行编程。
+
+** Organization
+
+下一节将通过示例和练习讲解使用 =shift= 和 =reset= 进行编程。它非常自洽 (self-contained)，不需要关于有界续体的基础理论知识。对于那些对 =shift/reset= 的基础理论感兴趣的读者，第 3 节将简要概述 =shift/reset= 的基础理论。然而，对于更多细节，建议读者参考技术论文。
+
+** Prerequisite
+
+我们假设读者具备函数式编程语言（如 OCaml、Standard ML、Scheme 和/或 Haskell）的一般知识，但不需预先了解续体的概念。在第 3 节中，我们假设读者对带有 let 多态性 (let polymorphism) 的 λ 演算、其求值规则和类型系统有一定的了解。
+
+* Programming with Shift and Reset
+
+** What are continuations?
+
+续体代表了「计算的剩余部分」。当执行一个复杂的程序时，会选择下一个要求值的表达式（它被叫做可归约表达式 (reducible expression)，即 redex, 次に実行すべき式），对它进行计算，并将结果用于执行“计算的剩余部分”。这个最后的“计算的剩余部分”就是 redex 的续体。因此，无论是否支持控制运算符，续体的概念在任何编程语言中都会出现。
+
+续体是相对于当前正在求值的表达式而言的。为了明确当前正在执行的表达式，我们用方括号将当前表达式 =[...]= 括起来。例如，考虑一个简单的算术表达式 =3 + 5 ∗ 2 − 1= 。如果我们即将执行 =5 ∗ 2= 这个表达式，则当前表达式为 =5 ∗ 2= 。为了表示这一点，我们写成 =3 + [5 ∗ 2] − 1= 。此时，续体（或当前续体）为 =3 + [·] − 1= ，换句话说就是“给定 =[·]= 的值（称为空位），将 =3= 加上它并从和中减去 =1= ”。续体类似于一个函数，它接收用于空位的值并使用接收到的值来对剩余的计算求值。
+
+我们可以将当前续体理解为用中止表达式（例如 =raise Abort= ）替换当前表达式时所丢弃的计算。在上面的例子中， =3 + [5 ∗ 2] − 1= 的当前续体是 =3 + [·] − 1= ，因为当执行 =3 + [raise Abort] − 1= 时，丢弃的计算就是 =3 + [·] − 1= 。
+
+在计算过程中，当前续体会发生变化。在 =5 ∗ 2= 的计算完成后，表达式变为 =3 + 10 − 1= 。由于下一个要计算的表达式是 =3 + 10= ，当前表达式变为 =3 + 10= ，写成 =[3 + 10] − 1= 。此时，当前续体为 =[·] − 1= ，即“减一”。在 =3 + 10= 的计算完成后，表达式变为 =13 − 1= 。唯一剩下的要计算的表达式是 =13 − 1= ，写成 =[13 − 1]= 。此时，当前续体为空上下文 =[·]= ，即“什么也不做”。
+
+#+begin: advisement
+*练习 1* 在以下表达式中，使用 =[·]= 标记下一个要求值的表达式及其续体。前者的类型是什么？给定此类型的值，续体返回的值的类型是什么？
+
+1) =5 * (2 * 3 + 3 * 4)=
+2) =(if 2 = 3 then "hello" else "hi") ^ " world"=
+3) =fst (let x = 1 + 2 in (x, x))=
+4) =string_length ("x" ^ string_of_int (3 + 1))=
+
+:answer-1:
+对于第一个问题，如果仅从数学角度出发，首先计算的可能是 =2 * 3= 和 =3 * 4= ，它们的类型是 =int= ，它们各自对应的续体是 =5 * ([·] + 3 * 4)= 和 =5 * (2 * 3 + [·])= ，续体的返回值类型是 =int= 。
+
+对于第二个问题，首先计算的是布尔表达式 =2 = 3= ，它的类型是布尔，它的续体是 =(if [·] then "hello" else "hi") ^ " world"= ，在 Ocaml 中 =^= 是字符串连接操作符，续体的返回值类型是 =string= 。
+
+对于第三个问题，首先计算 =1 + 2= ，它的类型是 =int= ，续体是 =fst (let x = [·] in (x, x))= ，续体的返回值类型是 =int= 。
+
+对于第四个问题，首先计算 =3 + 1= ，它的类型是整数，续体是 =string_length ("x" ^ string_of_int [·])= ，续体的返回值类型是 =int= ，即返回字符串的长度。
+:end:
+#+end:
+
+** What are delimited continuations?
+
+有界续体 (delimited continuations, 限定継続) 是指其范围被限定的续体。在表达式 =3 + [5 ∗ 2] − 1= 中，我们隐含地假设了当前表达式的剩余部分跨越了整个表达式，即 =3 + [·] − 1= 。然而，我们有时只想捕获其中的一部分，而不是整个剩余计算。这种续体被称为有界续体。
+
+「当前有界续体」的范围由一个显式分隔符 =〈···〉= 指定。例如，在表达式 =〈3 + [5 ∗ 2]〉 − 1= 中， =[5 ∗ 2]= 处的当前有界续体仅为 =〈3 + [·]〉= ，而不包含 =− 1= 。
+
+** Delimiting continuations: =reset=
+
+在 OchaCaml 中，续体由 =reset= 构造器进行分隔：
+
+#+begin_src tuareg
+reset (fun () -> M)
+#+end_src
+
+它接收一个 thunk (=fun () -> M=) 并在一个有界上下文中执行其主体 =M= 。如果在 =M= 的执行过程中捕获了某个续体，则该续体将被限制到此 =reset= 。当表达式 =M= 求值得到一个值时，它将成为整个 =reset= 表达式的值。
+
+例如，以下表达式：
+
+#+begin_src tuareg
+reset (fun () -> 3 + [5 * 2]) - 1
+#+end_src
+
+在 =[5 * 2]= 处，当前有界续体变为“加三”，而不包含“减一”。然而，在这个例子中，由于没有捕获续体，执行过程不会有任何意外： =5 ∗ 2= 被简化为 =10= ，加上了 =3= ， =13= 成为 =reset= 的结果，最终结果为 =12= 。
+
+当将 =reset= 替换为 (=try ... with Abort -> ...=) 并且将当前表达式替换为 =raise Abort= 时，有界续体就是被丢弃的计算。例如， =reset (fun () -> 3 + [5 * 2]) - 1= 的当前有界续体是 =3 + [·]= ，因为它是在执行以下计算时被丢弃的计算：
+
+#+begin_src tuareg
+(try 3 + [raise Abort] with Abort -> 0) - 1
+#+end_src
+
+（译注： =try ... with= 是 Ocaml 的错误处理语法， =with= 后面可以接错误处理分支，根据异常类型选择值作为整个 =try= 表达式的值。在上面的表达式中，由于（ =- 1= ） 不在 =try ... with= 范围内丢不掉，所以不属于有界续体的一部分）
+
+#+begin: advisement
+*练习 2* 在以下表达式中，标出有界续体及其类型。
+
+1) =5 * reset (fun () -> [2 * 3] + 3 * 4)=
+2) =reset (fun () -> if [2 = 3] then "hello" else "hi") ^ " world"=
+3) =fst (reset (fun () -> let x = [1 + 2] in (x, x)))=
+4) =string_length (reset (fun () -> "x" ^ string_of_int [3 + 1]))=
+
+:answer-2:
+由于 =reset= 的限制，它们的续体变成了：
+
+1. =[·] + 3 * 4= ，类型是 =int -> int=
+2. =if [·] then "hello" else "hi"= ，类型是 =bool -> string=
+3. =let x = [·] in (x, x)= ，类型是 =int -> int * int=
+4. ="x" ^ string_of_int [·]= ，类型是 =int -> string=
+:end:
+#+end:
+
+** Capturing continuations: =shift=
+
+在 OchaCaml 中，我们使用 =shift= 构造器来捕获当前有界续体：
+
+#+begin_src tuareg
+shift (fun k -> M)
+#+end_src
+
+这个表达式的执行分为三个步骤：
+
+1) 清除当前有界续体。
+2) 将这个被清除的续体绑定到（束縛し）变量 =k= 。
+3) 执行表达式体 =M= 。
+
+我们将在后续章节中详细介绍如何使用 =shift= 。
+
+** How to discard delimited continuations
+
+=shift= 的第一个用法是通过以下方式丢弃有界续体：
+
+#+begin_src tuareg
+shift (fun _ -> M)
+#+end_src
+
+其中， =_= 是一个在程序其他地方都不会出现的变量。（上述程序与 =k= 在 =M= 中完全没有出现的 =shift (fun k -> M)= 相同。） =shift (fun _ -> M)= 的执行过程如下：
+
+1) 清除当前有界续体。
+2) 将被清除的续体作为参数传递给 =fun _ -> M= ，但由于它在 =M= 中没有出现，因此永远不会被使用。
+3) 执行表达式体 =M= 。
+
+由于 =shift= 的主体没有提及捕获的续体，因此续体会被丢弃，并且直到封闭的 =reset= 的当前上下文会被替换为 =M= 。换句话说，我们可以丢弃（或中止）到封闭 =reset= 为止的计算。
+
+例如，要丢弃 =3 + [5 ∗ 2] − 1= 的续体，我们可以用 =reset= 将整个表达式括起来，并将 =[·]= 替换为 =shift (fun _ -> M)= 。
+
+#+begin_src tuareg
+# reset (fun () -> 3 + shift (fun _ -> 5 * 2) - 1) ;;
+- : int = 10
+#
+#+end_src
+
+在此情况下， =M= 是 =5 * 2= ，因此结果是 =10= 。我们甚至可以返回一个不同类型的值。
+
+#+begin_src tuareg
+# reset (fun () -> 3 + shift (fun _ -> "hello") - 1) ;;
+- : string = "hello"
+#
+#+end_src
+
+请注意，被丢弃的续体 =3 + [·] − 1= 的类型为 =int -> int= 。尽管由 =reset= 限制的当前上下文应该返回一个 =int= 类型的值，但实际上返回的是一个字符串。不过，该表达式仍然是类型正确的 (well-typed)。我们稍后会讨论这种类型修改。
+
+被丢弃的续体仅限于封闭的 =reset= 。在下面的示例中，只有“加三”被丢弃：
+
+#+begin_src tuareg
+# reset (fun () -> 3 + shift (fun _ -> 5 * 2)) - 1 ;;
+- : int = 9
+#
+#+end_src
+
+在此情况下，我们不能返回字符串，因为 =reset= 的值接下来会被减一：
+
+#+begin_src tuareg
+# reset (fun () -> 3 + shift (fun _ -> "hello")) - 1 ;;
+Toplevel input:
+> reset (fun () -> 3 + shift (fun _ -> "hello")) - 1 ;;
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This expression has type string,
+but is used with type int.
+#
+#+end_src
+
+#+begin: advisement
+*练习 3* 通过将 =[·]= 替换为 =shift (fun _ -> M)= （其中 =M= 是某个表达式），在以下表达式中丢弃当前续体并返回一些值。
+
+1) =5 * reset (fun () -> [·] + 3 * 4)=
+2) =reset (fun () -> if [·] then "hello" else "hi") ^ " world"=
+3) =fst (reset (fun () -> let x = [·] in (x, x)))=
+4) =string_length (reset (fun () -> "x" ^ string_of_int [·]))=
+
+:answer-3:
+
+1) =shift (fun _ -> 1)=, =5=
+2) =shift (fun _ -> "hello")=, ="hello world"=
+3) =shift (fun _ -> ("hello" "world")=, ="hello"=
+4) =shift (fun _ -> "xyz")=, =3=
+
+:end:
+#+end:
+
+#+begin: advisement
+*练习 4* 给定一个整数列表，下面的函数返回所有元素的乘积。
+
+#+begin_src tuareg
+  (* times : int list-> int *)
+  let rec times lst = match lst with
+      [] -> 1
+    | first :: rest -> first * times rest ;;
+#+end_src
+
+例如， =times [2; 3; 5]= 计算结果为 =30= 。假设我们将 =times= 应用于 =[2; 3; 0; 5]= 。由于列表中存在 =0= ，我们知道结果将变为 =0= ，而无需执行任何乘法运算。这样的行为可以通过在找到列表中的 =0= 时丢弃当前续体并返回 =0= 来实现。我们可以修改 =times= 的上述定义，通过包含以下子句：
+
+#+begin_src tuareg
+| 0 :: rest -> ...
+#+end_src
+
+来实现此行为。我们如何调用修改后的 =times= 函数？
+
+:answer-4:
+
+#+begin_src tuareg
+  let rec times lst = match lst with
+      [] -> 1
+    | 0 :: rest -> shift (fun _ -> 0)
+    | first :: rest -> first * times rest ;;
+
+  reset (fun () -> times lst)
+#+end_src
+
+虽然我不会 Ocaml，不过我们可以用 Racket 来测试是否符合题目要求：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define times
+    (lambda (ls)
+      (unless (null? ls)
+        (display (car ls)))
+      (match ls
+        ('() 1)
+        ((list* 0 rest) (shift k 0))
+        ((list* first rest)
+         (* first (times rest))))))
+
+  (list (reset (times '(1 2 3)))) ;;=> 123'(6)
+  (list (reset (times '(1 0 2)))) ;;=> 10'(0)
+#+end_src
+:end:
+#+end:
+
+** How to extract delimited continuations
+
+=shift= 的第二个用法是通过以下方式提取有界续体：
+
+#+begin_src tuareg
+shift (fun k -> k)
+#+end_src
+
+=shift (fun k -> k)= 的执行过程如下：
+
+1) 清除当前有界续体。
+2) 绑定被清除的续体到变量 =k= 。
+3) 执行表达式体 =k= 。
+
+由于 =shift= 的主体只是一个代表被捕获续体（捕捉した継続）的变量，因此最后一步立即完成并返回被捕获的续体。由于当前有界续体已被清除， =reset= 表达式的返回值因此就变成了被捕获的续体。因此，通过执行 =shift (fun k -> k)= ，我们可以提取当前有界续体。
+
+例如，如果我们想要捕获 =3 + [5 ∗ 2] − 1= 的续体，我们可以用 =reset= 将整个表达式括起来，将 =[·]= 替换为  =shift (fun k -> k)= ，并将结果绑定到一个变量以便之后使用。
+
+#+begin_src tuareg
+# let f x = reset (fun () -> 3 + shift (fun k -> k) - 1) x ;;
+f : int -> int = <fun>
+#
+#+end_src
+
+由于被返回的续体是一个函数，我们对其进行 η-展开 (η-expand)，并将其绑定到一个带有显式参数 =x= 的函数 =f= 上。我们也可以写成：
+
+#+begin_src tuareg
+# let f = reset (fun () -> 3 + shift (fun k -> k) - 1) ;;
+f : int => int = <​fun>
+#}
+#+end_src
+
+但是，由于绑定到 =f= 的不是一个文本上的值 (not textually a value,「値」ではなく)，我们得到的是一个弱多态 (weakly polymorphic, 弱い多相) 的续体，只能在具有特定答案类型的上下文中使用。在 OchaCaml 中，函数的这种特殊状态由一个新的箭头类型 ==>= 表示。有关 ==>= 的详细信息，请参见第 3.4 节。在这里，我们通过 η-展开 =f= 的定义来避免这种情况。
+
+现在， =f= 被绑定到一个函数，当应用时，该函数将使用应用的值来调用被捕获的续体“加三并减一”。
+
+#+begin_src tuareg
+# f 10 ;;
+- : int = 12
+#
+#+end_src
+
+在这种情况下， =f= 的行为与 =fun x -> reset (fun () -> 3 + x - 1)= 相同。
+
+#+begin: advisement
+*练习 5* 通过将 =[·]= 替换为 =shift (fun k -> k)= 来提取以下表达式的有界续体，并为它们命名。请通过实际将值应用于它们来找出提取出的续体的功能。它们的类型是什么？
+
+1) =reset (fun () -> 5 * ([·] + 3 * 4))=
+2) =reset (fun () -> (if [·] then "hello" else "hi") ^ " world")=
+3) =reset (fun () -> fst (let x = [·] in (x, x)))=
+4) =reset (fun () -> string_length ("x" ^ string_of_int [·]))=
+
+:answer-5:
+由于 =reset= 都在最外面，实际上所有得到的续体都是单参函数，参数位于空位处。它们的名字、类型、调用示例分别是：
+
+1. =Add12Mul5=, =int -> int=, =k 1 = 65=
+2. =hello_or_hi=, =bool -> string=, =k true = "hello world"=
+3. =identity=, =a -> a=, =k 1 = 1=
+4. =NumStrLenAdd1=, =int -> int=, =k 12 = 3=
+
+以下是对应的 Racket 实现：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define f1
+    (reset (* 5 (+ (shift k k) (* 3 4)))))
+  (define f2
+    (reset (string-append
+            (if (shift k k) "hello" "hi") " world")))
+  (define f3
+    (reset (car (let ([x (shift k k)]) (cons x x)))))
+  (define f4
+    (reset (string-length (string-append "x"
+                                         (number->string
+                                          (shift k k))))))
+  (list (f1 1) (f2 #t) (f3 1) (f4 12))
+  ;;=> '(65 "hello world" 1 3)
+#+end_src
+:end:
+#+end:
+
+#+begin: advisement
+*练习 6* 以下程序遍历给定的列表，并返回原样不变的列表。换句话说，它是列表上的一个恒等函数。
+
+#+begin_src tuareg
+  (* id : ’a list -> ’a list *)
+  let rec id lst = match lst with
+      [] -> []
+    | first :: rest -> first :: id rest ;;
+#+end_src
+
+假设我们使用 =[1; 2; 3]= 调用这个函数：
+
+#+begin_src tuareg
+  reset (fun () -> id [1; 2; 3]) ;;
+#+end_src
+
+该函数遍历此列表，最终到达空列表。此时，续体是什么？通过将 =[]= 替换为 =shift (fun k-> k)= 来提取它。提取出的续体的类型是什么？它有什么作用？
+
+:answer-6:
+到达空列表时，续体是逐级结束递归调用并连接列表。提取得到的续体类型是 ='a list -> 'a list= ，换句话说就是可以传入一个列表作为最终结果的尾部，我们可以使用这个续体来实现 Lisp 中类似 =append= 的效果。
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (my-id lst)
+    (match lst
+      ('() (shift k k))
+      ((list* a b)
+       (cons a (my-id b)))))
+
+  (define a (reset (my-id '(1 2 3))))
+  (a '(4 5)) ;;=> '(1 2 3 4 5)
+#+end_src
+:end:
+#+end:
+
+** How to preserve delimited continuations
+
+我们不仅可以提取/丢弃续体，还可以将它们临时保存到数据结构中，并稍后恢复它们。例如，让我们考虑遍历如下定义的树：
+
+#+begin_src tuareg
+  type tree_t = Empty
+              | Node of tree_t * int * tree_t ;;
+#+end_src
+
+以下函数以深度优先的方式从左到右遍历树，并打印出树中找到的所有值。
+
+#+begin_src tuareg
+  (* walk : tree_t -> unit *)
+  let rec walk tree = match tree with
+      Empty -> ()
+    | Node (t1, n, t2) ->
+       walk t1;
+       print_int n;
+       walk t2 ;;
+#+end_src
+
+例如，我们有：
+
+#+begin_src tuareg
+# let tree1 = Node (Node (Empty, 1, Empty), 2, Node (Empty, 3, Empty)) ;;
+tree1 : tree_t = Node (Node (Empty, 1, Empty), 2, Node (Empty, 3, Empty))
+# walk tree1 ;;
+123- : unit = ()
+#
+#+end_src
+
+函数 =walk= 一次性遍历所有节点。但有时，我们希望一次查看一个值，并在接收下一个值（如果有的话）之前对其进行处理。为了实现这种行为，我们将 =print_int n= 替换为一个 =shift= 表达式，如下所示：
+
+#+begin_src tuareg
+  (* walk : tree_t -> unit *)
+  let rec walk tree = match tree with
+      Empty -> ()
+    | Node (t1, n, t2) ->
+       walk t1;
+       yield n;
+       walk t2 ;;
+#+end_src
+
+其中 =yield= 定义如下：
+
+#+begin_src tuareg
+  (* yield : int => unit *)
+  let yield n = shift (fun k -> Next (n, k)) ;;
+#+end_src
+
+当找到一个节点时，函数 =walk= 调用 =yield= 来中止并使用一个合适的构造器（構成子） =Next= （稍后定义）将值 =n= 和当前续体一起返回。因此， =walk= 的调用者将立即收到第一个值 =n= ，并暂停对其他节点的遍历。当调用者想要另一个值时，它通过将单位值 (=unit=) =()= 传递给续体来恢复遍历。这个单位值成为 =yield= 的值，并且遍历继续 =walk t2= 。通过这种返回带有当前续体的值的方式，我们可以做到停止和恢复函数的执行。
+
+现在， =walk= 捕获了续体，我们需要用 =reset= 将其包裹以便调用。然而，我们不能简单地像这样将 =walk= 括起来：
+
+#+begin_src tuareg
+reset (fun () -> walk tree1) ;;
+#+end_src
+
+因为它会导致类型错误。记住，每当 =walk= 找到一个节点时，它都会将 =Next (n, k)= 返回给包含它的 =reset= 。另一方面，如果传递给 =walk= 的列表为空列表， =walk= 将返回一个单位值 。因此，如果直接用 =reset= 包裹 =walk= 的调用， =reset= 可以返回 =Next (n, k)= 或一个单位值 ，从而导致类型错误。
+
+为了避免类型错误（型エラ），我们需要另一个构造器 =Done= （稍后定义），用来表示树中没有更多的节点了。我们不再用单位值来结束遍历，而是像下面的定义那样返回 =Done= ：
+
+#+begin_src tuareg
+  (* start : tree_t -> ’a result_t *)
+  let start tree =
+    reset (fun () -> walk tree; Done) ;;
+#+end_src
+
+请注意在 =walk= 中调用的 =yield= 中 =shift= 的返回值是如何影响 =reset= 返回的值的类型的。这意味着对 =shift= 表达式的类型进行推导需要知道 =reset= 的类型信息。
+
+剩下的任务是定义两个构造器， =Next= 和 =Done= 。它们的定义如下：
+
+#+begin_src tuareg
+  type 'a result_t = Done
+                    | Next of int * (unit / 'a-> 'a result_t / 'a) ;;
+#+end_src
+
+构造器 =Done= 没有参数（引数を持たない），而 =Next= 有两个参数，一个是整数，另一个是续体。被捕获续体的类型基本上是从 =unit= 到 ='a result_t= 的函数：给定一个单位值 ，它返回 =Done= 或 =Next= 。此外，还必须指定它们的答案类型（「答の型」）。由于被捕获续体的答案类型是多态的，我们添加了一个类型参数 ='a= ，并将其用于两种答案类型。我们将在后续章节中详细讨论答案类型。
+
+现在，我们可以通过调用 =start= 来遍历树。例如，以下函数打印出树中所有节点的整数值：
+
+#+begin_src tuareg
+  (* print_nodes : tree_t-> unit *)
+  let print_nodes tree =
+    let rec loop r = match r with
+        Done -> ()        (* no more nodes *)
+      | Next (n, k) ->
+         print_int n;     (* print n *)
+         loop (k ()) in   (* and continue *)
+    loop (start tree) ;;
+#+end_src
+
+在最后一行，通过调用 =start= 来启动对树的遍历。内部函数 =loop= 检查结果：如果结果是 =Done= ，说明树中没有更多节点；如果结果是 =Next= ，则处理当前值 =n= 并通过将 =()= 传递给 =k= 来继续（恢复）遍历。通过调用 =print_nodes= 并传入 =tree1= ，我们得到了：
+
+#+begin_src tuareg
+  # print_nodes tree1 ;;
+  123- : unit = ()
+  #
+#+end_src
+
+类似地，以下函数将树中所有整数相加：
+
+#+begin_src tuareg
+  (* add_tree : tree_t -> int *)
+  let add_tree tree =
+    let rec loop r = match r with
+      | Done -> 0
+      | Next (n, k) -> n + loop (k ()) in
+    loop (start tree) ;;
+#+end_src
+
+我们有：
+
+#+begin_src tuareg
+  # add_tree tree1 ;;
+  - : int = 6
+  #
+#+end_src
+
+使用这个思路，我们可以实现一种协程，其中两个进程交替执行。以下练习展示了最简单形式的协程实现。
+
+#+begin: advisement
+*练习 7* 编写一个函数 =same_fringe= 。给定两个类型为 =tree_t= 的树，它以深度优先的方式从左到右遍历两棵树，并检查两棵树中遇到的数字序列是否相同。例如，以下两棵树的边缘（fringe）是相同的：
+
+#+begin_src tuareg
+let tree1 = Node (Node (Empty, 1, Empty), 2, Node (Empty, 3, Empty)) ;;
+let tree2 = Node (Empty, 1, Node (Empty, 2, Node (Empty, 3, Empty))) ;;
+#+end_src
+
+我们可以通过首先将树转换为列表并比较结果列表来实现 =same_fringe= 。但是，即使两棵树的第一个元素已经不同，这种实现也需要遍历所有树。
+
+因此，编写一个函数，当两个数字第一次不相同时能立即返回 =false= 而无需进一步遍历剩余的树。
+
+:answer-7:
+
+Ocaml 里面没有 =reset/shift= ，这里我们用 Racket 实现一遍。
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (struct Tree
+    (left value right))
+
+  (define (tree-v tree)
+    (values
+     (Tree-left tree)
+     (Tree-value tree)
+     (Tree-right tree)))
+
+  (define (walk tree)
+    (cond
+      ((null? tree) #t)
+      ((Tree? tree)
+       (let-values ([(l v r) (tree-v tree)])
+         (walk l)
+         (shift k (cons v k))
+         (walk r)))))
+
+  (define (start tree)
+    (reset (walk tree)))
+
+  (define (tree-print tree)
+    (let loop ([res (start tree)])
+      (match res
+        (#t #t)
+        ((cons n k)
+         (display n)
+         (loop (k '()))))))
+
+  (define (add-tree tree)
+    (let loop ([res (start tree)])
+      (match res
+        (#t 0)
+        ((cons n k) (+ n (loop (k '())))))))
+
+  (define (same-fringe? t1 t2)
+    (let loop ([res1 (start t1)]
+               [res2 (start t2)])
+      (match (vector res1 res2)
+        ((vector #t #t) #t)
+        ((vector #t _) #f)
+        ((vector _ #t) #f)
+        ((vector (cons n1 k1) (cons n2 k2))
+         (if (not (= n1 n2)) #f
+             (loop (k1 '()) (k2 '())))))))
+
+  (define tree1
+    (Tree (Tree '() 1 '()) 2 (Tree '() 3 '())))
+
+  (define tree2
+    (Tree '() 1 (Tree '() 2 (Tree '() 3 '()))))
+
+  (same-fringe? tree1 tree2) ;;=> t
+#+end_src
+:end:
+#+end:
+
+** How to wrap delimited continuations: printf
+
+在 =k= 中捕获的挂起计算可以通过将 =k= 应用于一个值来恢复。如果我们用 =fun= 将应用包装起来而不是直接应用 =k= ，我们可以延迟捕获计算的恢复。此外，它使我们能够访问外围 =reset= 的参数。
+
+例如，考虑以下表达式：
+
+#+begin_src tuareg
+  shift (fun k -> fun () -> k "hello")
+#+end_src
+
+它捕获当前续体，将其绑定到 =k= ，中止当前计算，并将 thunk =fun () -> k "hello"= 作为外围 =reset= 的结果返回。也就是说，它暂时挂起当前计算，并在 =reset= 的外部等待传递一个单位值。当它接收到一个单位值时，它将使用值 ="hello"= 恢复计算。
+
+假设上述表达式放置在以下代码的上下文 =[...] ^ " world"= 中^{1}：
+
+#+begin_src tuareg
+  # let f x = reset (fun () ->
+                  shift (fun k -> fun () -> k "hello") ^ " world") x ;;
+  f : unit -> string = <fun>
+  #
+#+end_src
+
+我们随后得到 thunk =f= ，它在使用 =()= 调用时会使用 ="hello"= 恢复计算：
+
+#+begin_src tuareg
+  # f () ;;
+  - : string = "hello world"
+  #
+#+end_src
+
+可以看到， =thunk= 被放置在 =reset= 内部（可能是深层次的，はるか），而其参数 =()= 则在 =reset= 的外部传递。通过包装续体，我们可以在保持词法上位于 =reset= 内部的同时访问 =reset= 外部的信息。利用这一思想，我们可以实现一个（带类型的） =printf= 函数 [fn:1]。
+
+#+begin: advisement
+*练习 8* 通过将 ="world"= 填充到以下表达式的空洞 =[...]= 中，我们可以获得 ="hello world!"= 。
+
+#+begin_src tuareg
+  reset (fun () -> "hello " ^ [...] ^ "!")
+#+end_src
+
+相比直接填充 ="world"= ，你能否填充一个表达式，以便将用于 =reset= 表达式的参数填充到空洞中？换句话说，我们希望通过将 =[...]= 替换为合适的表达式来获得以下交互：
+
+#+begin_src tuareg
+  # reset (fun ()-> "hello " ^ [...] ^ "!") "world" ;;
+  - : string = "hello world!"
+  #
+#+end_src
+
+=[...]= 中的表达式表现得像 =%s= 指令。除了字符串之外，您能否实现 =%d= 的行为，以便将整数参数嵌入到字符串中？（可以使用 =string_of_int= 将整数转换为字符串。）此外，您可以传递多个参数吗？（注意 OchaCaml 的求值顺序。）
+
+:answer-8:
+对于第一个小问题，我们可以使用如下代码：
+#+begin_src tuareg
+reset (fun () -> "hello " ^ (shift (k) -> (fun (x) -> k x) ^ "!") "world" ;;
+#+end_src
+
+对应的 Racket 代码如下：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+  ((reset (string-append
+           "hello "
+           (shift k (λ (x) (k x)))
+           "!")) "world")
+#+end_src
+
+这一使用方法与直接返回 =k= 没有什么区别，不过本节的目的是在告诉我们可以通过函数包装续体来处理或者说限制外部输入，而不是把整个续体控制权完全交给外部。就像第二小问要求我们转换输入整数为字符串那样：
+
+#+begin_src tuareg
+  reset (fun () -> "hello " ^ (shift (k) -> (fun (x) -> k (string_of_int x)) ^ "!") 1 ;;
+#+end_src
+
+#+begin_src racket
+  ((reset (string-append
+           "hello "
+           (shift k (λ (x) (k (number->string x))))
+           "!")) 1)
+  ;;=> "hello 1!"
+#+end_src
+
+对于最后的多参数问题，我们使用多个 =shift= 即可，需要注意的是 Ocaml 求值顺序是从右到左，因此对于接受分别是 =int, string, int= 类型整数的表达式来说，代码是这样的：
+
+#+begin_src tuareg
+  reset (fun () -> "hello "
+                   ^ (shift (k) -> (fun (x) -> k (string_of_int x)))
+                   ^ (shift (k) -> (fun (x) -> k x))
+                   ^ (shift (k) -> (fun (x) -> k (string_of_int x)))
+                   ^ "!") 3 "two" 1 ;;
+#+end_src
+
+如果我的理解正确的话，上面的代码会输出 ="hello 1 two 3!"= 。毕竟在 Ocaml 中以下代码的结果如下所示：
+
+#+begin_src tuareg
+"1" ^ (print_int 2; "2") ^ (print_int 3; "3") ;;
+32
+- : string = "123"
+#+end_src
+
+在 Racket 中，参数的计算顺序是从左到右，可以这样实现：
+
+#+begin_src racket
+  ((((reset (string-append
+             "hello "
+             (shift k (λ (x) (k (number->string x))))
+             (shift k (λ (x) (k x)))
+             (shift k (λ (x) (k (number->string x))))
+             "!")) 1) "two") 3)
+  ;;=> "hello 1two3!"
+#+end_src
+:end:
+#+end:
+
+☨^{1}: The definition of =f= is η-expanded to make =f= answer-type polymorphic.
+
+** Answer type modification
+
+现在是时候考虑带有 =shift/reset= 的表达式的类型问题了。在以下上下文中：
+
+#+begin_src tuareg
+  reset (fun () -> [...] ^ " world")
+#+end_src
+
+=reset= 的返回值似乎是一个字符串，因为 =^= 返回一个字符串。我们怎样才能在这个表达式中传递一个参数而不会出现类型错误？
+
+要了解上一节 printf 例子是如何类型化的，我们需要了解什么是答案类型。答案类型是外围 =reset= 的类型。例如，在表达式 =reset (fun () -> 3 + [5 * 2])= （当前表达式为 =5 * 2= ）中，答案类型为 =int= ，而在表达式 =reset (fun () -> string_of_int [5 * 2])= 中，答案类型为 =string= 。
+
+如果一个表达式不包含 =shift= ，则可以将其放置在任何答案类型的上下文中。在上面的示例中，表达式 =5 * 2= 可以同时放置在 =reset (fun ()-> 3 + [...])= 和 =reset (fun ()-> string_of_int [...])= 中，因为在两种情况下，空洞的类型都是 =int= 。换句话说， =5 * 2= 的续体的答案类型是任意的。这个属性叫做答案类型多态性 (/answer type polymorphism/)。
+
+当一个表达式包含 =shift= 时，情况就不同了。因为 =shift= 捕获了当前续体并安装了一个新的续体（即 =shift= 的主体），所以它可以改变答案类型。回到 printf 示例：
+
+#+begin_src tuareg
+  reset (fun () -> [...] ^ " world")
+#+end_src
+
+原始的答案类型是 =string= 。因此，这个上下文的类型（将在下面捕获）是 =string -> string= 。
+
+假设在 =[...]= 中，我们执行：
+
+#+begin_src tuareg
+  shift (fun k -> fun () -> k "hello")
+#+end_src
+
+由于捕获的续体 =k= 的类型是 =string -> string= ，因此 =shift= 返回给外围 =reset= 的结果是一个类型为 =unit -> string= 的 thunk =fun () -> k "hello"= 。换句话说，由于执行了 =shift= 表达式，外围 =reset= 的表达式的答案类型从 =string= 变成了 =unit -> string= 。这种现象称为答案类型修改（「答の型の変化」）。这就是上述 =reset= 表达式可以接受 =()= 作为参数的原因。
+
+由于 =shift= 表达式的执行可以改变外围上下文的答案类型，因此有必要始终跟踪答案类型，以便正确地对带有 =shift= 和 =reset= 的表达式进行类型检查。这就是 OchaCaml 中程序的类型检查方式。有关技术细节，请参见第 3.4 节。
+
+** How to wrap delimited continuations: state monad
+
+通过包装续体，我们可以访问外围 =reset= 之外的信息。利用这个思路，我们可以通过将状态（状態）的当前值传递到外围 =reset= 的上下文之外来实现可变状态。
+
+例如，让我们考虑将一个整数作为状态。就像 printf 示例中的 ="world"= 一样，我们将一个整数作为上下文的参数传递：
+
+#+begin_src tuareg
+  reset (fun () -> M) 3
+#+end_src
+
+在这个例子中，状态的初始值是 3。在 =M= 中我们可以通过以下函数访问状态：
+
+#+begin_src tuareg
+  # let get () =
+      shift (fun k -> fun state -> k state state) ;;
+  get : unit => 'a = <fun>
+  #
+#+end_src
+
+在 =k= 中捕获当前续体后，函数 =get= 中止它并返回函数 =fun state -> k state state= 给包含它的上下文。因此，状态的当前值被传递给 =state= 。之后， =k= 中的计算使用 =state= 恢复。也就是说， =get ()= 的值成为当前状态的值。
+
+在上述定义中， =k= 被传递了两次 =state= 。第一个成为 =get ()= 的值，而第二个成为 =get ()= 执行后新状态的值。由 =shift= 捕获的续体包括最外层的 =reset= 。因此，将 =state= 应用于 =k= 构成一个新的上下文。为了在 =k= 执行期间提供状态的值，我们在 =get ()= 执行后传递 =state= 的值。由于 =get= 不应该改变状态的值，因此我们将 =state= 作为新状态的值传递。如果我们想要定义一个改变状态的函数，我们可以在那里传递新值。例如，以下函数将当前状态加一（并返回一个单位值）：
+
+#+begin_src tuareg
+  # let tick () =
+      shift (fun k -> fun state -> k () (state + 1)) ;;
+  tick : unit => unit = <fun>
+  #
+#+end_src
+
+我们可以使用如下函数开始计算：
+
+#+begin_src tuareg
+  # let run_state thunk =
+      reset (fun () -> let result = thunk () in
+                      fun state -> result) 0 ;;
+  run_state : (unit => 'a) => 'b = <fun>
+  #
+#+end_src
+
+它使用 0 作为状态初始值来执行 =thunk= 。当 =thunk= 执行结束时，状态值会被忽略，结果值会被返回。使用这些函数，我们有：
+
+#+begin_src tuareg
+  # run_state (fun () ->
+      tick ();           (* state = 1 *)
+      tick ();           (* state = 2 *)
+      let a = get () in
+      tick ();           (* state = 3 *)
+      get () - a) ;;
+  - : int = 1
+  #
+#+end_src
+
+#+begin: advisement
+*练习 9* 以下程序的值是什么？
+
+#+begin_src tuareg
+  run_state (fun () ->
+      (tick (); get ()) - (tick (); get ())) ;;
+#+end_src
+
+通过实际执行来检查您的结果。（注意 OchaCaml 的求值顺序。）
+
+:answer-9:
+由于 Windows 上安装 OchaCaml 过于困难，这里使用 Racket 实现：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (get)
+    (shift k (λ (state) ((k state) state))))
+
+  (define (tick)
+    (shift k (λ (state) ((k) (+ 1 state)))))
+
+  (define (run-state thunk)
+    ((reset (let ((result (thunk)))
+              (λ (state) result))) 0))
+
+  (run-state (λ ()
+               (- (begin (tick) (get))
+                  (begin (tick) (get)))))
+  ;;=> -1
+#+end_src
+
+既然 Ocaml 是从右向左求值，那么上面的表达式在 OchaCaml 中应该会得到 =1= 。
+:end:
+#+end:
+
+#+begin: advisement
+*练习 10* 类似地，编写一个函数 =put= 。它使用 =put= 的参数更新状态并返回一个单位值。
+
+本节中介绍的方法有效地在续体单子 (continuation monad) 上实现了状态单子 (state monad, 状態モナド)。
+
+:answer-10:
+
+在 Racket 中可以如此实现：
+
+#+begin_src racket
+  (define (put x)
+    (shift k (λ (state) ((k) x))))
+
+  (run-state (λ () (put 20) (get)))
+  ;;=> 20
+#+end_src
+
+对应的 OchaCaml 代码如下：
+
+#+begin_src tuareg
+  let put val =
+    shift (fun k -> fun state -> k () val) ;;
+#+end_src
+:end:
+#+end:
+
+** How to reorder delimited continuations (advanced)
+
+如果我们在尾部位置应用续体，则捕获的计算将简单地恢复。如果我们在非尾部位置应用续体，则可以在恢复计算完成后执行其他计算。换句话说，我们可以切换周围上下文（捕获的续体）和本地（附加）计算的执行顺序。例如，在以下表达式中：
+
+#+begin_src tuareg
+  # reset (fun () -> 1 + (shift (fun k -> 2 * k 3))) ;;
+  - : int = 8
+  #
+#+end_src
+
+=2 * [...]= 的执行和周围上下文 =1 + [...]= 的执行被交换，后者在先者之前执行。这个简单的想法可以推广到实现 A-normalization (A 正規形変換)。
+
+（译者注：可以阅读 Matt Might 的 [[https://matt.might.net/articles/a-normalization/][A-Normalization: Why and How]] 来了解 A-normalization）
+
+考虑以下 λ-项 (λ-term) 的定义：
+
+#+begin_src tuareg
+  type term_t = Var of string
+              | Lam of string * term_t
+              | App of term_t * term_t ;;
+#+end_src
+
+给定一个 λ-项，我们希望获得它的 A-范式 (A-normal form)，这是一个等价的项，但该项中的所有应用都具有唯一名称。例如，S 组合子（S コンビネータ） =λx.λy.λz.(xz)(yz)= 的 A-范式是
+
+\[\lambda x.\lambda y.\lambda z.\text{let}\ t_1 = xz \ \text{in}\ \text{let}\ t_2 = yz\ \text{in}\ \text{let}\ t_3 = t_1t_2\ \text{in}\ t_3\]
+
+要实现 A-normalization，我们首先定义一个遍历并重新构建所有子项的单位函数：
+
+#+begin_src tuareg
+  (* id_term : term_t-> term_t *)
+  let rec id_term term = match term with
+      Var (x) -> Var (x)
+    | Lam (x, t) -> Lam (x, id_term t)
+    | App (t1, t2) -> App (id_term t1, id_term t2) ;;
+#+end_src
+
+因为我们想要给每个应用一个唯一的名字，我们可以稍微修改上面的函数来为每个应用引入一个 =let= 表达式：
+
+#+begin_src tuareg
+  (* id_term' : term_t-> term_t *)
+  let rec id_term' term = match term with
+      Var (x) -> Var (x)
+    | Lam (x, t) -> Lam (x, id_term' t)
+    | App (t1, t2) ->
+       let t = gensym () in   (* generate fresh variable *)
+       App (Lam (t, Var (t)), (* let expression *)
+            App (id_term' t1, id_term' t2)) ;;
+#+end_src
+
+在这里，我们通过 =(λt.N) M= 模拟了 =let t = M in N= 。使用这个新的恒等函数，S 组合子被转换为以下项：
+
+\[λx.λy.λz.\text{let}\ t_1 = (\text{let}\ t_2 = xz\ \text{in}\ t_2)(\text{let}\ t_3 = yz\ \text{in}\ t_3)\ \text{in}\ t_1\]
+
+然而，这不是我们想要的。我们想要的是一个嵌套 let 表达式被展平的项。
+
+现在，假设我们正在使用 =id_term'= 遍历 S 组合子的语法树，并且当前正在查看第一个应用 =xz= 。此时，当前的续体是“遍历 =yz= ，重建外部应用，并重建三个 lambda 表达式”：
+
+\[λx.λy.λz.\text{let}\ t_1 = \texttt{[·]}(\text{let}\ t_3 = yz\ \text{in}\ t_3)\ \text{in}\ t_1\]
+
+为了展平嵌套的 let 表达式，我们现在重新排序 =xz= 的 let 表达式构造（即 =let t2 = xz in [·]= ）和直到 lambda 的其余重建（即 =let t1 = [·](let t3 = yz in t3) in t1= ），如下所示：
+
+#+begin_src tuareg
+  (* a_normal : term_t => term_t *)
+  let rec a_normal term = match term with
+      Var (x) -> Var (x)
+    | Lam (x, t) -> Lam (x, reset (fun () -> a_normal t))
+    | App (t1, t2) ->
+       shift (fun k ->
+           let t = gensym () in    (* generate fresh variable *)
+           App (Lam (t,            (* let expression *)
+                     k (Var (t))), (* continue with new variable *)
+                App (a_normal t1, a_normal t2))) ;;
+#+end_src
+
+在 =App= 分支中，在 =k= 中捕获当前续体后，它将使用新生成的变量 =t= 恢复。因此，原始项中的应用被转换为这个新变量。在整个项的转换完成后， =t= 的定义被添加到它的前面。
+
+由于我们不希望变量的定义超出 lambda 的作用域，因此在 =Lam= 分支中对上下文进行了限制。通过这个定义，我们实现了 A-归约。在部分求值社区 (partial evaluation community, 部分評価の分野) 中，这种保留残留 let 表达式 (residualizing let expression) 的方法称为 let 插入 (/let insertion/)。
+
+#+begin: advisement
+*练习 11* 使用上述函数 =a_normal= 将 S 组合子转换为 A-范式。我们可以观察到什么？
+
+:answer-11:
+同样，由于难以使用 OCahOCaml，这里采用 Racket 实现。我们首先实现 =id_term= 和 =id_term'=:
+
+#+begin_src racket
+  (define (id-term term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term body)))
+      ((list fun arg)
+       (list (id-term fun) (id-term arg)))
+      ((var v) v)))
+
+  (define (id-term1 term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term1 body)))
+      ((list fun arg)
+       (let ((t (gensym 't)))
+         (list (list 'λ t t)
+               (list (id-term1 fun) (id-term1 arg)))))
+      ((var v) v)))
+
+  (define (id-term1* term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term1* body)))
+      ((list fun arg)
+       (let ((t (gensym 't)))
+         (list 'let
+               (list t (list (id-term1* fun)
+                             (id-term1* arg)))
+               t)))
+      ((var v) v)))
+#+end_src
+
+在上面的三个函数中， =id-term1= 和 =id-term1*= 实现了 trivial 的 A-normalization，我们可以观察 =id-term1= 和 =id-term1*= 对本节 S 组合子的变换结果（为了可读性我改变了 =gensym= 的生成符号并改变了缩进）：
+
+#+begin_src text
+  '(λ x (λ y (λ z ((λ t1 t1) (((λ t2 t2) (x z)) ((λ t3 t3) (y z)))))))
+  '(λ x (λ y (λ z
+               (let (t1 ((let (t2 (x z)) t2)
+                         (let (t3 (y z)) t3)))
+                 t1))))
+#+end_src
+
+参考 OchaCaml 中的 =a_normal= 实现，我们可以写出如下代码：
+
+#+begin_src racket
+  (define (a-normal term)
+    (match term
+      ((list 'λ x t)
+       (list 'λ x (reset (a-normal t))))
+      ((list t1 t2)
+       (shift k (let ((t (gensym 't)))
+                  (list
+                   (list 'λ t (k t))
+                   (list (a-normal t1)
+                         (a-normal t2))))))
+      ((var v) v)))
+
+  (define (a-normal* term)
+    (match term
+      ((list 'λ x t)
+       (list 'λ x (reset (a-normal* t))))
+      ((list t1 t2)
+       (shift k (let ((t (gensym 't)))
+                  (list
+                   'let
+                   (list t
+                         (list (a-normal* t1)
+                               (a-normal* t2)))
+                   (k t)))))
+      ((var v) v)))
+#+end_src
+
+同样是输入 S 组合子，它们的输出如下：
+
+#+begin_src text
+'(λ x (λ y (λ z ((λ t2 ((λ t3 ((λ t1 t1) (t2 t3))) (y z))) (x z)))))
+'(λ x (λ y (λ z (let (t2 (x z)) (let (t3 (y z)) (let (t1 (t2 t3)) t1))))))
+#+end_src
+
+:end:
+
+:racket-code:
+这是完整代码：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (id-term term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term body)))
+      ((list fun arg)
+       (list (id-term fun) (id-term arg)))
+      ((var v) v)))
+
+  (define (id-term1 term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term1 body)))
+      ((list fun arg)
+       (let ((t (gensym 't)))
+         (list (list 'λ t t)
+               (list (id-term1 fun) (id-term1 arg)))))
+      ((var v) v)))
+
+  (define (id-term1* term)
+    (match term
+      ((list 'λ arg body)
+       (list 'λ arg (id-term1* body)))
+      ((list fun arg)
+       (let ((t (gensym 't)))
+         (list 'let
+               (list t (list (id-term1* fun) (id-term1* arg)))
+               t)))
+      ((var v) v)))
+
+  (define (a-normal term)
+    (match term
+      ((list 'λ x t)
+       (list 'λ x (reset (a-normal t))))
+      ((list t1 t2)
+       (shift k (let ((t (gensym 't)))
+                  (list
+                   (list 'λ t (k t))
+                   (list (a-normal t1)
+                         (a-normal t2))))))
+      ((var v) v)))
+
+  (define (a-normal* term)
+    (match term
+      ((list 'λ x t)
+       (list 'λ x (reset (a-normal* t))))
+      ((list t1 t2)
+       (shift k (let ((t (gensym 't)))
+                  (list
+                   'let
+                   (list t
+                         (list (a-normal* t1)
+                               (a-normal* t2)))
+                   (k t)))))
+      ((var v) v)))
+
+  (define S '(λ x (λ y (λ z ((x z) (y z))))))
+  (id-term1 S)
+  (id-term1* S)
+  (a-normal S)
+  (a-normal* S)
+#+end_src
+:end:
+#+end:
+
+** How to duplicate delimited continuations
+
+到目前为止，我们只使用了一次捕获的续体。如果我们多次使用它们，我们可以以各种方式执行其余的计算。它可以用来实现回溯。
+
+考虑下面的函数：
+
+#+begin_src tuareg
+  (* either : 'a -> 'a -> 'a *)
+  let either a b =
+    shift (fun k -> k a; k b) ;;
+#+end_src
+
+函数 =either= 接收两个参数 =a= 和 =b= ，捕获当前的续体到 =k= 中，并按顺序将其应用于 =a= 和 =b= 。由于 =k= 被应用了两次，调用 =either= 的其余计算将被执行两次。我们也可以将 =either= 理解为返回两个值。实际上，如果我们在以下上下文中执行 =either= ，我们实际上可以看到在 =either= 之后的计算确实被执行了两次。
+
+#+begin_src tuareg
+  # reset (fun () ->
+      let x = either 0 1 in
+      print_int x;
+      print_newline ()) ;;
+  0
+  1
+  - : unit = ()
+  #
+#+end_src
+
+因为 =either= 执行了它的续体两次， =x= 的值也就打印了两次，第一次打印 =either= 的第一个参数，第二次打印 =either= 的第二个参数。
+
+#+begin: advisement
+*练习 12* 定义一个递归函数 =choice= ，该函数接收一个值列表，并依次将列表的所有元素返回给续体。
+
+:answer-12:
+#+begin_src tuareg
+  let choice lst =
+    let rec f ls k = match ls with
+        [] -> ()
+      | first :: rest -> k first; f rest k in
+    shift (fun (k) -> f lst k);;
+#+end_src
+
+以下是 Racket 实现：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (choice lst)
+    (shift k
+           (let f ([ls lst])
+             (match ls
+               ('() (void))
+               ((cons a b)
+                (k a) (f b))))))
+  (reset (display (choice '(1 2 3))))
+  ;;=>123
+#+end_src
+:end:
+#+end:
+
+使用 =either= ，我们可以轻松地编写一种简单的生成——测试 (generate-and-test) 风格的函数。例如，假设我们有两个布尔变量 =P= 和 =Q= ，并且想知道以下布尔公式（論理式）是否可满足：
+
+\[(P ∨ Q) ∧ (P ∨ ¬Q) ∧ (¬P ∨ ¬Q)\]
+
+由于 =P= 和 =Q= 可以取真或假，我们可以编写以下程序：
+
+#+begin_src tuareg
+  # reset (fun () ->
+      let p = either true false in
+      let q = either true false in
+      if (p || q) && (p || not q) && (not p || not q)
+      then (print_string (string_of_bool p);
+            print_string ", ";
+            print_string (string_of_bool q);
+            print_newline ())) ;;
+  true, false
+  - : unit = ()
+  #
+#+end_src
+
+请注意，该程序看起来像一个直线程序（一本道のプログラム）。它绑定了两个变量 =p= 和 =q= ，检查布尔公式是否满足，并在满足条件时打印变量的值。没有循环，也没有回溯（ループもバックトラックもない）。在实际执行中，运算符 =either= 会执行其其余计算两次。由于 =either= 出现了两次，因此测试总共执行了四次，每次对应于对 =p= 和 =q= 的可能赋值。我们可以将 =either= 视为不确定地返回其一个参数。
+
+#+begin: advisement
+*练习 13* 使用 =choice= ，定义一个函数，该函数搜索 =1= 到 =5= 之间满足勾股定理的三个自然数。换句话说，找到 =1 ≤ x,y,z ≤ 5= ，使得 =x^2 + y^2 = z^2= 。
+
+:answer-13:
+
+#+begin_src tuareg
+  let f () =
+    reset (fun () ->
+        let a = choice [1;2;3;4;5] in
+        let b = choice [1;2;3;4;5] in
+        let c = choice [1;2;3;4;5] in
+        if a * a + b * b = c * c
+        then (print_int a; print_int b; print_int c)) ;;
+#+end_src
+
+以下是 Racket 实现：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (choice lst)
+    (shift k
+           (let f ([ls lst])
+             (match ls
+               ('() (void))
+               ((cons a b)
+                (k a) (f b))))))
+  (define (f)
+    (reset
+     (let ((a (choice '(1 2 3 4 5)))
+           (b (choice '(1 2 3 4 5)))
+           (c (choice '(1 2 3 4 5))))
+       (when (= (+ (* a a) (* b b)) (* c c))
+         (display a) (display b) (display c)
+         (display #\ )))))
+  (f)
+  ;;=> 345 435
+#+end_src
+:end:
+#+end:
+
+* Foundations of =shift= and =reset=
+
+本节对有界续体操作符 =shift/reset= 的理论基础进行概述。我们使用的语言是一个从左到右求值^{2}的 CBV (call-by-value, 値呼び) λ 演算，并加入了多态 let 表达式和 =shift/reset= 操作符。
+
+☨^{2}: Unlike OchaCaml
+
+** Syntax
+
+\begin{alignat*}{1} \text{(value)}& \quad V& \quad::=&\quad x \ | \ \lambda x. M \\ \text{(term)}& \quad M& \quad::=&\quad V \ | \ M~M \ | \ \mathsf{let}~x = M~\mathsf{in}~M \ | \ \mathcal{S}k.M \ | \ \langle M \rangle \\ \text{(pure evaluation context)}& \quad F& \quad::=&\quad [~] \ | \ F~M \ | \ V~F \ | \ \mathsf{let}~x = F~\mathsf{in}~M \\ \text{(evaluation context)}& \quad E& \quad::= &\quad [~] \ | \ E~M \ | \ V~E \ | \ \mathsf{let}~x = E~\mathsf{in}~M \ | \ \langle E \rangle \end{alignat*} \\
+
+在这个演算中， =shift (fun k -> M)= 记作 \(\mathcal{S}k.M\) ， =reset (fun () -> M)= 记作 \(\langle M \rangle\) 。求值上下文分为两种。在纯求值环境（純評価文脈）中，空位没有外围 =reset= 。
+
+** Reduction rules
+
+\begin{align*} (\lambda x.M)~V \enspace &\leadsto \enspace M[x := V] \\ \mathsf{let}~x = V~\mathsf{in}~M \enspace &\leadsto \enspace M[x := V] \\ \langle V \rangle \enspace &\leadsto \enspace V \\ \langle F[\mathcal{S}~V] \rangle \enspace &\leadsto \enspace \langle V (\lambda x. \langle F[x] \rangle) \rangle \quad x \text{ is fresh} \end{align*}
+
+前两个规则来自普通的 λ 演算（最初のふたつの規則はλ計算の普通のβ-簡約）。第三条规则指出，围绕值的 =reset= 可以被丢弃。
+
+最后一个规则展示了如何捕获表示为纯求值上下文 \(F[~]\) 的当前续体。它被具体化为函数 \(\lambda x. \langle F[x] \rangle\) 并传递给 \(V\) 。注意，在规则的右侧，外围 =reset= 保留了下来，并且具体化的函数中也存在外围 =reset= 。（如果删除其中一个或两个 =reset= ，我们将获得其他类型的控制运算符。）
+
+** Evaluation rule
+
+求值规则的定义如下所示：
+
+\[E[M] \quad \to \quad E[M'] \quad \text{if} \quad M \quad \leadsto \quad M'\]
+
+求值上下文的定义指定了该演算的求值顺序是从左到右（即，函数部分在参数部分之前求值）。
+
+求值规则可以分为三个步骤：
+
+1) 如果要求值的表达式已经是值，则它是求值的结果。如果不是，它可以分解为形式 \(E[M]\) ，其中 \(M\) 是一个 redex。
+2) 根据归约规则，\(M\) 被归约为 \(M'\)。
+3) 结果 \(M'\) 被插入到原始求值上下文 \(E[~]\) 中，得到结果 \(E[M']\) 。这是单步归约的结果（１ステップ簡約したあとの式）。
+
+** Typing Rules
+
+类型和类型模式 (type scheme) 定义如下，其中 \(t\) 表示类型变量。
+
+\begin{align*}
+       \text{type} \quad \tau   \quad &::= \quad  t\ |\ \tau/\tau \to \tau/\tau \\
+\text{type scheme} \quad \sigma \quad &::= \quad \tau\ |\ \forall t. \sigma
+\end{align*}
+
+这里，类型 \(τ_1/α → τ_2/β\) 表示从 \(τ_1\) 到 \(τ_2\) 的函数的类型，但在执行此函数期间，答案类型从 \(α\) 变化为 \(β\) [fn:3]。如果函数没有任何控制效应 (control effect)（粗略地说就是函数不使用 =shift= ），则两个答案类型 \(α\) 和 \(β\) 变成相同的类型变量，并且该变量不会出现在其他任何地方。这样的函数称为纯 (/pure/) 函数。它也被称为答案类型多态 (answer-type polymorphic)。有关答案类型，请参见下一节。
+
+在 OchaCaml 中，纯函数的类型写为 \(τ_1\ \texttt{->}\ τ_2\) ，省略了答案类型。另一方面，非纯 (impure) 函数（包含 =shift= 表达式）的类型写为 \(τ_1\ \texttt{=>}\ τ_2\) ，表示答案类型（也省略了）不是多态的。当想要查看所有答案类型时，OchaCaml 支持指令 ~#answer "all";;~ 。然后 OchaCaml 将非纯函数的类型显示为 \(τ_1\ /\ α\ \texttt{->}\ τ_2\ /\ β\) 。
+
+类型判断 (type judgement) 具有以下形式之一：
+
+\[\displaylines{   \Gamma \vdash_p M : \tau \\   \Gamma,\alpha \vdash M : \tau, \beta }\]
+
+前者表示：在类型环境（型環境） \(\Gamma\) 下，表达式 \(M\) 是纯的，且具有类型 \(τ\) 。后者表示：在类型环境 \(\Gamma\) 下，表达式 \(M\) 具有类型 \(τ\) ，并且 \(M\) 的执行将答案类型从 \(α\) 更改为 \(β\) 。类型规则如下：
+
+\[\displaylines{   \frac   {(x : \sigma) \in \Gamma \quad \sigma \succ \tau}   {\Gamma \vdash_p x : \tau} \   \text{(var)} \quad    \frac   {\Gamma, x : \tau_1, \alpha \vdash M : \tau_2, \beta}   {\Gamma \vdash_p \lambda x. M : \tau_1/\alpha \to \tau_2/\beta} \   \text{(fun)} \\    \frac   {     \Gamma, \gamma \vdash M_1 : \tau_1/\alpha \to \tau_2/\beta, \delta \quad     \Gamma, \beta \vdash M_2 : \tau_1, \gamma   }   {\Gamma, \alpha \vdash M_1\,M_2 : \tau_2, \delta} \   \text{(app)} \quad    \frac   {\Gamma \vdash_p M : \tau}   {\Gamma, \alpha \vdash M : \tau, \alpha} \   \text{(exp)} \\    \frac   {     \Gamma \vdash_p M_1 : \tau_1 \quad     \Gamma, x : \mathsf{Gen}(\tau_1, \Gamma), \alpha \vdash M_2 : \tau_2, \beta   }   {\Gamma, \alpha \vdash \mathsf{let}~x = M_1~\mathsf{in}~M_2 : \tau_2, \beta} \   \text{(let)} \\    \frac   {\Gamma, k : \forall t. (\tau/t \to \alpha/t), \gamma \vdash M : \gamma, \beta}   {\Gamma, \alpha \vdash \mathcal{S}k. M : \tau, \beta} \   \text{(shift)} \quad    \frac   {\Gamma, \gamma \vdash M : \gamma, \tau}   {\Gamma \vdash_p \langle M \rangle : \tau} \   \text{(reset)} }\]
+
+这里，\(\sigma \succ \tau\) 表示类型 \(τ\) 是类型模式 \(σ\) 的一个实例，而 \(\mathsf{Gen}(\tau, \Gamma)\) 表示通过将 \(τ\) 中未在 \(\Gamma\) 中自由出现的类型变量泛化而获得的类型模式。
+
+** Answer Types
+
+答案类型是当前上下文的类型。例如，在以下表达式中：
+
+#+begin_src tuareg
+reset (fun () -> 3 + [5 * 2]- 1)
+#+end_src
+
+当前表达式 =[5 * 2]= 的类型为 =int= ，其周围上下文 =3 + [5 * 2] - 1= 返回的值的类型为 =int= （在执行 =5 * 2= 之前和之后都是）。因此， =[5 * 2]= 的答案类型为 =int= 。
+
+我们将此类型化表示为以下判断：
+
+\[\Gamma, \texttt{int} \vdash \texttt{5 * 2} : \texttt{int}, \texttt{int}\]
+
+第一个 =int= 是执行 =5 * 2= 之前的答案类型；第二个 =int= 是 =5 * 2= 的类型；第三个 =int= 是执行 =5 * 2= 之后的答案类型。
+
+表达式的类型与其答案类型并不总是相同。例如，在表达式中：
+
+#+begin_src tuareg
+  reset (fun -> if [2 = 3] then 1 + 2 else 3 - 1)
+#+end_src
+
+当前表达式 =2 = 3= 的类型为 =bool= ，但答案类型为 =int= 。因此，类型判断变为如下：
+
+\[\Gamma, \texttt{int} \vdash \texttt{2 = 3} : \texttt{bool}, \texttt{int}\]
+
+如果当前表达式是纯的，则两个答案类型始终相同。因为答案类型不影响纯表达式的类型，所以当我们只处理纯表达式时，可以忘记答案类型。
+
+接下来，让我们考虑答案类型发生变化的示例。
+
+#+begin_src tuareg
+  reset (fun () ->
+      [shift (fun k -> fun () -> k "hello")] ^ " world")
+#+end_src
+
+当前表达式（着目している式） =[...]= 的类型并不立即清楚，但它是 =string= ，因为当前表达式的结果传递给了 =^= ，而 =^= 需要两个字符串参数。答案类型是什么？在执行 =[...]= 之前，当前上下文的答案类型是 =string= ，因为它是 =^= 的结果，而 =^= 返回字符串值。然而，在执行 =[...]= 之后，当前续体被捕获在 =k= 中，而封闭的 =reset= 实际返回的是函数 =fun () -> k "hello"= 。由于该函数接收一个单位值 =()= 并返回字符串 ="hello world"= ，因此它的类型大致为 =unit -> string= 。更准确地说，因为该函数的类型也必须提及答案类型，并且该函数是纯的，所以它的类型为 =unit / 'a -> string / 'a= 。因此，类型判断变为如下：
+
+\[\Gamma, \texttt{string} \vdash \texttt{shift (fun k -> ...)} : \texttt{string}, \texttt{unit / 'a -> string / 'a}\]
+
+因此，使用 =shift= 可以以各种方式改变答案类型。这种现象称为答案类型修改 (/answer type modification/)。
+
+我们可以用类似的方式理解函数的类型。例如，考虑在第 2.8 节中介绍的 =get= 函数。由于该函数接收 =()= 并返回一个整数（状态的当前值），如果我们忽略答案类型，则它的类型为 =unit -> int= 。为了查看答案类型是什么，我们考虑 =get= 函数的使用上下文。例如，在以下表达式中：
+
+#+begin_src tuareg
+  reset (fun () ->
+      let result = [get ()] + 2 * get () in
+      fun state -> result)
+#+end_src
+
+由于上下文返回一个函数 =fun state -> result= 作为结果，因此答案类型（大致）为 =int-> int= 。因此， =get= 的类型类似于 =unit / (int-> int) -> int / (int -> int)= 。更准确地说，因为状态的类型不受 =get= 的定义限制为 =int= ，并且上下文的类型可以更一般，所以 =get= 的确切类型是：
+
+\(\texttt{unit / ('a / 'b -> 'c / 'd) -> 'a / ('a / 'b -> 'c / 'd)}\)
+
+=shift/reset= 的引入迫使我们思考答案类型。它相当于考虑上下文的类型以及它在执行期间如何变化。
+
+* Footnotes
+
+[fn:1] Asai, K. “On Typing Delimited Continuations: Three New Solutions to the Printf Problem,” /Higher-Order
+ and Symbolic Computation/, Vol. 22, No. 3, pp. 275–291, Kluwer Academic Publishers (September 2009).
+
+[fn:2] Asai, K., and Y. Kameyama “Polymorphic Delimited Continuations,” /Proceedings of the Fifth Asian Sympo
+sium on Programming Languages and Systems/ (APLAS’07), LNCS 4807, pp. 239–254 (November 2007).
+
+[fn:3] Danvy, O., and A. Filinski “A Functional Abstraction of Typed Contexts,” Technical Report 89/12, DIKU,
+ University of Copenhagen (July 1989).
+
+[fn:4] Danvy, O., and A. Filinski “Abstracting Control,” /Proceedings of the 1990 ACM Conference on Lisp and
+ Functional Programming/, pp. 151–160 (June 1990).
+
+[fn:5] Filinski, A. “Representing Monads,” /Conference Record of the 21st Annual ACM Symposium on Principles
+ of Programming Languages/, pp. 446–457 (January 1994).
+
+[fn:6] Felleisen, M. “The Theory and Practice of First-Class Prompts,” /Conference Record of the 15th Annual ACM
+ Symposium on Principles of Programming Languages/, pp. 180–190 (January 1988).
+
+[fn:7] Gasbichler, M., and M. Sperber “Final Shift for Call/cc: Direct Implementation of Shift and Reset,” /Proceed
+ings of the ACM SIGPLAN International Conference on Functional Programming (ICFP’02)/, pp. 271–282
+ (October 2002).
+
+[fn:8] Gunter, C. A., D. R´emy, and J. G. Riecke “A Generalization of Exceptions and Control in ML-Like Lan
+guages,” /Proceedings of the Seventh International Conference on Functional Programming Languages and
+ Computer Architecture (FPCA’95)/, pp. 12–23 (June 1995).
+
+[fn:9] Kameyama, Y., and M. Hasegawa “A Sound and Complete Axiomatization of Delimited Continuations,”
+ /Proceedings of the eighth ACM SIGPLAN International Conference on Functional Programming (ICFP’03)/,
+ pp. 177–188 (August 2003).
+
+[fn:10] Kiselyov, O. “Delimited Control in OCaml, Abstractly and Concretely: System Description,” In M. Blume,
+ N. Kobayashi, and G. Vidal, editors, /Functional and Logic Programming (LNCS 6009)/, pp. 304–320 (April
+ 2010).
+
+[fn:11] Masuko, M., and K. Asai “Direct Implementation of Shift and Reset in the MinCaml Compiler,” /Proceedings
+ of the 2009 ACM SIGPLAN Workshop on ML/, pp. 49–60 (September 2009).
+
+[fn:12] Masuko, M., and K. Asai “Caml Light + shift/reset = Caml Shift,” Theory and Practice of Delimited Con
+tinuations (TPDC 2011), pp. 33–46 (May 2011).
+
+[fn:13] Plotkin, G. D. “Call-by-name, call-by-value, and the λ-calculus,” /Theoretical Computer Science/, Vol. 1, No. 2,
+ pp. 125–159 (December 1975).
