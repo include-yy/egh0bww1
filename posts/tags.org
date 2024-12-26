@@ -38,6 +38,8 @@
 一些英文文章的翻译。
 
 {{{arch_tag(tr)}}}
+* fp {{{arch_num(fp)}}}
+{{{arch_tag(fp)}}}
 * blog {{{arch_num(blog)}}}
 {{{arch_tag(blog)}}}
 * math {{{arch_num(math)}}}
