@@ -79,6 +79,10 @@
   - [[https://amodernist.com/texts/medi-macro.html][Meditations on a (Lisp-2) Macro]]
 - [[https://blog.xinshijiededa.men/][新世界的大门]]
   - [[https://blog.xinshijiededa.men/unicode/][2023 年每个软件开发者都必须知道的关于 Unicode 的基本知识]]
+- [[https://blog.mattbierner.com/][UWTB]]
+  - [[https://blog.mattbierner.com/the-delimited-continuation-monad-in-javascript/][The Delimited Continuation Monad in Javascript]]
+- [[https://leastfixedpoint.com/tonyg/][Tony Garnock-Jones]]
+  - [[https://eighty-twenty.org/2015/01/25/monads-in-dynamically-typed-languages][Monads in Dynamically-Typed Languages]]
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。

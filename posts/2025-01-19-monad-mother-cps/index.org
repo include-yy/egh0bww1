@@ -1,0 +1,1260 @@
+#+TITLE: CPS and Cont Monad --- The Mother of all Monads
+#+SUBTITLE: /Yet Another Monad Tutorial/
+#+DATE: [2024-12-30 Mon 15:06]--[2025-01-19 Sun 15:56]
+#+FILETAGS: fp
+#+DESCRIPTION: 本文，尝试从 CPS 的角度来理解 Monad
+
+#+begin_quote
++A monad is just a monoid in the category of endofunctors.+
+
++Monad不就是个自函子范畴上的幺半群，这有什么难理解的。+
+
+@@html:<ins>真不好理解</ins>@@
+#+end_quote
+
+#+caption: 要是我在 24 年圣诞节前学会就可以玩 monad 梗了
+#+attr_html: :class sidefigure
+[[./0.jpg]]
+
+我已经十次甚至九次尝试弄懂什么是单子 (monad) 了，19 年看了 /Learn You a Haskell for Great Good/ 然后尝试先去学范畴论 (Conceptual Mathematics: /A first introduction to categories/ )，期间也看了一些关于单子的博客。范畴论对我来说太难，也离实际编程太远，网上的单子教程也让人看的云里雾里。
+
+虽然我不会单子，但对 CPS 和续体 (continuation) 倒是挺熟悉。最近在和 StarSugar 的讨论有界续体 (delimited continuation) 的过程中读了一篇介绍 shift/reset 的文章：[[../2024-12-27-tr-intro-reset-shift/index.org][Introduction to Programming with Shift and Reset]]。读完之后我隐隐约约 CPS 和单子似乎有点像？顺着论文的参考文献 [[https://dl.acm.org/doi/pdf/10.1145/174675.178047][Representing Monads]] 我找到了[[https://homepages.inf.ed.ac.uk/wadler/topics/monads.html][一系列]] Philip Wadler 写的单子有关的单子的教程式论文，其中最有名的可能是 [[https://dl.acm.org/doi/10.1145/143165.143169][The essence of functional programming]]。Wadler 在第三章提到了单子与 CPS 的关系。
+
+本文尝试在这篇论文基础上让读者和我理解什么是单子，建议读者至少看一遍论文，我会给出一些具体的例子代码和练习来进行实践。我不假设读者有任何范畴论相关知识，本文也几乎不会涉及数学内容，因为我也不会。除这篇论文外，本文还受到了 sigfpe 的 [[http://blog.sigfpe.com/2008/12/mother-of-all-monads.html][The Mother of all Monads]] 的启发。
+
+某种意义上来说本文尝试的是「在理解 CPS 的基础上 *了解* 单子」。本文大量使用 Racket，希望读者学过 Scheme/Racket。除 Racket 外，本文中的某些练习会要求使用 Haskell 完成一点附加内容。希望这些额外练习对了解 Haskell 的读者有所帮助。
+
+在本文开始之前可以先看看这个：[[https://www.zhihu.com/question/34819931/answer/482024102][PL的讚歌就是组合的讚歌！ PL的偉大就是组合的偉大！]]。
+
+（另：没有 Haskell 经验的读者可以尝试观看 tsoding 的 [[https://www.youtube.com/watch?v=N9RUqGYuGfw][JSON Parser 100% From Scratch in Haskell (only 111 lines)]]，参考一些经典书籍学会简单的 Hasekll 编程。）
+
+* Cont and CPS
+
+#+begin_quote
+日々私たちが过ごしている日常は、実は、奇迹の连続なのかもしれな。
+
+--- 「日常」
+#+end_quote
+
+如果玩过 =call/cc= 等控制操作符、了解尾递归和尾调用，或是实现过最简单 CPS 变换的话，读者可以考虑跳过这一节。如果忘的差不多了，本节中的一些练习可以起到「复健」的效果。
+
+** 如何实现嵌套表达式求值
+
+在数学中，将两个或多个函数嵌套起来可以得到一个新的函数，这也叫函数复合 (function composition)，比如 \(f(x) = sin(cos(x))\)。在计算这个函数时，参数 \(x\) 首先会作为 \(cos\) 函数的输入，随后 \(cos(x)\) 的值会作为 \(sin\) 的输入，完成整个计算过程。我们通过函数的数学表达式直观地定义并执行了复合函数的求值步骤。
+
+在编程语言中，我们要怎样实现将函数的返回值传递给「之后」的函数呢？为了回答这个问题，不妨先看看那些不支持函数嵌套的语言是怎么解决的（虽然 CMake 提供了 =math= ，但这里我们关注的是函数嵌套的实现方式）：
+
+#+caption: 使用 Cmake 实现 =(+ (+ 1 2) 3)=
+#+begin_src cmake
+  cmake_minimum_required(VERSION 3.30)
+
+  project(math)
+
+  function (Add a b result)
+    math(EXPR value "${a} + ${b}")
+    set(${result} ${value} PARENT_SCOPE)
+  endfunction()
+
+  set(res 0)
+
+  # (+ (+ 1 2) 3)
+  Add(1 2 res)
+  Add(${res} 3 res)
+
+  message("The result is : ${res}")
+
+  # The result is : 6
+  # -- Configuring done (4.7s)
+  # -- Generating done (0.0s)
+  # -- Build files have been written to: ...
+#+end_src
+
+#+begin: amendment
+奇文共赏：
+
+- [[https://zhuanlan.zhihu.com/p/123419161][『新时代 C++ 面试题』CMake 光追]]
+- [[https://zhuanlan.zhihu.com/p/121079042][『新时代 C++ 面试题』附加题题解：CMake 实现堆排序]]
+#+end:
+
+由于 CMake 中的函数不支持直接返回值，我们只能先将计算结果存储在变量中，再通过变量参后续的调用。基于这一限制，在实现简单计算器时，我们可以按照「由内到外」的顺序，先对内层表达式求值，将结果绑定到一个变量，然后利用这个变量完成后续的计算过程：
+
+#+caption: 支持加减操作的嵌套表达式解释器 =inter=
+#+begin_src racket
+  #lang racket
+
+  (define (inter S)
+    (match S
+      [(? number?) S]
+      [(list '+ s1 s2)
+       (let ([a (inter s1)] [b (inter s2)])
+         (+ a b))]
+      [(list '- s1 s2)
+       (let ([a (inter s1)] [b (inter s2)])
+         (- a b))]
+      [_ (error "error")]))
+#+end_src
+
+除了显式使用变量传递参数外，我们还可以利用栈来完成参数传递。在 WebAssembly (WASM) 中，调用约定非常简单： =call= 指令会从栈中消耗参数并将其传递给被调用函数，被调者的返回值会被压入栈中。在这种调用约定下，WASM 运行时负责清理栈，栈主要用于参数的传递和返回值的管理。
+
+#+begin_quote
+/The =call= instruction invokes another function, consuming the necessary arguments from the stack and returning the result values of the call./
+
+[[https://webassembly.github.io/spec/core/syntax/instructions.html#expressions][Instructions --- WebAssembly 2.0 (Draft 2024-12-18)]]
+#+end_quote
+
+以下是一个在 WASM 中实现简单数学表达式计算的示例（如你所见，在 WAT 格式中指令甚至可以嵌套）：
+
+#+caption: 使用 WAT 实现 =(- (+ (1 2) 3)=
+#+begin_src scheme
+  (module
+    (func $add (param i32 i32) (result i32)
+      local.get 0 local.get 1 i32.add)
+    (func $sub (param i32 i32) (result i32)
+      (i32.sub (local.get 0) (local.get 1)))
+    (func (export "calc") (result i32)
+      i32.const 1 i32.const 2 call $add
+      i32.const 3 call $sub)
+    (func (export "calc2") (result i32)
+      (call $sub (call $add (i32.const 1) (i32.const 2)) (i32.const 3))))
+#+end_src
+
+:run-wasm:
+#+begin_src js
+  // also check https://webassembly.github.io/wabt/demo/wat2wasm/
+
+  let wCode = 'AGFzbQEAAAABCwJgAn9/AX9gAAF/AwUEAAABAQcQAgRjYWxjAAIFY2FsYzIAAworBAcAIAAgAWoLBwAgACABawsMAEEBQQIQAEEDEAELDABBAUECEABBAxABCwAdBG5hbWUBCwIAA2FkZAEDc3ViAgkEAAABAAIAAwA='
+
+  function base64ToArrayBuffer(base64) {
+      var binaryString = atob(base64);
+      var bytes = new Uint8Array(binaryString.length);
+      for (var i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+  }
+
+  const {instance} = await WebAssembly.instantiate(
+      base64ToArrayBuffer(wCode), {})
+  const {calc, calc2} = instance.exports
+
+  console.log(calc())
+  console.log(calc2())
+#+end_src
+:end:
+
+只要根据 S-exp 计算表达式编译到 WAT 格式，我们就算通过栈实现了嵌套表达式的求值。
+
+#+begin: advisement
+*练习 1* 上面我们在 =inter= 函数中通过递归处理了嵌套表达式。现在，请编写一个函数 =A= ，它接受一个表示数学运算的 S-表达式，并将其转换为使用 =let*= 或嵌套 =let= 的逐步求值形式。比如：
+
+#+begin_src elisp
+  (A '(+ 1 (+ 2 3)))
+  ;; => (let* ((t0 (+ 2 3)) (t1 (+ 1 t0))) t1)
+  ;; or (let ((t0 (+ 2 3))) (let ((t1 (+ 1 t0))) t1))
+#+end_src
+
+本练习属于扩展练习，不影响后续阅读。
+:answer-1:
+
+如果我们要将表达式转换为 =let*= 形式，本质上是要获取 =let*= 的绑定 body，也就是 =((var val) ...)= 。首先，假设函数 =(F S)= 接受一个 S 表达式并返回这个列表，由于 S-exp 是嵌套列表，该函数必然是递归的。当它接受一个原子时，可以考虑返回 =((a))= 与一般的 =((v a))= 进行区分：
+
+#+begin_src racket
+  (define (A S)
+    (if (atom? S)
+        `((,S))
+        ...))
+#+end_src
+
+当 =A= 的参数是一个列表时，我们需要对列表中的所有元素分别进行转换，然后将各自的结果通过 =append= 合并。可以考虑定义一个处理该列表的函数 =g= ，它使用 =A= 调用各子表达式并累计结果，同时将子表达式对应的符号收集起来，在最后组合得到变换后的列表：
+
+#+begin_src racket
+  #lang racket
+
+  (define (atom? s)
+    (not (or (cons? s) (null? s))))
+  (define (A0 S)
+    (if (atom? S)
+        `((,S))
+        (g S '() '())))
+
+  (define (g ls elements result)
+    (cond
+      ((null? ls)
+       (let* ((cl (reverse elements))
+              (op (gensym)))
+         (cons (list op cl) result)))
+      (else
+       (let* ((ele (car ls))
+              (res0 (A0 ele))
+              (res1 ; an atom value
+               (if (= (length (car res0)) 1)
+                   (cdr res0) res0)))
+         (g (cdr ls) (cons (caar res0) elements)
+            (append res1 result))))))
+
+  (define (A S)
+    (let ((res (A0 S)))
+      (if (and (= (length res) 1)
+               (= (length (car res)) 1))
+          (caar res)
+          `(let* ,(reverse res) ,(caar res)))))
+
+  (A '(+ 1 (+ 2 (* 2 3)) (/ 3 3))) ;;=>
+  #|
+  '(let* ((g301307 (* 2 3))
+          (g301308 (+ 2 g301307))
+          (g301309 (/ 3 3))
+          (g301310 (+ 1 g301308 g301309)))
+     g301310)
+  |#
+#+end_src
+
+当然，下面的版本考虑了 =quote= 表达式，生成的符号可读性也更强：
+
+#+begin_src racket
+  #lang racket
+
+  (define (A S)
+    (define gs
+      (let ((cnt 0))
+        (λ ()
+          (let* ((num (number->string cnt))
+                 (str (string-append "t" num))
+                 (sym (string->symbol str)))
+            (set! cnt (+ cnt 1))
+            sym))))
+    (define res
+      (let F ([s S])
+        (if (or (not (cons? s)) (eq? (car s) 'quote))
+            `((,s))
+            (let g ([ls s] [slist '()] [res '()])
+              (cond
+                ((null? ls)
+                 (let ((rls (reverse slist))
+                       (smb (gs)))
+                   (cons (list smb rls) res)))
+                (else
+                 (let* ((item (car ls))
+                        (fr (F item))
+                        (fr* (if (= (length (car fr)) 1) (cdr fr) fr)))
+                   (g (cdr ls) (cons (caar fr) slist) (append fr* res)))))))))
+    (if (and (= 1 (length res))
+             (= 1 (length (car res))))
+        (caar res)
+        (list 'let* (reverse res) (caar res))))
+
+  (A '(+ 1 (+ 2 (* 2 3)) (/ 3 3))) ;;=>
+  ;; '(let* ((t0 (* 2 3)) (t1 (+ 2 t0)) (t2 (/ 3 3)) (t3 (+ 1 t1 t2))) t3)
+
+  (let* ((t0 (* 2 3)) (t1 (+ 2 t0)) (t2 (/ 3 3)) (t3 (+ 1 t1 t2))) t3)
+  ;; => 10
+#+end_src
+
+论文 [[http://pllab.is.ocha.ac.jp/~asai/cw2011tutorial/main-e.pdf][Introduction to Programming with Shift and Reset]] 的 2.11 小节使用 =shift/reset= 非常巧妙地解决了这个问题，实际上本练习就来自这一节，我们实现的功能叫做 A-normalization。关于什么是 A-normalization 可以参考 Matt Might 的 [[https://matt.might.net/articles/a-normalization/][A-Normalization: Why and How]] 。本练习的另一种解法如下：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define (A* term)
+    (define gs
+      (let ((cnt 0))
+        (λ ()
+          (let* ((num (number->string cnt))
+                 (str (string-append "t" num))
+                 (sym (string->symbol str)))
+            (set! cnt (+ cnt 1))
+            sym))))
+    (reset
+     (let F ([s term])
+       (match s
+         ((list 'quote v) v)
+         ((cons t1 tN)
+          (shift k (let ((t (gs)))
+                     (list 'let
+                           `((,t
+                              ,(map F (cons t1 tN))))
+                           (k t)))))
+         ((var v) v)))))
+
+  (A* '(+ 1 (+ 2 (* 2 3)) (/ 3 3))) ;;=>
+  ;'(let ((t2 (* 2 3))) (let ((t1 (+ 2 t2))) (let ((t3 (/ 3 3))) (let ((t0 (+ 1 t1 t3))) t0))))
+
+  (let ((t2 (* 2 3))) (let ((t1 (+ 2 t2))) (let ((t3 (/ 3 3))) (let ((t0 (+ 1 t1 t3))) t0))))
+  ;; => 10
+#+end_src
+
+比较有意思的是， =A= 的实现中符号的序号顺序是表达式调用完成顺序，而 =A*= 是表达式调用开始顺序。
+:end:
+#+end:
+
+无论是通过变量保存表达式的值，还是使用栈存储表达式的值，我们都能实现「对嵌套表达式的求值」。从另一个角度来看，计算过程的组合不仅依赖计算本身，还需要一个额外的机制，我们叫它计算的续体 (continuation)。续体的作用在于告诉程序“计算的结果应该传递到哪里去”，从而在控制流中扮演关键角色。
+
+在函数式语言中，程序本质上是由一系列嵌套表达式构成的，通过逐层求值最终生成结果。从这个意义上说，续体是将这些表达式有序连接在一起的核心工具，它定义了每一步计算的执行顺序和结果传递方式。
+
+在编程语言层面，程序的续体是一种抽象，表示程序执行到某个点剩余的计算。大多数编程语言的运行时通过调用堆栈来管理续体，函数的调用和返回被视为栈上的进出操作。而某些语言（如 Scheme）直接支持续体，允许程序员捕获当前计算状态并以对象的形式存储起来，稍后再恢复。
+
+/The Scheme Programming Language/ 第三章第三小节是这样介绍续体的：
+
+#+begin_quote
+在对 Scheme 表达式求值时，Scheme 实现必须搞清楚两件事：
+
+1. 对什么进行求值（what to evaluate）
+2. 如何处理这个值（what to do with the value）
+我们将 *如何处理这个值* 称为某个 *表达式求值* 的 continuation。
+#+end_quote
+
+理解了这两句话就明白什么是续体了。
+
+#+begin_comment
+#+begin: amendment
+写到这里我不禁在想我们人活着的续体是什么。我们需要对自己「求值」，不妨假设这里的求值指的是时间停止然后获取我身体内所有原子的状态，我们可以把它丢到宇宙计算机中求值来模拟时间流动。「人活着」的续体是使用人的状态调用宇宙计算机。可惜的是目前还没有 =call/cc= 这种能够捕获某一点的续体的工具。
+#+end:
+#+end_comment
+
+** 什么是续体传递风格的代码
+
+在上面的 =inter= 函数中，被解释的代码并不清楚自身的求值过程。续体的概念在代码层面是隐式的，常见的编程语言倾向于使用「控制流」而非「续体」的概念，并通过诸如 =while=, =for=, =continue= 和 =break= 等控制关键字来有限地操控程序流程。那么，有没有什么方法能够在语言层面显式地使用续体呢？答案是肯定的，这就是 CPS (Continuation-passing style) 。在支持一等函数的语言中，可以将续体传递为函数参数，从而使用 CPS 风格的代码来捕获并操作程序的控制流。
+
+续体的本质是「后续计算」，我们可以使用函数来表示它。对于表达式 =(+ 1 (+ 2 3))= ，子表达式 =(+ 2 3)= 的续体可以表示为 =(λ (x) (+ 1 x))= 。原表达式可以转换为 =((λ (x) (+ x 1)) (+ 2 3))= 。我们初步实现了显式暴露续体的目的，但这还不够通用。如果 =(+ 2 3)= 的后续计算是“加二”，“加三”或其他操作呢？为了更抽象地表达这种变化，可以将 =(λ (x) (+ x 1))= 抽象为一个变量 =k= ，得到 =(k (+ 2 3))= 。现在，在外层添加 =λ (k)= 并调整调用顺序，我们就得到了 =((λ (k) (k (+ 2 3))) (λ (x) (+ x 1)))= 。
+
+在 Racket 中，上述表达式的值为 6。这种将表达式转换为接受并调用续体参数形式的代码叫做 CPS 风格代码，是一种利用续体思想的编程风格。CPS 代码的一个显著特性是：在「严格」CPS 转换中，除语言本身提供的内置函数外， *所有的函数调用都必须是尾调用* 。尾调用指的是函数在执行的最后一步调用另一个函数，并 *直接* 返回该函数的返回值，而无需保留当前函数的调用栈。尾调用的这一特性使得编译器或解释器可以进行尾调用优化，从而避免栈溢出。尾调用优化 (Tail Call Optimisation, TCO) 几乎是所有函数式语言的标配。
+
+在以下代码示例中， =f= 是尾调用而 =g= 不是，因为它在结尾处调用的 =*= 要等待子表达式 =(g (- n 1))= 的返回：
+
+#+begin_src racket
+#lang racket
+
+(define (f n res)
+  (if (= n 0) res (f (- n 1) (* res n))))
+(define (g n)
+  (if (= n 0) 1 (* n (g (- n 1)))))
+#+end_src
+
+我们可以通过让函数接受一个额外的续体参数，使其能够在函数内部直接将计算结果传递给续体。例如， CPS 化的 =car= 函数可以表示为 =(λ (x k) (k (car x))= 。通过使用 CPS 化的 =+= ， =(+ 1 (+ 2 3))= 可以变换为 =(+* 2 3 (λ (v) (+ v 1))))= 。这种转换要求我们手动将嵌套表达式分解为一系列显式的函数调用。这不仅实现了嵌套表达式的求值，也使程序的控制流完全显式化。
+
+#+begin: advisement
+*练习 2* 请尝试将以下表达式转换为 CPS 风格：
+
+1. =(car (car '((1 2))))=
+2. =(+ (+ (* 2 3) 3) (- (/ 3 3) 1))=
+
+（通过 CPS 我们可以自己选择求值顺序，比如从左到右或者从右到左，而不是使用语言的默认求值顺序）
+
+:answer-2:
+#+begin_src racket
+  (((λ (k) (k '((1 2))))
+    (λ (x) (λ (k) (k (car x)))))
+   car)
+
+  ((λ (k) (k '((1 2)) car))
+   (λ (x k) (k (car x))))
+
+  (define (+* a b k) (k (+ a b)))
+  (define (-* a b k) (k (- a b)))
+  (define (** a b k) (k (* a b)))
+  (define (/* a b k) (k (/ a b)))
+
+  (** 2 3
+      (λ (v1)
+        (+* v1 3
+            (λ (v2)
+              (/* 3 3
+                  (λ (v3)
+                    (-* v3 1
+                        (λ (v4)
+                          (+ v2 v4)))))))))
+#+end_src
+:end:
+#+end:
+
+利用续体参数，我们可以实现一些有趣的功能，例如函数式的 =break= 。（如果编程语言不支持尾递归优化，不建议使用这种方法来表示循环。）
+
+#+begin_src racket
+  ((λ (break)
+    (let loop ([i 1] [sum 0])
+      (cond
+        ((= i 100) sum)
+        (else
+         (if (= i 50) (break sum)
+             (loop (+ i 1) (+ sum i)))))))
+   identity) ;;=>
+  ;; 1225 (0 + 49) * 50 / 2
+#+end_src
+
+#+begin: advisement
+*练习 3* 请通过 CPS 实现一个计算列表元素乘积的函数 =product= ，要求在遇到元素为 0 时直接返回 0 而不进行后续计算。
+
+:answer-3:
+#+begin_src racket
+  #lang racket
+
+  (define (product ls k)
+    (let f ([ls ls] [k0 k])
+      (match ls
+        ['() (k0 1)]
+        [(cons 0 b) (k 0)]
+        [(cons a b) (begin (display a) (f b (λ (v) (k0 (* a v)))))])))
+  (product '(1 2 0 3) list)
+  ;; => 12'(0)
+#+end_src
+
+当然，如果读者会 =call/cc= 的话，就不用使用 CPS 暴露续体了，而是直接使用 =call/cc= 捕获：
+#+begin_src racket
+  #lang racket
+
+  (define (product ls)
+    (call/cc (lambda (k)
+               (let f ([ls ls])
+                 (match ls
+                   ['() 1]
+                   [(cons 0 b) (k 0)]
+                   [(cons a b) (* a (f b))])))))
+  (product '(1 0 2))
+  ;; => 0
+  (product '(1 2 3))
+  ;; => 6
+#+end_src
+
+如果极端一点，也可以这样：
+
+#+begin_src racket
+  #lang racket
+
+  (define CPS (λ (f) (λ args (λ (k) (k (apply f args))))))
+  ;; functions
+  (define *C (CPS *))
+  (define null?C (CPS null?))
+  (define carC (CPS car))
+  (define cdrC (CPS cdr))
+  (define zero?C (CPS zero?))
+
+  (define (product ls)
+    (λ (ka)
+      (define (fC ls)
+        (λ (k0)
+          ((null?C ls)
+           (λ (v1)
+             (if v1 (k0 1)
+                 ((carC ls)
+                  (λ (v2)
+                    (display v2)
+                    ((zero?C v2)
+                     (λ (v3)
+                       (if v3 (ka 0)
+                           ((carC ls)
+                            (λ (v4)
+                              ((cdrC ls)
+                               (λ (v5)
+                                 ((fC v5)
+                                  (λ (v6)
+                                    ((*C v4 v6) k0)))))))))))))))))
+      ((fC ls) ka)))
+  ((product '(1 2 3)) list)
+  ;; => 123'(6)
+  ((product '(1 0 2)) list)
+  ;; => 10'(0)
+#+end_src
+:end:
+#+end:
+
+由于 CPS 风格的代码通过连续的续体调用来组织程序流程，代码的结构从传统的树状嵌套变为线性链式结构。在完全 CPS 化的代码中，函数调用不再依赖调用栈的嵌套，而是完全依赖于续体参数的传递。由于所有的控制流都显式地通过续体函数进行管理，CPS 代码通常比非 CPS 代码更难理解和维护。
+
+** 小结
+
+本节从嵌套表达式入手，逐步阐释了嵌套表达式背后的原理，并将其推广到续体的概念。随后，我们介绍了如何使用 CPS 捕捉续体，以及如何利用 CPS 做一些简单的控制流操作。希望读者通过本节能回顾并熟悉续体和 CPS 的概念。我原本计划在本节介绍 =call/cc= 及其常见用法，比如[[https://www.jianshu.com/p/e860f95cad51][用call/cc合成所有的控制流结构]]。但考虑到 Haskell 中也存在 Cont Monad 和 =callCC= ，下面我们迟早会接触到，此处暂不赘述。
+
+虽然函数调用可以嵌套，但在实践中我们通常会避免深度嵌套，[[https://stackoverflow.com/questions/18250389/nested-function-calls-whats-the-best-practice][因为嵌套难以 debug]]。
+
+在练习 3 最后的 =product= 实现中，我给出了函数 =CPS= 转换的如下定义：
+
+#+begin_src racket
+  (define CPS (λ (f) (λ args (λ (k) (k (apply f args))))))
+#+end_src
+
+然而，这是一个相当“浅”的变换，生成的函数在调用时其内部并不一定是 CPS 的。如果我们对代码本身而不是不透明的函数对象进行 CPS 变换，那么毫无疑问，这将是一个递归的过程：
+
+\begin{align*}[[x]] &= \lambda k.kx \\
+[[\lambda x.M]] &= \lambda k.k(\lambda x. [[M]]) \\
+[[M N]] &= \lambda k. [[M]] (\lambda m. [[N]] (\lambda n.(mn)k))\end{align*}
+
+由于本文的重点不在 CPS 变换和玩 Racket 上，这里给出一些讲解 CPS 变换的文章：
+
+- [[../2023-04-02-33-emacs-generator/index.org][emacs generator 使用及实现介绍 --- 一个简单的 CPS 变换实现]]
+- [[https://zhuanlan.zhihu.com/p/22721931][CPS 变换与 CPS 变换编译]] by 梨梨喵
+- [[https://matt.might.net/articles/cps-conversion/][How to compile with continuations]] by matt might
+- [[https://bernsteinbear.com/blog/cps/][Into CPS, never to return]]，使用 Python 实现，简单易懂
+
+* Monad and CPS
+
+[[./7.png]]
+
+如你所见，在 Haskell 中，单子是一个满足上图关系的三元组 =(M, unitM, bindM)= ，其中 =M= 是一个类型构造器， =unitM= 和 =bindM= 是两个函数。在某种程度上，单子与 CPS 有相似之处，下面我们将具体阐释它们之间的相似性。
+
+** 怎么实现单子
+
+在静态类型的 Haskell 中，实现一个单子意味着创建一个 =Monad= 类型类的实例，比如 =Maybe= ：
+
+#+begin_src haskell
+  -- https://learnyouahaskell.github.io/a-fistful-of-monads.html
+  instance Monad Maybe where
+    return x = Just x
+    Nothing >>= f = Nothing
+    Just x >>= f  = f x
+    fail _ = Nothing
+#+end_src
+
+在上面的 =Maybe= 例子中， =Maybe= 本身是一个类型构造器，我们为它实现了 =return= 和 =>>== 运算符（由于本文讨论的论文未涉及 =fail= ，此处略过）。这两个运算符对应于上述定义中的 =unitM= 和 =bindM= 。在动态类型语言中，“类”的概念约等于类型构造器，而单子可以视为一种接口。我们只需创建支持对应接口的“类”，即可认为实现了一个单子。我们甚至不必局限于创建新的“类”，而是使用已有的数据结构（例如列表，数组或元组），并为其提供相应的接口函数。
+
+在实现这些接口函数时，除了满足 =unitM= 和 =bindM= 的类型签名要求外，还需要满足单子定律，包括单位元律（Left Identity）、右单位元律（Right Identity）和结合律（Associativity）：
+
+[[./8.png]]
+
+#+begin: advisement
+*练习 4* 请验证下面代码中的 =ID= 类是一个单子实现：
+
+#+begin_src racket
+  #lang racket
+
+  (define-values (returnID >>= ID)
+    (values
+     (λ (x) (new ID [value x]))
+     (λ (obj f) (send obj bindM f))
+     (class object%
+       (super-new)
+       (init value)
+       (define v value)
+       (define/public (get) v)
+       (define/public (bindM f) (f v)))))
+#+end_src
+
+:answer-4:
+#+begin_src racket
+  (define ID-eq?
+    (λ (o1 o2)
+      (equal? (send o1 get) (send o2 get))))
+
+  (ID-eq? (>>= (returnID 1) (λ (x) (returnID (add1 x))))
+          ((λ (x) (returnID (add1 x))) 1))
+  (ID-eq? (>>= (returnID 1) returnID)
+          (returnID 1))
+  (ID-eq? (>>= (returnID 1) (λ (x)
+                              (>>= (returnID (add1 x))
+                                   (λ (x) (returnID (* x 2))))))
+          (>>= (>>= (returnID 1) (λ (x) (returnID (add1 x))))
+               (λ (x) (returnID (* x 2)))))
+#+end_src
+:end:
+#+end:
+
+除了 =unitM= 和 =bindM= 外，单子也可以使用 =unitM=, =mapM= 和 =joinM= 定义：
+
+[[./9.png]]
+
+#+begin: advisement
+*练习 5* 请验证以下函数类满足上面的所有规则：
+
+#+begin_src racket
+  #lang racket
+
+  (define unitM (λ (x) (list x)))
+  (define mapM (λ (f) (λ (x) (map f x))))
+  (define joinM (λ (v) (apply append v)))
+  (define bindM (λ (obj k) (joinM ((mapM k) obj))))
+#+end_src
+:answer-5:
+#+begin_src racket
+  (equal? ((mapM identity) '(1 2 3))
+          (identity '(1 2 3)))
+  (define f (λ (x) (add1 x)))
+  (define g (λ (x) (* x 2)))
+  (equal? ((mapM (λ (x) (f (g x)))) '(1 2 3))
+          ((mapM f) ((mapM g) '(1 2 3))))
+
+  (equal? ((mapM f) (unitM 1)) (unitM (f 1)))
+  (equal? ((mapM f) (joinM '((1) (2))))
+          (joinM ((mapM (mapM f)) '((1) (2)))))
+
+  (equal? (joinM (unitM 1)) 1)
+  (equal? (joinM ((mapM unitM) '(1 2 3)))
+          '(1 2 3))
+  (equal? (joinM ((mapM joinM) '(((1)) ((2)))))
+          (joinM (joinM '(((1)) ((2))))))
+  (equal? (bindM '(1 2) (λ (x) (unitM f)))
+          (joinM ((mapM (λ (x) (unitM f))) '(1 2))))
+#+end_src
+:end:
+#+end:
+
+** 实现续体单子
+
+在上一节的练习 2 中，我们通过将续体参数置于函数的最后一个参数来编写 CPS 风格的代码。然而，这种风格的代码似乎缺乏组合型，我们无法轻易地将其从中间截断，因为这样做可能会导致无法访问某些闭包变量：
+
+#+begin_src racket
+  (** 2 3
+      (λ (v1)
+        (+* v1 3
+            (λ (v2)
+              (/* 3 3
+                  (λ (v3)
+                    (-* v3 1
+                        (λ (v4)
+                          (+ v2 v4)))))))))
+#+end_src
+
+在上面的代码中， =v2= 和 =v4= 直到计算的最后阶段才被相加，它们的使用位置和生成位置相距甚远。为了解决这个问题，我们需要柯里化：函数不应该接受续体参数，而是返回一个「接受续体参数的函数」，也许我们可以叫它「续体对象」：
+
+#+begin_src racket
+  #lang racket
+  ;;(+ (+ (* 2 3) 3) (- (/ 3 3) 1))
+  (define +**
+    (λ (a) (λ (k0) (k0 (λ (b) (λ (k) (k (+ a b))))))))
+  (define -**
+    (λ (a) (λ (k0) (k0 (λ (b) (λ (k) (k (- a b))))))))
+  (define ***
+    (λ (a) (λ (k0) (k0 (λ (b) (λ (k) (k (* a b))))))))
+  (define /**
+    (λ (a) (λ (k0) (k0 (λ (b) (λ (k) (k (/ a b))))))))
+
+  ((((((((λ (k) (k 2)) ***) (λ (k) (k 3))) +**) (λ (k) (k 3))) +**)
+    (((((λ (k) (k 3)) /**) (λ (k) (k 3))) -**) (λ (k) (k 1))))
+   identity)
+  ;;=> 9
+#+end_src
+
+#+begin_comment
+#+begin: addition
+既然「续体对象」是返回值，那么它应该返回到「哪里」呢？我们先前通过 CPS 变换避开了「参数子表达式应该返回到哪里」这个问题，现在又不得不面对「调用表达式中函数位置的表达式应该返回到哪里」这个问题。这个问题没法回避，因为 CPS 变换本来就依赖了语言的隐式续体，所以我的回答是「交给语言的隐式续体」。
+#+end:
+#+end_comment
+
+尽管这段代码看起来更为繁琐，但我们不难发现它的组合性更好：
+
+1. 首先计算 =(+ (* 2 3) 3)= ，即 =(((((λ (k) (k 2)) ***) (λ (k) (k 3))) +**) (λ (k) (k 3)))= ，记为 =a1=
+2. 再计算 =(- (/ 3 3) 1)= ，即 =(((((λ (k) (k 3)) /**) (λ (k) (k 3))) -**) (λ (k) (k 1)))= ，记为 =a2=
+3. 最后计算 =(+ a1 a2)= ，即 =(((a1 +**) a2) identity)=
+
+现在，让我们来探讨单子与 CPS 之间的对应关系：
+
+#+attr_html: :class data
+| Monad                             | CPS                                           |
+| =M a=                             | =(λ (k) (k a))=                               |
+| unitM: =a -> M a=                 | =(λ (x) (λ (k) (k x)))=                       |
+| bindM: =M a -> (a -> M b) -> M b= | =((λ (k) (k 1)) (λ (x) (λ (k) (k (+ x 1)))))= |
+
+由此对应关系，我们可以实现 CPS 单子：
+
+#+begin_src racket
+  (define (Rc x) (λ (k) (k x))) ; unitM
+  (define (Cc m f) (m f))       ; bindM
+#+end_src
+
+是的，就是这么简单。
+
+#+begin: advisement
+*练习 6* 使用上面的 =Rc= 和 =Cc= ，重新实现 ={+-*/}**= 并计算 =(+ (+ (* 2 3) 3) (- (/ 3 3) 1))= 。
+
+:answer-6:
+#+begin_src racket
+  #lang racket
+
+  (define (Rc x) (λ (k) (k x))) ; unitM
+  (define (Cc m f) (m f))       ; bindM
+
+  ;;(+ (+ (* 2 3) 3) (- (/ 3 3) 1))
+  (define +** (λ (a) (Rc (λ (b) (Rc (+ a b))))))
+  (define -** (λ (a) (Rc (λ (b) (Rc (- a b))))))
+  (define *** (λ (a) (Rc (λ (b) (Rc (* a b))))))
+  (define /** (λ (a) (Rc (λ (b) (Rc (/ a b))))))
+
+  ((Cc
+    (Cc (Cc (Cc (Cc (Cc (Rc 2) ***) (Rc 3)) +**) (Rc 3)) +**)
+    (Cc (Cc (Cc (Cc (Rc 3) /**) (Rc 3)) -**) (Rc 1)))
+   identity)
+#+end_src
+:end:
+#+end:
+
+由此，我们便有了以 CPS 为基础的 CPS 单子 \(((λ(k)(k a)), Rc, Cc)\) ，我们会以它为基础编写一些代码。
+
+#+begin: advisement
+*练习 7* 请将 =Rc= 和 =Cc= 实现为宏，并重新实现 ={+-*/}**= ，在此基础上将 =(+ (+ (* 2 3) 3) (- (/ 3 3) 1))= 通过宏展开为 CPS 代码。
+
+这是一个扩展练习，不做也不会影响阅读下文（建议直接看答案）。这个练习说明我们可以将使用 CPS 单子组合的代码“编译”得到基本的 CPS 风格代码。
+
+:answer-7:
+这里我们首先使用 Emacs Lisp 而不是 Racket，也许这能更好地说明单子组合的一般性？
+
+#+begin_src elisp
+  ;; -*- lexical-binding: t; -*-
+
+  (defalias 'λ 'lambda)
+  (defmacro Cc (m f)
+    `(funcall ,m ,f))
+  (defmacro Rc (x)
+    (let ((k* (gensym "$k")))
+      `(λ (,k*) (funcall ,k* ,x))))
+  (defmacro Rc* (x) (if (atom x) (Rc x) x))
+  (defmacro +** () `(λ (a) (Rc (λ (b) (Rc (+ a b))))))
+  (defmacro -** () `(λ (a) (Rc (λ (b) (Rc (- a b))))))
+  (defmacro *** () `(λ (a) (Rc (λ (b) (Rc (* a b))))))
+  (defmacro /** () `(λ (a) (Rc (λ (b) (Rc (/ a b))))))
+  (defmacro my/+0 (a b)
+    (let ((x (gensym "x"))
+  	(y (gensym "y")))
+      `(Cc (Cc ,a (λ (,x) (Rc (λ (,y) (Rc (+ ,x ,y)))))) ,b)))
+  (defmacro my/+ (a b) `(Cc (Cc (Rc* ,a) (+**)) (Rc* ,b)))
+  (defmacro my/- (a b) `(Cc (Cc (Rc* ,a) (-**)) (Rc* ,b)))
+  (defmacro my/* (a b) `(Cc (Cc (Rc* ,a) (***)) (Rc* ,b)))
+  (defmacro my// (a b) `(Cc (Cc (Rc* ,a) (/**)) (Rc* ,b)))
+
+  ;; test using
+  ;; (macroexpand-all '(my/+ (my/+ (my/* 2 3) 3) (my/- (my// 3 3) 1)))
+
+  (my/+ (my/+ (my/* 2 3) 3) (my/- (my// 3 3) 1))
+  ;;=> #[($k529) ((funcall $k529 (+ a b))) ((b . 0) (a . 9))]
+  (#[(k) ((funcall k (+ a b))) ((b . 0) (a . 9))] #'identity)
+  ;;=> 9
+#+end_src
+
+这是 Racket 实现：
+
+#+begin_src racket
+  #lang racket
+
+  (define-syntax-rule (Cc m f) (m f))
+  (define-syntax-rule (Rc x) (λ (k) (k x)))
+  (define-syntax (Rc* x)
+    (syntax-case x ()
+      [(k v) (if (list? (syntax-e #'v)) #'v #'(Rc v))]))
+  (define-syntax-rule (o** name op)
+    (define-syntax-rule (name)
+      (λ (a) (Rc (λ (b) (Rc (op a b)))))))
+  (define-syntax-rule (my/x name op)
+    (define-syntax-rule (name a b)
+      (Cc (Cc (Rc* a) (op)) (Rc* b))))
+
+  (begin
+    (o** +** +) (my/x my/+ +**)
+    (o** -** -) (my/x my/- -**)
+    (o** *** *) (my/x my/* ***)
+    (o** /** /) (my/x my// /**))
+
+  ((my/+ (my/+ (my/* 2 3) 3) (my/- (my// 3 3) 1)) identity)
+  ;;=> 9
+#+end_src
+:end:
+#+end:
+
+#+begin: issue
+如果你尝试使用 Haskell 的 Cont Monad 参考我的解答实现 *练习 6* ，那么你会失败，并发现练习 6 中的代码是有问题的。由于 CPS 单子的特殊性，上面代码中的类型问题在动态类型语言中体现不出来，所以上面的代码在 Racket 中能够正常工作。
+
+下面让我们来说说类型问题。
+#+end:
+
+** 注意类型！！！
+
+就像我在上一小节结束时强调的，我们虽然实现了用于 CPS 代码的 =unitM= 和 =bindM= ，但并未对其类型做任何约束。练习 6 中的给出的四则运算函数的定义及其类型（这里的类型不怎么严谨）如下：
+
+#+begin_src racket
+  ;; (-> number? (Cont (-> number? (Cont number?))))
+  (define +** (λ (a) (Rc (λ (b) (Rc (+ a b))))))
+  ;; (-> (Cont any) (-> any (Cont any)) (Cont any))
+  Cc
+  ;; (Cont (-> number? (Cont number?)))
+  (Cc (Rc 2) ***)
+  ;; (Cont number?)
+  (Rc 3)
+  ;; WTF?
+  (Cc (Cc (Rc 2) ***) (Rc 3))
+#+end_src
+
+在上面的最后一个表达式中，外层的 =Cc= 接受的第一个参数是续体对象，这没有问题。然而，它的第二个参数 *应该* 是一个续体函数，而不是续体对象。练习 6 中的代码之所以能够正常运行，是因为当时的续体对象和续体函数在代码层面没有实质区别。如果续体对象以其他形式实现，我们就必须加上使用续体对象调用对应续体函数的 =runCont= 函数：
+
+#+caption: 第一个比较完整的 =Cont= Monad 实现
+#+begin_src racket
+  (module Cont racket
+    (define Cont%? (λ (x) (is-a? x Cont%)))
+    (define Cont%
+      (class object%
+        (super-new)
+        (init-field value)
+        (define (call f) (value f))
+        (define (call2 f) (value f))
+        (public [call bindM] [call2 get])))
+    (define (cont f) (instantiate Cont% [f]))
+    (define (Gc m f) (send m get f))
+    (define (Rc x) (cont (λ (k) (k x))))
+    (define (Kc x) (λ (k) (k x)))
+    (define (Cc m f) (send m bindM f))
+    (define runCont Gc)
+    (provide
+     (contract-out
+      [Cc (-> Cont%? (-> any/c Cont%?) Cont%?)]
+      [Gc (-> Cont%? (-> any/c any/c) any/c)])
+     Kc Rc runCont cont))
+#+end_src
+
+在上面的 =Cont= 模块中，我将续体对象实现为一个类 =Cont%= ，并使用 Racket 的 Contract 系统约束了 =Cc= 和 =Gc= (=runCont=) 接受的参数类型。如果我们尝试仅使用 =Cc= 或 =Rc= 构建代码，Contract 系统将会报告类型错误：
+
+| [[./10.png]] | [[./11.png]] |
+
+现在，在类型正确的情况下，我们的代码将变为：
+
+#+begin_src racket
+  (require 'Cont)
+  (define-syntax-rule (gen/4 name op)
+    (define name (λ (a) (Rc (λ (b) (Rc (op a b)))))))
+  (gen/4 +* +) (gen/4 -* -) (gen/4 ** *) (gen/4 /* /)
+
+  ;;((Cc (Cc (Cc (Cc (Cc (Cc (Rc 2) ***) (Rc 3)) +**) (Rc 3)) +**)
+  ;;     (Cc (Cc (Cc (Cc (Rc 3) /**) (Rc 3)) -**) (Rc 1)))
+  ;; identity)
+  (Gc (Gc (Cc (Gc (Cc (Gc (Cc (Rc 2) **) (Kc 3)) +*) (Kc 3)) +*)
+          (Gc (Gc (Cc (Gc (Cc (Rc 3) /*) (Kc 3)) -*) (Kc 1)) Kc))
+      identity)
+#+end_src
+
+#+begin: advisement
+*练习 8* 实际上我们不怎么需要这么彻底的 CPS。请在四则运算函数实现为 =(λ (a b) (Rc (op a b)))= 的情况下使用 =Cont= 模块实现 =(+ (+ (* 2 3) 3) (- (/ 3 3) 1))= ：
+
+#+begin_src racket
+  (require 'Cont)
+  (define-syntax-rule (gen/4 name op)
+    (define name (λ (a b) (Rc (op a b)))))
+  (gen/4 +* +) (gen/4 -* -) (gen/4 ** *) (gen/4 /* /)
+#+end_src
+
+:answer-8:
+#+begin_src racket
+  (require 'Cont)
+  (define-syntax-rule (gen/4 name op)
+    (define name (λ (a b) (Rc (op a b)))))
+  (gen/4 +* +) (gen/4 -* -) (gen/4 ** *) (gen/4 /* /)
+
+  (Gc (Gc (Cc (** 2 3) (λ (x) (+* x 3)))
+          (λ (x) (Gc (Cc (/* 3 3) (λ (x) (-* x 1)))
+                     (λ (y) (+* x y)))))
+      identity)
+
+  (Gc (Cc (Cc (** 2 3) (λ (x) (+* x 3)))
+          (λ (x) (Cc (Cc (/* 3 3) (λ (x) (-* x 1)))
+                     (λ (y) (+* x y)))))
+      identity)
+#+end_src
+:end:
+#+end:
+
+#+begin_comment
+#+begin_src haskell
+import Control.Monad.Trans.Cont
+#+end_src
+#+end_comment
+
+** 续体单子与 =callCC=
+
+Wadler 在论文中给出的 Cont Monad 定义如下所示：
+
+[[./12.png]]
+
+在上面的 =Cond= 模块中，我们将 =bindM= 实现为 =(m f)= 。Wadler 给出的定义实际上是显式化了整个调用过程，该定义只有在接收到续体后才会开始求值。相比之下，而我们实现的 =(m f)= 会立即进行部分求值，并返回一个等待接收续体参数的函数：
+
+#+begin_src racket
+  (define one (λ (k) (k 1)))
+  (define aone (λ (x) (λ (k) (k (+ x 1)))))
+
+  ((one aone)
+   identity) ;;=> 2
+  ((λ (c) (one (λ (a) ((aone a) c))))
+   identity) ;;=> 2
+#+end_src
+
+Wadler 的 =bindK= 定义更接近于 CPS 的本质，它将整个计算过程显式地通过续体传递来表达。这意味着 =bindK= 本身并不会立即执行任何计算，而是返回一个「等待接收续体的函数」。只有当续体被传递进来时，计算才会真正开始。这种方式更加符合 CPS 的思想，即所有的计算都由续体驱动。我们的方法虽然可以实现功能，但不是完全的 CPS 风格。我们可以如此改进 =bindM= 的实现：
+
+#+begin_src racket
+  (define (bindM f)
+    (cont (λ (c) (Gc this (λ (a) (Gc (f a) c))))))
+#+end_src
+
+:full-impl:
+#+begin_src racket
+  (module Cont racket
+    (define Cont%? (λ (x) (is-a? x Cont%)))
+    (define Cont%
+      (class object%
+        (super-new)
+        (init-field value)
+        (define (call f) (value f))
+        (define (bindM f)
+          (cont (λ (c) (Gc this (λ (a) (Gc (f a) c))))))
+        (public bindM [call get])))
+    (define (cont f) (instantiate Cont% [f]))
+    (define (Gc m f) (send m get f))
+    (define (Rc x) (cont (λ (k) (k x))))
+    (define (Kc x) (λ (k) (k x)))
+    (define (Cc m f) (send m bindM f))
+    (define runCont Gc)
+    (provide
+     (contract-out
+      [Cc (-> Cont%? (-> any/c Cont%?) Cont%?)]
+      [Gc (-> Cont%? (-> any/c any/c) any/c)])
+     Kc Rc runCont cont))
+#+end_src
+:end:
+
+在 3.2 节，Wadler 给出了捕获当前续体的 =callCC= 的定义：
+
+[[./13.png]]
+
+如果 Haskell 的匿名函数记号看不习惯我这里还有经典 lambda 演算版的：
+
+\[[[call/cc]] = λf.λk.f(λv.λk_0.kv)k\]
+
+请注意 Haskell 定义中的 (=let k a = \d -> c a=) 和 lambda 演算定义中的 (=λv.λk0.kv=) ，它们与单位续体 =(λ (x) (λ (k) (k x)))= 非常相似。然而，在 =call/cc= 中，单位续体的 =k0= 被省略了，仅使用来自 =call/cc= 调用处的 =k= ，这导致函数 =f= 在使用自身的续体参数时，会将控制流返回到 =call/cc= 的调用位置。我们可以在 =Cont= 模块中按如下方式实现 =callCC= ：
+
+#+begin_src racket
+  (define (callCC f)
+    (cont (λ (k) (Gc (f (λ (v) (cont (λ (_k) (k v))))) k))))
+#+end_src
+
+#+caption: =Cont= 单子的完整实现
+#+begin_src racket
+  #lang racket
+
+  (module Cont racket
+    (define Cont%? (λ (x) (is-a? x Cont%)))
+    (define Cont%
+      (class object%
+        (super-new)
+        (init-field value)
+        (define (call f) (value f))
+        (define (bindM f)
+          (cont (λ (c) (Gc this (λ (a) (Gc (f a) c))))))
+        (public bindM [call get])))
+    (define (cont f) (instantiate Cont% [f]))
+    (define (Gc m f) (send m get f))
+    (define (Rc x) (cont (λ (k) (k x))))
+    (define (Kc x) (λ (k) (k x)))
+    (define (Cc m f) (send m bindM f))
+    (define runCont Gc)
+    (define (callCC f)
+      (cont (λ (k) (Gc (f (λ (v) (cont (λ (_k) (k v))))) k))))
+    (provide
+     (contract-out
+      [Cc (-> Cont%? (-> any/c Cont%?) Cont%?)]
+      [Gc (-> Cont%? (-> any/c any/c) any/c)]
+      [callCC (((any/c . -> . Cont%?) . -> . Cont%?) . -> . Cont%?)])
+     Kc Rc runCont cont))
+#+end_src
+
+#+begin_src racket
+  (require 'Cont)
+
+  ;; ((λ (k) (k 1)) (λ (x) (λ (k) (k (+ x 1)))))
+  (Gc (Cc (Rc 1) (λ (x) (Rc (+ x 1)))) identity) ;;=> 2
+  ;; (call/cc (λ (k) (k (+ 2 3))))
+  (Gc (callCC (λ (k) (k (+ 2 3)))) identity) ;;=> 5
+  (Gc (callCC (λ (k) (Cc (Rc 2) (λ (x) (k (* x 3)))))) identity) ;;=> 6
+  (Gc (callCC (λ (k) (Rc (* 1 2)))) identity) ;;=> 2
+#+end_src
+
+#+begin: advisement
+*练习 9* 尝试在使用和不使用 =callCC= 的情况下，使用上面的 =Cont= 模块类实现练习 3 中的 =product= 函数。
+
+:answer-9:
+#+begin_src racket
+  (require 'Cont)
+
+  (define (product ls k)
+    (Gc (callCC
+         (λ (k0)
+           (let f ([ls ls] [k k0])
+             (cond
+               ((null? ls) (k 1))
+               ((zero? (car ls)) (k0 0))
+               (else
+                (display (car ls))
+                (f (cdr ls) (λ (v) (k (* v (car ls))))))))))
+        k))
+  (product '(1 2 3) list)
+  ;;=> 123'(6)
+  (product '(1 2 0 3) list)
+  ;;=> 12'(0)
+
+  (define (product* ls k)
+    (Gc (let f ([ls ls] [m (Rc 1)])
+          (cond
+            ((null? ls) m)
+            ((zero? (car ls)) (Rc 0))
+            (else
+             (display (car ls))
+             (f (cdr ls) (Cc m (λ (v) (Rc (* v (car ls)))))))))
+        k))
+  (product* '(1 2 3) list)
+  ;;=> 123'(6)
+  (product* '(1 2 0 3) list)
+  ;;=> 12'(0)
+#+end_src
+:end:
+#+end:
+
+#+begin: addition
+
+*练习 9'* 使用 Haskell 中的 Cont Monad 实现上面的 =product= 函数，即遇到 =0= 时直接返回。
+
+提示：（Haskeller 需要提示吗？） Cont Monad 位于 =Control.Monad.Trans.Cont=
+:answer-9-1:
+
+草，这不是我现在的 Haskell 水平能写出来的，这代码真是太高雅了。
+
+#+begin_src haskell
+  -- written by GPT4
+
+  import Control.Monad.Trans.Cont
+  import Control.Monad
+
+  productCont :: [Int] -> Int
+  productCont xs = runCont (callCC $ \exit -> foldM (step exit) 1 xs) id
+    where
+      step :: (Int -> Cont r Int) -> Int -> Int -> Cont r Int
+      step exit acc x
+        | x == 0    = exit 0
+        | otherwise = return (acc * x)
+
+  test1 :: IO ()
+  test1 = do
+    print "test1"
+    print $ productCont []                -- 1
+    print $ productCont [1, 2, 3, 4]      -- 24
+    print $ productCont [1, 2, 0, 4]      -- 0
+    print $ productCont [0, 1, 2, 3, 4]   -- 0
+#+end_src
+
+#+begin_src haskell
+  -- CPS written by GPT4
+  productCont2 :: [Int] -> Int
+  productCont2 xs = runCont (cpsProduct xs) id
+
+  cpsProduct :: [Int] -> Cont r Int
+  cpsProduct []     = return 1
+  cpsProduct (x:xs) =
+    if x == 0
+    then return 0
+    else do
+      rest <- cpsProduct xs
+      return (x * rest)
+  test2 :: IO ()
+  test2 = do
+    print "test 2"
+    print $ productCont2 []                -- 1
+    print $ productCont2 [1, 2, 3, 4]      -- 24
+    print $ productCont2 [1, 2, 0, 4]      -- 0
+    print $ productCont2 [0, 1, 2, 3, 4]   -- 0
+#+end_src
+:end:
+#+end:
+
+** 续体单子的特殊性
+
+#+begin_quote
+Programming with monads strongly reminiscent of continuation-passing style
+(CPS), and this paper explores the relationship between the two. In a sense they
+are equivalent: CPS arises as a special case of a monad, and *any monad may be
+embedded in CPS* by changing the answer type. But the monadic approach provides
+additional insight and allows a *finer degree of control*.
+#+end_quote
+
+在续体单子中， =bindM= (=Cc=) 操作的作用是将计算结果传递给一个新的函数，这个函数表示后续的计算。具体来说， =bindM= 操作将一个续体对象 =m= 和一个续体函数 =c= 结合，得到一个新的续体对象。它在形式上可以表示为 =(Cc m c)= 。如果我们对 =Cc= 进行柯里化， =(Cc m)= 得到的是一个接受续体函数并返回新的续体对象的函数，即 =(λ (c) (Cc m c))= 。根据下面的定义你会发现这个形式已经是一个续体对象了。我们可以定义一个根据普通单子得到续体对象的函数 =promote= ，它将普通单子转换为续体单子：
+
+\begin{align*}
+&\texttt{type K a}\ &\texttt{=}\ &\texttt{(a → Answer) → Answer} \\
+&\texttt{unitK a}\ &\texttt{=}\ &\texttt{\c → c a} \\
+&\texttt{m ‘binkK‘ k}\ &\texttt{=}\ &\texttt{\c → m (\a → k a c)} \\ \\
+&\texttt{promoteK} &\texttt{::}\ &\texttt{M a → K a} \\
+&\texttt{promoteK m} &\texttt{=}\ &\texttt{\c → m ‘bindM‘ c}
+\end{align*}
+
+对于任何普通的单子，我们都有一种将它“嵌入”到续体单子中的方法，即 =(cont (λ (c) (m . bindM . c)))= 。需要注意的是，在续体单子中，续体函数本身就代表了 *整个* 单子后续的计算，这个特点在其他单子中不一定成立。因为除将计算结果传递给后续的计算函数 =c= ，其他单子的 =bindM= 操作可能涉及一些额外的操作（例如状态修改、错误处理、异步操作等）。由于额外操作的存在，通过 =bindM= 操作符绑定到某个单子的函数 =c= 实际上只构成了该单子计算的「续体的一部分」。
+
+考虑到除续体单子外，所有单子的 =bindM= 都会执行一些额外的操作，仅仅调用续体函数的续体单子应该是 *最基础的单子类型* 。通过将普通单子转换为续体单子，我们让普通单子与续体单子的区别变得 *更加明显* 。这一过程就像是浅层的 CPS 转换，因为我们只是将普通单子的计算结果包装成一个接受并调用续体函数的形式，而没有深入到整个计算的控制流。正如浅层的 CPS 转换只是通过引入一个额外的函数来控制计算流，而不改变计算的核心结构一样，普通单子被转换为续体单子后，仍然保持了它原有的计算逻辑，只是通过续体的方式来组织和处理结果。
+
+| [[./5.webp]] | [[./6.webp]] |
+
+** 小结
+
+在这一节中，我们首先介绍了单子的定义和实现方式，并以单位单子和列表单子作为例子进行说明。接着，我们将 CPS 代码柯里化并封装为续体单子，在此过程中考虑了类型问题和惰性求值，并不断对实现进行改进。最后，我们讨论了续体单子的特殊性： *所有的单子都能转换为续体单子* ，这背后的语言续体机制是所有组合性的基础。
+
+由于在单子的 bind 操作中，并不是将单子的所有计算过程暴露给续体函数，而是仅暴露当前计算的部分结果，因此我们可以利用单子自然地实现处理逻辑与计算逻辑的分离，避免将两者耦合在一起。
+
+#+begin_quote
+Given the results of the previous section, one may wonder whether there is any
+real difference between monads and CPS. ... There is a difference. Each of the
+monad types we have described may be turned into an abstract data type, and that
+provides somewhat finer control than CPS.
+#+end_quote
+在论文的 3.4 节，Wadler 讨论了 CPS 和 Monad 的区别，它认为 Monad 能做到更好的模块化，如果全用 CPS 可能会滥用续体的逃逸能力，但我们可以选择是否为某种 Monad 提供这种能力。
+
+#+begin_quote
+Perhaps a more significant difference between monads and CPS is the change of
+view point. Monads focus attention on the question of exactly what abstract
+operations are required, what laws they satisfy, and how one can combine the
+features represented by different monads.
+#+end_quote
+
+下面是一些介绍 Haskell 中 Cont Monad 用法的文章，感兴趣同学可以看看：
+
+- [[https://en.wikibooks.org/wiki/Haskell/Continuation_passing_style][Haskell/Continuation passing style]], [[https://gaufoo.com/continuation/][Continuation与Call/CC]] by 苟富
+- [[https://zhuanlan.zhihu.com/p/28860343][Continuation 与 monad]] by lsdsjy
+- [[https://zhuanlan.zhihu.com/p/692416877][聊一聊Haskell中的MonadCont]] by Kell
+
+老实说，写到这里我们已经完全明白什么是单子了，但为了让读者和我熟悉它的简单用法，在本文的下一节跟着 Wadler 论文的第二章学习一些常见的单子吧。
+
+#+attr_html: :class note
+:monad-misunderstanding:
+稍微偏一下題，來看看大眾對 Monad *誤解* ：
+- Monads 是非純函數式的
+- Monads 和「作用」有關係
+- Monads 即狀態
+- Monads 即命令式風格語句序列
+- Monads 是關於 IO 的
+- Monads 依賴惰性求值
+- Monads 是 Haskell 中用來處理副作用的「後門」
+- Monads Haskell 中用來嵌入命令式代碼的
+- 要理解抽象數學才能搞懂 Monads
+
+關於學 Monad 的八條建議：
+
+1. 不要讀網路上關於 Monad 的教程
+2. 千萬不要讀網路上關於 Monad 的教程（譯注：譬如阮一峰的文章）
+3. 學習 Haskell 類型
+4. 學習 Haskell 類型類
+5. 閱讀 [[https://wiki.haskell.org/Typeclassopedia][Typeclassopedia]]
+6. 閱讀 Monad 的定義
+7. 在實踐中使用 Monad
+8. 不要寫關於 Monad 的教程（來誤導初學者）
+
+（譯自 如果能讓我回到初學 Haskell 的時候，我希望知道這些）
+
+https://www.zhihu.com/question/19635359/answer/29297106
+
+（注：上面这本书指 /What I Wish I Knew When Learning Haskell/ ， 网页版 (http://dev.stephendiehl.com/hask/#monads) 已经失效，可以去作者的 github [[https://smunix.github.io/dev.stephendiehl.com/hask/][页面]]或 Web Archive 找一找，或者直接搜索 PDF。我存了一份 HTML 和 PDF： [[file:wiwinwlh.rar][wiwinwlh.rar]], [[file:tutorial.pdf][tutorial.pdf]]）
+:end:
+
+* To be continued [0/5]
+
+如果你的目的是理解什么是单子，而且读懂了前两节，那么你的目的已经达到了，接下来可以继续学习 Haskell 来了解更多的常见单子：[[https://wiki.haskell.org/All_About_Monads][All About Monads]]。本节以及本文的剩下内容主要是对单子的横向扩展，在深度上就到「❤️续体单子是所有单子的妈妈❤️」为止了。如果你认为学习范畴论对理解单子有用的话， /[[https://arxiv.org/abs/1803.05316][Seven Sketches in Compositionality: An Invitation to Applied Category Theory]]/ 应该是不错的范畴论入门书籍，[[https://en.wikibooks.org/wiki/Haskell/Category_theory][Haskell/Category theory]] 这篇 Wiki 也是。
+
+在写完前两节之后，我发现想要用一篇文章讲完我计划中的剩下内容有点太困难了。不妨拆成很多小博客来写：
+
+** TODO Monad in Racket
+
+在前文的 =Cont= 单子中我们使用 =Rc= 和 =Cc= 来表示单子的 =unitM= 和 =bindM= 操作，如果我们为所有的类都实现了 =bindM= 和 =unitM= ，我们就可以使用如下函数来实现通用的 =return= 和 =>>== ：
+
+#+begin_src racket
+  (define (return m a) (send m return a))
+  (define (>>= m fun) (send m bind fun))
+#+end_src
+
+为了确保实现的类带有这两个方法，我们可以使用接口进行约束：
+
+#+begin_src racket
+  (define Monad0<%> (interface ()))
+  (define Monad/c (is-a?/c Monad0<%>))
+  (define Monad<%>
+    (interface (Monad0<%>)
+      [return (->m any/c Monad/c)]
+      [bind (->m (-> any/c Monad/c) Monad/c)]))
+#+end_src
+
+但是，那些可以被当作单子的基础类型呢？我们只能对对象调用 =send= ，但是从头实现或者包装一遍基础函数又有点太蠢了。一种方法是在 =>>== 中判断参数类型调用对应基础类型的 =bind= 实现，[[https://eighty-twenty.org/2015/01/25/monads-in-dynamically-typed-languages][Monads in Dynamically-Typed Languages]] 似乎给出了更好的方法：[[https://gist.github.com/tonyg/1da999c770a363c62969][tonyg/monad.rkt]]。
+
+参考 tonyg ([[https://leastfixedpoint.com/tonyg/][Tony Garnock-Jones]]) 给出一个合理的 Racket Monad 实现似乎可以单独作为一篇博客。
+
+#+begin_comment
+在 dev/monad/m.rkt 中有一个能用的 do 语法扩展。
+#+end_comment
+
+** TODO Simple Monads
+
+在得到一个好用的 Monad 接口后，我们可以在 Racket 中尝试实现各种简单的单子。但光是实现一遍没什么用，重要的是与其他语言中的相似特性，或者是一些编程中的最佳实践（比如 =Maybe= 单子与尽早返回 (early return)）进行关联来帮助理解。我计划就以下单子写一篇或多篇博客：
+
+#+caption: 单子和对应的描述性短语
+#+attr_html: :class data
+| =Maybe=  | 有或者没有 | =Either= | 这个或者那个 |
+| =List=   | 一系列可能 | =State=  | 模拟状态     |
+| =Reader= | 借用环境   | =Writer= | 留下记录     |
+| =IO=     | 与世界交互 | =Free=   | 自由组合     |
+
+实现一个正确的 Monad 当然重要，但是更重要的可能是理解单子后面的抽象，我们在编写代码时很可能已经用上了这些抽象但没意识到。通过单子来显式化这些东西是应该是能够让我们明白怎么写更好的代码的。目前我能想到的可能只有 C++ 的 =std::optional= 和 =std::expected= ，Rust 的 =Option= 和 =Result= 和 JavaScript 的 =?= 系列语法。在写这些单子博客的过程中应该能发现更多。
+
+** TODO Monad Transformer
+
+你好奇单子之间怎么组合吗？我反正挺好奇的。
+
+** TODO Back to Continuation
+
+在本文开头提到的论文 /Introduction to Programming with Shift and Reset/ 中，作者使用 =shift/reset= 这一种有界续体操作符实现了状态单子：
+
+#+begin_src racket
+  #lang racket
+  (require racket/control)
+
+  (define my-car (λ (x) (car x)))
+  (define (call-counter f)
+    (λ args
+      (shift k (λ (ini-state)
+                 ((k (apply f args)) (+ 1 ini-state))))))
+
+  (define (getter)
+    (shift k (λ (state) ((k state) state))))
+
+  (define b (call-counter my-car))
+  ((reset (let ((res (list (cons (b '(1 2)) (b '(2 3))) (getter))))
+            (λ (v) res)))
+   0)
+  ;;=> '((1 . 2) 2)
+#+end_src
+
+上面的代码在没有引入副作用的情况下实现了统计 =my-car= 调用次数的装饰器 =call-counter= 。也许所有的单子都能用有界续体来表示或者实现？[[https://arxiv.org/abs/1710.10385][Capturing the Future by Replaying the Past]]。
+
+*Delimited continuations are the mother of all monads!*
+
+** TODO Effect
+
+#+begin_quote
+So, what is actually an "Effect" in Haskell? Essentially, that is what most of
+the programmers used to call "Aspect" — any property additional to a primary
+concept. Yes, that is very abstract.
+
+--- [[https://blog.7mind.io/what-is-an-effect-in-functional-programming][What Is An Effect In Functional Programming]] by 7mind
+#+end_quote
+
+在很多教程中你可以看到这样的对单子的描述：单子就是用来实现副作用的/单子被用来隔离副作用/单子被用来包装副作用。首先，在一门纯函数式语言中我们不可能实现副作用，所以第一种观点是显然错误的；后两种观点不能说错误，但是太过片面了，因为副作用只是「作用」的一种，而且单子并不是仅仅用来处理副作用。
+
+为了了解什么是「作用」，也许我们需要学一门支持 algebraic effect 的语言，比如 [[https://koka-lang.github.io/koka/doc/index.html][Koka]]（こうか、効果）。
+
+* 后记
+
+在 24 年的 12 月下旬，在与 StarSugar 对 多线程 =call/cc= 问题的讨论中我们想到了有界续体，于是我花了三天时间学习并整理了 Spore 的[[https://zhuanlan.zhihu.com/p/549749059][翻译]]。在整理完后不知道怎么回事我 Monad 瘾犯了，于是又开始入门 Monad，不过不同的是这次我在搜索框里加上了 CPS，于是有了新的发现：
+
+#+begin_quote
+OP 的直覺很棒，推薦 @sigfpe 的一篇文章給 OP 及有興趣的同學 http://http://blog.sigfpe.com/2008/12/mother-of-all-monads.html （The Mother of all Monads）。
+
+作者：亞首
+
+链接：https://www.zhihu.com/question/56958513/answer/162603341
+#+end_quote
+
+#+begin_quote
+我们前面提到了 CPS 可以用来 linearize effect order，而另一个常常用来做这个任务的工具呢？Monad。所以 Delimited Continuation is mother of all monad：给我任意 Monad，只要我有shift reset，我就可以实现一个叫做 reflect 的，m a -> a 的函数！有了这个函数，我就可以像写普通程序那样写需要 Monad 的代码。这挺好理解的：Monad 的 bind 是‘给我一个值跟后续操作，给你最终的值’。而‘后续操作’是什么呢，hmm~
+
+作者：圆角骑士魔理沙
+
+链接：https://www.zhihu.com/question/61222322/answer/564847803
+#+end_quote
+
+顺着一些线索我又摸到了 Wadler 的一系列 Monad 论文，在看完 /The essence of functional programming/ 后我感觉似乎理解什么是 Monad 了，于是就写下了这篇 Yet Another Monad Tutorial。写完后拿给 StarSugar 看了下，他表示看不懂（笑）。还是有很多地方需要改进一下，读完文章开头的论文还是有点太麻烦了。
+
+我 19 年就看过 /Learn You a Haskell for Great Good/ 了，但是看完 IO 一章后，后面的章节就从来没有看完过，直到我写到这里也没看完，希望我能在这个春节写完。我从 24 年的 12 月 30 号下午 3 点开始写这篇博客，写到了 25 年的 1 月 19 号下午 4 点，刚好三周时间，算是 25 年的第一篇文章。
+
+草，我现在也不知道自己到底会 Monad 没有。不管怎么说先感谢一下所有写过 Yet Another Monad Tutorial 的人吧。预祝，2025 年新年快乐。
