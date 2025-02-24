@@ -1,0 +1,618 @@
+#+TITLE: 「笔记」An Invitation to Applied Category Theory --- Chapter 1
+#+DATE: [2025-01-09 Thu 19:25]
+#+FILETAGS: math
+#+DESCRIPTION: 本文是对 Seven Sketches in Compositionality 第一章的笔记
+
+
+坏消息是入门 monad 又兜兜转转到了范畴论，好消息是这次的教材似乎是能够读完的样子（这次总算是成功在完全不需要范畴论的情况下简单理解了 monad，不过这书看看也没坏处）。本文是我在看 Seven Sketches in Compositionality: An Invitation to Applied Category Theory 第一章时的一些笔记，可能对看完第一章或正在看第一章的同学有点用处。本文的顺序和结构与原书一致，即第一章的第一小节到第四小节。我裁了个 PDF 出来，顺便加了点划线：[[file:AIACT-1.pdf][Chapter-1]]。
+
+本书地址：https://arxiv.org/abs/1803.05316
+
+#+begin_quote
+In this personal note, we ask that readers try to use what they learn in
+this book to do something they would call "good," in terms of
+contributing to the society they'd want to live in. For example, if
+you're planning to study this material with others, consider
+specifically inviting someone from an under-represented minority—a
+group that is more highly represented in society than in upper-level
+math classes—to your study group.
+
+Personal note
+#+end_quote
+
+* More than the sum of their parts
+
+#+begin_comment
+#+begin_src elisp
+  (defun my/count (str)
+    (let ((table (make-hash-table))
+  	res)
+      (cl-loop
+       for a across str
+       do (if (gethash a table)
+  	    (cl-incf (gethash a table))
+  	  (setf (gethash a table) 1)))
+      (maphash (lambda (k v) (push (cons (string k) v) res)) table)
+      res))
+
+  (my/count "abc")
+  ;;=> (("c" . 1) ("b" . 1) ("a" . 1))
+#+end_src
+#+end_comment
+
+#+begin_quote
+We motivate this first chapter by noticing that while many real-world
+structures are compositional, the results of observing them are often
+not. The reason is that obervation is inherently "lossy": in order to
+extract information from something, one must drop the details.
+
+For example, one stores a real number by rounding it to some
+precision. But if the details are actually relevant in a given system
+operation, then the observed result of that operation will not be as
+expected. This is clear in the case of roundoff error, but it also shows
+up in non-numerical domains: observing a complex system is rarely enough
+to predict its behavior because the observation is lossy.
+#+end_quote
+
+在这一节的开头，作者提到，虽然真实世界中的某些结构是「组合的」(compositional)，但通过观测得到的结果往往并非如此。原因在于观测本身是一个“信息压缩”的过程，必然伴随有细节的丢失或忽略。换句话说，进行观测时，我们不可避免地会破坏系统的组合性或结构。
+
+当我们把一个系统拆解成组成部分时，整体特性并不是这些部分特性的简单相加。也就是说，系统的行为或特性往往源于各个部件之间的相互作用和协作，而这些相互作用无法通过分析单个部件来完全理解。如果仅通过单独分析来试图理解系统，
+往往容易出现「生成效应」。比如“一个和尚担水吃，两个和尚抬水吃，三个和尚没水吃”这句谚语就形象地比喻了人多了反而互相依赖、推诿，导致事情无法顺利完成。
+
+三个和尚并不是三个完全独立的个体，他们之间有着复杂的人际关系，这也是这一小节的标题 /More than the sum of their parts/ （整体大于部分之和）所要表达的含义。总体来说， *观察的有损性* 要求我们在理解复杂系统时，必须超越单纯的细节分析，更关注各部分之间的相互作用与协作，才能更准确地把握系统的整体性质和行为。
+
+如果读者对此感兴趣，可以通过 /Compositional Systems: Overview and Applications/ 这篇[[https://musmat.org/wp-content/uploads/2020/06/07-Pitombeira.pdf][论文]]来简单了解有关组合系统的基础知识和概念：[[file:07-Pitombeira.pdf][Pitombeira.pdf]]。不过这个东西有够冷僻的，而且和本文关系不大。其他相关的论文可能还有 [[http://www.bussigel.com/lerdahl/pdf/Cognitive%20Constraints%20on%20Compositional%20Systems.pdf][Cognitive Constraints on Compositional Systems]]。
+
+** 什么是 generative effects
+
+#+begin_quote
+In category theory we want to keep control over which aspects of our
+systems are being preserved under various observations. As we said
+above, the less structure is preserved by our observation of a system,
+the more "surprises" occur when we observe its operations. One might
+call these surprises /generative effects/.
+#+end_quote
+
+作者将 /generative effect/ （生成效应）描述为「观测引入的信息损失造成的 surprise」，原系统的某些操作没有保留到我们根据观测得到的系统中。书中给出的例子是集合和集合中元素的关系，需要观测的是集合中某两元素是否关联。这个例子从原书 1.1.1 节开始。
+
+例子中的关联是一种等价关系，即 (1) \(a \sim a\) (2) \(a \sim b\) 那么 \(b \sim a\) (3) \(a \sim b, b \sim c\) 那么 \(a \sim c\) 。对于两个具有相同元素但不同关联关系的集合的取并操作是对集合中元素的关系取并，也就是说如果集合 \(A\) 内的元素 \(a\) 和 \(b\) 有关系，集合 \(B\) 内的元素 \(a\) 和 \(c\) 有关系，那么 \(A ∨ B\) 中的元素 \(a\) 和 \(b\), \(c\) 都有关系。对于下图中的 \(Y-Z\) 关系，在没有求并之前左边的两个集合给出结果都是没有关系 (\(\texttt{false}\))，但是求并后就有关系了 (\(\texttt{true}\))，这就说明 \(F(A)∨F(B)\ (false)\) 并不等于 \(F(A∨B)\ (true)\) （在布尔运算下， \(\texttt{false} ∨ \texttt{false} = \texttt{false}\)）。
+
+#+begin_center
+#+begin_src text
+  X --- Y       X    Y       X --- Y       X --- Y
+            ∨    \      ==>   \      ==>    \  /
+     Z             Z            Z	            Z
+#+end_src
+#+end_center
+
+如果我们仅将两点是否有关系作为观测目标，我们就忽略了其他与目标点存在关系的元素，而这些对象在求并操作可能会改变连接关系。书中给出的例子是对同一地区不同组织给出的感染者和易感人群关联图，如果想要更准确地获取某人是否与感染者存在关系，我们首先可能需要进行上述关系并运算再进行关系判断。
+
+#+begin_quote
+We now reach a topic highlighted by Fong and Spivak: "generative
+effects". These are, roughly, situations where the whole is more than
+the sum of its parts. A nice example shows up in the logic of
+partitions.
+
+[[https://rabuf.github.io/applied-category-theory/chapter_1/lecture_12.html][Lecture 12 - Generative Effects]]
+#+end_quote
+
+** 什么是 Hasse Diagram
+
+#+begin_quote
+Category theory is all about organizing and layering structures.
+#+end_quote
+
+在第 5 页的公式 1.5 是使用 Hasse Diagram 表示的一种顺序关系，不过此时本书还没有提到序关系（预序，偏序，全序之类的）。哈斯图被用来表示偏序集，维基百科上给出了一些例子：
+
+#+caption: https://en.wikipedia.org/wiki/Hasse_diagram
+#+attr_html: :class data
+| {x, y, z} 幂集，包含关系 | 60 的除数集合，整除性 |
+| [[./2.webp]]                 | [[./3.webp]]              |
+
+Hasse 图省略了自反性和传递性，而且隐含了从从低到高的方向。这里有个怎么画 Hasse 图的简单教程：[[https://www.zhihu.com/question/39930682/answer/2959401602][偏序表示中用的哈斯图（hasse diagram）是什么？ --- by Oranges456]]。
+
+** 什么是逻辑蕴含 (imply)
+
+在书的第 6 页作者写到对布尔集合 \(\{\texttt{true, false}\}\) 存在序关系 \(\texttt{false≤false}\), \(\texttt{false≤true}\) 和 \(\texttt{true≤true}\)，但是不存在 \(\texttt{true≤false}\)。作者对此的解释是这个序关系来自逻辑蕴含。即 \(P≤Q\) 来自于 \(P→Q\)。在逻辑蕴含运算中，若 \(P\) 为假那么整个表达式为真，若 \(P\) 为真，想要整个表达式为真 \(Q\) 需要为真。也就是说 \(P\) 蕴含 \(Q\) 对应的逻辑公式是：
+
+\[P→Q = (¬P)∨(P∧Q)\]
+
+至此，第一小节结束。
+
+#+begin_quote
+In fact, we have seen here hints of more complex notions from category
+theory, without making them explicit; these include the notions of
+/category/, /functor/, /colimit/, and /adjunction/. In this chapter we
+will explore these ideas in the elementary setting of ordered sets.
+#+end_quote
+
+* What is order?
+
+说到 order，可能我们最熟悉的还是线性的全序 (total order)，经典例子就是自然数比大小：
+
+\[0 \le 1 \le 2 \le 3 \le 4 ... \le N\]
+
+全序是一种比较严格的顺序关系，它要求以下四条性质：
+
+1. 自反性：每个元素都可以和自己比较 \(a \le  a\)
+2. 反对称性：如果有 \(a\le b\) 且 \(b\le a\)，那么 \(a=b\)
+3. 传递性：如果 \(a\le b\) 且 \(b\le c\)，那么 \(a\le c\)
+4. 可比较性：对任意两个元素 \(a,b\)，要么 \(a\le b\)，要么 \(b\le a\)
+
+如果去掉可比较性，我们就得到了偏序关系。如果再去掉反对称性我们就得到了预序关系。
+
+[[./7.png]]
+
+根据定义 1.12，两个集合之间的 *关系* 使用集合乘积的子集来描述。某个集合上的二元关系即该集合与自身乘积的子集。在表示二元关系时使用中缀符号 (infix notation) 似乎更加方便。比如 \(5 \le 6\) 之于 \((5, 6) \in R \times R\) 。
+
+** 什么是不交并 ⨆
+
+在本书的第八页给出了不交并 (disjoint union) 和集合乘积 (product) 的概念。「不交并」没有合并两个集合中都有的元素，而是标明了来源。这意味着我们可以根据求并后的集合的元素反推出它原来所属的集合，这和编程语言里面的 Tagged Union 还挺像的。
+
+- [[https://en.wikipedia.org/wiki/Tagged_union][Tagged union]]
+- [[https://zhuanlan.zhihu.com/p/714978114][浅谈 Tagged Union]]
+
+#+begin_quote
+In computer science, a *tagged union*, also called a *variant*, *variant
+record*, *choice type*, *discriminated union*, *disjoint union*, *sum type*, or
+*coproduct*, is a data structure used to hold a value that could take on several
+different, but fixed, types.
+
+Tagged unions are most important in functional programming languages such as ML
+and Haskell, where they are called datatypes (see algebraic data type) and the
+compiler can verify that all cases of a tagged union are always handled,
+avoiding many types of errors.
+
+[[https://en.wikipedia.org/wiki/Tagged_union][Wikipedia]]
+#+end_quote
+
+在范畴论中，余积 (coproduct) 是乘积 (product) 的对偶概念，在集合中的乘积是笛卡尔积 (Cartesian Product)，余积就是不交并。关于他们为什么对偶，以及什么是对偶，本书的后面应该会介绍的。
+
+** 什么是集合划分
+
+集合的划分是指将集合中的元素分到若干非空集合中，且满足以下公式：
+
+\[A = \bigcup_{p \in P} A_p \quad \text{and} \quad \text{if } p \neq q \text{ then } A_p \cap A_q = \varnothing.\]
+
+其中 \(P\) 是各个子集的标号集合， \(P\) 集合的元素个数对应了划分集合的数量。一个简单的例子是对集合 \(\{1,2,3\}\) 的这样一个划分：
+
+\[A_1 = \{1, 2\}, A_2 = \{3\}, P = \{1, 2\}\]
+
+对于两个不同的划分 \(\{A_p\}_{p \in P}\) 和 \(\{A^{'}_{p^{'}}\}_{p^{'} \in P^{'}}\)，如果对每个 \(p \in P\) 都存在一个 \(p^{'} \in P^{'}\) 使得 \(A_p = A^{'}_{p^{'}}\)，那么这两个划分相同，这也就是说集合的划分与具体子集的标号无关。练习 1.16 和 1.20 都和集合划分相关，1.16 的第二问和 1.20 得稍微想想。
+
+[[./8.png]]
+
+把 1.16 的第二问用谓词逻辑描述一下就是：
+
+\[\forall p^{'} \in P^{'}, \exists p\in P\ (A_p = A^{'}_{p^{'}})\]
+
+第二问本质上是证明两个相同的集合划分的子集标号是一一对应的关系。对于任意的 \(p^{'}\)，我们可以在 \(A^{'}_{p^{'}}\) 中找到一个元素 \(a \in A\)，由 \(a\) 我们可以找到 \(p \in P\) 使得 \(a \in A_p\) 。根据题目条件，存在某个 \(p^{''}\) 使得 \(A_p = A^{'}_{p^{''}}\) 。由 \(a \in A^{'}_{p^{'}}, a \in A^{'}_{p^{''}}\) 且划分中两两交集为空，可以得到 \(p^{'} = p^{''}\)，从而得证。
+
+** 什么是等价关系
+
+相比预序关系，等价关系还要求对称性，对所有的 \(a, b \in A\)，若 \(a \sim b\)，那么 \(b \sim a\)。
+
+[[./9.png]]
+
+[[./12.png]]
+
+命题 1.19 说的是划分和等价关系之间存在一一对应的关系，我们可以对给定划分找到对应的等价关系，也可以由等价关系找到对应的划分。前者已在第 8 页由作者说明，后者的一部分变成了习题 1.20。
+
+[[./11.png]]
+
+要证明划分对应于等价关系，书中的思路是证明划分能够对应于等价关系的三大性质：自反性，对称性和传递性。对元素 \(a \in A\)，很明显有它和它自身都属于某个划分部分；如果 \(a\) 和 \(b\) 在同一划分部分中，那么 \(b\) 和 \(a\) 也在同一划分部分；如果 \(a, b\) 在同一划分部分， \(b, c\) 在同一部分，那么 \(a, c\) 在同一划分部分。我们可以根据这种对应关系，由某个划分构造出等价关系。
+
+为了证明命题 1.19 的第二部分，作者给我们提供了一些脚手架。对于给定的等价关系 \(\sim\)，如果对所有的 \(x \in X\) 和 \(x' \sim x\) 都有 \(x' \in X\)，那么 \(A\) 的子集 \(X\) 是闭合的；如果对所有的 \(x, y \in X\) 有 \(x\sim y\) 且 \(X\) 非空，那么 \(A\) 的子集 \(X\) 是连接的。子集是闭合的意味着子集包含了所有两两等价的元素，子集是连接的意味着子集中所有元素都是两两等价的。原文说不难证明所有的闭合连接子集构成了一个划分。
+
+[[./10.png]]
+
+1. 我们可以直接判断所有子集都是连接的，同时注意到所有连接子集非空，所以所有的子集都是非空的。
+2. 我们假设对于某一对不等的 \(p, q\) 有 \(A_p \cap A_q\) 不为空，接着使用存在交集这个条件证明这两个集合相等即可。对于 \(A_p\) 中的元素 \(a'\) 和交集中的元素 \(a\) ，由于 \(A_p\) 是连接的我们有 \(a \sim a'\) ，同时由于 \(A_q\) 是闭合的我们有 \(a' \in A_q\) ，这也就是说 \(A_p\) 中的元素全属于 \(A_q\) 。反过来我们可以得到 \(A_q\) 中的元素全属于 \(A_p\) ，因此两个集合相等，与假设矛盾。
+3. 第三问实际上是在证明没有不属于这些子集但是属于 \(A\) 的元素，或者说在证明对于任何元素 \(a\) 我们都能找到它所属的闭合连接子集，再进一步就是我们能够对于任意一个 \(a\) 都能构造包含它的闭合连接子集。记这样的子集为 \(X:= \{x \in A| x \sim a\}\) ，由于其中的任何元素都与 \(a\) 等价，因此该集合是连接的；由于该集合中的元素为 \(A\) 中与 \(a\) 等价的所有元素，因此 \(X\) 是闭合的。由于 \(X\) 属于所有闭合连接子集构成的集合，因此任意的 \(a \in A\) 都能找到与之对应的闭合连接子集。
+
+#+begin_comment   
+读者在阅读命题 1.19 时可能会像我一样对等价关系产生疑惑：某个划分似乎应该对应 *一系列* 而不是 *一个* 等价关系？比如长度为 10 的字符串或包含的字母 abc 的字符串，这样只能筛选出部分而不是全部元素。这属于是把等价关系理解为筛选了，由判断两个参数是否相等的函数 =eq?= 变成了单参数的谓词函数 =pred= 。
+
+本书的第 8 页的定义 1.12 给出了 /关系/ 的定义，集合 \(X\) 和 \(Y\) 的关系是集合 \(X \times Y\) 的一个子集，即 \(R \subseteq X \times Y\) 。某个集合上的二元关系则定义为 \(R \subseteq X \times X\)。由此定义可知我们熟知的数学函数就是一个实数集合上的二元关系。
+#+end_comment
+
+我们可以使用 \(X \times X\) 的某个子集来描述集合 \(X\) 上的二元等价关系，然后通过将这个子集中的 \(\{x, y\}\) 串起来构建划分。举例来说的话，对集合 \(A = \{a, b, c, d\}\) ，定义等价关系 \(a \sim b, b \sim c, c \sim a, d \sim d\) 那么在该等价关系下得到的 \(A \times A\) 子集为：
+
+\[\{(a,a),(b,b),(c,c),(d,d),(a,b),(b,a),(b,c),(c,b),(c,a),(a,c)\}\]
+
+通过以下代码我们可以完成从二元子集描述到集合划分的转换：
+
+#+begin_src python
+def make_partition(X):
+    elements = set() # 集合中的元素
+    for x, y in X:
+        # 由于自反性，X 中必存在 (x, x)
+        elements.add(x)
+    visited = set()
+    partition = []
+    for x in elements:
+        if x not in visited:
+            # 找到所有和当前 x 等价的元素
+            eq_elements = {y for y in elements if (x, y) in X or (y, x) in X}
+            # 添加等价子集
+            partition.append(eq_elements)
+            # 标记等价元素
+            visited.update(eq_elements)
+    return partition
+
+A = {("a","a"),("b", "b"),("c", "c"),("d", "d"),
+     ("a", "b"),("b", "a"),("b", "c"),("c", "b"),
+     ("c", "a"),("a", "c")}
+
+res = make_partition(A)
+
+print(res)
+# [{'d'}, {'c', 'b', 'a'}]
+#+end_src
+
+相等应该是最严格的等价关系，在集合中每个元素只和自己相等，它对应的集合划分中每个子集只含一个元素。学过线性代数的同学也知道同阶同秩方阵也有等价关系，那么对于同阶方阵构成的集合，同秩这种等价关系可以对应于一种集合划分。
+
+** 什么是函数
+
+函数也是两个集合之间的关系，不过这个关系有比较强的限制。从 \(S\) 到 \(T\) 的函数是 \(S \times T\) 的子集 \(F\)，且对于任意的 \(s \in S \) 都有唯一的 \(t \in T\) 使得 \((s, t) \in F\) 。函数可以记为 \(F: S → T\) 或 \(F(s) = t\) 或 \(s ↦ t\) ，它们都表示 \((s, t) \in F\) 。形象一点理解就是 \(S\) 中的每个元素只能用一个箭头指向 \(T\) 中的一个元素。如果把 \(S\) 中的元素作为表格的行，把 \(T\) 中的元素作为表格的列，然后把关系子集中对应的表格位置涂黑，这样的表格也能用来表示函数，经典例子就是实函数在直角坐标系上的图像。这样的表格不能存在全空的列，但是可以存在全空的行。
+
+如果对于 \(T\) 中的任意元素都有 \(s \in S\) 与之对应，那么函数是满射 (surjection) 的 (surjective) 。如果对于 \(T\) 中的任意元素都只有 \(s_1 = s_2\) 时才有 \(F(s_1) = F(s_2) = t\)，那么函数是单射 (injection) 的 (injective) 。如果函数既是满射的又是单射的，那么它就是双射的 (bijective)。此时也就意味着两个集合中的元素存在一一对应的关系，两个集合的大小相同。
+
+#+begin_comment
+对于有限元素的集合 \(S\) 和 \(T\) 以及它们乘积的子集 \(X\) ，我们可以通过以下代码检测该子集是否是 \(S\) 和 \(T\) 的函数关系，以及构成了什么函数关系：
+#+end_comment
+
+[[./13.png]]
+
+练习 1.25 要我们证明若集合 \(A\) 与空集 \(\varnothing\) 构成函数关系那么 \(A\) 为空集。由于任何集合与空集的乘积都是空集，那么函数关系作为乘积的子集也自然是空集，也就是说不存在由 \(A\) 指向 \(\varnothing\) 的箭头，但函数的定义要求我们对 \(A\) 中的每个元素都要有一个箭头，那 \(A\) 只好没有元素了，只能是空集。
+
+** 预序和偏序
+
+[[./14.png]]
+
+预序 (preorder) 关系 \(\le\) 和等价关系不同，它不要求对称性，只有自反性「\( a \le a \)」和传递性「若 \(a \le b\) 且 \(b \le c\) 那么 \(a \le c\)」，等价关系是一种特殊的预序关系。上图是书中第 13 页对预序关系的定义。下文中我们提到「预序」时指的就是某个集合和它上面的预序关系。在本书的第一章中离散预序 (discrete preorder) 的概念还会反复出现，这里直接贴过来了：
+
+[[./15.png]]
+
+在预序中如果 \(x \le y\) 且 \(y \le x\)，那么我们可以写成 \(x \cong y\) 即 \(x\) 与 \(y\) 等价（这不是等价关系）。如果我们在预序基础上加上「若 \(x \cong y\) 则 \(a = b\)」（也叫反对称性），那么我们得到了偏序关系 (partial order)。这一约束意味着不同元素在偏序关系中不可能等价，因为若两个元素满足 \(x \cong y\) 则必然相等。在范畴论中这也叫 /skeletal preorders/ ，一般简写成 /poset/ 。例子 1.32 介绍了离散预序 (discrete preorder)，其中每个元素只和子集有关，即 \(x \le y \texttt{ iff } x = y\) 。离散偏序的 Hasse 图只有一层，那一层是集合中所有的元素。容易注意到离散预序也是偏序。
+
+由于偏序集的反对称性，偏序集中是不存在“环”结构的，考虑预序 \(a \le b, b \le c, c \le a\) ，由此关系可知 \(a \le c\) 和 \(c \le a\)，即 \(a \cong c\)，这不满足反对称性，因为 \(a \neq c\)。不过如果将预序中所有等价的元素变为相等关系，我们可以由预序得到偏序。
+
+[[./16.png]]
+
+对于预序，书中给出的例子是图 (graph) \(G = (V, A, s, t)\) 。图中的顶点存在自身到自身的路径，构成自反性，在图中若两个箭头分别表示从 \(a\) 到 \(b\) 和从 \(b\) 到 \(c\) ，那么我们可以从 \(a\) 到 \(c\) ，这构成传递性。
+
+预序的一个很大的特点就是并不是集合中的任意两个元素都有 \(\le\) 关系，不是所有的元素都能两两比较。如果在预序的基础上加上「对所有 \(a, b \in A\) 要么 \(a \le b\) 要么 \(b \le a\)」，我们就得到本节开头提到的全序 (total order) 关系，全序中任何的元素都能两两比较，比较熟悉的例子就是实数集上的数字大小。
+
+在 1.2.2 节的余下部分补充了一些例子和定义，这里姑且记录一下：
+
+[[./17.png]]
+
+[[./18.png]]
+
+[[./19.png]]
+
+[[./20.png]]
+
+[[./21.png]]
+
+** 什么是单调映射
+
+函数的单调性是我们在高中就接触过的概念。按单调性分类函数可以分为（严格 (strict)）单调 (Monotonic) 递增 (Increasing)/递减 (Decreasing) 函数和非单调函数。就拿单调递增函数来说，它的定义是：对于定义域上的任意 \(x_1, x_2\)，如果 \(x_1 \le x_2\) 则有 \(f(x_1) \le f(x_2)\) 。
+
+除了可以定义在实函数上，单调映射也可以扩展到更广泛的数学结果中，比如预序：
+
+[[./22.png]]
+
+单调映射的一个显著特点是它能够保持输入和输出之间的顺序。
+
+[[./23.png]]
+
+** 米田引理
+
+书中使用练习 1.66 简单介绍了什么是预序上的米田引理 (Yoneda lemma)，题目如下：
+
+[[./24.png]]
+
+对于第一个问题，对有预序关系的集合中的任一元素 \(a\) 求 \(↑(a)\) 得到的自然是上闭集 (upper set)。根据上闭集的定义：「\(U \subseteq P\)，若 \(x \in U\) 且 \(x \le y\) ，那么 \(y \le U\)」，\(↑(a)\) 包含了所有满足 \(a \le x\) 的元素，\(↑(a)\) 满足上闭集的定义。（预序的传递性会“捕获”所有大于等于 \(a\) 的集合元素）
+
+对于第二问，此处的 \(U(P)\) 代表由 \(P\) 中元素可能构成的所有上闭集，我们要证明 \(↑\) 表示从 \(P^{op}\) 到 \(U(P)\) 的一个单调映射：P 中的元素映射到某个上闭集且满足 \(p \le q\) 则 \(↑q \subseteq ↑p\) 。我们从 \(↑q\) 中拿出一个元素 \(q'\) ，根据 \(↑\) 的定义有 \(q \le q'\) ，由 \(p \le q\) 有 \(p \le q'\)，于是可得 \(q' \in ↑p\) 。这就说明了 \(↑q\) 中的所有元素都属于 \(↑p\) 。
+
+对于第三问，我们已经在第二问说明了若 \(p \le p'\) 就会有 \(↑p' \subseteq ↑p\)，现在只需证明若 \(↑p' \subseteq ↑p\) 就会有 \(p \le p'\)，它的逆否命题是 \(p \not\le p'\) 则 \(↑p' \subsetneq ↑p\)。如果 \(p \not\le p'\)，那么根据 \(↑\) 的定义有 \(p' \not\in ↑p\)，又由于 \(p' \subseteq ↑p'\)，从而 \(↑p' \subsetneq ↑p\) 。
+
+[[./4.png]]
+
+#+begin_quote
+This is known as the Yoneda lemma for preorders. The if and only if condition
+proved in part 3 implies that, up to equivalence, to know an element is the same
+as knowing its upper set—that is, knowing its web of relationships with the
+other elements of the preorder. The general Yoneda lemma is a powerful tool in
+category theory, and a fascinating philosophical idea besides.
+#+end_quote
+
+书中对此处的米田引理的解释是在集合的偏序关系中「知道了某个元素的上闭集就相当于知道了某个元素」。这个也好理解，如果实数集合中的某个上闭集是 \((5, ∞)\) 的话这个数字就是 5。这里的重点应该在构造上闭集的方式上：使用某个指定的元素作为上闭集的「最小」元素。至于更一般的米田引理是什么，也许以下链接可以参考：
+
+- [[https://www.zhihu.com/question/410978813][如何以实际事例解释什么是米田引理（Yoneda Lemma）？]]
+
+** 什么是匕首预序
+
+[[./25.png]]
+
+在书的第 21 页的例子 1.72 中提到，若要让预序 \(P\) 上的恒等函数 \(id_p\) 成为 \((P, \le) \rightarrow (P, \le^{op})\) 的保序映射，那么对于任意的 \(p, q \in P\) ，当 \(p \le q\) 时都有 \(q \le p\) ，而满足这样关系的预序 \(P\) 就叫 /dagger preorder/ 。
+
+在本书的[[https://arxiv.org/abs/1803.05316v1][第一版]]中的第 15 页中出现了匕首符号 †，后两版（包括我们使用的第三版）却没有。书中写到这种记号来自线性代数，在线性代数中这代表矩阵的共轭转置 ([[https://zh.wikipedia.org/wiki/%E5%85%B1%E8%BD%AD%E8%BD%AC%E7%BD%AE][conjugate transpose]])。除了用匕首之外也有 \(A^{H}, A^{*}\) 或 \(A^{'}\) ，匕首在物理中用的更多。
+
+注意到对匕首预序有 \(p \le q\) 则 \(p \le p\) ，这是一种对称性，因此匕首预序实际上是一种等价关系，原文也提到了。
+
+[[./26.png]]
+
+练习 1.73 要求我们证明匕首偏序实际上是离散预序，我们有 「\(p \le q\) 得 \(q \le p\)」和 「若 \(a \cong b\) 则 \(a = b\)」，根据这两条可知「若 \(p \le q\) 则 \(p = q\)」，同时由 \(p = q\) 我们容易得到 \(p \le q\) 和 \(q \le p\) （来自自反性），因此匕首偏序是离散预序。
+
+** 什么是同构
+
+[[./27.png]]
+
+这段话阐述了两个对象 \(A\) 和 \(B\) 如何在某种映射下被认为是“等价的”，即它们之间存在一种双向的可逆映射，能够将一个集合的元素唯一地映射到另一个集合，同时还能通过反向映射恢复原始集合。书中以离散预序为例，强调了这种映射的唯一性，并通过儿童发展心理学中的“物体恒常性” (object-permanence) 概念作类比，形象地说明了即使对象 (椅子) 在不同的上下文或“房间”中出现，它们本质上是相同的。
+
+接着，书中给出了同构 (isomorphism) 的定义：
+
+[[./28.png]]
+
+* Meets and Joins
+
+在 1.3.1 节给出了两个很重要的概念的定义： /greatest lower bound/ （GLB，最大下界，或者叫 /meet/ (交) ）和 /least upper bound/ （LUB，最小上界，或者叫 /join/ (并)），在范畴论中它们是 /limit/ （极限）和 /colimit/ （余极限）。定义 1.81 给出了 /meet/ 和 /join/ 的严谨描述：
+
+[[./5.png]]
+
+对于预序集 \(P\) 上的子集 \(A\)，如果对于 \(A\) 中的任一元素 \(a\) 都有 \(p \le a\) 且对所有满足 \(q \le a\) 的属于 \(P\) 的元素 \(q\) 有 \(q \le p\)，那么 \(p\) 就是集合 \(A\) 的 /meet/ 。上面的条件 \((a)\) 保证 \(p\) 是 \(A\) 的下界，条件 \((b)\) 保证 \(p\) 是所有下界中最大的下界。类似地， /join/ 就是在集合 \(A\) 中找出最小的上界。预序中不是所有元素都是可以比较的，所以也可能不存在 /meet/ 和 /join/ 。
+
+同样，由于预序的特性，某一预序集的子集可能存在多个 /meet/ ，例子 1.84 给出了如下例子：
+
+[[./6.png]]
+
+在 Remark 1.82 中，作者强调符号 \(∧A\) 被用来表示 /meet/ ，这个符号通常意味着对集合 \(A \subset P\) 找到一个唯一的下界，但例子 1.84 却说明 \(∧A\) 可能并不唯一对应一个最大下界。这似乎是一种符号的滥用。但是，由于任意的可能存在的 /meet/ 两两之间都有 \(p \le q\) 和 \(q \le p\) 的关系，所以所有的 /meet/ 都是等价的。由于范畴论关注的是东西之间的关联而不是什么内在本质，不同 /meet/ 之间的区别并不是非常重要。下面是书中给出的一些 /meet/ 例子：
+
+[[./29.png]]
+
+[[./30.png]]
+
+[[./31.png]]
+
+** 微积分中极限的定义
+
+可以看到，上面给出的极限定义和我们从数学分析或者微积分里面学到的不太一样，函数的极限指的是函数在自变量无限变大或无限变小或在某个区间时所接近的值。我们熟悉的 \(\varepsilon-\delta\) 语言是如此给出极限定义的：
+
+\[(\forall\varepsilon \gt 0)(\exists\delta \gt 0)(\forall x \in \mathbb{R})(0 \lt |x - a| \lt \delta \Rightarrow |f(x) - b| \lt \varepsilon)\]
+
+这段公式表达的意思是：对于任意正数 \(\varepsilon\)，都存在一个正数 \(\delta\)，使得对于所有 \(x \in \mathbb{R}\)，当 \(0 \lt |x - a| \lt \delta\) 时，有 \((|f(x) - b| \lt \varepsilon)\) 。这表明对于任意给定的误差 \(\varepsilon\)，我们总能找到一个足够小的 \(\delta\)，使得当 \(x\) 接近 \(a\) 时 \(f(x)\) 会接近 \(b\)。
+
+虽然在内容上和作为笔记的本文关系不是很大了，不过从一阶逻辑的博弈语义来理解函数极限的定义非常有意思，下面我总结一下已有的内容：
+
+- [[https://www.zhihu.com/question/3959608022][为什么ε-δ语言很像小学生比大小，很幼稚？]]
+- [[https://www.zhihu.com/question/35804945/answer/581702196][如何能更好地理解（ε-δ）语言极限的定义？]]
+
+对于一个形如 \(\forall x \exists y, \texttt{something}\) 的命题（ \(\texttt{something}\) 是一个带有 \(x, y\) 的数学命题），可以假设有两个人（\(T/F\)）分别希望证明/证伪它。现在从左到右读这个命题：
+
+- 读到 \(\forall\) 量词时，让 \(F\) 去为 \(\forall\) 后面那个字母选一个值，把这个值代入到后面那个 \(\texttt{something}\) 中
+- 读到 \(\exists\) 量词时，让 \(T\) 去为 \(\exists\) 后面那个字母选一个值，同样也带入后面的 \(\texttt{something}\) 中
+- 按这种方式读取这一命题，直至读完了全部两次，读到了最后这个 \(\texttt{something}\) 为止
+
+注意，这个 \(\texttt{something}\) 本身是没有真假的，在没有选择 \(x, y\) 的值时根本无从讨论真假。但经过上述过程后，\(\texttt{something}\) 里出现的所有字母都已经被 \(T\) 和 \(F\) 选择的具体的值替代了，因此现在这个 \(\texttt{something}\) 就可以判断真假了，如果它为真，那么 \(T\) 就赢了；它为假，那 \(F\) 就赢了。
+
+如果按照上述流程，不论 \(F\) 怎么选择， \(T\) 都有获胜的办法（即 \(T\) 有必胜策略），那么 \(\forall x \exists y, \texttt{something}\) 就是真的。反之，如果 \(F\) 有必胜策略，那么原命题就是假的。对 \(\varepsilon-\delta\) 语言描述的极限定义，这种博弈式的解释其实和传统的对量词的解释别无二致。传统解释是说，不管 \(\varepsilon\) 是多少，都有一个 \(\delta\) 跟它满足什么关系。这种解释只不过是在传统解释的基础上引入了两个博弈者，一个希望证明，另一个希望证伪。仅此而已，但它确实比传统解释要容易理解的得多。
+
+以数列极限的 \(\varepsilon-N\) 为例，假设数列 \(a_n = 1/n\)，显然它的极限为 0，极限为 0 的定义是这样：
+
+\[\forall \varepsilon \exists N (n \gt N \Rightarrow |a_n - 0| \lt \varepsilon)\]
+
+对此定义的一种解释方式是“对任意小的 \(\varepsilon\)，都存在足够大的 \(N\)，使得当 \(n \gt N\) 时，\(a_n\) 与 0 的距离小于 \(\varepsilon\)”。但是定义中并没有说到 \(\varepsilon\) 是任意小，而只说了它是任意的。为什么要取任意小的 \(\varepsilon\) 和足够大的 \(N\)？如果从博弈的方式来理解，\(T\) 想证明 \(a_n\) 的极限为 0，\(F\) 想证否，按照上述博弈流程，因为 \(\forall \varepsilon\) 在前 \(\exists N\) 在后，所以 \(F\) 先为 \(\varepsilon\) 选一个值。又因为 \(F\) 希望证否这个命题，而 \(\varepsilon\) 位于小于号的右边，因此一个小的 \(\varepsilon\) 比大的更可能使 \(F\) 获胜。同理也可以解释为什么 \(N\) 要取足够大的值，因为更大的 \(N\) 更可能使得 \(T\) 获胜。
+
+现在一个问题是，命题一定有真假，但博弈不一定有某一方有必胜策略。不过好在这一点已经被证明了：上述博弈必有一方有获胜策略。
+
+** 再说观测与生成效应
+
+在 1.3.2 节，书中提到 Adam 将单调映射看作观测，并将某个单调映射 \(\Phi\) 的生成效应定义为无法保持 /join/ （在范畴论中，更一般的说法是无法保持余极限）。
+
+[[./32.png]]
+
+在定义 1.93 中，如果将 \(f(a)\) 和 \(f(b)\) 看作是系统 \(a\) 和 \(b\) 的观察或测量结果，那么左侧 \(f(a)\) 和 \(f(b)\) 就可以被解释为将 \(a\) 和 \(b\) 的观察结果组合在一起。右侧的 \(f(a∨b)\) 则是系统 \(a\) 和 \(b\) 结合后的整体观察结果。不等式意味着当我们观察合成系统时，得到的信息比仅仅将对各部分的观察结果结合起来时预期的信息要多。换句话说，系统之间的相互连接带来了生成效应，组合后的系统展示出我们无法仅从个别部分的观察中预见到的新特性或新行为。
+
+#+begin_quote
+In his work on generative effects, Adam restricts his attention to
+generative maps that preserve meets (but do not preserve joins). The
+preservation of meets implies that the map behaves well when restricting
+to subsystems, even though it can throw up surprises when joining
+systems.
+
+This discussion naturally leads into *Galois connections*, which are pairs
+of monotone maps between preorders, one of which preserves all joins and
+the other of which preserves all meets.
+#+end_quote
+
+* Galois connections
+
+** 什么是伽罗瓦连接
+
+Galois 连接（也叫 Galois 对应）最早是由 Évariste Galois 提出的 —— 虽然他没有使用这个名称 —— 是在他发现“域扩张” (field extensions) 和“自同构群” (automorphism groups) 之间的联系时提出的。给定两个预序 \(P\) 和 \(Q\)，一个 Galois 连接是一个相互映射的对 —— 从 \(P\) 到 \(Q\) 和从 \(Q\) 到 \(P\) —— 具有某些性质，使得它看起来像是同构的放宽版本。更准确地说，预序同构是 Galois 连接的例子，但 Galois 连接不一定是预序同构。
+
+[[./33.png]]
+
+在以上定义中，\(f\) 叫做左伴随，\(g\) 叫做右伴随。
+
+[[./34.png]]
+
+在例子 1.97 中，当右伴随是 \((3 \times -)\) 时左伴随是\(\lceil -/3 \rceil\)。现在要在左伴随为 \((3 \times -)\) 时找到右伴随。根据对偶性很容易猜到右伴随是 \(\lfloor -/3 \rfloor\)。即：
+
+\[3x \le y\ \ \  \texttt{iff}\ \ \  x \le \lfloor y/3 \rfloor\]
+
+[[./35.png]]
+
+如果存在左伴随，那形式上应该是这样：
+
+\[3x \le y\ \ \ \texttt{iff}\ \ \ x \le \lceil y/3 \rceil\]
+
+但这和我们在 1.98 中得到的结果并不一致，因此不存在左伴随。
+
+** 伽罗瓦连接与集合划分
+
+在 1.4.2 节，书中指出，对于任意给定的函数 \(g: S \rightarrow T\)，可以由它确定一个伽罗瓦连接
+
+\[g_{!}: \texttt{Prt(S)} \leftrightarrows \texttt{Prt(T)}: g^{*}\]
+
+其中 \(\texttt{Prt(S)}\) 和 \(\texttt{Prt(T)}\) 是 \(S\) 和 \(T\) 的所有划分组成的集合。这里补充一下划分偏序的相关内容：
+
+[[./36.png]]
+
+书中对于这一伽罗瓦连接的解释是这样的，不过目前为止我们我们不需要理解：
+
+[[./37.png]]
+
+对于给定的某个 \(S\) 中的划分 \(\sim_{S}\)，我们可以如此获取它在 \(T\) 中的对应物 \(\sim_{T} = g_{!}(\sim_{S})\)。对于 \(T\) 中的任意两个元素 \(t_1, t_2\)，当存在 \(s_1, s_2 \in S\) 满足 \(s_1 \sim_{S} s_2\) 且 \(g(s_1) = t_1, g(s_2) = t_2\) 时，\(t_1, t_2\) 在 \(\sim_{T}\) 中位于同一分组。即 \(t_1 \sim_{T} t_2\)。当然书中也提到仅由此方法得到的划分可能不满足传递性，考虑 \(s_1 \sim_{S} s_2\) 和 \(s_3 \sim_{S} s_4\)，且有 \(g(s_1) = t_1, g(s_2) = g(s_3) = t_2, g(s_4) = t_3\)，我们可以分别得到 \(t_1 \sim_{T} t_2\) 和 \(t_2 \sim_{T} t_3\)，但是没法直接得到 \(t_1 \sim_{T} t_3\)。由于传递性必须在划分中被满足，我们应该在 \(\sim_{T}\) 中合并这两个部分。例子 1.102 给出了一个划分映射的例子：
+
+[[./38.png]]
+
+类似地，对于 \(\texttt{Prt(T)}\) 中的某个划分 \(\sim_{T}\)，我们可以根据 \(g^{*}:\ s_1 \sim_{S} s_2\ \texttt{iff}\ g(s_1) \sim_{T} g(s_2)\) 来获取对应的 \(\sim_{S}\)。例子 1.104 给出了一个 \(\sim_{S} = g^{*}(\sim_{T})\) 的实例：
+
+[[./39.png]]
+
+现在我们根据 \(g, S, T\) 得到了左右伴随 \(g_{!}, g^{*}\)，那么它们是否真的和 \(\texttt{Prt(S)} \leftrightarrows \texttt{Prt(T)}\) 构成伽罗瓦连接呢？练习 1.106 对证明 \(g_{!}\) 是 \(g^{*}\) 的左伴随提供了一些提示：
+
+[[./40.png]]
+
+为了与 1.102 得到的划分不同，我们可以选取 \({1, 2, \{3, 4\}}\) 作为 \(S\) 的划分。经过映射得到的 \(T\) 中的划分为 \(12, \{3, 4\}\)。第二小问要我们找到使得 \(g_{!}(c) \le d\) 的粗糙 (coarser) 划分 \(d\)，对于我选取的 \(c\)，只有唯一的划分 \(\{12, 3, 4\}\) 可以选了。第三小问要求找到一个满足 \(g_{!}(c)\not\le e\) 的非粗糙划分 \(e\)，对这个问题可选项有多个：\(\{12, 4\}, 3\)、 \(\{12, 3\}, 4\) 和 \(12, 3, 4\)。这里我选择 \(e = \{12, 3\}, 4\)。
+
+对于第四问，根据 1.102 的图可得 \(g^{*}(d) = \{\{1, 2\}, \{3, 4\}\}\) 和 \(g^{*}(e) = \{\{1, 2, 3\}, \{4\}\}\)。
+
+对于最后一问，\(c=\{1,2,\{3,4\}\}\)，通过简单观察可知问题要求的条件是满足的。通过整个练习 1.106，我们可以发现伽罗瓦链接的当且仅当条件对我们随意选取的 \(c, d\) 是满足的。
+
+** 伽罗瓦链接的基本理论
+
+很难说我对伽罗瓦连接有什么理解，只能照着书记下去了。
+
+[[./41.png]]
+
+书中给出了命题 1.107 的一半证明，然后让我们在 1.109 中完成另外一半，首先我们证明 \((a)\rightarrow (b)\)。假设 \(f\) 是 \(g\) 的左伴随。任取 \(p \in P\)，以及 \(q := f(p)\)。根据自反性有 \(f(p) \le q\)。根据伽罗瓦连接的定义我们有 \(p \le g(q)\)，由于 \(g\) 是单调映射有 \(p \le g(f(p))\)。类似地，由 \(f\) 的单调性有 \(f(g(q)) \le q\)。
+
+对于 \((b)\rightarrow (a)\)，我们首先取满足 \(f(p) \le q\) 的 \(p,q\)，然后由于 \(g\) 的单调性有 \(g(f(p)) \le g(q)\)。由于 \(p \le g(f(p))\) 从而有 \(p \le g(q)\)。接着我们取满足 \(p \le g(q)\) 的 \(p, q\)，由于 \(f\) 的单调性有 \(f(p)\le f(g(q))\)，由于 \(f(g(q))\le q\) 有 \(f(p) \le q\) ，得证。如果我们将预序替换为相等关系，我们就得到了同构的定义（见定义 1.75），这也是为什么说伽罗瓦连接是一种放松版的同构。
+
+[[./42.png]]
+
+对任一 \(q \in Q\) 和任一右伴随 \(g\)，有 \(f(g(q)) \le q\) 和 \(g(f(g(q))) \le g(q)\)。将 \(p \le g(f(p))\) 中的 \(p\) 替换为 \(g(q)\) 得到 \(g(q) \le g(f(g(q)))\) 从而有：
+
+\[g(q) \le g(f(g(q))) \le g(q) \Rightarrow g(f(g(q))) \cong g(q)\]
+
+类似地，对另一右伴随 \(g^{'}(q)\)，易得 \(g^{'}(f(g(q))) \le g^{'}(q)\)。根据 \(p \le g'(f(p))\)，将 \(p\) 替换为 \(g(q)\) 有 \(g(q) \le g^{'}(f(g(q)))\)，从而有 \(g(q) \le g^{'}(q)\)：
+
+\[g(q) \le g^{'}(f(g(q))) \le g^{'}(q)\]
+
+现在我们来证明 \(g^{'}(q) \le g(q)\)。将 \(p \le g(f(p))\) 中的 \(p\) 替换为 \(g^{'}(q)\) 可得 \(g^{'}(q) \le g(f(g^{'}(q)))\)。根据 \(f(g(q)) \le q\) 得 \(g(f(g^{'}(q))) \le g(q)\)，从而有：
+
+\[g^{'}(q) \le g(f(g^{'}(q))) \le g(q)\]
+
+参考答案说第二小问的证明类似，这里我也就跳过了。
+
+[[./43.png]]
+
+对于 \(g\)，若取 \(m := ∧A\)，根据 \(g\) 的单调性有 \(\forall a \in A, g(m) \le g(a)\)，由此可知 \(g(m)\) 是 \(g(A)\) 的一个下限。现在我们需要证明的是 \(g(m)\) 是最大的下限，即对其他任意下限 \(b \le g(a)\) 都有 \(b \le g(m)\)。由 \(b \le g(a)\) 我们可得 \(f(b) \le a\)，因为 \(m \in A\) 从而有 \(f(b) \le m\)，再次使用伽罗瓦连接我们得到 \(b \le g(m)\)，由此说明 \(g(m)\) 是 \(g(A)\) 的 /meet/ 。
+
+对于 \(f\) 也是类似的操作，若取 \(m := ∨A\)，根据 \(f\) 的单调性有 \(\forall a \in A, a \le f(m)\)，由此可知 \(f(m)\) 是 \(f(A)\) 的一个上限。现在任取一个其他上限 \(b\)，由 \(f(a) \le b\) 可得 \(a \le g(b)\)，因为 \(m \in A\) 从而有 \(m \le g(b)\)，再次伽罗瓦连接得到 \(f(m) \le b\)，由此说明 \(f(m)\) 是 \(f(A)\) 的 /join/ 。
+
+[[./44.png]]
+
+定理 1.115 翻译过来就是「应用于预序的伴随函子理论」，不过到现在为止本书好像还没提到什么是函子。我们这里要证明的东西很简单：当且仅当两个单调映射 \(f, g\) 互为左右伴随是才保留 /join/ 和 /meet/ 。
+
+首先，对于 \(g\)，我们要根据它保留 /meet/ 来证明它是右伴随，以及根据它是右伴随来证明它保留 /meet/ ，后者我们已经在 1.113 证明过了。书中给出的方法是为它构造一个函数 \(f\)，然后证明它是 \(g\) 的左伴随：
+
+\[f(p) := ∧\{q \in Q\ |\ p \le g(q)\}\]
+
+由以上函数 \(f\) 得到的 \(f(p)\) 是所有满足 \(p \le g(q)\) 的 \(q\) 的 /meet/ ，现在需要证明的是 \(f\) 的单调性。假设 \(p \le p^{'}\)，有 \(\{q^{'} \in Q\ |\ p^{'} \le g(q^{'})\} \subseteq \{q \in Q\ |\ p \le g(q)\}\) 。根据命题 1.91 有 \(f(p) \le f(p^{'})\) 。因此 \(f\) 是单调的。我没有在本文的第三节给出 1.91，这里贴一下：
+
+（这是个很直观的命题，由于 \(A\) 中的 /meet/ 必属于 \(B\)，而 \(B\) 的 /meet/ 最小。对 /join/ 也类似。） 
+
+[[./45.png]]
+
+想要证明 \(f, g\) 互为左右伴随只需证明 \(\forall p_0 \in P, \forall q_0 \in Q, p_0 \le g(f(p_0))\ \texttt{and}\  f(g(q_0)) \le q_0 \)。由 \(g\) 的单调性与保持 /meet/ 有：
+
+\[p_0 \le ∧\{g(q) \in P\ |\ p_0 \le g(q)\} \cong g(∧\{q \in Q\ |\ p_0 \le g(q)\}) = g(f(p_0))\]
+
+\[f(g(q_0)) = ∧\{q \in Q\ |\ g(q_0) \le g(q)\} \le ∧{q_0} = q_0\]
+
+注意上面的第二个式子中的 \(\le\) 来自 1.91，由此得证。类似地，对于 \(f\)，我们要根据它保留 /join/ 来证明它是左伴随，我们可以构造这样的右伴随：
+
+\[g(q) := ∨\{p \in P\ |\ f(p) \le q\}\]
+
+\[p_0 = ∨p_0 \le ∨\{p \in P\ |\ f(p) \le f(p_0)\}\]
+
+\[q_0 \ge ∨\{f(p) \in Q\ |\ q_0 \ge f(p)\} \cong f(∨\{p \in P\ |\ q_0 \ge f(p)\}) = f(g(q_0))\]
+
+** 什么是拉回
+
+拉回 (pullback) 最早出现在本章的 1.2.3 节，紧挨着同构。不过我没有在记同构的笔记的时候注意到它。这里姑且补上：
+
+[[./46.png]]
+
+命题 1.78 也挺显然的，证明 \(f^{-1}(\texttt{true}) \subseteq P\) 这个子集是上闭集即可。上闭集的定义可以参考 1.54： \(\forall p, q \in P, (p \in U\ \texttt{and}\ p \le q) \Rightarrow q \in U\)。现在取 \(f(p) = \texttt{true}\) 以及 \(p \le q\)，由 \(f\) 的单调性有 \(\texttt{true} = f(p) \le f(q)\)，进而 \(f(q) = \texttt{true}\)，因为没有比 \(\texttt{true}\) 更大的了。这就满足了上闭集的定义。
+
+之所以要提到 1.78 是因为练习 1.79 下面的一段话提到了它：
+
+[[./47.png]]
+
+如果你忽略第二段话你很可能不知道这个练习到底要我们干什么（笑）。从练习 1.79 的文本描述来看，作者要我们说明 \((u \circ f)\) 构成一个拉回。由 1.78 可知 \(P, Q\) 中的上闭集可由 \(P \rightarrow \mathbb{B}\) 一一对应，对 \(q \in Q\) 有 \(q \longmapsto \texttt{true} \Leftrightarrow q \in U\)。记这样的映射为 \(u\)，有 \((u \circ f): P \rightarrow \mathbb{B}\) 来确定 \(f(p) \in Q\) 是否属于某个上闭集 \(U\)，很显然 \(\{p \in P\ |\ f(p) \in U\}\) 就是 \(f^{-1}(U)\)。
+
+拉回的下一次出现就是在例子 1.117 了：
+
+[[./48.png]]
+
+注意此处的 \(f^{\ast}\) 是从 \(Y\) 的幂集到 \(X\) 的幂集的映射，而不是 1.79 中的上闭集。这说明拉回是一个更加广泛的概念。在 1.117 中给出的例子是从苹果到桶的映射，对于苹果 \(a\)，\(f(a)\) 表示它被放入的桶。对于桶的幂集中的一个元素 \(B^{'}\)，\(f^{-1}(B^{'})\) 表示所有放入这些桶中的苹果构成的子集，我们可以根据这个映射得到这些桶中苹果的总数。比较有意思的是，这个拉回操作既可以作为左伴随，也可以作为右伴随（注意不同情况下左右集合的切换）：
+
+#+attr_html: :class data
+| 左                             | 右                             |
+| 苹果集 -> 含有这些苹果的桶集合 | 桶集 -> 桶中苹果集             |
+| 桶集 -> 桶中苹果集             | 苹果集 -> 仅含苹果集苹果的桶集 |
+
+
+[[./49.png]]
+
+对于普通的集合映射，我们在集合的幂集上构造拉回，根据陪域的子集得到所有映射到这些对象的定义域对象集合；对于预序，我们在预序的上闭集集合上构造拉回，根据陪域的上闭集得到定义域中映射到这个上闭集的所有元素组成的上闭集。如果要我以刚学完映射的学生视角来看，由于映射 (或者说态射) 并不一定可逆，拉回可以看作一种宽松的逆映射，不过代价就是新的结构。
+
+[[./50.png]]
+
+** 闭包与提升
+
+作为第四节的最后两小节，1.4.4 和 1.4.5 的标题分别是 /Closure operators/ 和 /Level shifting/ ，内容也不怎么多就合到一节里面吧。
+
+[[./51.png]]
+
+练习 1.119 的第一小问自然成立，主要还是为第二问服务的。由于 \(p \le (g \circ f)(p)\)，将 \(p\) 替换为 \((g \circ f)(p)\) 就有 \((g \circ f)(p) \le (g \circ f \circ g \circ f)(p)\)，接下来的问题就是证明 \(gfgf(p) \le gf(p)\)。根据 \(fg(q) \le q\)，在两端加上 \(g\) 并将 \(q\) 替换为 \(f(p)\) 就有了。
+
+[[./52.png]]
+
+说到闭包，如果你写过一点函数式编程或者用过 JavaScript，你应该对这个概念并不陌生，不过数学里的闭包和编程似乎关系不大。闭包一小节给了三个例子，第二个可能比较重要一点：
+
+[[./53.png]]
+
+如果在预序 \(P\) 中存在闭包操作 \(j\)，可以从中提取所有不动点组成不动点预序 \(fix_j\)。然后定义左伴随为闭包操作，右伴随为单位映射 \(λx.x\)。由左到右的推导挺自然的，由右到左的推导似乎要求闭包操作是单调的，好在 \(j\) 必须是单调的。
+
+在 1.4.4 节，作者首先提到了 \(\textbf{Rel}(S)\) 表示集合 \(S\) 上的二元关系并使用包含关系定义了 \(\textbf{Rel}(S)\) 上的偏序。练习 1.124 要求画出 \(\textbf{Rel}(S)\) 的 Hasse 图，不得不说很炫酷：
+
+[[./54.png]]
+
+最后，作者提到了 \(\textbf{Pos}(S)\)，对此我知之甚少，简单截个图算了：
+
+[[./55.png]]
+
+Level Shifting 似乎应该翻译成电平转换器，但此处的描述翻译为提升应该更好，预序关系从“结构”变为了“对象”，新的结构似乎比他们高一个层次。
+
+[[./56.png]]
+
+[[./57.png]]
+
+* 读后感
+
+在这第一章中，作者完全没有提到范畴的定义，但着重介绍了一种简单的结构：预序，以及它的朋友们：单调映射，交，并，等等。
+
+根据这一章的 *Summary* 一节的内容，第二章会介绍预序上的幺半结构 (monoidal structure)，第三章会接受顺序结构自身的结构，给出态射和范畴的介绍。第四章会介绍幺半范畴 (monoidal category)，听起来似乎和单子有些关系。
+
+就像开头说到的那样，我在今年的一月份想要弄懂单子就找到了这本教材，现在断断续续花了差不多两个月总算是看完了第一章，一方面是没什么时间看，另一方面有些地方要多读几遍或者花点时间来推导。由于我完全没有相关的数学基础，写这篇笔记也花了不少的时间。希望它能对和我一样的读者在阅读后续章节时能起到一点帮助。
+
+
