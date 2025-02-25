@@ -1,8 +1,7 @@
 #+TITLE: 「笔记」An Invitation to Applied Category Theory --- Chapter 1
-#+DATE: [2025-01-09 Thu 19:25]
+#+DATE: [2025-01-09 Thu 19:25]--[2025-02-24 ‏‎Mon 16:37]
 #+FILETAGS: math
 #+DESCRIPTION: 本文是对 Seven Sketches in Compositionality 第一章的笔记
-
 
 坏消息是入门 monad 又兜兜转转到了范畴论，好消息是这次的教材似乎是能够读完的样子（这次总算是成功在完全不需要范畴论的情况下简单理解了 monad，不过这书看看也没坏处）。本文是我在看 Seven Sketches in Compositionality: An Invitation to Applied Category Theory 第一章时的一些笔记，可能对看完第一章或正在看第一章的同学有点用处。本文的顺序和结构与原书一致，即第一章的第一小节到第四小节。我裁了个 PDF 出来，顺便加了点划线：[[file:AIACT-1.pdf][Chapter-1]]。
 
