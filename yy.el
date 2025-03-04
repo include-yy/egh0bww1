@@ -14,7 +14,7 @@
   (if (string-match-p "\\.org$" in)
       (let ((default-directory (file-name-directory in))
 	    (org-export-coding-system 'utf-8-unix)
-	    (org-export-use-babel org-w3ctr-use-babel))
+	    (org-export-use-babel nil))
 	(org-export-to-file 'w3ctr out
 	  nil nil nil nil plist))
     t))

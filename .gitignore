@@ -3,6 +3,7 @@
 *.sqlite3
 yynt*.el
 rss.xml
+desktop.ini
 
 /blog-build
 /drafts
@@ -10,3 +11,4 @@ rss.xml
 /ox-w3ctr
 /yynt
 /emacs-elisp-annotation
+/minifycss
