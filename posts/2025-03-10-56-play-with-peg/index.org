@@ -1,0 +1,1302 @@
+#+TITLE: 玩玩 peg.el
+#+DATE: [2025-03-03 Mon 10:14]--[2025-03-10 Mon 16:54]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文介绍了如何使用 Emacs 30.1 添加的 peg.el PEG parser generator 实现来实现一个简单的 CSS(1.0) parser。
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/128006758][file:dev/0.jpg]] | [[https://www.pixiv.net/artworks/127716125][file:dev/3.jpg]] |
+| [[https://www.pixiv.net/artworks/127040750][file:dev/1.jpg]] | [[https://x.com/kuzucirno/status/1898411118306926807][file:dev/2.jpg]] |
+#+end_comment
+
+随着 Emacs 30.1 的发布，peg.el 也正式内置到了 Emacs 中，可以用它来编写一些简单的 Parser，做一些字符串处理工作。目前能找到的 peg.el 资料相当少，只能阅读源代码中的注释或 info 文档相关章节来学习用法，info 文档[[https://emacs-china.org/t/emacs30-peg/29023][似乎还有那么一点小问题]]。在完善 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] Org 导出后端的过程中我发现可以使用 peg.el 做一些 CSS 最小化的工作（用 peg.el 做 JavaScript 最小化就太复杂了），不过距离完成还[[https://github.com/include-yy/minifycss][遥遥无期]]。考虑到 [[https://www.w3.org/TR/REC-CSS1/][CSS(1.0)]] 语法足够简单但比算术表达式又复杂一点，借用 CSS(1.0) 来写个 peg.el 教程方便查阅应该是个不错的选择（不过到本文写完为止还没写完）。
+
+本文主要由三部分组成：对 PEG（Parsing Expression Grammar）的简单介绍，对 peg.el 用法的介绍，最后是用 peg.el 整点花活。本文使用 Emacs 30.1 on Windows 11 作为具体的 Emacs 版本，对应的 peg.el 版本为 1.0.1。
+
+在每次启动 Emacs 后，请执行以下表达式来为 =define-peg-rule= 设定正确的缩进（[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-02/msg02831.html][bug#76555: 30.1; PEG's doc needs some correction]]）：
+
+#+begin_src elisp
+  (setf (get 'define-peg-rule 'lisp-indent-function) 2)
+#+end_src
+
+* PEG
+
+peg.el 的注释提到了一些资料，主要是 PEG 相关的[[https://bford.info/packrat/][论文集合]]和 Common Lisp 中的 PEG 实现。其中最关键的论文应该是 PEG 发明者 Bryan Ford 的这两篇：
+
+- [[https://bford.info/pub/lang/packrat-icfp02/][Packrat Parsing: Simple, Powerful, Lazy, Linear Time]]
+- [[https://bford.info/pub/lang/peg/][Parsing Expression Grammars: A Recognition-Based Syntactic Foundation]]
+
+就使用 PEG 来说（不会真的有人在 Emacs 里用 peg.el 照着正经编程语言的语法来解析源代码吧），我们也许没有必要了解具体的解析技术（指 packrat parsing），看看第二篇的前两章简单了解下就行。和 CFG 相比 PEG 最大的区别可能是 =|= 操作符是有优先级的，从左到右依次从高到低。另外 PEG 不允许左递归，但它允许 back-tracking（回溯）。
+
+除了论文外还可以看看 [[https://en.wikipedia.org/wiki/Parsing_expression_grammar][Parsing expression grammar]] 的维基词条。此外也能找到一些对 PEG 的批评，比如：
+
+- [[https://safinaskar.writeas.com/this-is-why-you-should-never-use-parser-combinators-and-pge][This is why you should never use parser combinators and PEG]]
+
+由于我不是（编译器）前端糕手，关于 PEG 的介绍就到这里了。在 peg.el 中，一个简单的 PEG 规则如下：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "+123"))
+    (with-peg-rules
+        ((number (substring sign (+ digit))
+  	       `(s -- (string-to-number s)))
+         (sign (or "+" "-" ""))
+         (digit [digit]))
+      (peg-run (peg number))))
+  ;;=> (123)
+#+end_src
+
+如果你学过或者用过 Forth，你一定不会对上面的 =`(s -- (string-to-number s))= 感到陌生（这叫 /stack effect/ comment，感谢 StarSugar 的补充）：
+
+- [[https://skilldrick.github.io/easyforth/][Easy Forth --- by Nick Morgan]]
+
+* peg.el in Emacs
+
+本文出现的最大原因就是 peg.el 太过拉跨的文档，我会在这里结合文档给出一个较为完整的 peg.el 教程。本文主要参考了 Emacs 的 info 文档和 peg.el 中的注释，上一节给出的例子就是简单修改过的某个 info 文档示例。学习 peg.el 过程中一个比较蛋疼的问题是文档和注释存在一些错误和不一致，读者可以 =Ctrl+F= 在本页面搜索 =幽默= 来直接跳转到这些问题。
+
+** PEX 基础规则
+
+就像 BNF 或者 [[https://zh.wikipedia.org/wiki/%E6%89%A9%E5%B1%95%E5%B7%B4%E7%A7%91%E6%96%AF%E8%8C%83%E5%BC%8F][EBNF]]，通过组合规则我们可以得到具体的语法（这在 PEG 中叫 Parsing Expression，下面我们简称 PEX），比如本文第一节例子中的 =(sign (+ digit))= 。在 =(info "(elisp)PEX Definitions")= 和 peg.el 的注释中给出了所有的组合规则，以及它们和 PEG 记号的对应关系。peg.el 提供了一个将用户编写的 PEX 表达式标准化的函数： =peg-normalize= ，它会将一些表达式转换为更加基本的表达，我们可以用它来简单观察各 PEX 的变换结果。我给所有的规则简单分了个类。
+
+*** 匹配字符（串）
+
+#+attr_html: :class data
+| Description       | Lisp                  | Traditional, as in Ford's paper  | Basic rules    |
+|-------------------+-----------------------+----------------------------------+----------------|
+| Any character     | =(any)=               | =.  ;Note: include newline=      | =any=          |
+| Character C       | =(char C)=            | ='c'=                            | =char=         |
+| Character set     | =[a-b "+*" ?x]=       | =[a-b+*x]  ;Note: it's a vector= | =range=, =set= |
+| Character classes | =[ascii cntrl]=       |                                  | =set=          |
+| Character range   | =(range A B)=         | =[a-b]=                          | =range=        |
+| Syntax-Class      | =(syntax-class NAME)= |                                  | =syntax-class= |
+| Literal string    | ="abc"=               | ="abc"=                          | =str=          |
+
+关于字符（串）匹配，值得一提的是 =.= 会匹配换行，经常使用 Emacs 正则搜索或者看过 info 的朋友们都知道 Emacs 正则中的 =.= 是不匹配换行的。真正匹配任意字符的正则表达式是 ="\\(?:.\\|\n\\)"= 或 =(rx anychar)= 的返回结果：
+
+#+begin_src elisp
+(rx anychar) ;;=> "[^z-a]"
+#+end_src
+
+在 peg.el 的字符集 (character set) 规则中，可以看到它使用了向量来表示集合规则，其中用到了四种表示方法，分别是字符范围 =a-b= ，字符串 ="xyz"= ，字符值 =?a= 和字符类 (character class) =ascii= 。对各情况下的 PEX 用 =peg-normalize= 的展开结果分别如下：
+
+#+begin_src elisp
+  (peg-normalize [a-c])
+  ;;=> (range 97 99)
+  (peg-normalize [a-b b-c])
+  ;;=> (set ((97 . 98) (98 . 99)) nil nil)
+  (peg-normalize ["abc"])
+  ;;=> (set nil (97 98 99) nil)
+  (peg-normalize [?a ?b ?c])
+  ;;=> (set nil (97 98 99) nil)
+  (peg-normalize [a-b "xyz"])
+  ;;=> (set ((97 . 98)) (120 121 122) nil)
+  (peg-normalize [ascii])
+  ;;=> (set nil nil (ascii))
+  (peg-normalize [?我 あ-お ?ゐ ascii])
+  ;;=> (set ((12354 . 12362)) (25105 12432) (ascii))
+#+end_src
+
+peg.el 支持的字符类位于列表 =peg-char-classes= 中，如果你比对这个列表和 =(info "(elisp)Char Classes")= 中出现的字符类你会发现是一致的（一共 17 个），这也就是说我们在 peg.el 中可以使用 Emacs 支持的所有字符类。这其中比较常用的也许是 =ascii=, =alnum=, =digit= 和 =xdigit= 。
+
+#+begin_src elisp
+  (defvar peg-char-classes
+    '(ascii alnum alpha blank cntrl digit graph lower multibyte nonascii print
+  	  punct space unibyte upper word xdigit))
+#+end_src
+
+Syntax-Class 是和 Emacs major-mode 关系比较密切的概念，大致可以理解为比较特定的字符类，这个规则能用来干什么自不用我多说，请参考 =(info "(elisp)Syntax Descriptors")= 来简单了解。当前 peg.el 支持的 syntax-class 包含在变量 =peg-syntax-classes= 中：
+
+#+begin_src elisp
+  (defvar peg-syntax-classes
+    '((whitespace ?-) (word ?w) (symbol ?_) (punctuation ?.)
+      (open ?\() (close ?\)) (string ?\") (escape ?\\) (charquote ?/)
+      (math ?$) (prefix ?') (comment ?<) (endcomment ?>)
+      (comment-fence ?!) (string-fence ?|)))
+
+  (peg-normalize '(syntax-class word))
+  ;;=> (syntax-class word)
+#+end_src
+
+*** 普通规则
+
+#+attr_html: :class data
+| Description        | Lisp          | Traditional, as in Ford's paper | Basic rules          |
+|--------------------+---------------+---------------------------------+----------------------|
+| Non-terminal       | =SYMBOL=      | =A=                             | =call=               |
+| Sequence           | =(and E1 E2)= | =e1 e2=                         | =and=                |
+| Prioritized Choice | =(or E1 E2)=  | =e1 / e2=                       | =or=                 |
+| Optional           | =(opt E)=     | =e?=                            | =or=, =and=, =guard= |
+| Zero-or-more       | =(* E)=       | =e*=                            | =*=, =and=           |
+| One-or-more        | =(+ E)=       | =e+=                            | =*=, =and=           |
+
+
+这一部分规则就很类似 CFG 的 EBNF 描述中的各种规则了，没什么太多好说的。除了本文开头出现的 =with-peg-rules= ，我们目前还没有介绍如何创建非终结符号绑定，这是下一节的内容。
+
+#+begin_src elisp
+  (peg-normalize 'symbol)
+  ;;=> (call symbol)
+  (peg-normalize '(and "x" "y" "z"))
+  ;;=> (and (char 120) (and (char 121) (char 122)))
+  (peg-normalize '(or "1" "2" "3"))
+  ;;=> (or (char 49) (or (char 50) (char 51)))
+  (peg-normalize '(opt "abc" "def"))
+  ;;=> (or (and (str "abc") (str "def")) (guard t))
+  (peg-normalize '(* "1" "2" "3"))
+  ;;=> (* (and (char 49) (and (char 50) (char 51))))
+  (peg-normalize '(+ "1" "2"))
+  ;;=> (and (and (char 49) (char 50)) (* (and (char 49) (char 50))))
+#+end_src
+
+可以注意到 =opt=, =*= 和 =+= 都隐含了 =and= ，写这些规则的时候可以省略掉 =and= 。
+
+*** back-tracking
+
+#+attr_html: :class data
+| Description   | Lisp      | Traditional, as in Ford's paper | Basic rules  |
+|---------------+-----------+---------------------------------+--------------|
+| And-predicate | =(if E)=  | =&e=                            | =if=, =and=  |
+| Not-predicate | =(not E)= | =!e=                            | =not=, =and= |
+| string=       | ~(= str)~ |                                 | ===          |
+
+相比 back-tracking less 的解析方法（比如 LL, LR），PEG 允许测试某个 PEX 规则是否匹配但不移动 =(point)= ， =if= 表示若匹配成功则继续， =not= 则相反。这有点类似支持环视 (lookaround) 的正则表达式：
+
+#+begin_src elisp
+  (peg-normalize '(if "1" "2"))
+  ;;=> (if (and (char 49) (char 50)))
+  (peg-normalize '(not "1" "2"))
+  ;;=> (not (and (char 49) (char 50)))
+  (peg-normalize '(if "1" (not "2")))
+  ;;=> (if (and (char 49) (not (char 50))))
+  (peg-normalize '(= "123"))
+  ;;=> (= "123")
+#+end_src
+
+=== 表示接下来的内容是不是某个指定的字符串，注意 === 规则仅用于匹配字符串，它只接受 *一个* 字符串参数。
+
+*** 其他
+
+#+attr_html: :class data
+| Description       | Lisp                    | Traditional, as in Ford's paper | Basic rules |
+|-------------------+-------------------------+---------------------------------+-------------|
+| Boolean-guard     | =(guard EXP)=           |                                 | =guard=     |
+| Action            | =(action EXP)=          |                                 | =action=    |
+| Indirect call     | =(funcall EXP ARGS...)= |                                 | =funcall=   |
+| Local definitions | =(with RULES PEX...)=   |                                 | =WTF?=      |
+
+最后的这四个规则我不知道怎么分类，就都放到这里了。其中 =guard= 可以看作一种比 =if= 和 =not= 更一般的测试规则，其中可以是任意表达式，最后只需返回 =t= 或 =nil= 表示测试成功或失败即可，我个人认为 *一般情况* 下在使用 =guard= 时应该注意在最后恢复到原始光标位置且不修改 buffer。
+
+=action= 和 =guard= 类似，但它的返回值不影响匹配是否继续，仅有副作用，它实际上是所有解析动作的最基本形式。也许我们可以用 =action= 来实现更加用户友好的错误信息生成，但我还没有做进一步的研究。
+
+=funcall= 和带参数的 PEX 规则有关，我会在下文介绍用法。这里面最幽默的应该是 =with= ，peg.el 中的注释把它列了出来但当前 peg.el 没有它的实现，笑死。
+
+#+begin_src elisp
+  (peg-normalize '(guard t))
+  ;;=> (guard t)
+  (peg-normalize '(action (print 1)))
+  ;;=> (action (print 1))
+  (peg-normalize '(funcall f1))
+  ;;=> (funcall f1)
+  (peg-normalize '(funcall f arg))
+  ;;=> (funcall f arg)
+#+end_src
+
+在 peg.el 的末尾，有很多使用 =guard= 定义的规则：
+
+#+begin_quote
+The following expressions are used as anchors or tests - they do not
+move point, but return a boolean value which can be used to constrain
+matches as a way of controlling the parsing process (*note Writing PEG
+Rules).
+#+end_quote
+
+#+begin_src elisp
+(define-peg-rule null () :inline t (guard t))
+(define-peg-rule fail () :inline t (guard nil))
+(define-peg-rule bob  () :inline t (guard (bobp)))
+(define-peg-rule eob  () :inline t (guard (eobp)))
+(define-peg-rule bol  () :inline t (guard (bolp)))
+(define-peg-rule eol  () :inline t (guard (eolp)))
+(define-peg-rule bow  () :inline t (guard (looking-at "\\<")))
+(define-peg-rule eow  () :inline t (guard (looking-at "\\>")))
+(define-peg-rule bos  () :inline t (guard (looking-at "\\_<")))
+(define-peg-rule eos  () :inline t (guard (looking-at "\\_>")))
+#+end_src
+
+注意它们仅检查而不移动。当 PEX 中存在 =""= 时它会被转换为 =(guard t)= ，表示始终成功匹配：
+
+#+begin_src elisp
+  (peg-normalize "")
+  ;;=> (guard t)
+#+end_src
+
+** 定义并使用 PEX
+
+前面我们看到了可以使用 =with-peg-rules= 创建局部 PEX 绑定，并使用 =peg-run= 配合 =peg= 来使用某条 PEX 在当前 buffer 的 =(point)= 处开始解析。除了 =with-peg-rules= 外我们也可以使用 =define-peg-rule= 或 =define-peg-ruleset= 来创建 PEX 到非终结符号的绑定，前者用于创建单条 PEX 而后者创建 PEX 绑定集合。
+
+*** =peg(-run)=
+
+=peg-run= 接受一个 PEG-MATCHER（也许我们可以叫它 PEG 匹配器）然后使用这个匹配器查找匹配项。从 =peg-run= 的实现来看这个参数需要是一个函数对象或者是函数符号：
+
+#+begin_src elisp
+  (defun peg-run (peg-matcher &optional failure-function success-function)
+    (let ((peg--actions '()) (peg--errors '(-1)))
+      (if (funcall peg-matcher)
+          ;; Found a parse: run the actions collected along the way.
+          (funcall (or success-function #'funcall)
+                   (lambda ()
+                     (save-excursion (peg-postprocess peg--actions))))
+        (goto-char (car peg--errors))
+        (when failure-function
+          (funcall failure-function (peg-merge-errors (cdr peg--errors)))))))
+#+end_src
+
+除了 =peg-matcher= 参数外， =peg-run= 还可以接受两个续体参数： =failure-function= 和 =success-function= ，前者在匹配失败时应用到匹配失败的 PEX；后者在匹配成功时应用到执行所有「解析动作」的 thunk 上（解析动作后文介绍）。默认情况下匹配失败时 =peg-run= 直接返回 =nil= ，匹配成功时直接执行所有的解析动作。下面是一个简单的匹配失败的例子：
+
+#+begin_quote
+If no match was found, move to the (rightmost) point of parse failure
+and call FAILURE-FUNCTION with one argument, which is a list of PEG expressions that failed at this point.
+#+end_quote
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "1112"))
+    (with-peg-rules ((ss (and (+ "1") (eob))))
+      (list (peg-run (peg ss) #'identity)
+  	  (point))))
+  ;;=> ((eob "1") 4)
+#+end_src
+
+在错误处理上 peg.el 的第二个幽默的点来了，由于没有给 =guard= 规则提供 =merge-error= 方法，当提供 =failure-function= 的 =peg-run= 调用失败且失败规则中包含 =(guard E)= 时， =failure-function= 调用并不会执行而是直接由 =peg-run= 抛出错误：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "12"))
+    (with-peg-rules ((ss "1" (opt "2.") (eob)))
+      (list (peg-run (peg ss) #'identity))))
+  ;;=> (error "No merge-error method for: (guard t)")
+#+end_src
+
+这也就是说如果想要通过 =failure-function= 获取一些（不怎么可读的）错误信息，我们最好不要在 PEX 中使用 =guard= 或 =opt= （ =opt= 使用了 =(guard t)= ）。但换一个角度来看这说明 peg.el 作者不希望处理由 =(guard E)= 导致的匹配失败，也许我们能在这个 =E= 上整点花活。（话虽如此，我希望至少把 =(guard t)= 给处理了）
+
+在绑定 PEX 规则到某个非终结符号后，如果我们想要在 =peg-run= 中使用它，我们需要通过 =peg= 这个宏将 PEX 表达式转换为 PEG 匹配器。对于简单 PEX =(and "1" "2")= ，它对应的匹配器函数如下：
+
+#+begin_src elisp
+  (peg "1" "2") ;;=>
+  #[nil ((if t nil pexs)
+         (or (and (or (if (eq (char-after) '49)
+  			(progn (forward-char) t))
+  		    (peg--record-failure '(char 49)))
+  		(or (if (eq (char-after) '50)
+  			(progn (forward-char) t))
+  		    (peg--record-failure '(char 50))))
+  	   (peg--record-failure '(and (char 49) (char 50)))))
+        ((pexs "1" "2")) nil peg-function]
+#+end_src
+
+当 =peg= 的参数是符号（即非终结符号）时，它会简单地为符号添加 =peg-rule<spc>= 前缀，这里的 =<spc>= 是一个空格。这说明在我们创建的非终结符号到 PEX 的绑定中，非终结符号对应的 PEX 的匹配器绑定到了带有此前缀的符号的 function-cell 上（实际情况会更加复杂一点）：
+
+#+begin_src elisp
+  (peg a)
+  ;;=> peg-rule\ a
+  (macroexpand-all '(peg a))
+  ;;=> #'peg-rule\ a
+#+end_src
+
+根据实现可知， =peg= 会为所有的 PEX 默认加上 =and= ：
+
+#+begin_src elisp
+  (defmacro peg (&rest pexs)
+    "Return a PEG-matcher that matches PEXS."
+    (pcase (peg-normalize `(and . ,pexs))
+      (`(call ,name) `#',(peg--rule-id name))
+      (exp `(peg--lambda ',pexs () ,(peg-translate-exp exp)))))
+#+end_src
+
+由于 =peg-run= 直接作用于 buffer，我们可以把 peg-tests.el 中开头的 =peg-parse-string= 稍微改一下来比较方便地直接解析字符串：
+
+#+begin_src elisp
+  (defmacro t-ps (pex string)
+    `(with-temp-buffer
+       (save-excursion (insert ,string))
+       (peg-run (peg (and (bob) ,pex (eob))))))
+#+end_src
+
+我们会在下文多次使用 =t-ps= 这个宏。
+
+*** =define-peg-rule(set)=
+
+相比局部绑定的 =with-peg-rules= ，我们可以使用 =define-peg-rule= 定义全局可见的 PEX 绑定：
+
+#+begin_src elisp
+(define-peg-rule t-digits () (+ [0-9]))
+(define-peg-rule t-float () t-digits "." t-digits)
+(t-ps t-float "1.2") ;;=> t
+#+end_src
+
+通过展开 =define-peg-rule= 表达式可以发现 =peg-rule<spc>name= 被 =defailas= 绑定了匹配器，这也就是说我们在定义规则时实际上影响的是加上前缀的规则名对应的符号（不过我不是很懂为什么要选取空格作为分隔符号，这对补全不是很友好）：
+
+#+begin_src elisp
+  (macroexpand '(define-peg-rule test () "")) ;;=>
+  (progn
+    (defalias 'peg-rule\ test
+      (peg--lambda '("") nil
+        (or t (peg--record-failure '(guard t)))))
+    (eval-and-compile
+      (put 'peg-rule\ test 'peg--rule-definition '(guard t))))
+#+end_src
+
+在编写无参规则（绝大多数规则都是无参的）时很容易漏掉那个空的参数列表，此时会出现 =cl-assert= 错误：
+
+#+begin_src elisp
+  (define-peg-rule test "") ;;=>
+  (cl-assertion-failed (listp args))
+#+end_src
+
+相比 =define-peg-rule= ， =define-peg-ruleset= 可以用来方便地定义多条相关的规则。 =peg-rule<spc>= 加上 =<rulename><spc>= 将作为所有规则名的前缀，比如以下例子：
+
+#+begin_src elisp
+  (define-peg-ruleset test
+    (one () "1") (two () "2")) ;;=>
+  ;;((peg-rule\ two #'peg-rule\ test\ two)
+  ;; (peg-rule\ one #'peg-rule\ test\ one))
+#+end_src
+
+与 =define-peg-rule= 定义的规则不同，使用 =define-peg-ruleset= 定义的 PEX 集合无法直接使用（当然加上前缀就能用，但也许之后前缀的实现方式会变，比如用其他字符代替空格）：
+
+#+begin_src elisp
+  (define-peg-ruleset test (x () "1") (y () x "2"))
+  (t-ps x "1")
+  ;;=> (void-function peg-rule\ x)
+  (with-peg-rules (test)
+    (t-ps (and x y) "112")) ;;=> t
+  (t-ps test\ x "1") ;;=> t
+#+end_src
+
+:expand-define-peg-ruleset:
+#+begin_src elisp
+  (macroexpand '(define-peg-ruleset test (x () "1") (y () x "2"))) ;;=>
+  (progn
+    (progn
+      (defalias 'peg-rule\ test\ y
+        (let ((temp365 '(x "2")))
+  	(let ((pexs temp365))
+  	  (oclosure--fix-type
+  	   (ignore pexs)
+  	   #'(lambda nil (:documentation 'peg-function)
+  	       (if t nil pexs)
+  	       (or (and (or (peg-rule\ test\ x)
+  			    (peg--record-failure '(call x)))
+  			(or (if (eq (char-after) '50)
+  				(progn (forward-char) t))
+  			    (peg--record-failure '(char 50))))
+  		   (peg--record-failure
+  		    '(and (call x) (char 50)))))))))
+      '(and (call x) (char 50)))
+    (progn
+      (defalias 'peg-rule\ test\ x
+        (let ((temp366 '("1")))
+  	(let ((pexs temp366))
+  	  (oclosure--fix-type
+  	   (ignore pexs)
+  	   #'(lambda nil (:documentation 'peg-function)
+  	       (if t nil pexs)
+  	       (or (if (eq (char-after) '49)
+  		       (progn (forward-char) t))
+  		   (peg--record-failure '(char 49))))))))
+      '(char 49))
+    '((peg-rule\ y #'peg-rule\ test\ y)
+      (peg-rule\ x #'peg-rule\ test\ x)))
+#+end_src
+:end:
+
+从 =define-peg-ruleset= 的这种实现方式来看，它需要与 =with-peg-rules= 配合使用。
+
+*** =with-peg-rules=
+
+就像我们所展示的， =with-peg-rules= 可以用来创建多条 PEX 绑定，而且也可以用于引入某条 =peg-ruleset= ：
+
+#+begin_src elisp
+  ;; You can define a set of rules for later use with:
+  (define-peg-ruleset myrules
+    (sign  () (or "+" "-" ""))
+    (digit () [0-9])
+    (nat   () digit (* digit))
+    (int   () sign digit (* digit))
+    (float () int "." nat))
+  ;; and later refer to it:
+  (with-temp-buffer
+    (save-excursion (insert "1,2,1.0+i2.0"))
+    (with-peg-rules
+        (myrules
+         (complex float "+i" float))
+      (peg-parse nat "," nat "," complex)))
+  ;;=> t
+#+end_src
+
+当两个不同的 ruleset 中存在同名 PEX 时会出现什么结果呢？从测试结果来看是规则列表前面的优先级更高：
+
+#+begin_src elisp
+  (define-peg-ruleset t-coll
+    (one () "1") (two () "2") (three () "3"))
+  (define-peg-ruleset t-coll2
+    (one () "１") (two () "２") (three () "３"))
+
+  (with-peg-rules (t-coll2 t-coll)
+    (t-ps one "１")) ;;=> t
+  (with-peg-rules (t-coll2 t-coll)
+    (t-ps one "1")) ;;=> nil
+#+end_src
+
+*** =peg-parse=
+
+最后需要说一下的是 =peg-parse= ，它是对 =with-peg-rules=, =peg-run= 和 =peg= 的包装。当它的第一个参数是类似 =with-peg-rules= 中的 PEX 绑定表达式时， =peg-parse= 会将它和剩余的参数放到 =with-peg-rules= 中并使用 =peg-run= 和 =peg= 尝试匹配第一个规则；当第一个参数是个规则名时，所有的参数将通过 =and= 组合得到一个 PEX 然后进行匹配。以下例子可以说明这两种用法：
+
+#+begin_src elisp
+  ;; 1
+  (define-peg-rule digit () [0-9])
+  (with-temp-buffer
+    (save-excursion (insert "+3"))
+    (peg-parse (number sign digit (* digit))
+  	     (sign   (or "+" "-" "")))) ;;=> t
+  ;; 2
+  (with-temp-buffer
+    (save-excursion (insert "1.2"))
+    (peg-parse digit "." digit)) ;;=> t
+#+end_src
+
+这是它的定义，可见它对这两种情况做了分别处理：
+
+#+begin_src elisp
+  (defmacro peg-parse (&rest pexs)
+    (if (and (consp (car pexs))
+             (symbolp (caar pexs))
+             (not (ignore-errors
+                    (not (eq 'call (car (peg-normalize (car pexs))))))))
+        `(with-peg-rules ,pexs (peg-run (peg ,(caar pexs)) #'peg-signal-failure))
+      `(peg-run (peg ,@pexs) #'peg-signal-failure)))
+#+end_src
+
+=peg-parse= 比较幽默的地方在于它的 =docstring= 只对第二种用法给出了说明，而我们在 info 文档和 peg.el 的注释中分别能找到第一和第二种用法。如果你没有同时看过 info 和注释你很可能不会了解到它的全部用法。
+
+#+begin_quote
+Once defined, grammars can be used to parse text after point in the
+current buffer, in a number of ways.  The ‘peg-parse’ macro is the
+simplest:
+
+#+begin_src text
+  -- Macro: peg-parse &rest pexs
+      Match PEXS at point.
+
+       (peg-parse
+         (number sign digit (* digit))
+         (sign   (or "+" "-" ""))
+         (digit  [0-9]))
+#+end_src
+
+--- info
+
+#+begin_src text
+;; and later refer to it:
+;;
+;;     (with-peg-rules
+;;         (myrules
+;;          (complex float "+i" float))
+;;       ... (peg-parse nat "," nat "," complex) ...)
+#+end_src
+
+--- comments in peg.el
+
+#+begin_src elisp
+  (defmacro peg-parse (&rest pexs)
+    "Match PEXS at point.
+  PEXS is a sequence of PEG expressions, implicitly combined with `and'.
+  Returns STACK if the match succeed and signals an error on failure,
+  moving point along the way."
+    ...)
+#+end_src
+
+--- docstring
+#+end_quote
+
+与 =peg-run= 不同， =peg-parse= 在失败是会使用 =peg-signal-failure= 引发解析错误，而不是返回空值。
+
+*** 带参数的 PEX 绑定
+
+当在不同的地方需要匹配类似的输入且规则高度相似时，我们可以像做函数抽象一样提取公共部分然后把剩余部分当作参数，这就是带参数的规则：
+
+#+begin_src elisp
+  (define-peg-rule two+ (rule)
+    (funcall rule)
+    (+ (funcall rule)))
+  (define-peg-rule float ()
+    (+ [digit]) "." (two+ (peg [digit])))
+  (t-ps float "1.2") ;;=> nil
+  (t-ps float "1.23") ;;=> t
+#+end_src
+
+在定义带参数的规则时，需要使用 =funcall= 来使用参数规则；在使用带参数的规则时，它要位于调用者位置，接受的参数需要是 PEG 匹配器，因此要记住加上 =peg= 。当然我们直接指定匹配器的函数名也不是不行：
+
+#+begin_src elisp
+  (define-peg-rule d () [digit])
+  (t-ps (and (+ d) "." (two+ #'peg-rule\ d)) "1.23")
+  ;;=> t
+#+end_src
+
+本小节更严谨的标题应该是“带参数的 PEX 匹配器”，但由 PEX 得到具体匹配器的公开 API 只有 =peg=, =define-peg-rule(set)= 而且 =peg= 还只能用于无参 PEX，直接写成现在的标题也没什么太大的问题。读者可以自己去玩玩 =peg--lambda=, =peg-translate-exp= 等内部函数。
+
+目前为止，我们已经介绍了几乎所有可能用到的 peg 函数和宏，它们分别是：
+
+- =peg= ，将 PEX 表达式转换为 PEG-MATCHER 匹配函数
+- =peg-run= ，接受 PEG-MATCHER 并在当前 point 开始匹配
+- =define-peg-rule= ，定义新的 PEG 规则
+- =define-peg-ruleset= ，定义新的 PEG 规则集合
+- =with-peg-rules= ，创建局部规则或使用规则集合
+- =peg-parse= ， =peg-run= 的简化版
+
+但光是解析只能判断输入是否符合语法，为了得到语法树或者是其他一些有用的产物，在解析过程中还需要一些副作用，或者说一些解析动作。
+
+** 解析时动作
+
+在 PEX 的 *任意位置* 我们都可以插入「解析动作」，并在一个解析栈上下文中执行任意代码，解析栈可以用来存放解析过程中的结果。动作使用形如 =`(x1 x2 ... -- e1 e2)= 的列表，其中 =x1, x2= “弹出”解析栈中的值并绑定到这些变量上， =e1, e2= 表达式的值会被压入解析栈中：
+
+#+begin_src elisp
+  (t-ps (and (any) `(-- 1) `(-- 2)) ".")
+  ;;=> (2 1)
+  (t-ps (and (any) `(-- 1 2)) ".")
+  ;;=> (2 1)
+  (t-ps (* `(-- (point)) (+ [digit]) `(-- (point))
+  		`(p1 p2 -- (buffer-substring p1 p2))
+  		(or (eob) (+ " ")))
+  	     "1 2 3")
+  ;;=> ("3" "2" "1")
+#+end_src
+
+我们可以发现当匹配成功时会直接返回解析栈，而且栈中元素的顺序与压栈顺序一致。（PUSH 对应 =(cons value list)=, POP 对应 =(cdr list)= ）。需要注意的是动作仅在某个规则完成匹配后才会被执行，也就是说部分匹配不会导致动作的执行：（顺带一提，当栈空时，取栈的动作会取到空值）
+
+#+begin_src elisp
+  (t-ps (and "1" `(-- (print 'no-output)) "2") "1")
+  ;;=> no output
+  (t-ps (and "1" `(-- (print 'no-output)) "2") "12")
+  ;;=> print no-output and return list (no-output)
+  (t-ps (and "1" `(--) "2") "12")
+  ;;=> t
+  ;; `(--) means nop
+  (let (res)
+    (t-ps (and (null) `(a -- (push a res)) `(_ --)) "")
+    res)
+  ;;=> (nil)
+#+end_src
+
+栈操作好用是好用，但为了获取某个匹配的子串难道我们每次都要写上几个动作吗？有没有什么更加简单的方法？有的兄弟，有的，peg.el 提供了四种最常见的栈操作，它们分别是：
+
+- =substring= ，将匹配的字符串压栈
+- =region= ，将匹配的区域的起点和终点 point 压栈
+- =replace= ，将匹配的内容替换为给定的字符串
+- =list= ，将所有匹配的项收集到一个列表中，将列表压栈
+
+虽然不是必要的，不过下面我还是会给出这些操作的实现方式，读者可以在 peg.el 中找到它们，然后尝试定义自己的动作函数。所有的动作都会展开为 =(action ...)= 的形式（这也包括 =stack-action= ），也许有必要的时候我们也能定义自己的动作：
+
+#+begin_src elisp
+  (peg-normalize '`(--))
+  ;;=> (action (let nil nil))
+  (peg-normalize '`(a -- b))
+  ;;=> (action (let ((a (pop peg--stack))) (push b peg--stack)))
+  (peg-normalize '(stack-action (a -- b)))
+  ;;=> (action (let ((a (pop peg--stack))) (push b peg--stack)))
+#+end_src
+
+*** =substring=
+
+=substring= 应该是最常用的动作了，没有之一，它可以把匹配的字符串压入栈中，然后交给其余的动作完成后续处理。比如下面这个匹配数字的规则：
+
+#+begin_src elisp
+  (define-peg-rule t--number ()
+    (substring
+     (opt ["+-"])
+     (or (and (+ [digit]) "." (+ [digit]))
+         (+ [digit])
+         (and "." (+ [digit])))
+     (opt ["eE"] (opt ["+-"]) (+ [digit]))))
+  (t-ps (and t--number `(n -- (string-to-number n))) "+1e2")
+  ;;=> (100.0)
+#+end_src
+
+=substring= 的实现如下，可见就是在原始 PEX 两边获取 =(point)= 然后得到区间内的内容：
+
+#+begin_src elisp
+  (cl-defmethod peg--macroexpand ((_ (eql substring)) &rest args)
+    (peg-normalize
+     `(and `(-- (point))
+  	 ,@args
+  	 `(start -- (buffer-substring-no-properties start (point))))))
+#+end_src
+
+由于实现方式， =substring= 并不允许嵌套，除非我们换种思路：
+
+#+begin_src elisp
+  (t-ps
+   (substring (substring (substring (substring "a")
+  				  `(a b -- b a))
+  		       `(a b c -- c b a))
+  	    `(a b c d -- d c b a))
+   "a")
+  ;;=> ("a" "a" "a" "a")
+
+  (t-ps
+   (and (substring (substring (substring "a")
+  			    "b"
+  			    `(a b -- b a))
+  		 "c"
+  		 `(a b c -- c b a))
+        `(a b c -- b a c))
+   "abc")
+  ;;=> ("abc" "ab" "a")
+#+end_src
+
+*** =region=
+
+=region= 可以看作更加通用的 =substring= ，因为它把对区间的具体操作留给了我们，而不是直接返回区间内的字符串，但我基本上没有使用过它。下面是来自 peg-tests.el 的唯二两个 =region= 的例子，只能说很好地展示了解析栈的工作原理......
+
+#+begin_src elisp
+  (t-ps (region (* "x" `(-- 'x))) "xxx")
+  ;;=> (4 x x x 1)
+  (t-ps (region (* "x" `(-- 'x 'y))) "xxx")
+  ;;=> (4 y x y x y x 1)
+  (t-ps (region (list (* "x" `(-- 'x 'y)))) "xxx")
+  ;;=> (4 (x y x y x y) 1)
+#+end_src
+
+这是它的实现，非常简单明了：
+
+#+begin_src elisp
+  (cl-defmethod peg--macroexpand ((_ (eql region)) &rest args)
+    (peg-normalize
+     `(and `(-- (point))
+  	 ,@args
+  	 `(-- (point)))))
+#+end_src
+
+*** =replace=
+
+使用 =(replace E REPLACEMENT)= 可以将匹配的内容替换为给定的字符串。peg-tests.el 给出的唯一例子如下：
+
+#+begin_src elisp
+  (t-ps
+   (substring "a" (replace "bc" "x") (replace "de" "y") "f")
+   "abcdef")
+  ;;=> ("axyf")
+#+end_src
+
+看来写测试的作者是整不出什么花活了，这里我来提供一个稍微实用一点的例子。在 [[https://www.w3.org/TR/css-syntax-3/][CSS Syntax level 3]] 文档中对转义字符的描述如下：
+
+[[./1.png]]
+
+对此我可以写出这样的 PEX：
+
+#+begin_src elisp
+  (define-peg-rule t--nl  () (or "\n" "\r\n" "\r" "\f"))
+  (define-peg-rule t--ws  () (or [" \t"] t--nl))
+  (define-peg-rule t--hex () [0-9 a-f A-F])
+  (define-peg-rule t--es0 ()
+    "\\" (or (and (not (or t--hex t--nl)) (any))
+  	   (and t--hex (opt t--hex) (opt t--hex)
+  		(opt t--hex) (opt t--hex) (opt t--hex)
+  		(opt t--ws))))
+  (t-ps t--es0 "\\n")
+  ;;=> t
+#+end_src
+
+如果某个转义字符的末尾带有空白字符，但我希望解析结果得到的是标准化的转义字符，即最后的空白字符仅为 =SPACE= ，一种做法是使用 =substring= 得到字符串然后处理最后空白。但如果转义字符仅仅想要作为标识符的一部分出现，想要在获取标识符字符串整体时还让里面的转义字符标准化就有点麻烦了。一种可能的解决方法是对所有字符压栈然后组合到一起（下一小节会介绍 =list= ）：
+
+#+begin_src elisp
+  (define-peg-rule t--ident ()
+    (list (+ (or (substring (+ [alnum]))
+  	       (and (substring t--es0)
+  		    `(s
+  		      --
+  		      (let ((s1 (string-trim
+  				 s nil "[\t\n\r\f]+")))
+  			(if (string= s1 s) s
+  			  (concat s1 " "))))))))
+    `(ls -- (mapconcat #'identity ls)))
+#+end_src
+
+使用 =replace= 直接替换空白字符为空格也许更加直接一点，唯一的问题是会修改 buffer：
+
+#+begin_src elisp
+  (define-peg-rule t--es ()
+    "\\" (or (and (not (or t--hex t--nl)) (any))
+  	   (and t--hex (opt t--hex) (opt t--hex)
+  		(opt t--hex) (opt t--hex) (opt t--hex)
+  		(opt (replace t--ws " ")))))
+  (define-peg-rule t--ident ()
+    (substring (* (or (+ [alnum]) t--es))))
+  (t-ps (substring t--es) "\\ff\n")
+  ;;=> ("\\ff ")
+  (t-ps t--ident "hello\\1 \\2\n\\3\t")
+  ;;=> ("hello\\1 \\2 \\3 ")
+#+end_src
+
+这是 =replace= 的实现，可见和 =substring= 一样本质上是对 =region= 的扩展：
+
+#+begin_src elisp
+  (cl-defmethod peg--macroexpand ((_ (eql replace)) pe replacement)
+    (peg-normalize
+     `(and (stack-action (-- (point)))
+  	 ,pe
+  	 (stack-action (start -- (progn
+  				   (delete-region start (point))
+  				   (insert-before-markers ,replacement))))
+  	 (stack-action (_ --)))))
+#+end_src
+
+*** =list=
+
+在 info 中， =(list E)= 的描述如下：
+
+#+begin_quote
+Match E, collect all values produced by E (and its sub-expressions) into a list, and push that list onto the stack.  Stack values are typically returned as a flat list; this is a way of "grouping" values together.
+#+end_quote
+
+=list= 非常适合用来处理带有 =+= 或 =*= 的 PEX 规则，如果我有一个规则是一个属性对应多个可能的值（比如 CSS 的声明或 HTML 的属性），仅用 =substring= 不能让我们知道有多少个值被压入了解析栈，而 =list= 可以将这些值打包到一个列表中：
+
+#+begin_src elisp
+  (define-peg-rule t--class ()
+    "class=\"" (list (substring t--ident)
+  		   (* (+ " ") (substring t--ident)))
+    "\"")
+  (define-peg-rule t--ident () [0-9 A-Z a-z])
+
+  (t-ps t--class "class=\"a b c\"")
+  ;;=> (("a" "b" "c"))
+#+end_src
+
+既然我们都返回栈了，等到解析结束后分析栈也不迟，但如果这并不是唯一需要匹配的 PEX 规则且栈上还有其他内容时，这样的打包就很重要了。我们也可以注意到列表中的元素的顺序与原始字符串中 token 的顺序一致。这也意味着如果我们 *合理* 使用 =list= ，最后返回的解析栈将与原解析字符串的顺序保持一致。
+
+=list= 还可以用在 =*= 或 =opt= 上来保证即使它们想要匹配的内容不存在也向栈中压入 =(nil)= 从而维持“栈平衡”。某些动作要求栈上存在特定数量的值，如果数量对不上可能会破坏其他匹配。下面是一个利用此方法的简单例子：
+
+#+begin_src elisp
+  (define-peg-rule t-decl ()
+    (substring t--ident) (* " ") ":" (* " ") (substring t--ident)
+    (* " ") (list (opt (substring "!imp")))
+    `(name prop imp --
+  	 (list 'decl name prop (if (null (car imp)) nil t))))
+
+  (t-ps t-decl "a:b !imp")
+  ;;=> ((decl "a" "b" t))
+  (t-ps t-decl "a:b ")
+  ;;=> ((decl "a" "b" nil))
+#+end_src
+
+当然，对于上面的特定例子，把 =substring= 放在 =opt= 外面是更好的做法，或者是使用 =or= 来模拟 =if-else= ：
+
+#+begin_src elisp
+  (define-peg-rule t-decl2 ()
+    (substring t--ident) (* " ") ":" (* " ") (substring t--ident)
+    (* " ") (substring (opt "!imp"))
+    `(name prop imp --
+  	 (list 'decl name prop (if (string= imp "") nil t))))
+
+  (define-peg-rule t-decl3 ()
+    (substring t--ident) (* " ") ":" (* " ") (substring t--ident)
+    (* " ") (or (and "!imp" `(-- 'yes))
+  	      `(-- 'no))
+    `(name prop imp --
+  	 (list 'decl name prop (if (eq imp 'yes) t nil))))
+#+end_src
+
+这是 =list= 的实现，其中 =make-symbol= 返回的 marker 起到了确定 =list= 捕获在解析栈中的开始位置的作用：
+
+#+begin_src elisp
+  (cl-defmethod peg--macroexpand ((_ (eql list)) &rest args)
+    (peg-normalize
+     (let ((marker (make-symbol "magic-marker")))
+       `(and (stack-action (-- ',marker))
+  	   ,@args
+  	   (stack-action (--
+  			  (let ((l '()))
+  			    (while
+  				(let ((e (pop peg--stack)))
+  				  (cond ((eq e ',marker) nil)
+  					((null peg--stack)
+  					 (error "No marker on stack"))
+  					(t (push e l) t))))
+  			    l)))))))
+#+end_src
+
+** 一些例子
+
+*** 允许嵌套的 =/**/= 注释
+
+总所周知 C 语言支持 =/* xxx */= 形式的注释还不允许嵌套，这就让我们可以使用这样的正则来匹配（顺带一提，Emacs 30.1 的 =(info "(elisp)Rx Notation")= 给的 C 语言注释匹配的正则表示是错误的：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-03/msg00381.html][bug#76731: C-style comment regexp example in (info "(elisp)Rx Notation") is not correct]]）：
+
+#+begin_src elisp
+  (rx "/*"
+      (zero-or-more
+       (or (not "*")
+  	 (seq (one-or-more "*")
+  	      (not (or "*" "/")))))
+      (one-or-more "*")
+      "/") ;;=>
+  "/\\*\\(?:[^*]\\|\\*+[^*/]\\)*\\*+/"
+#+end_src
+
+除了使用正则外，我们也能使用以下 PEX 匹配注释：
+
+#+begin_src elisp
+  (define-peg-rule t--cmt () "/*" (* (not "*/") (any)) "*/")
+  (and (t-ps t--cmt "/****/")
+       (t-ps t--cmt "/* 123 */")
+       (t-ps t--cmt "/* /* /* */"))
+  ;;=> t
+#+end_src
+
+一些比较新式的语言（比如 Rust）还支持嵌套注释，正则表达式是处理不了嵌套结构的，不过 PEG 可以：
+
+#+begin_src elisp
+  (define-peg-rule t--ncmt ()
+    "/*" (* (or (and (if "/*") t--cmt)
+  	      (and (not "*/") (any))))
+    "*/")
+  (t-ps t--cmt "/* out /* in */ out */") ;;=> nil
+  (t-ps t--ncmt "/* out /* in */ out */") ;;=> t
+#+end_src
+
+*** 四则运算解释器
+
+在 peg-test.el 中 =peg-ex-arith= 可以用来解析数字的加减乘除运算，还可以使用括号，这里简单修改一下让它可以直接用于字符串：
+
+#+begin_src elisp
+  (defun t-arith (str)
+    (with-temp-buffer
+      (save-excursion (insert str) (insert "\n"))
+      (peg-parse
+       (expr _ sum eol)
+       (sum product (* (or (and "+" _ product `(a b -- (+ a b)))
+  			 (and "-" _ product `(a b -- (- a b))))))
+       (product value (* (or (and "*" _ value `(a b -- (* a b)))
+  			   (and "/" _ value `(a b -- (/ a b))))))
+       (value (or (and (substring number) `(string -- (string-to-number string)))
+  		(and "(" _ sum ")" _)))
+       (number (+ [0-9]) _)
+       (_ (* [" \t"]))
+       (eol (or "\n" "\r\n" "\r")))))
+  (t-arith "2 * 1847 * 31") ;;=> (114514)
+  (t-arith "(1 + 2) * 3") ;;=> (9)
+  (t-arith "(1 / 0)") ;;=> arith-error
+#+end_src
+
+*** 解析 S 表达式
+
+peg-test.el 中还有个比较简单的 S 表达式解析器：
+
+#+begin_src elisp
+  ;; Parse a lisp style Sexp.
+  ;; [To keep the example short, ' and . are handled as ordinary symbol.]
+  (defun t-lisp (str)
+    (with-temp-buffer
+      (save-excursion (insert str))
+      (peg-parse
+       (sexp _ (or string list number symbol))
+       (_ (* (or [" \n\t"] comment)))
+       (comment ";" (* (not (or "\n" (eob))) (any)))
+       (string "\"" (substring  (* (not "\"") (any))) "\"")
+       (number (substring (opt (set "+-")) (+ digit))
+  	     (if terminating)
+  	     `(string -- (string-to-number string)))
+       (symbol (substring (and symchar (* (not terminating) symchar)))
+  	     `(s -- (intern s)))
+       (symchar [a-z A-Z 0-9 "-;!#%&'*+,./:;<=>?@[]^_`{|}~"])
+       (list "("		`(-- (cons nil nil)) `(hd -- hd hd)
+  	   (* sexp	`(tl e -- (setcdr tl (list e))))
+  	   _ ")"	`(hd _tl -- (cdr hd)))
+       (digit [0-9])
+       (terminating (or (set " \n\t();\"'") (eob))))))
+
+  (equal (car (t-lisp "(+ 1 (+ 2 3))"))
+         (read "(+ 1 (+ 2 3))"))
+  ;;=> t
+#+end_src
+
+在 peg-tests.el 中最复杂的例子是解析 URI，有点太长了这里就不放了。
+
+*** 解析 JSON
+
+JSON 也是一种非常简单的语言（就像 Lisp 一样），写个 JSON 解析器基本上能算是新手村任务了，随手一搜都能找到几个：[[https://github.com/Ben-Brady/json-peg-parser/][Ben-Brady/json-peg-parser]], [[https://github.com/DremyGit/peg-json-parser][DremyGit/peg-json-parser]]。这里我们参考某份 JSON 的 [[https://github.com/Ben-Brady/json-peg-parser/blob/master/src/grammar/json.pest][PEG 规范]]和正经的 [[https://www.json.org/json-en.html][JSON Spec]] 可以这样使用 peg.el 实现 JSON Parser：
+
+#+begin_src elisp
+  (define-peg-rule j-ws () (* [" \n\r\t"]))
+  (define-peg-rule j-ds () (or "0" (and [1-9] (* [0-9]))))
+  (define-peg-rule j-int () (opt "-") j-ds)
+  (define-peg-rule j-num ()
+    (substring j-int (opt "." j-ds) (opt ["Ee"] (opt ["+-"]) (+ [digit])))
+    `(s -- (list 'num s)))
+  (define-peg-rule j-hex () [xdigit])
+  (define-peg-rule j-escape ()
+    "\\" (or ["\"\\/bfnrt"] (and "u" j-hex j-hex j-hex j-hex)))
+  (define-peg-rule j-char ()
+    (or (and (if (range #x20 #x10ffff))
+  	   (not ["\"\\"]) (any))
+        j-escape))
+  (define-peg-rule j-str ()
+    "\"" (substring (* j-char)) "\""
+    `(s -- (list 'str s)))
+  (define-peg-rule j-ele () j-ws j-value j-ws)
+  (define-peg-rule j-eles () j-ele (* "," j-ele))
+  (define-peg-rule j-arr ()
+    "[" (list (or j-eles j-ws)) "]"
+    `(ls -- (list 'arr ls)))
+  (define-peg-rule j-mem ()
+    j-ws j-str j-ws ":" j-ele
+    `(s e -- (cons (cadr s) e)))
+  (define-peg-rule j-mems () j-mem (* "," j-mem))
+  (define-peg-rule j-obj ()
+    "{" (list (or j-mems j-ws)) "}"
+    `(ls -- (list 'obj ls)))
+  (define-peg-rule j-value ()
+    (or j-obj j-arr j-str j-num
+        (and "true" `(-- 'true))
+        (and "false" `(-- 'false))
+        (and "null" `(-- 'null))))
+  (define-peg-rule j-json () j-ele)
+#+end_src
+
+虽然写完了不过我没有进行足够的测试，这里简单从网上搞了一段 JSON 测一测：
+
+#+begin_src js
+  [{
+      "id": 1,
+      "first_name": "Jeanette",
+      "last_name": "Penddreth",
+      "email": "jpenddreth0@census.gov",
+      "gender": "Female",
+      "ip_address": "26.58.193.2"
+  }, {
+      "id": 2,
+      "first_name": "Giavani",
+      "last_name": "Frediani",
+      "email": "gfrediani1@senate.gov",
+      "gender": "Male",
+      "ip_address": "229.179.4.212"
+  }, {
+      "id": 3,
+      "first_name": "Noell",
+      "last_name": "Bea",
+      "email": "nbea2@imageshack.us",
+      "gender": "Female",
+      "ip_address": "180.66.162.255"
+  }, {
+      "id": 4,
+      "first_name": "Willard",
+      "last_name": "Valek",
+      "email": "wvalek3@vk.com",
+      "gender": "Male",
+      "ip_address": "67.76.188.26"
+  }]
+#+end_src
+
+将以上 JSON 写入某 buffer 并将光标移至开头调用 =(peg-run (peg j-json))= 可以得到如下结果：
+
+#+begin_src elisp
+  ((arr
+    ((obj
+      (("id" num "1") ("first_name" str "Jeanette")
+       ("last_name" str "Penddreth")
+       ("email" str "jpenddreth0@census.gov") ("gender" str "Female")
+       ("ip_address" str "26.58.193.2")))
+     (obj
+      (("id" num "2") ("first_name" str "Giavani")
+       ("last_name" str "Frediani") ("email" str "gfrediani1@senate.gov")
+       ("gender" str "Male") ("ip_address" str "229.179.4.212")))
+     (obj
+      (("id" num "3") ("first_name" str "Noell") ("last_name" str "Bea")
+       ("email" str "nbea2@imageshack.us") ("gender" str "Female")
+       ("ip_address" str "180.66.162.255")))
+     (obj
+      (("id" num "4") ("first_name" str "Willard")
+       ("last_name" str "Valek") ("email" str "wvalek3@vk.com")
+       ("gender" str "Male") ("ip_address" str "67.76.188.26"))))))
+#+end_src
+
+** 常见错误与问题
+
+上面我已经提到了三个十分幽默的问题，这里再结合一下我实际使用的体验说说。
+
+*** 带顺序的 =|=
+
+如果写惯了 CFG 这是个需要认真对待的问题，PEG 中的 =|= （在 peg.el 里面对应 =or= ）会先从第一项开始匹配直到找到匹配的项，这意味着如果你把一些本该低优先级的项放在前面会导致意想不到的效果。就拿上面的 JSON 解析器来说，尝试调换一下 =j-arr= 中 =j-eles= 和 =j-ws= 的顺序：
+
+#+begin_src elisp
+  (define-peg-rule j-arr ()
+    "[" (list (or j-eles j-ws)) "]"
+    `(ls -- (list 'arr ls)))
+  (t-ps j-arr "[1]")
+  ;;=> ((arr ((num "1"))))
+  (define-peg-rule j-arr ()
+    "[" (list (or j-ws j-eles)) "]" ;; change!
+    `(ls -- (list 'arr ls)))
+  (t-ps j-arr "[1]")
+  ;;=> nil
+#+end_src
+
+由于 =j-ws= 中包含了可能为空的情况，它会“吃掉”所有字符直到 buffer 的末尾：
+
+#+begin_src elisp
+  (define-peg-rule j-ws () (* [" \n\r\t"]))
+#+end_src
+
+别问我是怎么知道的。
+
+*** 再说 =define-peg-rule=
+
+当我们忘了写 =define-peg-rule= 的参数列表时，最简单的情况是绑定了较为简单的 PEG：
+
+#+begin_src elisp
+  (define-peg-rule foo bar)
+  ;;=> Debugger entered--Lisp error: (cl-assertion-failed (listp args))
+#+end_src
+
+但一旦规则复杂起来之后，报错可能就不那么直观了：
+
+#+begin_src elisp
+  (define-peg-rule foo1 (* "a"))
+  ;;=> (wrong-type-argument symbolp "a")
+  (define-peg-rule foo2 (and (bol) rule (eol)))
+  ;;=> (wrong-type-argument symbolp (bol))
+#+end_src
+
+甚至根本就没有报错，这是写错之后最难找出来的情况：
+
+#+begin_src elisp
+  (define-peg-rule foo (bob) rule (eob))
+  ;;=> (and (call rule) (call eob))
+#+end_src
+
+也许最好的方法是定义一个新的 =define-peg-rule0= 来定义无参规则绑定。
+
+*** =peg-parse= 与带参 PEX
+
+上面我们也提到 =peg-parse= 是对 =with-peg-rules=, =peg= 和 =peg-run= 的简单包装，尤其是当第一个元素是类似 =with-peg-rules= 中的 PEX 绑定时。某天你心血来潮想着测试一下带参数的 PEX 规则，然后觉得 =peg-parse= 用起来很方便，于是：
+
+#+begin_src elisp
+  (define-peg-rule foo (x)
+    (funcall x) (funcall x))
+
+  (with-temp-buffer
+    (save-excursion (insert "  "))
+    (peg-parse (foo (peg " "))))
+  ;;=> (void-function peg-rule\ peg)
+#+end_src
+
+欸，怎么不行，加上 =peg= 试试：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "  "))
+    (peg-parse (peg (foo (peg " ")))))
+#+end_src
+
+你可能会疑惑 =peg-parse= 为什么也要 =peg= 了？实际上下面这两种写法也是可以的：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "  "))
+    (peg-parse (_ (foo (peg " ")))))
+  ;;=> t
+  (with-temp-buffer
+    (save-excursion (insert "  "))
+    (peg-parse "" (foo (peg " "))))
+  ;;=> t
+#+end_src
+
+出现这一切的原因都是 =peg-parse= 对第一个参数的特殊处理，就像我们上面介绍的那样。本文之所以会有这一段当然是[[https://emacs-china.org/t/emacs30-peg/29023/19][我碰到了]]。
+
+*** 贪婪匹配
+
+在 =(info "(elisp)Writing PEG Rules")= 中作者也提到了 =*+= 的贪婪匹配问题：
+
+#+begin_quote
+Something to be aware of when writing PEG rules is that they are greedy.
+Rules which can consume a variable amount of text will always consume
+the maximum amount possible, even if that causes a rule that might
+otherwise have matched to fail later on - there is no backtracking.
+#+end_quote
+
+举例来说，如果我们想要匹配 C 语言中的块注释，以下代码是不行的：
+
+#+begin_src elisp
+  (define-peg-rule comm () "/*" (any) "*/")
+#+end_src
+
+=(any)= 会“吃掉”所有字符直到 buffer 末尾，然后因为没有匹配到 ="*/"= 而失败。为了解决这个问题就需要使用 =if=, =not= 或 =guard= 来判断是否达到了终结条件：
+
+#+begin_src elisp
+  (define-peg-rule t--cmt () "/*" (* (not "*/") (any)) "*/")
+#+end_src
+
+#+begin_quote
+In these situations, the desired result can be obtained by using
+predicates and guards - namely the ‘not’, ‘if’ and ‘guard’ expressions -
+to constrain behavior.
+#+end_quote
+
+*** 过早结束
+
+#+begin_quote
+Another potentially unexpected behavior is that parsing will move
+point as far as possible, even if the parsing ultimately fails.  This
+rule:
+#+begin_src elisp
+  (end-game "game" (eob))
+#+end_src
+when run in a buffer containing the text "game over" after point, will
+move point to just after "game" then halt parsing, returning ‘nil’.
+Successful parsing will always return ‘t’, or the contexts of the
+parsing stack.
+#+end_quote
+
+从这段文档来看作者想要说的是可能会因为添加 =eob= 而导致本应该成功的匹配失败。不过在此之外我想说的是如果我们不添加必要的 =eob= 可能会导致即使部分匹配也会成功，这在如果我们想要确保整个 buffer 正确性的时候是个大问题：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "  "))
+    (peg-run (peg "  ")))
+  ;;=> t
+  (with-temp-buffer
+    (save-excursion (insert "   ")) ;; three " "
+    (peg-run (peg "  ")))
+  ;;=> t
+  (with-temp-buffer
+    (save-excursion (insert "   ")) ;; three " "
+    (peg-run (peg "  " (eob))))
+  ;;=> nil, the expected result
+#+end_src
+
+
+* 整活时间
+
+正如我们所看到的， =peg-run= 就是在特定环境下执行 PEG 匹配器而已，某个匹配器可由多个匹配器组合得到。 =guard= 为我们提供的灵活性以及匹配器本身作为函数的灵活性在 info 和注释中并没有体现出来，这里让我们来简单玩玩。
+
+*** ={M, N}=
+
+某些正则（不包括 Elisp）会提供 ={M, N}= 量词来匹配 =M= 到 =N= 个对象，peg.el 的注释提供了一个简单的例子：
+
+#+begin_src elisp
+  ;;     (define-peg-rule 2-or-more (peg)
+  ;;       (funcall peg)
+  ;;       (funcall peg)
+  ;;       (* (funcall peg)))
+  ;;
+  ;;     ... (peg-parse
+  ;;          ...
+  ;;          (2-or-more (peg foo))
+  ;;          ...
+  ;;          (2-or-more (peg bar))
+  ;;          ...)
+#+end_src
+
+但显然这是不够灵活的，借用 =guard= 我们可以这样实现 ={M,N}= ：
+
+#+begin_src elisp
+  (define-peg-rule Qu (rule m n)
+    (guard
+     (let ((cnt 0))
+       (while (and (< cnt n) (funcall rule))
+         (cl-incf cnt))
+       (if (<= m cnt n) t nil))))
+
+  (t-ps (Qu (peg " ") 1 2) " ") ;;=> t
+  (t-ps (Qu (peg " ") 1 2) "  ") ;;=> t
+  (t-ps (Qu (peg " ") 1 2) "   ") ;;=> nil
+#+end_src
+
+如果想要实现为判断而不是匹配，我们可以用 =save-excursion= 。
+
+*** {a^{n}b^{n}c^{n}}
+
+[[https://en.wikipedia.org/wiki/Parsing_expression_grammar#Compared_to_context-free_grammars][维基]]中提到 PEG 可以表达某些 CFG 可能表示不了的语言，比如 \(\{a^nb^nc^n\}_{n\ge0}\)，PEG 表示如下：
+
+#+begin_src text
+  S ← &(A 'c') 'a'+ B !.
+  A ← 'a' A? 'b'
+  B ← 'b' B? 'c'
+#+end_src
+
+peg.el 的对应实现如下：
+
+#+begin_src elisp
+  (define-peg-rule A () "a" (opt A) "b")
+  (define-peg-rule B () "b" (opt B) "c")
+  (t-ps A "aabb") ;;=> t
+  (t-ps B "bbbbbbcccccc") ;;=> t
+  (define-peg-rule C () (if (and A "c")) (+ "a") B (eob))
+  (t-ps C "aabbcc") ;;=> t
+  (t-ps C "aaabbbccc") ;;=> t
+  (t-ps C "abcc") ;;=> nil
+#+end_src
+
+这个公式解释起来倒是很容易，规则 =A= 和 =B= 分别匹配相同数量的 =ab= 和 =bc= ，规则 =C= 首先确认有相同数量的 =a= =b= 并尾随 =c= ，然后吃掉所有的 =a= 并尝试匹配规则 =B= 。用 Elisp 来解有点作弊了属于是：
+
+#+begin_src elisp
+  (define-peg-rule C1 ()
+    (guard
+     (let* ((a (peg "a")) (b (peg "b")) (c (peg "c"))
+  	  (cnt-a 0) (cnt-b 0) (cnt-c 0))
+       (while (and (funcall a) (cl-incf cnt-a)))
+       (while (and (funcall b) (cl-incf cnt-b)))
+       (while (and (funcall c) (cl-incf cnt-c)))
+       (if (= cnt-a cnt-b cnt-c) t nil))))
+
+  (t-ps C1 "aabbcc") ;;=> t
+  (t-ps C1 "aaabbbccc") ;;=> t
+  (t-ps C1 "abcc") ;;=> nil
+#+end_src
+
+*** Others
+
+关于 peg.el 能研究的东西还不少，比如执行效率问题（至少我发现是否字节编译对执行效率和内存占用的影响非常大），错误处理问题（peg.el 是怎么实现错误收集和处理的），等等。不过就基本使用来说也许没必要进一步研究了，当个玩具玩玩就行。
+
+在 [[https://emacs-china.org/t/peg/29064][[分享] 对用户友好的 PEG 封装]] 这个帖子中，用户 [[https://emacs-china.org/u/kinney][Kinney]] 尝试对带参 PEX 绑定进行了优化，主要是：
+
+1. 带参数的自定义规则，参数在内部使用时，自动使用 =funcall= 调用
+2. 使用自定义的规则时，参数自动使用 =peg= 方法包裹生成 peg-matcher
+
+* 后记
+
+正如开头提到的，我原本计划使用 peg.el 实现一个完整的 CSS Parser，但这个工作量有点太大了（CSS 的标准数量可能超乎你的想象），现存的 CSS minifier 也足够好用，还是算了。如果真要写个能用的 Parser 出来可能不是几天能做完的事，而且还得专门拿一篇博客来介绍。我在大概两年前和一个朋友发过“CSS 比 C++ 难”的爆论，他把我水了一顿（笑）。我忘了具体什么时候学的 CSS，可能是 20 年年初我第一次搭建网站的时候，应该不会比这更早了。
+
+当我们想要为某个语言实现 Parser 时，最重要的可能不是 Parser 的实现，而是我们对语言规则的理解和足够的测试用例，编码实现只不过是其中的一环。
+
+#+begin_comment
+2025 年 2 月 25 日，W3C 发布了 CSS 快照 2024：
+
+#+begin_quote
+The CSS Working Group published the CSS Snapshot 2024 as a Group Note. This document collects together into one definition all the specifications that together form the current state of Cascading Style Sheets (CSS) as of 2024. The primary audience is CSS implementers, not CSS authors, as this definition includes modules by specification stability, not Web browser adoption rate.
+
+When the first CSS specification was published, all of CSS was contained in one document that defined CSS Level 1. CSS Level 2 was defined also by a single, multi-chapter document. However for CSS beyond Level 2, the CSS Working Group chose to adopt a modular approach, where each module defines a part of CSS, rather than to define a single monolithic specification. This breaks the specification into more manageable chunks and allows more immediate, incremental improvement to CSS.
+
+Since different CSS modules are at different levels of stability, the CSS Working Group has chosen to publish this profile to define the current scope and state of Cascading Style Sheets as of 2024.
+
+--- [[https://www.w3.org/news/2025/css-snapshot-2024-published-as-w3c-group-note/][CSS Snapshot 2024 Published as W3C Group Note]]
+#+end_quote
+#+end_comment
+
+#+begin_quote
+I chose Emacs Lisp, a) because I had always been curious about it and
+b) because, being only a text editor extension language after all, Emacs
+Lisp would surely reach its limits long before the project got too far
+out of hand.
+
+To make a long story short, Emacs Lisp turned out to be a
+distressingly solid implementation of Lisp, and the humble task of
+calculating turned out to be more open-ended than one might have
+expected.
+
+History and Acknowledgments --- calc's info doc
+#+end_quote
+
+希望读者也能像 Calc 的作者那样用 Elisp 整点小玩意出来。
+
+#+begin_comment
+| [[https://x.com/parags112/status/1790293542168150067][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/127761227][file:dev/p2.jpg]] |
+| [[https://www.pixiv.net/artworks/127844709][file:dev/p3.jpg]] | [[https://www.pixiv.net/artworks/127696584][file:dev/p4.jpg]] |
+#+end_comment
