@@ -3,3 +3,6 @@
 
 User-agent: Baiduspider
 Disallow: /
+
+User-agent: *
+Disallow: /tmp/
