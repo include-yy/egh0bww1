@@ -4,8 +4,13 @@
 #+DESCRIPTION: 本文介绍了如何使用 Emacs 30.1 添加的 peg.el PEG parser generator 实现来实现一个简单的 CSS(1.0) parser。
 
 #+begin_comment
-| [[https://www.pixiv.net/artworks/128006758][file:dev/0.jpg]] | [[https://www.pixiv.net/artworks/127716125][file:dev/3.jpg]] |
-| [[https://www.pixiv.net/artworks/127040750][file:dev/1.jpg]] | [[https://x.com/kuzucirno/status/1898411118306926807][file:dev/2.jpg]] |
+[[https://x.com/kuzucirno/status/1898411118306926807][file:dev/2.jpg]] 
+
+| [[https://www.pixiv.net/artworks/128006758][file:dev/0.jpg]]  | [[https://www.pixiv.net/artworks/82202329][file:dev/12.jpg]] | [[https://www.pixiv.net/artworks/123874361][file:dev/14.jpg]] |
+| [[https://www.pixiv.net/artworks/122295070][file:dev/15.jpg]] | [[https://www.pixiv.net/artworks/122274924][file:dev/4.jpg]]  | [[https://www.pixiv.net/artworks/117610408][file:dev/5.jpg]]  |
+| [[https://www.pixiv.net/artworks/126447109][file:dev/6.jpg]]  | [[https://www.pixiv.net/artworks/94200604][file:dev/13.jpg]] | [[https://www.pixiv.net/artworks/85887030][file:dev/8.jpg]]  |
+| [[https://www.pixiv.net/artworks/127465856][file:dev/7.jpg]]  | [[https://www.pixiv.net/artworks/125484770][file:dev/10.jpg]] | [[https://www.pixiv.net/artworks/125380709][file:dev/11.jpg]] |
+| [[https://www.pixiv.net/artworks/127716125][file:dev/3.jpg]]  | [[https://www.pixiv.net/artworks/38405072][file:dev/9.jpg]]  | [[https://www.pixiv.net/artworks/127040750][file:dev/1.jpg]]  |
 #+end_comment
 
 随着 Emacs 30.1 的发布，peg.el 也正式内置到了 Emacs 中，可以用它来编写一些简单的 Parser，做一些字符串处理工作。目前能找到的 peg.el 资料相当少，只能阅读源代码中的注释或 info 文档相关章节来学习用法，info 文档[[https://emacs-china.org/t/emacs30-peg/29023][似乎还有那么一点小问题]]。在完善 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] Org 导出后端的过程中我发现可以使用 peg.el 做一些 CSS 最小化的工作（用 peg.el 做 JavaScript 最小化就太复杂了），不过距离完成还[[https://github.com/include-yy/minifycss][遥遥无期]]。考虑到 [[https://www.w3.org/TR/REC-CSS1/][CSS(1.0)]] 语法足够简单但比算术表达式又复杂一点，借用 CSS(1.0) 来写个 peg.el 教程方便查阅应该是个不错的选择（不过到本文写完为止还没写完）。
@@ -1297,6 +1302,7 @@ History and Acknowledgments --- calc's info doc
 希望读者也能像 Calc 的作者那样用 Elisp 整点小玩意出来。
 
 #+begin_comment
-| [[https://x.com/parags112/status/1790293542168150067][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/127761227][file:dev/p2.jpg]] |
-| [[https://www.pixiv.net/artworks/127844709][file:dev/p3.jpg]] | [[https://www.pixiv.net/artworks/127696584][file:dev/p4.jpg]] |
+| [[https://x.com/parags112/status/1790293542168150067][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/127761227][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/123226505][file:dev/p8.jpg]] |
+| [[https://www.pixiv.net/artworks/127844709][file:dev/p3.jpg]] | [[https://www.pixiv.net/artworks/127696584][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/90069502][file:dev/p7.jpg]] |
+| [[https://www.pixiv.net/artworks/126598692][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/118120648][file:dev/p6.jpg]] | [[https://www.pixiv.net/artworks/81565055][file:dev/p9.jpg]] |
 #+end_comment
