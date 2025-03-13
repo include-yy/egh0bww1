@@ -859,11 +859,28 @@ Match E, collect all values produced by E (and its sub-expressions) into a list,
 
 #+begin_src elisp
   (define-peg-rule t--ncmt ()
-    "/*" (* (or (and (if "/*") t--cmt)
+    "/*" (* (or (and (if "/*") t--ncmt)
   	      (and (not "*/") (any))))
     "*/")
   (t-ps t--cmt "/* out /* in */ out */") ;;=> nil
   (t-ps t--ncmt "/* out /* in */ out */") ;;=> t
+  (t-ps t--ncmt "/*/*/**/*/*/") ;;=> t
+#+end_src
+
+或者是这样实现：
+
+#+begin_src elisp
+  ;; https://en.wikipedia.org/wiki/Parsing_expression_grammar#More_examples
+  (define-peg-rule t--ncmt1 ()
+    "/*" (* (or t--ncmt1
+  	      (and (not "/*")
+  		   (not "*/")
+  		   (any))))
+    "*/")
+
+  (t-ps t--ncmt1 "/**/") ;;=> t
+  (t-ps t--ncmt1 "/*/**/*/") ;;=> t
+  (t-ps t--ncmt1 "/*/*/**/*/aaa*/") ;;=> t
 #+end_src
 
 *** 四则运算解释器
