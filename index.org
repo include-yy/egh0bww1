@@ -85,6 +85,9 @@
   - [[https://eighty-twenty.org/2015/01/25/monads-in-dynamically-typed-languages][Monads in Dynamically-Typed Languages]]
 - [[https://blog.hentioe.dev/][绅士喵 --- 做自己感兴趣的事]]
   - [[https://blog.hentioe.dev/posts/windows-chrome-128-noto-cjk-fonts.html][恭喜 Chrome 128 在 Windows 上默认使用 Noto 系列的 CJK 字体]]
+- [[https://blog.mecheye.net/][Clean Rinse --- Shampoo for your System]]
+  - [[https://blog.mecheye.net/2019/05/why-is-2d-graphics-is-harder-than-3d-graphics/][Why are 2D vector graphics so much harder than 3D?]]
+
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
