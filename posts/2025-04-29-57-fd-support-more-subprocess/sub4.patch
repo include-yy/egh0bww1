@@ -1,0 +1,286 @@
+diff --git a/src/w32.h b/src/w32.h
+index 84059278a2a..73429cf6731 100644
+--- a/src/w32.h
++++ b/src/w32.h
+@@ -29,7 +29,7 @@ #define EMACS_W32_H
+ /* File descriptor set emulation.  */
+
+ /* MSVC runtime library has limit of 64 descriptors by default */
+-#define FD_SETSIZE  64
++#define FD_SETSIZE (MAXIMUM_WAIT_OBJECTS * MAXIMUM_WAIT_OBJECTS / 2)
+ typedef struct {
+   unsigned int bits[FD_SETSIZE / 32];
+ } fd_set;
+diff --git a/src/w32proc.c b/src/w32proc.c
+index 000eb9bee3f..29c523c2249 100644
+--- a/src/w32proc.c
++++ b/src/w32proc.c
+@@ -1012,6 +1012,189 @@ alarm (int seconds)
+    shell might not be killed, because sys_kill will only terminate the
+    shell.  (In practice, however, such problems are very rare.)  */
+
++#define WAIT_TIMEOUT_2 (WAIT_TIMEOUT | 0x4000)
++#define WAIT_ABANDONED_0_2 (WAIT_ABANDONED_0 | 0x4000)
++#define WAIT_GROUP_SIZE (MAXIMUM_WAIT_OBJECTS - 1)
++#define MAXIMUM_WAIT_OBJECTS_2 FD_SETSIZE
++
++typedef struct {
++  HANDLE* lpHandles;
++  int nCount;
++  BOOL bWaitAll;
++  DWORD dwMilliseconds;
++  int nIndex;
++} WaitForMultipleObjectsParams;
++
++static DWORD WINAPI
++WaitForMultipleObjectsWrapped (LPVOID lpParam)
++{
++  WaitForMultipleObjectsParams *p = lpParam;
++  DWORD result = WaitForMultipleObjects (p->nCount, p->lpHandles,
++					 p->bWaitAll, p->dwMilliseconds);
++  if (result == WAIT_TIMEOUT)
++    result = WAIT_TIMEOUT_2;
++  else if (result >= WAIT_ABANDONED_0
++	   && result < WAIT_ABANDONED_0 + p->nCount)
++    result += (WAIT_ABANDONED_0_2 - WAIT_ABANDONED_0)
++      + WAIT_GROUP_SIZE * p->nIndex;
++  else if (result >= WAIT_OBJECT_0
++	   && result < WAIT_OBJECT_0 + p->nCount)
++    result += WAIT_GROUP_SIZE * p->nIndex;
++  return result;
++}
++
++typedef struct
++{
++  HANDLE *hObjects;
++  WaitForMultipleObjectsParams *pParams;
++  HANDLE *pHandles;
++  HANDLE hEndEvent;
++  int nObject;
++  int nThread;
++  int nHandle;
++} WaitForMultipleObjectsInfo;
++
++static void
++InitializeWaitForMultipleObjectsInfo (WaitForMultipleObjectsInfo *p,
++				      DWORD nCount,
++				      CONST HANDLE *lpHandles,
++				      BOOL bWaitAll,
++				      DWORD dwMilliseconds)
++{
++  p->nThread = 1 + (nCount - 1 - MAXIMUM_WAIT_OBJECTS / 2)
++    / WAIT_GROUP_SIZE;
++  p->nObject = (p->nThread * WAIT_GROUP_SIZE >= nCount)
++    ? p->nThread
++    : p->nThread + (nCount - p->nThread * WAIT_GROUP_SIZE);
++  p->hObjects = xmalloc (sizeof (HANDLE) * p->nObject);
++  if (p->nObject != p->nThread)
++    memcpy (p->hObjects + p->nThread,
++	    lpHandles + p->nThread * WAIT_GROUP_SIZE,
++	    sizeof (HANDLE) * (nCount - p->nThread * WAIT_GROUP_SIZE));
++  p->pParams = xmalloc (sizeof (WaitForMultipleObjectsParams) * p->nThread);
++  p->pHandles = xmalloc (sizeof (HANDLE) * p->nThread * MAXIMUM_WAIT_OBJECTS);
++  p->hEndEvent = CreateEvent (NULL, TRUE, FALSE, NULL);
++  for (int i = 0, offset = 0; i < p->nThread; i++)
++    {
++      int count = (i == p->nThread - 1)
++	? (p->nThread == p->nObject)
++	? (nCount - i * WAIT_GROUP_SIZE)
++	: WAIT_GROUP_SIZE
++	: WAIT_GROUP_SIZE;
++      p->pParams[i].nCount = count + 1;
++      p->pParams[i].lpHandles = p->pHandles + i * MAXIMUM_WAIT_OBJECTS;
++      p->pParams[i].dwMilliseconds = dwMilliseconds;
++      p->pParams[i].bWaitAll = bWaitAll;
++      p->pParams[i].nIndex = i;
++      memcpy (p->pParams[i].lpHandles, lpHandles + offset,
++	      sizeof (HANDLE) * count);
++      p->pParams[i].lpHandles[count] = p->hEndEvent;
++      offset += count;
++      p->hObjects[i] = CreateThread (NULL, 0, WaitForMultipleObjectsWrapped,
++				     p->pParams + i, 0, NULL);
++    }
++  return;
++}
++
++static void
++CleanupWaitForMultipleObjectsInfo (WaitForMultipleObjectsInfo *p)
++{
++  SetEvent (p->hEndEvent);
++  WaitForMultipleObjects(p->nThread, p->hObjects, TRUE, INFINITE);
++
++  xfree (p->hObjects);
++  xfree (p->pHandles);
++  xfree (p->pParams);
++  CloseHandle (p->hEndEvent);
++  for (int i = 0; i < p->nThread; i++)
++    CloseHandle (p->hObjects[i]);
++  return;
++}
++
++static DWORD
++ExtractWaitResult (WaitForMultipleObjectsInfo *pinfo, DWORD result)
++{
++  if (result == WAIT_TIMEOUT)
++    return WAIT_TIMEOUT_2;
++  else if (result == WAIT_FAILED)
++    return WAIT_FAILED;
++  else if (result >= WAIT_OBJECT_0
++	   && result < WAIT_OBJECT_0 + pinfo->nObject)
++    {
++      if (result >= WAIT_OBJECT_0 + pinfo->nThread)
++	return result - pinfo->nThread
++	  + pinfo->nThread * WAIT_GROUP_SIZE;
++      DWORD code;
++      GetExitCodeThread(pinfo->hObjects[result], &code);
++      return code;
++    }
++  else if (result >= WAIT_ABANDONED_0
++	   && result < WAIT_ABANDONED_0 + pinfo->nObject)
++    {
++      if (result >= WAIT_ABANDONED_0 + pinfo->nThread)
++	return result + WAIT_ABANDONED_0_2 - WAIT_ABANDONED_0
++	  - pinfo->nThread + pinfo->nThread * WAIT_GROUP_SIZE;
++    }
++  /* Should never happen */
++  return result;
++}
++
++static DWORD
++WaitForMultipleObjectsThreaded (DWORD nCount,
++				HANDLE *lpHandles,
++				BOOL bWaitAll,
++				DWORD dwMilliseconds)
++{
++  if (nCount <= MAXIMUM_WAIT_OBJECTS)
++    {
++      DWORD result = WaitForMultipleObjects (nCount, lpHandles, bWaitAll,
++					     dwMilliseconds);
++      if (result == WAIT_TIMEOUT)
++	result = WAIT_TIMEOUT_2;
++      else if (result >= WAIT_ABANDONED_0
++	       && result < WAIT_ABANDONED_0 + nCount)
++	result += WAIT_ABANDONED_0_2 - WAIT_ABANDONED_0;
++      return result;
++    }
++  WaitForMultipleObjectsInfo info;
++  InitializeWaitForMultipleObjectsInfo (&info, nCount, lpHandles,
++				       bWaitAll, dwMilliseconds);
++  DWORD result = WaitForMultipleObjects (info.nObject, info.hObjects,
++					 bWaitAll, dwMilliseconds);
++  result = ExtractWaitResult (&info, result);
++  CleanupWaitForMultipleObjectsInfo (&info);
++  return result;
++}
++
++static DWORD
++MsgWaitForMultipleObjectsThreaded (DWORD nCount,
++				   HANDLE *lpHandles,
++				   BOOL bWaitAll,
++				   DWORD dwMilliseconds,
++				   DWORD dwWakeMask)
++{
++  if (nCount <= MAXIMUM_WAIT_OBJECTS - 1)
++    {
++      DWORD result = MsgWaitForMultipleObjects (nCount, lpHandles, bWaitAll,
++						dwMilliseconds, dwWakeMask);
++      if (result == WAIT_TIMEOUT)
++	result = WAIT_TIMEOUT_2;
++      else if (result >= WAIT_ABANDONED_0
++	       && result < WAIT_ABANDONED_0 + nCount)
++	result += WAIT_ABANDONED_0_2 - WAIT_ABANDONED_0;
++      return result;
++    }
++  WaitForMultipleObjectsInfo info;
++  InitializeWaitForMultipleObjectsInfo (&info, nCount,
++				       lpHandles, bWaitAll, dwMilliseconds);
++  DWORD result = MsgWaitForMultipleObjects (info.nObject, info.hObjects,
++					    bWaitAll, dwMilliseconds,
++					    dwWakeMask);
++  result = ExtractWaitResult (&info, result);
++  CleanupWaitForMultipleObjectsInfo (&info);
++  return result;
++}
++
+ /* Defined in <process.h> which conflicts with the local copy */
+ #define _P_NOWAIT 1
+
+@@ -1566,15 +1749,15 @@ waitpid (pid_t pid, int *status, int options)
+ 	 quitting in that case.  */
+       if (!dont_wait)
+ 	maybe_quit ();
+-      active = WaitForMultipleObjects (nh, wait_hnd, FALSE, timeout_ms);
+-    } while (active == WAIT_TIMEOUT && !dont_wait);
++      active = WaitForMultipleObjectsThreaded (nh, wait_hnd, FALSE, timeout_ms);
++    } while (active == WAIT_TIMEOUT_2 && !dont_wait);
+
+   if (active == WAIT_FAILED)
+     {
+       errno = EBADF;
+       return -1;
+     }
+-  else if (active == WAIT_TIMEOUT && dont_wait)
++  else if (active == WAIT_TIMEOUT_2 && dont_wait)
+     {
+       /* PID specifies our subprocess, but it didn't exit yet, so its
+ 	 status is not yet available.  */
+@@ -1584,14 +1767,14 @@ waitpid (pid_t pid, int *status, int options)
+       return 0;
+     }
+   else if (active >= WAIT_OBJECT_0
+-	   && active < WAIT_OBJECT_0+MAXIMUM_WAIT_OBJECTS)
++	   && active < WAIT_OBJECT_0+MAXIMUM_WAIT_OBJECTS_2)
+     {
+       active -= WAIT_OBJECT_0;
+     }
+-  else if (active >= WAIT_ABANDONED_0
+-	   && active < WAIT_ABANDONED_0+MAXIMUM_WAIT_OBJECTS)
++  else if (active >= WAIT_ABANDONED_0_2
++	   && active < WAIT_ABANDONED_0_2+MAXIMUM_WAIT_OBJECTS_2)
+     {
+-      active -= WAIT_ABANDONED_0;
++      active -= WAIT_ABANDONED_0_2;
+     }
+   else
+     emacs_abort ();
+@@ -2501,10 +2684,10 @@ sys_select (int nfds, SELECT_TYPE *rfds, SELECT_TYPE *wfds, SELECT_TYPE *efds,
+   /* Wait for input or child death to be signaled.  If user input is
+      allowed, then also accept window messages.  */
+   if (FD_ISSET (0, &orfds))
+-    active = MsgWaitForMultipleObjects (nh + nc, wait_hnd, FALSE, timeout_ms,
++    active = MsgWaitForMultipleObjectsThreaded (nh + nc, wait_hnd, FALSE, timeout_ms,
+ 					QS_ALLINPUT);
+   else
+-    active = WaitForMultipleObjects (nh + nc, wait_hnd, FALSE, timeout_ms);
++    active = WaitForMultipleObjectsThreaded (nh + nc, wait_hnd, FALSE, timeout_ms);
+
+   if (active == WAIT_FAILED)
+     {
+@@ -2517,7 +2700,7 @@ sys_select (int nfds, SELECT_TYPE *rfds, SELECT_TYPE *wfds, SELECT_TYPE *efds,
+       errno = EINTR;
+       return -1;
+     }
+-  else if (active == WAIT_TIMEOUT)
++  else if (active == WAIT_TIMEOUT_2)
+     {
+       if (noninteractive)
+ 	{
+@@ -2527,14 +2710,14 @@ sys_select (int nfds, SELECT_TYPE *rfds, SELECT_TYPE *wfds, SELECT_TYPE *efds,
+       return 0;
+     }
+   else if (active >= WAIT_OBJECT_0
+-	   && active < WAIT_OBJECT_0+MAXIMUM_WAIT_OBJECTS)
++	   && active < WAIT_OBJECT_0+MAXIMUM_WAIT_OBJECTS_2)
+     {
+       active -= WAIT_OBJECT_0;
+     }
+-  else if (active >= WAIT_ABANDONED_0
+-	   && active < WAIT_ABANDONED_0+MAXIMUM_WAIT_OBJECTS)
++  else if (active >= WAIT_ABANDONED_0_2
++	   && active < WAIT_ABANDONED_0_2+MAXIMUM_WAIT_OBJECTS_2)
+     {
+-      active -= WAIT_ABANDONED_0;
++      active -= WAIT_ABANDONED_0_2;
+     }
+   else
+     emacs_abort ();

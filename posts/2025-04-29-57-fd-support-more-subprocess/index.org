@@ -1,0 +1,1245 @@
+#+TITLE: [PATCH] 让 Windows 上的 Emacs 支持更多子进程
+#+DATE: [2025-01-31 Fri 10:49]--[2025-04-29 Tue 11:03]
+#+FILETAGS: emacs
+#+DESCRIPTION: 本文介绍了一个增加 Emacs 子进程数量的补丁，若无意外将随 Emacs 31 发布
+
+#+begin_comment
+[[https://www.pixiv.net/artworks/126086812][file:dev/p0.jpg]]
+#+end_comment
+
++草，整个三月中旬到四月下旬一篇博客都没写，一直在改进博客的构建工具。为了让 4 月不至于挂 0，把这篇 1 月底的草稿拿出来完善一下算了。+
+
+为了完成某些任务，Emacs 需要调用外部进程，比如 =curl=, =git=, =grep=, =diff= 等等。简单的调用一般同步完成就行，但遇到一些需要常驻子进程的任务，比如 LSP，Emacs 就可能同时打开并管理多个子进程。不过由于历史实现的原因，Windows 平台上的 Emacs 最多只能打开 32 个子进程，这在同时对多个项目使用 LSP 或进行大量 =native-comp= 编译的时候，很可能遇到“无法打开新进程”的错误。
+
+为了解决这个问题，我在二五年的一月到二月期间，在其他人的基础上完善了 Emacs Windows 相关的子进程管理代码，并把改动提交进了 Emacs 主线（[[https://github.com/emacs-mirror/emacs/commit/e02466a579a58fceda33ad51d822e39543bc883c][e02466a]]）。这篇博客主要是对这次提交的来龙去脉做个详细总结，顺便记录一下在开发过程中踩到的坑和一些经验。希望能对折腾 Emacs 源代码的同学提供一些帮助。
+
+若不作特别说明，下面的代码测试环境都是 Minisforum UM760 7640HS 32GB+1TB Windows 11 24H2 26100.3775。
+
+* 背景知识：I/O 与多路复用
+
+出于个人兴趣和必要的知识补充，我们来简单了解一下 =select/poll/epoll/kqueue/IOCP= 这些 I/O 复用 API。如果你和我一样过去只写过一些简单的命令行程序，可能会好奇为什么很多图形界面（GUI）应用在没有用户操作的时候几乎不占用 CPU？这看起来就像命令行程序在等待用户输入一样。
+
+如果你对操作系统有一点点皮毛知识，你应该能模模糊糊意识到这是操作系统在背后负责管理（或者说调度）这些进程的执行。这有点像我们在写迭代器或生成器时，使用 =await= 或 =yield= 暂停执行，把控制权“让出来”，等待某些条件（比如 I/O 完成）满足后再继续（用协程来类比进程/线程调度似乎有点倒反天罡了，🌱）。
+
+你可能已经用过像 =scanf= 或 =printf= 这样的函数：它们会等待输入或输出条件满足才真正执行，而不是通过“忙等待”不断查询。在 Linux 上这主要通过 =read/write= 系统调用来实现（Windows 上是 =_read/_write= ）。
+
+** =select=
+
+主播主播， =read/write= 用来搞定单个 IO 挺好用的，但如果要同时和多个子进程通信，有没有更好的办法？有的兄弟，有的，我们有所谓的多路复用 API —— 用单个调用去监视多个文件描述符（file descriptor，简称 FD），哪个准备好了就先处理哪个。
+
+在 Linux 上，最古老，最经典的 IO 多路复用 API 应该是 =select= ，它可以同时监听最多 =FD_SETSIZE= 个 FD（具体上限跟系统和编译参数有关），并在一个或多个文件描述符“可用”时返回。我们可以使用一系列 =FD_*= 宏配合 =select= 调用来检查文件描述符是否可用。下面是 [[https://man7.org/linux/man-pages/man2/select.2.html][man7]] 中给出的一个简单例子：
+
+#+caption: =select= 简单用例
+:select:
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <sys/select.h>
+  #include <sys/time.h>
+
+  int
+  main(void)
+  {
+      int             retval;
+      fd_set          rfds;
+      struct timeval  tv;
+
+      /* Watch stdin (fd 0) to see when it has input. */
+
+      FD_ZERO(&rfds);
+      FD_SET(0, &rfds);
+
+      tv.tv_sec = 5;
+      tv.tv_usec = 0;
+
+      retval = select(1, &rfds, NULL, NULL, &tv);
+      /* Don't rely on the value of tv now! */
+
+      if (retval == -1)
+          perror("select()");
+      else if (retval)
+          printf("Data is available now.\n");
+          /* FD_ISSET(0, &rfds) will be true. */
+      else
+          printf("No data within five seconds.\n");
+
+      exit(EXIT_SUCCESS);
+  }
+#+end_src
+:end:
+
+在上面的代码中， 首先使用 =FD_ZERO= 将 =fd_set= 结构 =rfds= 中的所有 FD 位清空，然后使用 =FD_SET= 将 =STDIN= 加入 =rfds= （标准输入/输出/错误分别对应的 FD 是 0, 1, 2），表示我们希望监听标准输入是否有数据可读。
+
+接着我们调用 =select()= ，查询 =refds= 中是否有可用 FD，这个调用会阻塞，直到有 FD 准备好或调用超时，它的第一个参数是监视的所有 FD 里最大值加 1，用来告诉内核最多检查到哪一个文件描述符。调用返回后，我们可以使用 =FD_ISSET= 检查某个 FD 是不是已经准备好了。
+
+你可能会以为 =fd_set= 是什么高级的数据结构，但它本质上就是一个简单的整形数组，通过位运算把它当成位图（bitmap）来用。感兴趣的读者可以看看 OpenBSD 的实现：[[https://github.com/openbsd/src/blob/master/sys/sys/select.h][sys/select.h]]。 =FD_ZERO=, =FD_SET=, =FD_CLEAR= 和 =FD_ISSET= 是检查和设定位图的 getter 和 setter。
+
+在 =select= 调用中， =fd_set= 作为 *输入* 时表示需要监听哪些 FD，作为 *输出* 时返回哪些 FD 已经准备好。想看看 =select= 实现的话同样可以参考 OpenBSD 的 [[https://github.com/openbsd/src/blob/e8eeea37c7e65b8578300262e506bd6e9db90a4e/sys/kern/sys_generic.c#L593][sys/kern/sys_generic.c]]。你会注意到它内部使用了 =kqueue= ，当 FD 的状态发生变化时，内核会遍历传入的 =fd_set= ，检查哪些 FD 已经准备好。
+
+需要注意的是，受限于 =FD_SETSIZE= ， =select= 最多只能监听 1024 个文件描述符，更准确的说法是文件描述符的 *值* [[https://news.ycombinator.com/item?id=27216242][必须小于 1024]]，在 Linux 上这个值不太可能变化了（当然有各种各样的 [[https://stackoverflow.com/questions/7976388/increasing-limit-of-fd-setsize-and-select][hack]]）。事实上， Linux 的 man 文档本身就不推荐继续用 =select= 了，建议使用 =poll= 或 =epoll= ，这两者没有 FD 数量限制，性能和扩展性也更好。
+
+#+begin_example
+WARNING: select() can monitor only file descriptors numbers that
+are less than FD_SETSIZE (1024)—an unreasonably low limit for many
+modern applications—and this limitation will not change.  All
+modern applications should instead use poll(2) or epoll(7), which
+do not suffer this limitation.
+#+end_example
+
+我几乎没有任何 Linux 编程经验，这里只能给出一些找到的博客作为延申阅读供读者进一步了解：
+
+- [[https://idea.popcount.org/2016-11-01-a-brief-history-of-select2/][A brief history of select(2)]]
+- [[https://idea.popcount.org/2017-01-06-select-is-fundamentally-broken/][Select is fundamentally broken]]
+- [[https://daniel.haxx.se/docs/poll-vs-select.html][poll vs select vs event-based]]
+- [[https://www.ulduzsoft.com/2014/01/select-poll-epoll-practical-difference-for-system-architects/][select / poll / epoll: practical difference for system architects]]
+
+** =WaitForMultipleObjects=
+
+在“一切皆文件”的 Linux 中，许多资源都通过文件描述符这一统一抽象来管理和等待，包括文件、管道、套接字、内存映射，甚至连 GUI 事件也是通过设备文件（如 =/dev/input/event*=, =/dev/input/mouse*= ）传递。而与偏向进程间协作、统一多文件描述符等待模型的 Linux 不同，Windows 更倾向于以句柄为中心的进程内协作，几乎所有内核对象（文件、事件、信号量、线程、窗口、输入设备）都抽象为句柄，并依靠 =WaitForMultipleObjects= 等调用等待它们的状态变化，可以说是“一切皆句柄”。
+
+以 GUI 应用为例。与命令行应用不同，我们通常不希望 GUI 程序在执行任务时导致界面卡住，比如点击一个按钮后，程序完全无响应，窗口无法拖动、无法点击其他控件，看起来像“卡死”了一样。大多数 GUI 应用都会有一个专门负责界面绘制和用户输入响应的主线程。如果在主线程中直接执行耗时操作，主线程就会被阻塞，无法继续处理界面刷新或用户操作，从而导致整个窗口“假死”。
+
+为了避免这种情况，常见的做法是将耗时任务放到子线程中执行，主线程保持流畅，继续负责界面和用户交互。任务完成后，再通过线程间通信的方式通知主线程更新界面状态。这就是 GUI 程序里最常见的一种多线程模型。（顺便一提，Emacs 至今 *基本* 还是单线程的。）
+
+[[https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects][=WaitForMultipleObjects=]] 接受四个参数，分别是等待句柄的数量，句柄数组，是否等待所有对象的标志，以及以毫秒为单位的等待超时：
+
+#+begin_src c
+  DWORD WaitForMultipleObjects(
+    [in] DWORD        nCount,
+    [in] const HANDLE *lpHandles,
+    [in] BOOL         bWaitAll,
+    [in] DWORD        dwMilliseconds
+  );
+#+end_src
+
+类似 =select=, =WaitForMultipleObjects= 也有最大等待对象数量限制： =MAXIMUM_WAIT_OBJECTS= (64)。光从这点就能看出来 Windows 不希望我们用它来管理大量并发句柄或连接。但与 =select= 不太一样的是， =select= 限制的是最大 FD 值（通常是 1024），而 =WaitForMultipleObjects= 限制的是等待对象的数量。这也意味着，如果要同时等待超过 64 个句柄，可以通过在多个线程中分别调用 =WaitForMultipleObjects= 来实现。
+
+=select= 在调用时需要重新传入一组 FD，内核每次都要遍历整个集合，逐个检查各 FD 的状态，这样做的时间成本是 =O(n)= 。 =WaitForMultipleObjects= 也有同样的问题，但它的最大等待数量实在太小，这个开销显得微乎其微。
+
+=WaitForMultipleObjects= 的另一个问题是它只会返回 *第一个* 而不是所有触发对象的序号。如果我们监视的对象都非常活跃，极有可能始终是排在参数列表前面的对象先触发，后面的得不到及时响应。常见的解决方法是，在 =WaitForMultipleObjects= 返回后，对触发对象的后续对象使用 0 超时值调用 =WaitForSingleObject= ，手动检查它们是否也已触发。（后面你会看到 Emacs 中的类似做法）
+
+本小节关于 =WaitForMultipleObjects= 问题的阐述来自某个 StackOverflow 问答：[[https://stackoverflow.com/questions/6201759/whats-the-difference-between-waitformultipleobjects-and-boostasio-on-multiple#:~:text=The%20main%20drawback%20of%20WaitForMultipleObjects%20that%20was%20solved%20by%20iocp%20is%20the%20inability%20to%20scale%20with%20many%20file%20descriptors.%20It%20is%20O(n)%2C%20since%20for%20each%20event%20you%20receive%20you%20pass%20in%20the%20full%20array%20again%2C%20and%20internally%20WaitForMultipleObjects%20must%20scan%20the%20array%20to%20know%20which%20handles%20to%20trigger%20on][What's the difference between WaitForMultipleObjects and boost::asio on multiple windows::basic_handle's?]]。
+
+** =epoll/kqueue/IOCP=
+
+如你所见， =select= 和 =WaitForMultipleObjects= 在对象的等待数量上都有一些限制，它们本身也并不适合等待大量对象。在等待大量对象这一条路上，不同的系统给出了自己的解决方案。
+
+- Linux 的 epoll（[[http://www.xmailserver.org/davide.html][Davide Libenzi]], [[http://www.xmailserver.org/linux-patches/nio-improve.html][2002 年 10 月]]） :: epoll 与 select 或 poll 不同，可以将 FD 注册到内核中的 epoll 实例（epoll FD）中避免每次都传入全部 FD。内核内部维护一份“关注列表”，只有当这些 FD 状态发生变化时，才将事件加入就绪队列，应用进程通过 =epoll_wait= 查询这个就绪列表即可，查询复杂度接近 O(1)。虽然 epoll 的首次提交应该是在 2002 年的 10 月，但我最早只能找到 11 月的[[https://github.com/tbodt/linux-history/commit/3a35d84ab5e98eb27a3be47eaee3392ea4fd7c10][提交]]了。
+
+- BSD 的 kqueue（[[https://people.freebsd.org/~jlemon/][Jonathan Lemon]], [[https://svnweb.freebsd.org/base/head/sys/kern/kern_event.c?revision=59290&view=markup][2000 年 4 月]]） :: kqueue 与 epoll 理念类似（时间上是不是反了？），应用程序将关注的事件（读、写、信号、进程状态等）注册到一个内核维护的事件队列里，内核负责追踪这些对象的状态变化，应用通过 =kevent= 查询发生的事件，省去了重复传入和遍历的过程。kqueue 最早于 [[https://www.freebsd.org/releases/4.1R/notes/#:~:text=A%20new%20event%20notification%20facility%20called%20kqueue%20was%20added%20to%20the%0AFreeBSD%20kernel][FreeBSD 4.1]] 发布。
+
+- Windows 的 IOCP（Windows NT 内核团队，[[https://en.wikipedia.org/wiki/Windows_NT_3.5][1994 年 9 月]]） :: IOCP 彻底抛弃了“等待多个对象”这种机制，转而采用异步 I/O 完成通知模型。应用程序将需要异步处理的 I/O 关联到一个完成端口，等操作完成后，由内核主动将完成事件投递到完成端口的队列，工作线程从队列中取出事件处理即可。这样不仅无需遍历所有对象，而且天然适合线程池+事件驱动高并发服务器架构。Windows NT 3.5 发布于 1994 年 9 月，这也是 IOCP 首次出现的时间。
+
+老实说，我在查这些资料之前没想过这些相对高效的多路复用 API 出现时间居然这么早，不过这些时间与 [[https://en.wikipedia.org/wiki/C10k_problem][C10K]] 问题的提出时间（1999 年）差不多能对上。下面我们简单了解一下各 API 的用法，因为我只学过 Windows 的，所以 IOCP 小节相比其他两节会稍微详细一些。
+
+*** =epoll=
+
+要学习 epoll 的用法，最直接的方法当然是去看看 [[https://man7.org/linux/man-pages/man7/epoll.7.html][epoll(7)]]。不过我不建议一上来就啃文档，不妨先找几篇别人写的教程或简单例子简单看看。epoll 的基本用法是：首先使用 =epoll_create1= 创建一个 epoll 实例 FD，然后用 =epoll_ctl= 添加、修改或移除你想监听的 FD。在添加好关注的 FD 后就可以用 =epoll_wait= 阻塞等待这些 FD 了。
+
+其中， =epoll_ctl= 的第一个参数是 epoll 实例 FD，第二个参数表示操作类型（可以是 =EPOLL_CTL_ADD=, =EPOLL_CTL_MOD= 或 =EPOLL_CTL_DEL= ），第三个参数是目标 FD，第四个参数是一个 =epoll_event= 结构，用来设置你关心的事件类型则用来设置事件类型。
+
+=epoll_wait= 的第一个参数也是 epoll 实例 FD，第二个和第三个参数分别是接收事件的数组和数组数组长度，第四个参数是超时时间毫秒数，传 =-1= 表示无限等待。下面是 =man= 里给的一个示例代码：
+
+#+caption: epoll 示例
+:epoll:
+#+begin_src c
+  #define MAX_EVENTS 10
+  struct epoll_event ev, events[MAX_EVENTS];
+  int listen_sock, conn_sock, nfds, epollfd;
+
+  /* Code to set up listening socket, 'listen_sock',
+     (socket(), bind(), listen()) omitted. */
+
+  epollfd = epoll_create1(0);
+  if (epollfd == -1) {
+      perror("epoll_create1");
+      exit(EXIT_FAILURE);
+  }
+
+  ev.events = EPOLLIN;
+  ev.data.fd = listen_sock;
+  if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1) {
+      perror("epoll_ctl: listen_sock");
+      exit(EXIT_FAILURE);
+  }
+
+  for (;;) {
+      nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+      if (nfds == -1) {
+          perror("epoll_wait");
+          exit(EXIT_FAILURE);
+      }
+
+      for (n = 0; n < nfds; ++n) {
+          if (events[n].data.fd == listen_sock) {
+              conn_sock = accept(listen_sock,
+                                 (struct sockaddr *) &addr, &addrlen);
+              if (conn_sock == -1) {
+                  perror("accept");
+                  exit(EXIT_FAILURE);
+              }
+              setnonblocking(conn_sock);
+              ev.events = EPOLLIN | EPOLLET;
+
+              if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+                          &ev) == -1) {
+                  perror("epoll_ctl: conn_sock");
+                  exit(EXIT_FAILURE);
+              }
+          } else {
+              do_use_fd(events[n].data.fd);
+          }
+      }
+  }
+#+end_src
+:end:
+
+如果你简单看过 epoll 相关的科普文你应该会知道它使用了红黑树来管理和查询 FD，而且除了电平触发还支持边缘触发，因为我没用过 epoll 就不展开了，这是一些相关的文章：
+
+- [[https://idea.popcount.org/2017-02-20-epoll-is-fundamentally-broken-12/][Epoll is fundamentally broken 1/2]]
+- [[https://idea.popcount.org/2017-03-20-epoll-is-fundamentally-broken-22/][Epoll is fundamentally broken 2/2]]
+- https://news.ycombinator.com/item?id=13736674
+
+*** =kqueue=
+
+如果不是为了了解 epoll 和朋友的提醒我甚至不会知道还有 kqueue。这是来自 FreeBSD [[https://man.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2][man]] 的示例：
+
+#+caption: kqueue 示例
+:kqueue:
+#+begin_src c
+  #include <sys/event.h>
+  #include <err.h>
+  #include <fcntl.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+
+  int
+  main(int argc, char **argv)
+  {
+      struct kevent event;    /* Event we want to monitor */
+      struct kevent tevent;   /* Event triggered */
+      int kq, fd, ret;
+
+      if (argc != 2)
+          err(EXIT_FAILURE, "Usage: %s path\n", argv[0]);
+      fd = open(argv[1], O_RDONLY);
+      if (fd == -1)
+          err(EXIT_FAILURE, "Failed to open '%s'", argv[1]);
+
+      /* Create kqueue. */
+      kq = kqueue();
+      if (kq == -1)
+          err(EXIT_FAILURE, "kqueue() failed");
+
+      /* Initialize kevent structure. */
+      EV_SET(&event, fd, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_WRITE,
+          0, NULL);
+      /* Attach event to the kqueue. */
+      ret = kevent(kq, &event, 1, NULL, 0, NULL);
+      if (ret == -1)
+          err(EXIT_FAILURE, "kevent register");
+
+      for (;;) {
+          /* Sleep until something happens. */
+          ret = kevent(kq, NULL, 0, &tevent, 1, NULL);
+          if (ret == -1) {
+   	   err(EXIT_FAILURE, "kevent wait");
+          } else if (ret > 0) {
+   	   if (tevent.flags & EV_ERROR)
+   	       errx(EXIT_FAILURE, "Event error:	%s", strerror(event.data));
+   	   else
+   	       printf("Something was written in	'%s'\n", argv[1]);
+          }
+      }
+
+      /* kqueues are destroyed upon close() */
+      (void)close(kq);
+      (void)close(fd);
+  }
+#+end_src
+:end:
+
+可以看到， =kqueue()= 调用和 =epoll_create1()= 类似，都会返回一个描述符，它指向一个新创建目的内核事件队列。与 epoll 不同的是， =kevent()= 这个函数既负责 =epoll_ctl= 的添加/删除/修改工作，也负责 =epoll_wait= 的等待工作， =EV_SET= 有点像是 =FD_SET= 的进阶版，用来设定每个 =kevent= 结构的属性和监听方式。
+
+与 epoll 不同的是，kqueue 使用了哈希表而不是红黑树。同样，我连 epoll 都没用过更不用说 kqueue 了，这是一些可能有用的资料：
+
+- [[https://cs.uwaterloo.ca/~brecht/servers/readings-new/kqueue.pdf][Kqueue: A generic and scalable event notification facility]]
+- https://news.ycombinator.com/item?id=42540442
+
+*** =IOCP=
+
+在上面列举的这些 API 中，IOCP 可能是我最熟悉的一种，毕竟我确实用过（虽然只是照着《Windows 核心编程》里的例子抄了一遍）。与 =epoll= 和 =kqueue= 这类基于 reactor 模式（在 IO *可以进行* 时通知用户）的实现不同，IOCP 采用的是 proactor 模式（在 IO *完成之后* 通知用户），这主要得益于 Windows 支持真正的 *异步 I/O* 。相比起 epoll 和 kqueue，我会对 IOCP 的 API 给出稍微详细一些的介绍。
+
+还是按照上面 =epoll_{create1/ctl/wait}= 的介绍步骤，我们可以使用 [[https://learn.microsoft.com/en-us/windows/win32/fileio/createiocompletionport][=CreateIoCompletionPort=]] 创建 IO 完成端口对象，它的函数原型如下：
+
+#+begin_src c
+  HANDLE WINAPI CreateIoCompletionPort(
+    _In_     HANDLE    FileHandle,
+    _In_opt_ HANDLE    ExistingCompletionPort,
+    _In_     ULONG_PTR CompletionKey,
+    _In_     DWORD     NumberOfConcurrentThreads
+  );
+#+end_src
+
+这个函数的功能很复杂，可以仅创建一个 IO 完成端口，可以将文件句柄关联到已有的 IOCP，也可以创建 IOCP 并将文件句柄关联。如果我们只想创建一个 IO 完成端口而不关联任何文件句柄，可以指定 =FileHandle= 参数为 =INVALID_HANDLE_VALUE= ，指定 =ExistingCompletionPort= 为 =NULL= ，指定 =NumberOfConcurrentThreads= 为 0 来仅创建的 IO 完成端口对象（我们暂时忽略 =CompletionKey= 参数），或者使用《Windows 核心编程》作者写的小函数（作者也在书中吐槽这个函数过于复杂了）：
+
+#+begin_src c
+  HANDLE port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+
+  HANDLE CreateNewCompletionPort(DWORD dwNumberOfConcurrentThreads)
+  {
+    return CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0,
+  				dwNumberOfConcurrentThreads);
+  }
+#+end_src
+
+在拥有 IO 完成端口句柄后，我们可以使用 =CreateIoCompletionPort= 将文件句柄附加到已有的 IO 完成端口，这就是 =ExistingCompletionPort= 参数的用处。当然我们也可以把这两步合并到一个调用中。在将文件句柄关联到某 IO 完成端口时，若指定了 =CompletionKey= 参数，该参数值将被作为文件句柄对应的标识符：
+
+#+begin_quote
+Use the /CompletionKey/ parameter to help your application track which
+I/O operations have completed. This value is not used by
+*CreateIoCompletionPort* for functional control; rather, it is attached
+to the file handle specified in the FileHandle parameter at the time of
+association with an I/O completion port.
+#+end_quote
+
+[[./4.png]]
+
+根据书中的说法，关联操作是在向 IO 完成端口的设备列表添加设备。作者也为关联句柄这个功能写了个小函数：
+
+#+begin_src c
+  BOOL AssociateDeviceWithCompletionPort(HANDLE hCompletionPort,
+  				       HANDLE hDevice,
+  				       DWORD dwCompletionKey)
+  {
+    HANDLE h = CreateIoCompletionPort(hDevice, hCompletionPort,
+  				    dwCompletionKey, 0);
+    return (h == hCompletionPort)
+  }
+#+end_src
+
+不太严谨地说，IOCP 的 =CreateIoCompletionPort= 同时负责 =epoll_create1= 和 =epoll_ctl= 的功能，但 IOCP 没有提供删除句柄的 API，要想“移除”某个文件句柄只能 =CloseHandle= 了。
+
+当设备的一个异步 IO 请求完成时，系统会检查设备是否与一个 IO 完成端口相关联，如果设备与一个 IO 完成端口关联，那么系统会将该项已完成的 IO 请求追加到 IO 完成端口 I/O 完成队列的末尾：
+
+[[./5.png]]
+
+对应于 =epoll= 里的等待功能的 API 是 [[https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getqueuedcompletionstatus][=GetQueuedCompletionStatus=]]，它的函数原型如下：
+
+#+begin_src c
+  BOOL GetQueuedCompletionStatus(
+    [in]  HANDLE       CompletionPort,
+          LPDWORD      lpNumberOfBytesTransferred,
+    [out] PULONG_PTR   lpCompletionKey,
+    [out] LPOVERLAPPED *lpOverlapped,
+    [in]  DWORD        dwMilliseconds
+  );
+#+end_src
+
+=GetQueuedCompletionStatus= 尝试从指定的 IO 完成端口 I/O 完成队列中取出一个 IOCP packet（所谓 packet 就是投递到 IO 完成端口 I/O 完成队列的一个实体，表示一条 IO 完成的消息），如果没有则会等待指定的超时时间，它参数中的 =lpCompletionKey= 是关联文件句柄时指定的标识符， =lpOverlapped= 是进行 IO 操作的结果，可以参考 [[https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-overlapped][OVERLAPPED]] 结构或使用异步 IO 的函数，比如 [[https://learn.microsoft.com/en-us/windows/win32/api/FileAPI/nf-fileapi-readfile][ReadFile]]。注意它与 =WaitForMultipleObjects= 类似，一次只返回一个 packet，不过微软也提供了可返回多个 packet 的 [[https://learn.microsoft.com/en-us/windows/win32/fileio/getqueuedcompletionstatusex-func][=GetQueuedCompletionStatusEx=]]（Vista 及以上可用）。
+
+当某个线程调用 =GetQueuedCompletionStatus= 时，该线程的线程标识符会被添加到 IO 完成端口的等待线程队列，这使得 IO 完成端口内核对象知道有哪些线程当前正在等待对已完成的 IO 请求进行处理。当端口的 I/O 完成队列中出现一个 packet 时，该 IOCP 会唤醒等待线程队列中的 *一个线程* 。
+
+[[./6.png]]
+
+如你所见，IOCP 还会涉及到一些线程池管理机制（虽说它本身并不会创建线程池），这些和 IOCP 的最大并发数量参数有一些关系，感兴趣的读者可以看看《Windows 核心编程的》10.5.4 小节，这里就不抄书了。
+
+最后还有一个 [[https://learn.microsoft.com/en-us/windows/win32/fileio/postqueuedcompletionstatus][=PostQueuedCompletionStatus=]] API 可以用来向 I/O 完成队列投递 packet 来模拟完成事件。书中说它可以用来进行线程间通信，不过这里我就不展开了。
+
+[[./7.png]]
+
+Windows 8 提供了一种叫做 [[https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh997032(v=ws.11)][Registered Input/Output]] 的东西，针对网络通信做了特别优化，有时间去看看罢。
+
+** 小结
+
+在本文的第一节中我们介绍了一些经典的 IO 多路复用系统 API，希望在这方面毫无经验的读者能有所收获。本文当然也可以介绍一下 Linux 上更先进的 io_uring，但它直到 2019 年 5 月才出现于 Linux 5.1，似乎频频出现安全问题，我也懒得进一步了解了。
+
+这里我没有提到的一个点是 thundering herd（惊群效应），这是指在计算机中多个进程或线程在等待某个资源或事件时一旦事件发生所有等待的进程或线程同时被唤醒并竞争资源。Linux 的 epoll 使用 =EPOLLEXCLUSIVE= 缓解了这个问题，Windows 的基于队列的 IOCP 似乎没有这个问题。
+
+* 为什么最多只有 32 个子进程？
+
+不论是否是 Emacs，常驻或启动二三十个子进程并不常见。我自己用 Emacs 也从未关注过子进程数量限制。在 Linux 或其他 POSIX 系统上，Emacs 子进程数量受 =FD_SETSIZE= 限制 —— 因为 Emacs 使用 select 监听各种事件。
+
+而在 Windows 上（除网络外）没有 =select= ，只能通过 [[https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects][WaitForMultipleObjects]] 和 [[https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-msgwaitformultipleobjects][MsgWaitForMultipleObjects]] 模拟。此前已提到，由于 =MAXIMUM_WAIT_OBJECTS= (64) 限制，这两个 API 分别最多只能等待 64 和 63 个对象，远低于 Linux 上 =FD_SETSIZE= 默认的 1024。在 Emacs 源码 =src/w32proc.c= 中，相关注释也说明了 Windows 下子进程数量限制正是源于 =WaitForMultipleObjects=:
+
+#+begin_example
+Having collected the handles to watch, sys_select calls 
+WaitForMultipleObjects to wait for any one of them to become 
+signaled.  Since WaitForMultipleObjects can only watch up to 64 
+handles, Emacs on Windows is limited to maximum 32 child_process 
+objects (since a subprocess consumes 2 handles to be watched, see 
+above).
+#+end_example
+
+** 实际上只有 29 个...
+
+虽然注释中提到的最大子进程数量是 32，但如果我们使用以下代码实测，在官方提供的 [[https://ftp.gnu.org/gnu/emacs/windows/emacs-30/][Emacs 30.1]] 中可以看到在创建第 30 个子进程时出现错误（注意起始下标为 0）：
+
+#+begin_src elisp
+  (defun create-ping-process (index)
+    "Create a ping process for a given INDEX."
+    (let ((process-name (format "ping-process-%d" index))
+          (buffer-name (format "*ping-output-%d*" index))
+          (host "127.0.0.1"))
+      (start-process process-name buffer-name "ping" host)))
+  (defun create-multiple-ping-processes (count)
+    "Create COUNT ping processes."
+    (dotimes (i count)
+      (create-ping-process i)))
+  (create-multiple-ping-processes 200)
+#+end_src
+
+[[./1.png]]
+
+Windows 上的 Emacs 之所以最多只能创建 29 个而不是 32 个子进程，和其对子进程管道通信的管理方式有关。我们先解释为何理论上是 32 个子进程。
+
+由于 Windows 上的 Emacs 无法像 Linux 那样使用 PTY 与子进程通信，只能通过匿名管道（PIPE）进行。每创建一个子进程，Emacs 会打开两个匿名管道，分别用于输入和输出，同时监视该子进程的进程句柄及其输出管道（输出到 Emacs）的描述符，也就是每个子进程对应两个等待对象，因此上限是 64 / 2 = 32。
+
+之所以要用两个管道而非一个，是因为匿名管道只能半双工，必须使用两个管道才能实现全双工通信。每个管道对应一个输入和一个输出文件描述符，两个管道一共四个，但由于每个管道只用于单向通信，其中一个文件描述符可以关闭。在 Emacs 实现中，先打开两个管道，占用 4 个描述符，再关闭其中 2 个，文件描述符数量变化为先加 4 后减 2。
+
+此外，由于子进程数量受限，Emacs 中用于管道的文件描述符数量也被限制在 64。考虑到 =_pipe= 返回的文件描述符起始值是 3（0、1、2 分别是标准输入、输出、错误），可用描述符范围是 3 到 63。由于管道成对分配，最后一对是 61 和 62，因此有效范围是 3 到 62。
+
+不过，由于前文提到的 Emacs 打开管道的方式，当仅剩最后两个文件描述符空位时，无法同时创建两个管道。因此，实际可用的文件描述符范围是 3 到 60，即 58 个，对应 29 个子进程。
+
+需要注意的是，这里的 29 仅指子进程数量。由于网络连接不涉及进程句柄，每个连接只需等待一个对象。但由于 =MAX_CHILDREN= 被定义为 =FD_SETSIZE= 的一半，网络连接数量上限仍是 32。读者可以通过 Python 或 Node 搭建本地 HTTP 服务器，并用如下代码测试验证：
+
+#+begin_src elisp
+  (dotimes (i 100)
+    (open-network-stream 
+     (format "con-%s" i)
+     nil "127.0.0.1" 8080))
+#+end_src
+
+[[./2.png]]
+
+** 如何实现更多对象的等待
+
+=WaitForMultipleObjects= 最多只能等待 64 个对象，但这只是单个线程的限制，微软的文档指出可以通过让多个线程调用 =WaitForMultipleObjects= 或使用线程池来等待更多的对象：
+
+#+begin_quote
+To wait on more than *MAXIMUM_WAIT_OBJECTS* handles, use one of the following methods:
+
+- Create a thread to wait on *MAXIMUM_WAIT_OBJECTS* handles, then wait on that thread plus the other handles. Use this technique to break the handles into groups of *MAXIMUM_WAIT_OBJECTS*.
+- Call [[https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-registerwaitforsingleobject][RegisterWaitForSingleObject]] or [[https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-setthreadpoolwait][SetThreadpoolWait]] to wait on each handle. The thread pool waits efficiently on the handles and assigns a worker thread after the object is signaled or the time-out interval expires.
+#+end_quote
+
+微软文档给出了两种解决方法：可以通过多线程调用等待函数，或者使用线程池提供的对象等待功能。本文接下来重点讨论前者，这里先简单介绍一下后者，主要参考 Raymond Chen 大神的《Windows 编程启示录》（[[https://devblogs.microsoft.com/oldnewthing/][The Old New Thing]]）系列博客中的几篇文章。
+
+在 [[https://devblogs.microsoft.com/oldnewthing/20081117-00/?p=20183][Why bother with RegisterWaitForSingleObject when you have MsgWaitForMultipleObjects?]] 一文中，Raymond 回答了 kokorozashi 关于 =RegisterWaitForSingleObject= 和 =MsgWaitForMultipleObjects= 的取舍问题。文章不长，这里摘录重点：
+
+#+begin_quote
+The advantage of =RegisterWaitForSingleObject= over creating your own thread for waiting is that the thread pool functions will combine multiple registered waits together on a single thread (by the power of =WaitForMultipleObjects=), so instead of costing a whole thread, it costs something closer to (but not exactly) 1/64 of a thread.
+#+end_quote
+
+虽然 Windows 线程池的实现细节未公开，但从这段描述中的 1/64，可以推测线程池内部可能是通过多线程调用 =(Msg)WaitForMultipleObjects= 来突破 64 个对象等待限制。相比自己实现，直接用现成线程池自然更省心。（可惜出于一些考虑，我最终还是没能用上线程池，后文细说。）
+
+这里有个时间节点需要注意，这篇博客发布于 2008 年 11 月 17 日，参考下表可以发现，它位于 Windows Vista 发布之后、Windows 7 发布之前（2000 年前的就不列了）：
+
+#+caption: [[https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions][List of Microsoft Windows versions]]
+#+attr_html: :class data
+| NAME          | Release date |
+|---------------+--------------|
+| Windows 2000  |   2000-02-17 |
+| Windows XP    |   2001-10-25 |
+| Windows Vista |   2007-01-30 |
+| Windows 7     |   2009-10-22 |
+| Windows 8     |   2012-10-26 |
+| Windows 10    |   2015-07-29 |
+| Windows 11    |   2021-10-04 |
+
+另一篇相关博客是 2022 年 4 月 6 日发布的 [[https://devblogs.microsoft.com/oldnewthing/20220406-00/?p=106434][/All Windows threadpool waits can now be handled by a single thread/]]。文章提到，从 Windows 8 开始，注册到线程池的对象等待由 IO 完成端口（IOCP）统一处理。同样是等待 10000 个对象，旧版线程池可能需要约 232 个线程，而基于 IOCP 的新线程池只需极少量线程即可完成。
+
+#+begin_quote
+This quick-and-dirty program creates 10,000 threadpool waits, each waiting on a different event, and whose callback signals the next event, creating a chain of waits that eventually lead to setting the event named =last=. Under the old rules, creating 10,000 threadpool waits would result in around 10,000 ÷ 63 ≅ 232 threads to wait on all of those objects. But if you break into the debugger during the =Sleep()=, you’ll see that there are just a few. And if you set a breakpoint at the start of the =main= function, you’ll see that only one of those threads was created as a result of the threadpool waits; the others were pre-existing.
+#+end_quote
+
+除了通过线程池间接利用 IOCP 等待大量对象之外，还有开发者发现了一些未公开的 API，可用于将普通事件对象与 IOCP 关联，例如 [[https://github.com/tringi/win32-iocp-events][win32-iocp-events]] 项目。由于本文最终未采用这种实现方式，因此不再展开细节。 +不过，我会在文末给出三种方式的简单性能对比：多线程等待、线程池 IOCP 以及非公开 API IOCP。+ （草，要是有时间的话之后单独写一篇吧。）
+
+* 前人的工作
+
+虽然我们的主要目的是增加 Windows 平台上 Emacs 能够启动的最大子进程数量，但这也并不是 Windows 平台独有的，根据我能找到的信息，MacOS 上似乎也存在类似的问题。在这一节中我会介绍 MacOS 和 Windows 上对子进程数量相关问题的讨论。
+
+** 一次失败的尝试：在 macOS 上使用 =poll()= 替换 =select()=
+
+在 emacs-devel 邮件列表中我能找到的类似讨论是 2022 年 5 月 4 日的 [[https://lists.gnu.org/archive/html/emacs-devel/2022-05/msg00115.html][1024 file descriptors should be enough for anyone]]，Robert Pluim 提交了一个补丁，用 =poll= 替代 =select= ，并将文件描述符的数量上限从 1024 提高至 10240。由于 Windows 不支持 =poll= ，因此该更改对 Windows 版本无效。
+
+#+caption: [[https://lists.gnu.org/archive/html/emacs-devel/2022-05/msg00157.html][Man! What can I say?]]
+[[./3.png]]
+
+对于将这一限制提高 10 倍的做法，Stefan Monnier 表达了疑虑：[[https://lists.gnu.org/archive/html/emacs-devel/2022-05/msg00149.html][Surprisingly high use of file descriptors]]。Robert 指出，lsp-mode 和 eglot 使用的 filenotify.el 在 macOS 上会为每个文件占用一个文件描述符。顺便一提，Linux 上是为每个目录分配一个，Windows 则完全不使用文件描述符，而是[[https://lists.gnu.org/archive/html/emacs-devel/2022-05/msg00159.html][采用文件句柄]]。因此，如果某个项目中打开的文件或目录数量超过 1024，就会超出 Emacs 的默认文件描述符上限。
+
+这次补丁讨论的成果之一是创建了 [[https://lists.gnu.org/archive/html/emacs-devel/2022-05/msg01151.html][feature/more-fds]] 分支。邮件列表上关于该分支的下一次讨论发生在近一年后的 2023 年 5 月 14 日：[[https://lists.gnu.org/archive/html/emacs-devel/2023-03/msg00576.html][Landing feature/more-fds for Emacs 30?]]。Elliott Shugerman 表示，在 macOS 上应用该补丁后，类似 "too many open files" 的问题已不再出现。不过 Robert Pluim 对此[[https://lists.gnu.org/archive/html/emacs-devel/2023-03/msg00582.html][仍持谨慎态度]]：
+
+#+begin_example
+The issue tends to happen when you have file notification turned on,
+and the Linux kernel implementation of that scales better than the
+macOS one (unless we switch to the new macOS notification api, but we
+already have 3 different ones...)
+#+end_example
+
+（注，此处的三套 API 应该是指 =select/poll/FSEvents= ，不过我没有 macOS 设备，不怎么了解 [[https://en.wikipedia.org/wiki/FSEvents][FSEvents]]。）
+
+在随后的讨论中，Michael Albinus 指出可以使用 FSEvents 替代 kqueue，但 Robert 认为这并不能解决其他 *BSD 系统的问题。2023 年 5 月的讨论基本结束了。在同年 10 月有过一次简短的讨论：[[https://lists.gnu.org/archive/html/help-gnu-emacs/2023-10/msg00022.html][Using emacs 'with-poll']]，Jonathon McKitrick 在使用 CIDER 和 Clojure 时似乎遇到了一些挂起问题，Robert 表示他会处理此事。关于该改进的下一次讨论发生在一年之后的 2024 年 8 月 3 日：[[https://lists.nongnu.org/archive/html/emacs-devel/2024-08/msg00064.html][Continuing work on 'with-poll' (feature/more-fds)]]，不过这个时候只剩 Jonathon McKitrick 一个人了（笑）。同年 9 月 8 日还有一次[[https://lists.nongnu.org/archive/html/emacs-devel/2024-09/msg00261.html][讨论]]，然后就没有下文了。
+
+#+begin_quote
+Speaking from the sidelines: the currently active emacs-devel community has a dearth of people with the right combination of time, access, and interest to guide big changes to macOS support. If you are interested in working on such an idea, I'll suggest just pick up the effort and push it forward yourself, then share it with emacs via the bug-tracker (for better centralized tracking). If you get a patch that seems to work but needs broader testing, posting to emacs-devel can be effective, and if it's not, we/it can help spread the word. Keep in mind that code included in GNU Emacs will eventually need copyright assignment for non-trivial contributions.
+
+It's also theoretically possible to get help from the community that uses the other widely available macOS port (search for "carbon port versus cocoa port" if you want more history here), but, last I checked (admittedly, quite a while back) the mac port used some significantly different internal machinery around select that _I would guess_ has a big impact in this area, and is effectively not directly compatible -- but might still have valuable insights & experience to share.
+
+If you need a *place* to work on this project, ask again here or in the big-tracker, and probably something can be worked out. 
+
+I hope that helps! (I stopped using macOS myself several years ago, so I can't offer more direct assistance).
+
+~Chad
+
+Sun, 8 Sep 2024 13:28:38 -0400
+#+end_quote
+
+** 多线程 =WaitForMultipleObjects= 
+
+在 Windows 的折腾我能找到的也许只有 Emacs-China 论坛上的一些帖子，是 [[https://emacs-china.org/u/junmoxiao/summary][@junmoxiao]] 的一些研究：
+
+- 2024 年 2 月发现 native comp 会触发 too many open files 报错 [[https://emacs-china.org/t/windows-emacs-creating-process-pipe-too-many-open-files/26548][关于windows下emacs报错Creating process pipe: Too many open files的真正解决方法]]，他尝试直接修改 =FD_SETSIZE= 来提高子线程数量限制，但实际上没有效果。
+- 2024 年 6 月，[[https://emacs-china.org/t/windows-emacs-2024-2-16/26562][优化windows版本emacs的总结（持续更新 2024-2-16）]]和[[https://emacs-china.org/t/windows-emacs-2024-6-16/27392][关于优化windows版本emacs的进展（2024-6-16更新，绕过了子进程/套接字数量限制）]]，通过多线程实现了允许等待超过 32 个子进程。
+- 2024 年 6 月向 emacs-devel（[[https://lists.gnu.org/archive/html/emacs-devel/2024-06/msg00414.html][I broke through the limitation of only 32 child processes that can be cr]]）和 bug-gnu-emacs（[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2024-06/msg01117.html][bug#71628: sys_select and waitpid optimize in windows emacs]]）发送邮件。
+
+虽然他向 bug-gnu-emacs 发送了邮件，但似乎始终没有收到来自 FSF 的文件，也就无法继续整个提交流程（我问了下，原来一直在邮件垃圾箱里😂）。我之后的代码在基础思路上来自他的代码，因为我会在下面详细介绍我的具体实现这里就一笔带过了：[[https://github.com/heheda123123/emacs/compare/master...heheda123123:emacs:new_sys_select_for_win][Comparing master...new_sys_select_for_win]]。
+
+* 各种各样的等待实现
+
+从我于 2025 年 1 月 21 日向 emacs-devel 邮件列表发出第一封讨论邮件，到现在（四月底）已经过去了将近三个月。这期间的许多细节我也记不太清了，当时开发过程中使用的本地分支似乎也因某些原因遗失了。这里只能根据回忆、部分残留的文件和邮件记录，尽力“还原”出整个过程。为方便阅读，文中的邮件内容我会翻译为中文。
+
+- 一月 [[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00801.html][Increase FD_SETSIZE in w32.h to allow more than 32 (actually 29) subproc]]
+- 二月 https://lists.gnu.org/archive/html/emacs-devel/2025-02/msg00168.html
+- 三月 https://lists.gnu.org/archive/html/emacs-devel/2025-03/msg00445.html
+
+** 第一次尝试与讨论
+
+我第一次向 emacs-devel 发送邮件是在 1 月 21 日，在当时我应该已经了解到了可以使用线程池或 IOCP，不然我也不会在邮件中提到。Eli（Emacs 维护者）对我的回复如下：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00810.html][2025/01/21]] by Eli
+
+> 另一种方式是使用 IOCP[^1]，它可以轻松处理大量 IO 操作。
+
+据我所知，这使用了内部/未记录的函数，而且代码没有许可证，这意味着我们出于法律原因无法使用它。我也非常犹豫是否使用内部函数，因为这些函数可能会随时更改。
+
+[...]
+
+> 目前，我已经与 Bug#71628 的负责人沟通过了。他太忙了，没时间推进，但他允许我使用他的代码来进一步改进。你更喜欢哪一种实现方式？是使用线程、IOCP，还是保留当前最多 32 个子进程？
+
+保留当前的限制很容易 ;-)
+
+我确实想取消这个限制，但希望保留 Emacs 中目前对 MS-Windows 子进程支持的总体设计。这是因为这个设计经受住了时间的考验，因此被认为总体上是可靠的。我希望保持这种状态，只进行少量的修改。你认为这有可能吗？
+
+[1]: https://github.com/tringi/win32-iocp-events
+#+end_quote
+
+在第一次讨论中，Eli 就否决了 IOCP 方案。他不希望在 Emacs 中引入可能会发生变更的 API，另外我提供的 IOCP 示例代码也存在许可证问题。之后，我选择基于 @junmoxiao 的代码做改进，首先实现了一版[[https://gist.github.com/include-yy/3f9d480f13aceb3bfbaa7e3a31c71578/ef0a4b1ab033445667488152145b5b68e594da6a][带线程池]]的版本，随后又修改为非线程池版，并在 1 月 23 日通过邮件提交了[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00887.html][这个 patch]]。之所以先写了带线程池版本又改为非线程池版，大概是当时还没意识到 Windows 上线程创建的开销，以及非线程池版实现起来更简单。
+
+对于这一 patch，Eli 指出了一系列的问题，我认为比较重要的有以下这些：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00961.html][2025/01/25]] by Eli
+
+#+begin_example
+> +  p->hObjects = xmalloc (sizeof (HANDLE) * p->nObject);
+> +  if (p->nObject != p->nThread)
+> +    memcpy (p->hObjects + p->nThread,
+> +         lpHandles + p->nThread * WAIT_GROUP_SIZE,
+> +         sizeof (HANDLE) * (nCount - p->nThread * WAIT_GROUP_SIZE));
+> +  p->pParams = xmalloc (sizeof (WaitForMultipleObjectsParams) * p->nThread);
+> +  p->pHandles = xmalloc (sizeof (HANDLE) * p->nThread * 
+> MAXIMUM_WAIT_OBJECTS);
+#+end_example
+
+由于这些变量的最大大小是预先已知的，并且由实现固定，我认为最好避免对这些数组进行常量分配和释放，而是使用其最大大小的静态数组。在正常的 Emacs 使用中，sys_select 会被频繁调用，每次调用都需要对这些变量进行 xmalloc/xfree 操作。它们的最大大小似乎不到 10KB（对吗？），这对于避免常量堆分配来说只是一个小小的代价。
+
+[...]
+
+: > +      p->hObjects[i] = CreateThread (NULL, 0, WaitForMultipleObjectsWrapped,
+: > +                                  p->pParams + i, 0, NULL);
+
+第二和第五个参数为零可能会引起问题，至少在 32 位 Emacs 版本中是这样。请参阅 w32proc.c 文件第 1100 行附近的注释，其中解释了为什么以及如何为辅助线程请求较小的堆栈大小。
+
+: > +static void
+: > +CleanupWaitForMultipleObjectsInfo (WaitForMultipleObjectsInfo *p)
+: > +{
+: > +  SetEvent (p->hEndEvent);
+: > +  WaitForMultipleObjects(p->nThread, p->hObjects, TRUE, INFINITE);
+
+与其永远等待线程退出，不如强制终止它们，不是更好吗？当调用清理函数时，我们知道至少有一个线程退出了，所以我们可以终止其余线程。或者至少在等待一段合理的时间（比如 100 毫秒）让它们因 SetEvent 而退出后再终止它们。我担心，如果某个线程因为某种原因无法退出，我们可能会永远卡在这个 WaitForMultipleObjects 循环中。
+
+[...]
+
+如果我理解正确的话，这会导致我们在需要启动 65 个进程时只启动 2 个线程。难道只使用一个线程，然后像现在这样使用 wait_hnd[] 数组中剩余的可用槽来等待其他进程启动不是更好吗？
+
+最后，在现代 Windows 系统中，启动一个线程需要多长时间？这对于评估这种设计对 MS-Windows 上子进程性能的影响可能很重要。
+#+end_quote
+
+总结一下 Eli 指出的问题，大致是以下几点：
+
+1. 由于最大线程数量是确定的，而每个线程需要使用一个线程上下文结构，如果将这些结构静态分配可以避免使用 =xmalloc/xfree= 动态分配。
+2. 在创建线程时，指定 FLAG 为 0 会使用默认大小的线程堆栈，这在 32 位系统上可能有潜在问题。
+3. 在等待所有线程完成它们的任务时不应指定时间为 INFINITE，如果某个线程因为某种原因无法退出，可能会出现死循环。
+4. 在启动 65 个子进程时似乎会使用两个线程？（当然我的算法避免了这种情况）。
+5. 线程的 *创建开销* 问题。
+
+Cecilio Pardo 同样也[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00980.html][指出]]了一些问题，同时提到能否利用系统线程池而不是自己管理线程。我[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg00990.html][回应]]（1 月 26 日）了 Eli 和 Cecilio 指出的问题，并[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg01095.html][测试]]（1 月 28 日）了 Windows 创建线程的开销。测试结果表明线程创建的开销是不可忽略的：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg01103.html][2025/01/28]] by Eli
+
+> 经过一些简单的调查，我认为每次调用 sys_select 时创建新线程的开销可能不可接口。
+
+> 链接 https://stackoverflow.com/a/18275460 提供了一段很好的代码，用于测试线程创建所需的时间。链接中给出的测试结果显示，从线程创建到实际执行所需的时间在几十到几百微秒之间。我稍微修改了代码，并测试了创建和执行 64 个线程所需的时间。以下是我的测试结果：
+
+> 总计：34.581500 毫秒，平均：0.540336 毫秒\\
+> 最大值：1.429200 毫秒，最小值：0.039000 毫秒
+
+> 我可以修改 `sys_select' 来观察它的调用时间，但我选择了一种更简单的方法：使用 `accept-process-output'：
+
+: > (benchmark-run 1000000 (accept-process-output))
+: > => (1.4010608 4 0.2107215)
+
+> 以上结果表明 `sys_select' 的调用时间应该小于 2 微秒。然而，当我应用我的补丁并创建超过 32 个子进程时，这个值飙升到惊人的 160 微秒。
+
+> 我打算继续我的线程池实现。你认为呢？
+
+你能否从线程管理的角度简要描述一下它的工作原理？例如，线程何时（在什么情况下）创建，它们会退出或被终止吗？我认为我们的需求非常独特，所以也许应该有一些特殊的线程管理策略（而不是标准线程池实现提供的策略）？我不是线程池专家，所以我在这里说的可能没什么意义。
+#+end_quote
+
+为了回复这封邮件，我记得我当时花了点脑筋思考怎么回复，希望我的回复能帮助读者理解下一节的代码：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg01160.html][2025/01/30]] by me
+
+线程池是一组预先初始化、随时可以执行任务的线程。线程池不会为每个任务创建和销毁线程，而是重用固定数量的线程来处理多个任务。这通过减少线程创建和销毁的开销来提高性能和资源效率。
+
+对于 Emacs，我目前的实现是创建一个长度为 32 的结构体数组，其中每个元素包含线程的上下文信息。线程仅在必要时创建，例如，当子进程数量首次超过 32 个（或更多）时。线程创建后不会退出；而是进入无限循环，等待事件触发并开始执行 WaitForMultipleObjects 任务。
+
+一旦一个线程完成等待，它会通知主线程，主线程指示其他子线程停止等待（另一种可能的情况是主线程先完成等待，然后直接通知所有子线程）。然后，它们开始等待下一个调用 WaitForMultipleObjects 的任务。
+
+在此实现中，当子进程数量较多（大约 1000 个）时，accept-process-output 的最大调用时间不超过 100 微秒。然而，可能仍有改进空间。
+
+顺便问一下，我可以使用 =_WIN32_WINNT= 检查当前的 Windows 版本，并充分利用一些系统功能，例如线程池吗？我会将系统线程池的性能与我自己的实现进行比较，以决定是否使用它们。
+#+end_quote
+
+在经过一些细枝末节的讨论后，我和 Eli 结束了 1 月份的讨论，下面让我们来看看我的第一次实现，
+
+** 多线程等待的朴素实现
+
+虽然这一版代码的思路被放弃了，但它相比最终版本接近 1000 行的 patch 还是更好理解一些，如果读者（包括未来的我）真有兴趣去看最终的 patch，这一版也是不错的开始：[[file:sub4.patch][sub4.patch]]。
+
+从原理上来说整个 patch 的功能非常简单，就是通过多线程调用 =WaitForMultipleObjects= 来实现等待超过 64 个对象。如果我们假设最大等待数量为 4 的话，大致可以通过下图来说明整个模块的工作原理：
+
+[[./8.png]]
+
+由于不涉及线程管理，整个实现的核心部分就是对输入句柄的分组。这一过程的实现位于 =InitializeWaitForMultipleObjectsInfo= 中：
+
+#+caption: =InitializeWaitForMultipleObjectsInfo= 实现
+:InitializeWaitForMultipleObjectsInfo:
+#+begin_src c
+  typedef struct
+  {
+    HANDLE *hObjects;
+    WaitForMultipleObjectsParams *pParams;
+    HANDLE *pHandles;
+    HANDLE hEndEvent;
+    int nObject;
+    int nThread;
+    int nHandle;
+  } WaitForMultipleObjectsInfo;
+
+  static void
+  InitializeWaitForMultipleObjectsInfo (WaitForMultipleObjectsInfo *p,
+  				      DWORD nCount,
+  				      CONST HANDLE *lpHandles,
+  				      BOOL bWaitAll,
+  				      DWORD dwMilliseconds)
+  {
+    p->nThread = 1 + (nCount - 1 - MAXIMUM_WAIT_OBJECTS / 2)
+      / WAIT_GROUP_SIZE;
+    p->nObject = (p->nThread * WAIT_GROUP_SIZE >= nCount)
+      ? p->nThread
+      : p->nThread + (nCount - p->nThread * WAIT_GROUP_SIZE);
+    p->hObjects = xmalloc (sizeof (HANDLE) * p->nObject);
+    if (p->nObject != p->nThread)
+      memcpy (p->hObjects + p->nThread,
+  	    lpHandles + p->nThread * WAIT_GROUP_SIZE,
+  	    sizeof (HANDLE) * (nCount - p->nThread * WAIT_GROUP_SIZE));
+    p->pParams = xmalloc (sizeof (WaitForMultipleObjectsParams) * p->nThread);
+    p->pHandles = xmalloc (sizeof (HANDLE) * p->nThread * MAXIMUM_WAIT_OBJECTS);
+    p->hEndEvent = CreateEvent (NULL, TRUE, FALSE, NULL);
+    for (int i = 0, offset = 0; i < p->nThread; i++)
+      {
+        int count = (i == p->nThread - 1)
+  	? (p->nThread == p->nObject)
+          ? (nCount - i * WAIT_GROUP_SIZE)
+  	: WAIT_GROUP_SIZE
+  	: WAIT_GROUP_SIZE;
+        p->pParams[i].nCount = count + 1;
+        p->pParams[i].lpHandles = p->pHandles + i * MAXIMUM_WAIT_OBJECTS;
+        p->pParams[i].dwMilliseconds = dwMilliseconds;
+        p->pParams[i].bWaitAll = bWaitAll;
+        p->pParams[i].nIndex = i;
+        memcpy (p->pParams[i].lpHandles, lpHandles + offset,
+  	      sizeof (HANDLE) * count);
+        p->pParams[i].lpHandles[count] = p->hEndEvent;
+        offset += count;
+        p->hObjects[i] = CreateThread (NULL, 0, WaitForMultipleObjectsWrapped,
+  				     p->pParams + i, 0, NULL);
+      }
+    return;
+  }
+#+end_src
+:end:
+
+在这个实现中，我们首先根据等待句柄的数量计算需要的线程数，以及主线程需要等待的句柄数量：
+
+#+begin_src c
+  #define FD_SETSIZE (MAXIMUM_WAIT_OBJECTS * MAXIMUM_WAIT_OBJECTS / 2)
+  #define WAIT_GROUP_SIZE (MAXIMUM_WAIT_OBJECTS - 1)
+  #define MAXIMUM_WAIT_OBJECTS_2 FD_SETSIZE
+  //...
+  {
+    p->nThread = 1 + (nCount - 1 - MAXIMUM_WAIT_OBJECTS / 2)
+      / WAIT_GROUP_SIZE;
+    p->nObject = (p->nThread * WAIT_GROUP_SIZE >= nCount)
+      ? p->nThread
+      : p->nThread + (nCount - p->nThread * WAIT_GROUP_SIZE);
+    p->hObjects = xmalloc (sizeof (HANDLE) * p->nObject);
+    if (p->nObject != p->nThread)
+      memcpy (p->hObjects + p->nThread,
+  	    lpHandles + p->nThread * WAIT_GROUP_SIZE,
+  	    sizeof (HANDLE) * (nCount - p->nThread * WAIT_GROUP_SIZE));
+    p->pParams = xmalloc (sizeof (WaitForMultipleObjectsParams) * p->nThread);
+    p->pHandles = xmalloc (sizeof (HANDLE) * p->nThread * MAXIMUM_WAIT_OBJECTS);
+    //...
+  }
+#+end_src
+
+在我的实现中，主线程可以等待的最大句柄数量是 =MAXIMUM_WAIT_OBJECTS= ，实际中就是 64，如果假设它的值为 4 的话，那么 =FD_SETSIZE= 的值为 =4 * 4 / 2 = 8= 。就像你在上图中看到的那样，当主线程等待 4 个句柄且等待总数为 8 时创建了两个线程，是主线程可等待句柄数量的一半。当等待总句柄数量大于等于 4 时，线程等待情况可用下图说明：
+
+[[./9.png]]
+
+上面提到 Eli 怀疑我的代码可能会在等待 65 个句柄时创建两个子线程，但按照我的这种算法，只有在主线程等待数组上的剩余句柄数量大于数组长度（64）的一半时才会创建新的子线程并填入句柄，这一算法会让子线程的等待句柄数量始终大于等于其等待最大数量的一半（比如 =64 / 2 = 32= ， =4 / 2 = 2= ）。
+
+在确定了线程数量以及主线程需要等待的句柄数后，读者可以注意到我使用了一个 memcpy 将不在子线程中等待的剩余句柄复制到了 =p->hObjects= 这个主线程等待句柄数组的末尾，即所有可能的子线程句柄的后面。随后我们分配了 =p->pParams= 和 =p->pHandles= 内存块分别用来存放各 *子线程函数的参数* 以及 *子线程需要等待的所有句柄* 。接下来就是对这些结构的逐线程初始化操作了：
+
+#+begin_src c
+  for (int i = 0, offset = 0; i < p->nThread; i++)
+    {
+      int count = (i == p->nThread - 1)
+        ? (p->nThread == p->nObject)
+        ? (nCount - i * WAIT_GROUP_SIZE)
+        : WAIT_GROUP_SIZE
+        : WAIT_GROUP_SIZE;
+      p->pParams[i].nCount = count + 1;
+      p->pParams[i].lpHandles = p->pHandles + i * MAXIMUM_WAIT_OBJECTS;
+      p->pParams[i].dwMilliseconds = dwMilliseconds;
+      p->pParams[i].bWaitAll = bWaitAll;
+      p->pParams[i].nIndex = i;
+      memcpy (p->pParams[i].lpHandles, lpHandles + offset,
+              sizeof (HANDLE) * count);
+      p->pParams[i].lpHandles[count] = p->hEndEvent;
+      offset += count;
+      p->hObjects[i] = CreateThread (NULL, 0, WaitForMultipleObjectsWrapped,
+                                     p->pParams + i, 0, NULL);
+    }
+#+end_src
+
+=WaitForMultipleObjectsThreaded= 和 =MsgWaitForMultipleObjectsThreaded= 会使用 =InitializeWaitForMultipleObjectsInfo= 初始化并创建子线程，然后调用 =WaitForMultipleObjects= 在主线程中等待主线程句柄数组。在等待完成后会调用 =ExtractWaitResult= 获取一个触发的句柄的下标，最后调用 =CleanupWaitForMultipleObjectsInfo= 执行清理工作。当然你也可以看到在等待句柄数量小于 64 时会直接使用 =WaitForMultipleObjects= ：
+
+#+begin_src c
+  WaitForMultipleObjectsThreaded (DWORD nCount,                            
+                                  HANDLE *lpHandles,                        
+                                  BOOL bWaitAll,                            
+                                  DWORD dwMilliseconds)                     
+  {                                                                        
+    if (nCount <= MAXIMUM_WAIT_OBJECTS)                                    
+      {                                                                    
+        DWORD result = WaitForMultipleObjects (nCount, lpHandles, bWaitAll,
+                                               dwMilliseconds);             
+        if (result == WAIT_TIMEOUT)                                        
+          result = WAIT_TIMEOUT_2;                                          
+        else if (result >= WAIT_ABANDONED_0                                
+                 && result < WAIT_ABANDONED_0 + nCount)                     
+          result += WAIT_ABANDONED_0_2 - WAIT_ABANDONED_0;                  
+        return result;                                                     
+      }                                                                    
+    WaitForMultipleObjectsInfo info;                                       
+    InitializeWaitForMultipleObjectsInfo (&info, nCount, lpHandles,        
+                                          bWaitAll, dwMilliseconds);         
+    DWORD result = WaitForMultipleObjects (info.nObject, info.hObjects,    
+                                           bWaitAll, dwMilliseconds);       
+    result = ExtractWaitResult (&info, result);                            
+    CleanupWaitForMultipleObjectsInfo (&info);                             
+    return result;                                                         
+  }
+#+end_src
+
+结束和清理的功能我自认为比较容易理解这里就不展开介绍了。Eli 提到的动态内存分配问题可以通过静态分配来解决，但是线程的创建开销是不可忽略的，在写这篇文章时我又重新跑了一下[[file:test.c][测试代码]]，结果如下（草，突然发现邮件列表中的代码忘了给出最大和最小用时）：
+
+#+begin_example
+total: 28.25880, average: 0.44154
+max  : 1.35410 , min    : 0.03350
+#+end_example
+
+可见最大用时还是毫秒量级。如果你对 Emacs 使用这个 patch，你会发现当等待 1000 个左右子进程时单次 =accept-process-output= 调用（指定超时为 0）[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg01167.html#:~:text=be%20an%20astonishing-,4%20ms,-when%0Awe%20have][需要 4 毫秒]]。我认为即便在存在如此多的子进程的情况下这个等待时间也是不可接受的，换用我之前的线程池版本，等待相同数量子进程只需要大约 100 微秒。因此，我最终选择继续在线程池代码基础上改进。
+
+** 为什么不使用线程池
+
+虽然我一直在把我[[https://gist.github.com/include-yy/3f9d480f13aceb3bfbaa7e3a31c71578/ef0a4b1ab033445667488152145b5b68e594da6a][首次实现的版本]]称为带线程池的多线程 =WaitForMultipleObjects= 等待，但更准确的说法也许是 *采用了线程池机制* 的 xxx 实现。在我的实现中，线程池机制只是为了 *等待事件* 而不是 *执行任务* ，相比完整的线程池，这只能算是线程池的事件等待模块（只有 wait thread 而没有 wokrer thread）。既然 Windows 已经提供了功能齐全的线程池，为什么不直接用现成的呢？还是先看看远处的历史吧家人们。
+
+根据我能了解到的资料，Windows 最早在 Windows 2000 引入了线程池功能：[[https://jacobfilipp.com/MSJ/pooling.html][New Windows 2000 Pooling Functions Greatly Simplify Thread Management]]。关于这一 API 系列的简单介绍可以参考 [[https://learn.microsoft.com/en-us/windows/win32/procthread/thread-pooling][Thread Pooling]] 文档。在 Windows Vista 中有了新的线程池 API：[[https://learn.microsoft.com/en-us/windows/win32/procthread/thread-pools][Thread Pools]]，相比原始线程池 API 做出了较大改进。Windows 7 和 Windows 8 均有一些改进，Windows 8 的其中一项就是我们上面提到的在内部使用 IOCP 来等待事件。Windows 10 和 11 也有一些小的进步，但 API 层面没有太大变化了。想要了解具体的改变，也许我们最好去看看 Windows Internel 这一系列书籍。
+
+既然 Windows 2000 开始就支持线程池了，如果我们将 Emacs 中的 =WaitForMultipleObjects= 调用改为依赖线程池的版本似乎不会有什么问题，毕竟这都是二十多年前的 API 了，就算是屎山也坚不可摧了。如果你这样想可能就忽略了 Emacs 支持的 Windows 范围：从 MS-DOS 到 Windows 11！为了让我的 patch 支持尽可能多的 Windows 版本，我用的 API 可能是越老越好。这样一来，使用事件对象，普通线程和 =WaitForMultipleObjects= 是最保守也最可靠的方案。
+
+既然这样，为什么不根据不同 Windows 系统使用不同的 API 呢？这也是我向 Eli 提出的疑问：能否使用 =_WIN32_WINNT= 进行条件编译来选择使用不同的 API，Eli 的回复如下：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-01/msg01162.html][2025/01/30]] by Eli
+
+> 顺便问一下，我可以使用 _WIN32_WINNT 来检查当前的 Windows 版本，并充分利用一些系统功能，例如线程池吗？我会将系统线程池的性能与我自己的实现进行比较，以决定是否使用它们。
+
+是的，如果较新的 Windows 版本提供了一些可以显著提升运行时性能的功能，那么我们可以决定在旧版 Windows 上运行的 Emacs 不使用这项新功能或其某些高级功能。然而，_WIN32_WINNT 并不是做出这些决定的合适工具，因为它是一个编译时决定，而 Windows 版 Emacs 二进制文件在很多情况下是在与 Emacs 最终运行的 Windows 系统不同的 Windows 系统上生成的。因此，Emacs 很有可能是在 Windows 11 上构建的，然后在 Windows 8.1、XP 甚至 9X 上运行。
+
+这就是为什么我们通常倾向于将 _WIN32_WINNT 设置为 MinGW 环境的默认值，这大概是 MinGW 用于编译 Emacs 所支持的最低 Windows 版本。如果我们需要仅在更高 Windows 版本上可用的编译时或运行时功能，我们要么
+
+- 在我们的源代码中包含必要的头文件部分（以解决宏、函数或数据类型的问题这些问题仅针对较高的 _WIN32_WINNT 值定义），或者
+- 尝试在运行时加载相关的 DLL 并通过函数指针从中调用函数，或者
+- 通过调用替代 API 为旧版 Windows 提供性能较低的替代方案，条件是运行时检测到的 Windows 版本，或者加载 DLL和/或在 DLL 中找到函数和/或调用该函数成功或失败
+
+你可以在 w32*.c 源文件中找到许多使用这些技术的示例，我们可以讨论在开发此功能的过程中遇到的具体情况下该如何处理。
+#+end_quote
+
+如果使用这样的做法，那么为 Emacs 提供更多子进程的支持可以分解为几个不同的目标：为 Windows 2000 前的系统手动实现线程池、在 Windows 2000, XP 上使用老线程池 API、在 Windows Vista 及以后的系统上使用新线程池 API。但这样的做法不太现实：现在我们基本上拿不到安装 Vista 或者之前系统的设备了，测试只能在虚拟机中进行。不过更麻烦的问题可能是 Windows 并不是只有 64 位系统，直到 Windows 10 都同时存在 32 位和 64 位的 Windows 系统。
+
+为了避免堆栈溢出，Emacs 主线程的堆栈大小是 8MB，在 32 位系统上单个进程可用的地址空间只有 2GB。如果我们在 Windows 上打开 1024 个子进程，我们需要的等待线程数量是 32，在默认堆栈大小下需要 32 * 8 = 256MB 地址空间，这差不多是整个可用地址空间的八分之一。为了避免这个问题，我们需要在调用 =CreateThread= 时指定 =STACK_SIZE_PARAM_IS_A_RESERVATION= 来显式保留指定大小的堆栈地址空间。
+
+（在研究这个问题时我发现注释有些过时了，可以看看[[https://lists.nongnu.org/archive/html/bug-gnu-emacs/2025-02/msg00319.html][bug#76041]]。）
+
+遗憾的是，线程池中的线程直到 Windows 7 才能通过 =SetThreadpoolStackInformation= 来指定线程池的线程堆栈提交大小。这也意味着 Windows 7 之前的无法调整线程池中线程堆栈。现在我们可以调整目标为：Windows Vista 及之前的系统手动实现；Windows 7 及以后系统使用新线程池并指定线程池堆栈大小。
+
+最终，我选择了为所有的系统使用手动实现的等待线程池，这可能是因为当时的我对线程池 API 不怎么熟悉，以及春假快要结束没时间了（笑）。
+
+** IF 线：使用线程池实现对象等待
+
+现在让我们假设另外一条时间线：我在二五年之前已经成为了一位 Windows 编程大师，对 Windows 线程池了如指掌。现在让我们尝试使用 Windows 的新线程池 API 来实现一下等待大量对象，虽然我不认为在不大幅修改 Emacs 与子进程的 IO 实现的情况下这能带来多少性能提升就是了。为了简单起见，这里假设我们使用的是 64 位系统，不用关心地址空间的问题。
+
+首先，让我们看看上面提到的 Raymond Chen 的[[https://devblogs.microsoft.com/oldnewthing/20220406-00/?p=106434][示例代码]]：
+
+#+begin_src cpp
+  #include <windows.h>
+  #include <stdio.h>
+
+  int main()
+  {
+      static LONG count = 0;
+      HANDLE last = CreateEvent(nullptr, true, false, nullptr);
+
+      HANDLE event = last;
+      for (int i = 0; i < 10000; i++)
+      {
+          auto wait = CreateThreadpoolWait(
+          [](auto, auto event, auto, auto)
+          {
+              InterlockedIncrement(&count);
+              SetEvent(event);
+          }, event, nullptr);
+          event = CreateEvent(nullptr, true, false, nullptr);
+          SetThreadpoolWait(wait, event, nullptr);
+      }
+
+      Sleep(10000);
+      SetEvent(event);
+      WaitForSingleObject(last, INFINITE);
+      printf("%d events signaled\n", count);
+      return 0;
+  }
+#+end_src
+
+在上面这个例子中， =CreateThreadpoolWait= 用于创建一个等待对象 (wait object)， =SetThreadpoolWait= 将等待对象与句柄关联，当句柄触发时线程池中的工作线程会调用等待对象中的回调函数。这个例子中的循环实际上创建了一个事件对象链条， =last= 会在最后被触发。通过在 =for= 循环外的 =SetEvent(event)= 处打断点，我们可以观察整个进程在执行线程池回调前使用了多少线程：
+
+#+caption: 三个
+[[./10.png]]
+
+可以看到线程池在仅等待时几乎用不了多少线程。如果要使用线程池和等待对象来模拟等待，我们还需要处理超时参数，这可以通过线程池计时器来完成：使用 [[https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-createthreadpooltimer][CreateThreadpoolTimer]] 和 [[https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-setthreadpooltimer][SetThreadpoolTimer]] 可以创建并为线程池设定计时器回调，然后使用 [[https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-waitforthreadpooltimercallbacks][WaitForThreadpoolTimerCallbacks]] 等待计时器回调：
+
+#+begin_src cpp
+  {
+      auto timer = CreateThreadpoolTimer(
+          [](auto, auto, auto)
+          {
+              InterlockedCompareExchange(&index, (LONG)114514, -1);
+              SetEvent(hevent);
+          }, NULL, NULL);
+      FILETIME ft = {};
+      ULARGE_INTEGER uli = {};
+      uli.QuadPart = (ULONGLONG)-dwMilliseconds * 10 * 1000;
+      ft.dwHighDateTime = uli.HighPart;
+      ft.dwLowDateTime = uli.LowPart;
+      SetThreadpoolTimer(timer, &ft, 0, 0);
+  }
+#+end_src
+
+当然更加简单的办法是直接使用 =WaitForSingleObject= ：
+
+#+begin_src cpp
+  #define WFO_ABANDONED 0x10000
+  #define WFO_TIMEOUT   0x20002
+  #define WFO_FAILED    0xfffff
+  #define WFO_MAX_WAIT  2048
+
+  static DWORD WFMO(int nCount, HANDLE* lpHandles, BOOL bWaitAll, DWORD dwMilliseconds)
+  {
+      static LONG index = 0;
+      static PTP_WAIT waits[WFO_MAX_WAIT];
+      static HANDLE hevent;
+      hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+      if (hevent == NULL)
+          return WFO_FAILED;
+      index = -1;
+      for (int i = 0; i < nCount; i++)
+      {
+          auto wait = CreateThreadpoolWait(
+              [](auto, auto id, auto, auto)
+              {
+                  LONG res = InterlockedCompareExchange(&index, (LONG)id, -1);
+                  if (res == -1)
+                      SetEvent(hevent);
+              }, (PVOID)i, NULL);
+          SetThreadpoolWait(wait, lpHandles[i], NULL);
+          waits[i] = wait;
+      }
+      DWORD result = WaitForSingleObject(hevent, dwMilliseconds);
+      for (int i = 0; i < nCount; i++)
+          CloseThreadpoolWait(waits[i]);
+      CloseHandle(hevent);
+      switch (result)
+      {
+      case WAIT_OBJECT_0:
+          return index;
+      case WAIT_TIMEOUT:
+          return WFO_TIMEOUT;
+      case WAIT_ABANDONED:
+      case WAIT_FAILED:
+      default:
+          return WFO_FAILED;
+      }
+  }
+#+end_src
+
+** 第二次尝试
+
+从 1 月 31 日到 2 月 6 日，我花了大概一周时间重构并改进了先前实现的线程池版本的代码，代码行数也从 200 多行飙升到了接近 1000 行，不过大多数都是注释。我在 2 月 6 日将 patch 提交到了邮件列表，并给出了[[file:w32-pool-test.c][测试代码]]和[[file:w32-test.xlsx][测试结果]]，如下图所示：
+
+[[./11.png]]
+
+上图的 0~64 段，我的实现直接调用了 =WaitForMultipleObjects= ，可见等待时间大约在 1~2us；从 64 到 65 有一个时间跳变，这是因为开始使用子线程进行等待了；在 96 到 97 又有一个跳变，此时开始使用两个子线程。在随后的图表中可以看到每 64 个对象有一个小跳变，这意味着增加了一个等待子线程。整个图表越往后，等待时间就越与等待句柄数量成线性关系，等待时间在等待句柄数量在 2000 左右时达到最大值 135us 左右。
+
+在 2 月 11 日，Cecilio Pardo 完成了对我的代码的测试，没有发现 bug：
+
+#+begin_quote
+[[https://lists.gnu.org/archive/html/emacs-devel/2025-02/msg00379.html][2025/02/11]] by Cecilio Pardo
+
+On 06/02/2025 12:05, Yue Yi wrote:
+
+> After some attempts, I believe I have now implemented it: a wait method for more than 64 objects using a thread pool. I've been using this patch for two or three days and occasionally tried to create several hundred child processes in Emacs that only sleep. Emacs hasn't crashed during this time. The patch file is w32-wait-pool.patch.
+
+I have been running emacs on Win11 with hundreds of terminals open all the time without problems. The thread pool also behaves as expected, when the number of handles grows and shrinks a lot.
+
+Also the 32bit version builds and works, though I tested this one for less time.
+
+May I suggest to give a name to the threads, just by doing:
+
+:   SetThreadDescription (ctx->thread, L"sys_select_worker_thread");
+
+or something like that after creating them. This may be handy with debugging.
+
+I think that the place to call free_wait_pool would be w32.c:term_ntproc
+
+On the stylistic side, the convention is to put two spaces after point on comments, and also at the end of comments.
+
+Very nice work.
+#+end_quote
+
+在差不多一个月后，Eli 在邮件列表中询问是否存在修改建议，随后他让我[[https://lists.gnu.org/archive/html/emacs-devel/2025-03/msg00595.html][整理了整个 patch]]，最后完成了[[https://lists.gnu.org/archive/html/emacs-devel/2025-03/msg00887.html][提交]]。这应该算是我第一次为开源项目做出贡献，也是我目前来说写的最认真的 C 代码。在提交过程中我向 FSF 发了三次邮件来完成签名，在折腾了差不多一个月后总算搞定了。
+
+相比第一版，最后的 [[file:0001-Increase-FD_SETSIZE-on-Windows-to-support-more-subpr.patch][patch]] 可读性已经很好了，主要增加的复杂度来自管理线程状态和处理线程错误，以及更加复杂的下标运算转换。在调试过程中我遇到了在 =Win+L= 锁屏再解锁导致 Emacs 崩溃的问题，经过反复折腾我学会了在 Windows 上使用 GDB 调试 Emacs，然后发现是下标写错了（笑）。
+
+和原先 Emacs 最多只能创建 29 个子进程类似，现在的 Emacs 最多能够创建 1021 个子进程。
+
+[[./12.png]]
+
+在 3 月 15 日，Po Lu 帮我改进了注释：[[https://github.com/emacs-mirror/emacs/commit/1749ad825e2d7bd456665ce02fb7faf79a6e9143][; Fix punctuation and typos in w32proc.c]]，patch 正式完工。
+
+** IF 线 ➁：使用未公开的 API
+
+类似地，假设存在一条时间线，那里的 Eli 同意了我使用内部 API 来实现等待更多句柄。现在让我们尝试使用这些 API 实现强化版的 =WaitForMultipleObjects= ：[[https://github.com/tringi/win32-iocp-events/tree/main][tringi/win32-iocp-events]]（我存了[[file:win32-iocp-events-main.zip][一份]]）
+
+#+begin_src c
+  extern "C" {
+      WINBASEAPI NTSTATUS WINAPI NtCreateWaitCompletionPacket (
+          _Out_ PHANDLE WaitCompletionPacketHandle,
+          _In_ ACCESS_MASK DesiredAccess,
+          _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes
+      );
+      WINBASEAPI NTSTATUS WINAPI NtAssociateWaitCompletionPacket (
+          _In_ HANDLE WaitCompletionPacketHandle,
+          _In_ HANDLE IoCompletionHandle,
+          _In_ HANDLE TargetObjectHandle,
+          _In_opt_ PVOID KeyContext,
+          _In_opt_ PVOID ApcContext,
+          _In_ NTSTATUS IoStatus,
+          _In_ ULONG_PTR IoStatusInformation,
+          _Out_opt_ PBOOLEAN AlreadySignaled
+      );
+      WINBASEAPI NTSTATUS WINAPI NtCancelWaitCompletionPacket (
+          _In_ HANDLE WaitCompletionPacketHandle,
+          _In_ BOOLEAN RemoveSignaledPacket
+      );
+  }
+#+end_src
+
+在这三个 NT API 中，[[https://learn.microsoft.com/en-us/windows/win32/devnotes/ntcreatewaitcompletionpacket][=NtCreateWaitCompletionPacket=]] 可以创建一个等待完成（Wait Completion）packet 对象，[[https://learn.microsoft.com/en-us/windows/win32/devnotes/ntassociatewaitcompletionpacket][=NtAssociateWaitCompletionPacket=]] 为目标对象创建一个等待完成关联，[[https://learn.microsoft.com/en-us/windows/win32/devnotes/ntcancelwaitcompletionpacket][=NtCancelWaitCompletionPacket=]] 则是取消掉等待完成关联。如果我没猜错的话，这就是 Windows 8 后线程池能够使用 IOCP 处理一般事件句柄的底层 API 了。仓库作者为我们写了三个包装函数（我对注释做了少许修改来保持在 80 行之内）：
+
+#+begin_src c
+  /*  Associates Event with I/O Completion Port and requests a completion
+      packet when signalled. parameters order modelled after
+      PostQueuedCompletionStatus.
+
+      Call CloseHandle to free the returned I/O Packet HANDLE when no longer
+      needed
+      
+      Parameters:
+      - hIOCP
+        Handle to I/O Completion Port.
+      - hEvent
+        Handle to Event, Semaphore, Thread or Process.
+        NOTE: Mutex is not supported, it makes no sense in this context.
+      - dwNumberOfBytesTransferred
+        User-specified value, provided back by GetQueuedCompletionStatus(Ex).
+      - dwCompletionKey
+        User-specified value, provided back by GetQueuedCompletionStatus(Ex).
+      - lpOverlapped
+        User-specified value, provided back by GetQueuedCompletionStatus(Ex).
+        
+      Returns: I/O Packet HANDLE for the association
+               NULL on failure, call GetLastError () for details
+        - ERROR_INVALID_PARAMETER
+        - ERROR_INVALID_HANDLE
+          provided hEvent is not supported by this API
+        - otherwise internal HRESULT is forwarded
+  ,*/
+  _Ret_maybenull_
+  HANDLE WINAPI ReportEventAsCompletion (_In_ HANDLE hIOCP,
+                                         _In_ HANDLE hEvent,
+                                         _In_opt_ DWORD dwNumberOfBytesTransferred,
+                                         _In_opt_ ULONG_PTR dwCompletionKey,
+                                         _In_opt_ LPOVERLAPPED lpOverlapped);
+
+  /*  Use to wait again, after the event completion was consumed by
+      GetQueuedCompletionStatus(Ex)
+
+      Parameters:
+      - hPacket
+        HANDLE returned by 'ReportEventAsCompletion'
+      - hIOCP
+        Handle to I/O Completion Port
+      - hEvent
+        Handle to the Event object
+      - oEntry
+        Pointer to data provided back by GetQueuedCompletionStatus(Ex)
+      
+      Returns: TRUE on success FALSE on failure.
+               Call GetLastError () for details (TBD)
+  ,*/
+  BOOL WINAPI RestartEventCompletion (_In_ HANDLE hPacket,
+  				    _In_ HANDLE hIOCP,
+  				    _In_ HANDLE hEvent,
+  				    _In_ const OVERLAPPED_ENTRY * oEntry);
+
+  /*  Stops the Event from completing into the I/O Completion Port.
+      Call CloseHandle to free the I/O Packet HANDLE when no longer needed
+
+      Parameters:
+      - hPacket
+        HANDLE returned by 'ReportEventAsCompletion'.
+      - cancel
+        If TRUE, if already signalled, the completion packet is removed from queue.
+
+      Returns: TRUE on success FALSE on failure.
+              Call GetLastError () for details (TBD)
+  ,*/
+  BOOL WINAPI CancelEventCompletion (_In_ HANDLE hPacket, _In_ BOOL cancel);
+#+end_src
+
+仓库的作者为这三个 API 提供了一个简单的[[https://github.com/tringi/win32-iocp-events/blob/main/example.cpp][例子]]，这里我给一个更简单的：
+
+#+begin_src c
+  // 注意链接 ntdll.lib, 且使用 Visual Studio
+  #include <Windows.h>
+  #include <iostream>
+  #include <vector>
+  #include "win32-iocp-events.h"
+
+  std::vector<HANDLE> hevents;
+  std::vector<HANDLE> hwaits;
+  HANDLE hEnd;
+
+  static DWORD WINAPI f114514(PVOID p)
+  {
+    HANDLE hIOCP = (HANDLE)p;
+    ULONG ulRemoved;
+    OVERLAPPED_ENTRY oEntry;
+    while (GetQueuedCompletionStatusEx(hIOCP, &oEntry, 1, &ulRemoved, INFINITE, FALSE))
+      {
+        auto num = oEntry.dwNumberOfBytesTransferred;
+        auto idx = oEntry.lpCompletionKey;
+        if (num == 3)
+  	{
+  	  SetEvent(hEnd);
+  	  std::cout << "End" << std::endl;
+  	  break;
+  	}
+        std::cout << num;
+        RestartEventCompletion(hwaits[idx], hIOCP, hevents[idx], &oEntry);
+      }
+    return 0;
+  }
+
+  int main()
+  {
+    HANDLE hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+    hEnd = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if (hIOCP == NULL)
+      {
+        std::cerr << "CreateIoCompletionPort failed: " << GetLastError() << std::endl;
+        return 1;
+      }
+    for (int i = 0; i < 3; ++i)
+      {
+        HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (hEvent == NULL)
+  	{
+  	  std::cerr << "CreateEvent failed: " << GetLastError() << std::endl;
+  	  CloseHandle(hIOCP);
+  	  return 1;
+  	}
+        hevents.push_back(hEvent);
+      }
+    std::vector<int> a145 = { 1, 4, 5 };
+    for (int i = 0; i < 3; ++i)
+      {
+        HANDLE hpacket = ReportEventAsCompletion(hIOCP, hevents[i], a145[i], i, NULL);
+        if (hpacket == NULL)
+  	{
+  	  std::cerr << "ReportEventAsCompletion failed: " << GetLastError() << std::endl;
+  	  CloseHandle(hIOCP);
+  	  return 1;
+  	}
+        hwaits.push_back(hpacket);
+      }
+    CreateThread(NULL, 0, f114514, hIOCP, 0, NULL);
+    SetEvent(hevents[0]); Sleep(500);
+    SetEvent(hevents[0]); Sleep(500);
+    SetEvent(hevents[1]); Sleep(500);
+    SetEvent(hevents[2]); Sleep(500);
+    SetEvent(hevents[0]); Sleep(500);
+    SetEvent(hevents[1]); Sleep(500);
+    PostQueuedCompletionStatus(hIOCP, 3, 0, NULL);
+    WaitForSingleObject(hEnd, INFINITE);
+    for (int i = 0; i < 3; i++)
+      {
+        CancelEventCompletion(hwaits[i], TRUE);
+      }
+    return 0;
+  }
+#+end_src
+
+在仓库中作者已经为我们实现了无限制的 =WaitForUnlimitedObjectsEx= ，它的函数原型与 =WaitForMultipleObjectsEx= 一致，可以直接替换。不过作者也强调这是最没效率的使用方式，因为每次都需要初始化 IOCP。在下面的测试中我们会使用到这个函数。
+
+** 不同实现的性能测试
+
+在这一节中，我首先会修改之前的测试代码，并分别对手工线程池/系统线程池/未公开 API 三种实现使用相同的测试代码进行测试来比较性能优劣，除此之外我还加上了先前没有使用线程池的多线程等待版本。测试代码为一个打包的 VS 项目：[[file:wfmo_test.rar][wfmo_test.rar]]。
+
+整个测试流程如下：让等待函数对从 1 个到 2048 个事件对象进行等待，其中一个对象是已触发状态，统计等待结束和开始时间之差，每种对象数量等待 100 次求取平均值。需要说明的是我对无线程池版本的代码做了改进，不再使用 =xmalloc/xfree= 来动态分配内存，同时我也修改了 =WaitForUnlimitedObjectsEx= 的代码来避免动态内存分配以及不随机返回下标。如果你想要运行这些测试，可以在 main.cpp 的如下片段中修改测试函数和使用的测试项（0 或 1 表示布尔值）。
+
+[[./18.png]]
+
+下图分别为无线程池版本，线程池版本，系统线程池版本和 NT IOCP 版本的等待时间---等待数量曲线，以及最后的合并对比曲线，注意图中的时间单位是微秒：
+
+#+caption: 不使用线程池
+[[./13.png]]
+
+#+caption: 使用手工线程池
+[[./14.png]]
+
+#+caption: 使用系统线程池
+[[./15.png]]
+
+#+caption: 使用 NT IOCP API
+[[./16.png]]
+
+#+caption: 综合对比
+[[./17.png]]
+
+老实说这个最后的对比图有些出乎我的意料：我还以为无线程池的多线程实现最慢，结果是系统线程池，初始化 IOCP/系统线程池等待对象的开销比我想象的要大。这个测试对系统线程池/IOCP 很不公平，因为输入的句柄没有变化，无需每次都使用所有句柄初始化。
+
+也许等到哪天 Emacs 在 Linux/BSD 上使用 epoll/kqueue 了，那么我们就可以在 Windows 上使用 IOCP 了。
+
+* 延伸阅读
+
+本文到了这里就基本上结束了，这里补充一些我在查找资料过程中找到的可能有用的内容。
+
+在编写代码的过程中，我一直在想有没有比事件对象更加高效的东西，实际上是有的： =WaitOnAddress= ，可惜它只能在高版本 Windows 才能用。
+
+- [[https://devblogs.microsoft.com/oldnewthing/20170601-00/?p=96265][Comparing WaitOnAddress with futexes (futexi? futexen?)]]
+- [[https://devblogs.microsoft.com/oldnewthing/20160823-00/?p=94145][WaitOnAddress lets you create a synchronization object out of any data variable, even a byte]]
+
+下面这些博客涉及到 Windows 时间片和进程相关问题，我在编码过程中一直将时间片视为一个很重要的指标，我不认为单次等待时间应该超过默认时间片的十分之一或者百分之一：
+
+- [[https://randomascii.wordpress.com/2020/10/04/windows-timer-resolution-the-great-rule-change/][Windows Timer Resolution: The Great Rule Change]]
+- [[https://randomascii.wordpress.com/2013/07/08/windows-timer-resolution-megawatts-wasted/][Windows Timer Resolution: Megawatts Wasted]]
+- [[https://randomascii.wordpress.com/2019/04/21/on2-in-createprocess/][O(n^2) in CreateProcess]]
+- [[https://learn.microsoft.com/zh-cn/archive/blogs/markrussinovich/pushing-the-limits-of-windows-processes-and-threads][Pushing the Limits of Windows: Processes and Threads]]
+
+关于「延伸阅读」这个词，这里也有一篇不错的小短文：[[https://www.library.gov.mo/zh-hans/library-background/19][延伸阅读的联想]]。
+
+* 后记
+
+🌱，写这篇博客真是个漫长的旅途，我在 1 月末就意识到需要把开发过程中遇到的问题和学到的东西记录下来，但差不多三个月之后才开始行动。原本我还准备介绍一下 Emacs 的子进程 I/O 相关实现的，但这和本文的主题关系可能不是那么强，感兴趣的读者可以看看 w32proc.c 中的相关代码。
+
+就「类 select 的 Windows 实现」这个题目来说，我可以比较自满地说「等待线程池」已经是我能找到的最好的方案了，如果 Emacs 能够在创建子进程时将进程句柄和文件句柄添加到「监视列表」，然后在关闭子进程时移除它们，我们就能避免每次 =sys_select= 时的线性初始化，从而利用「现代 API」实现高效等待了。
+
+感谢阅读。
+
+#+begin_comment
+command_loop_1 in keyboard.c
+
+wait_reading_process_output 的直接调用者有：
+
+- 4083 行， =kbd_buffer_get_event= ， keyboard.c
+- 6807 行， =sleep-for=, dispnew.c
+- 6894 行， =sit-for= ，dispnew.c
+- 4935 行， =accept-process-output=, process.c
+- 5195 行， =wait_for_socket_fds= ， process.c
+- 5205 行， =wait_while_connecting= ，process.c
+- 5217 行， =wait_for_tls_negotiation= ，process.c
+- 1538 行， =wait_for_property_change=, xselect.c
+- 1717 行， =x_get_foreign_selection=, xselect.c
+- 28433 行， =x_sync_with_move=, xterm.c
+
+3020 行，  =read_decoded_event_from_main_queue= ，来自 read_char, keyboard.c
+10163 行， =read_char_minibuf_menu_prompt= 调用 read_char，
+10746 行， =read_key_sequence= ，调用 read_char
+787 行， =read_filtered_event= ，调用 read_char
+899 行， =read-char= ，调用 =read_filtered_event=
+#+end_comment
+
+#+begin_comment
+[[https://www.pixiv.net/artworks/59438664][file:dev/p1.png]]
+#+end_comment
