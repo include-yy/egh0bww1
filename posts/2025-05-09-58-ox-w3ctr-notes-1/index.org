@@ -1,0 +1,650 @@
+#+TITLE: ox-w3ctr 开发笔记 (1)
+#+subtitle: attr_html，center，details 和 dynamic
+#+DATE: [2025-05-05 Mon 00:32]--[2025-05-09 Fri 15:15]
+#+FILETAGS: orgmode
+#+DESCRIPTION: 本文是 ox-w3ctr，Org-mode 导出工具开发笔记的第一部分
+
+# [[https://www.pixiv.net/artworks/129953330][file:dev/0.jpg]]
+
+我（2025/05/05）为什么会写这篇文章，可能是我的脑子拿不住那快 4000 行代码了。本文以及后续的系列会尝试把把一些稳定下来的代码文档化，方便索引和查找，顺便记录对已有代码的修改与改进。
+
+（这应该不算是博客了，草。没什么看的价值）
+
+* =#+attr_html= 与 =#+attr__=
+
+在 ox-html 或者说所有 Org-mode 的导出后端中，我们可以使用 =#+attr_backend= 来为某些元素或对象指定一些额外的属性，这在导出到 HTML 的 ox-html 中就是 =#+attr_html= 。举例来说，如果想要为表格添加 =data= 类，可以使用如下代码：
+
+#+begin_src org
+  ,#+attr_html: :class data
+  | 1 | 2 | 3 |
+#+end_src
+
+如果我们舍弃掉“特定后端选项”这个概念而仅仅以 HTML 作为单一导出目标，那么 =#+attr_backend= 中的 =backend= 可以省略。由于 =backend= 至少需要一个字符，我在 =ox-w3ctr= 中选取了 =_= ，即下划线，最后来使用 =#+attr__= 来代替 =#+attr_html= 。
+
+在导出过程中，属性一般使用 =org-export-read-attribute= 来读取，它会将属性关键字的字符串转换为 plist 方便读取。对上面的例子，为 =org-export-read-attribute= 添加以下 advice 可以观察到如下结果：
+
+#+begin_src elisp
+(define-advice org-export-read-attribute
+    (:filter-return (res) test)
+  (setq a res))
+;; exporting last example with ox-html
+a ;;=> (:class "data")
+#+end_src
+
+这一方式导致每个属性必须对应一个值。如果某个属性没有值（或者说本身作为值，比如上面 =details= 的 =open= 或 =close= ），那就必须写成 =#+attr_html: :open open= ，或者是 =#+attr_html: :open ""= 等等。仅有属性名而没有属性值的做法在 HTML5 中叫做布尔属性（[[https://developer.mozilla.org/en-US/docs/Glossary/Boolean/HTML][Boolean attributes]]），这在 XML 中是非法的。
+
+对此，一种可能的解决方法是直接使用 S-表达式，遇到列表就看作键值对，遇到单个原子就看作布尔属性。相比于使用 =org-export-read-attributes= ，我重新实现了 =org-w3ctr--read-attr= ，它会使用 =read= 读取属性字符串。 =org-export-read-attributes= 还有一个可选的第三参数来从结果 plist 中找出指定的属性值，不过我注意到 ox-html.el 中只有一处使用了这个参数，在我的实现中这个参数被去掉了。
+
+由于一般用到 =#+attr__= 的地方是指定元素的类，我也专门给类使用了向量语法，这样就不用写 =class= 了。两种方法的区别大致可以通过下面的示例说明：
+
+#+begin_src org
+  ,#+attr__: [data]
+  ,#+attr__: (class data)
+  ,#+attr_html: :class data
+#+end_src
+
+为了将获取到的属性 S-表达式转换为合法的 HTML 属性，我实现了 =org-w3ctr--make-attr= 来替换 =org-html--make-attribute-string= 。由于 Org-mode 的 ID 属性一般放在 =#+NAME= 里面，为了 id 还需要补充一下 =#+NAME= 属性的获取与处理。为此我又实现了 =org-w3ctr--make-attr__= 和 =org-w3ctr--make-attr__id= 。为了保持对 =#+attr_html= 的兼容，我也实现了 =org-w3ctr--make-attr_html= ，我会在下文对它们进行详细说明。
+
+* 元素导出
+
+本文会涉及三个导出函数，它们分别导出 center block, drawer 和 dynamic block，除了 drawer 在 ox-html 中不导出外其余没有太大区别。
+
+** =org-w3ctr-center-block=
+
+在 (info "(org)Paragraphs") 中，对 center block 的介绍如下：
+
+#+begin_quote
+If you would like to center some text, do it like this:
+#+end_quote
+
+它的语义就是让其中的内容居中，在 HTML 直接对应 =<center>= ，但 =<center>= 已经在 HTML4 被废弃了：
+
+#+begin_quote
+The =<center>= HTML element is a block-level element that displays its block-level or inline contents centered horizontally within its containing element. The container is usually, but isn't required to be, =<body>=.
+
+This tag has been deprecated in HTML 4 (and XHTML 1) in favor of the CSS [[https://developer.mozilla.org/en-US/docs/Web/CSS/text-align][=text-align=]] property, which can be applied to the [[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/div][=<div>=]] element or to an individual [[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/p][=<p>=]]. For centering blocks, use other CSS properties like [[https://developer.mozilla.org/en-US/docs/Web/CSS/margin-left][=margin-left=]] and [[https://developer.mozilla.org/en-US/docs/Web/CSS/margin-right][=margin-right=]] and set them to auto (or set [[https://developer.mozilla.org/en-US/docs/Web/CSS/margin][=margin=]] to 0 auto).
+
+[[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/center][<center>: The Centered Text | MDN]]
+#+end_quote
+
+在 CSS alternative 一节给出了如下例子，对于文字居中来说这是比较好的实现了：
+
+#+begin_src html
+  <div style="text-align:center">
+    This text will be centered.
+    <p>So will this paragraph.</p>
+  </div>
+#+end_src
+
+** =org-w3ctr-drawer=
+
+在 (info "(org)Drawers") 中对 drawer 的介绍如下：
+
+#+begin_quote
+Sometimes you want to keep information associated with an entry, but you
+normally do not want to see it.  For this, Org mode has _drawers_.  They
+can contain anything but a headline and another drawer.  Drawers look
+like this:
+#+end_quote
+
+Drawer 元素在 ox-html 中默认不导出，但它非常适合用来实现某些内容的折叠，可以对应于 HTML 中的 =<details>= 和 =<summary>= 。drawer 不支持嵌套，但嵌套的可折叠内容一般也用不上。
+
+#+begin_quote
+The =<details>= HTML element creates a disclosure widget in which information is visible only when the widget is toggled into an open state. A summary or label must be provided using the [[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/summary][=<summary>=]] element.
+
+A disclosure widget is typically presented onscreen using a small triangle that rotates (or twists) to indicate open/closed state, with a label next to the triangle. The contents of the =<summary>= element are used as the label for the disclosure widget. The contents of the =<details>= provide the accessible description for the =<summary>=.
+
+:hide:
+A =<details>= widget can be in one of *two states*. The default closed state displays only the triangle and the label inside =<summary>= (or a user agent-defined default string if no =<summary>=).
+
+When the user clicks on the widget or focuses it then presses the space bar, it "twists" open, revealing its contents. The common use of a triangle which rotates or twists around to represent opening or closing the widget is why these are sometimes called "twisty".
+
+You can use CSS to style the disclosure widget, and you can *programmatically* open and close the widget by setting/removing its =open= attribute. Unfortunately, at this time, there's no built-in way to animate the transition between open and closed.
+
+By default when closed, the widget is *only tall enough to display the disclosure triangle and summary*. When open, it expands to display the details contained within.
+:end:
+[[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/details][<details>: The Details disclosure element | MDN]]
+#+end_quote
+
+在 Org-mode 中，drawer 的范围由 =:name:= 到 *最近* 的 =:end:= 界定。drawer 的名字不能含有空格。在第一次实现 drawer 支持时，我通过名字开头是否有 =open-= 来决定 =<details>= 是否含有 =open= 属性，现在看来更合适的做法是读取 =#+attr_html= 和 =#+attr__= 。由于名字不能含空格可能默认使用名字生成的 =<summary>= 不够美观，我选择通过 =#+caption= 来支持设定 =<summary>= 内容。
+
+** =org-w3ctr-dynamic-block=
+
+dynamic block 是 Org-mode 中我几乎从来没有使用过的功能。它可以用来“动态”地更新块中的内容，由于它不会使用通常的 Org 块状渲染，我在先前的 ox-w3ctr 实现中一度使用它来部分实现 special block 的功能：
+
+#+begin_src elisp
+  ,#+BEGIN: myblock :parameter1 value1 :parameter2 value2 ...
+  ...
+  ,#+END:
+#+end_src
+
+当然，现在看来还是保留它的原本实现就好。
+
+#+begin_src elisp
+  (defun t-dynamic-block (_dynamic-block contents _info)
+    (or contents ""))
+#+end_src
+
+* 标准化与测试
+
+本文只介绍 3 个导出函数的原因是它们内部使用的函数也得介绍一下。这里让我们把上面提到的函数都规范一下，顺便根据这些规范设计一些测试出来。
+
+[[./1.png]]
+
+** =org-w3ctr--maybe-contents=
+
+#+begin_src elisp
+  (defsubst t--maybe-contents (contents)
+    (if (stringp contents) (concat "\n" contents) ""))
+#+end_src
+
+此函数用于处理块级元素的内容。在导出到 HTML 块级元素时，一般的惯例是在开标签的后面加上换行符。如果 =CONTENTS= 是一个字符串，函数会在其前面添加一个换行符 ="\n"= 并返回。如果 =CONTENTS= 不是字符串，则函数返回一个空字符串 =""= 。
+
+虽然在上图中 =org-w3ctr--maybe-contents= 只指向 =org-w3ctr-drawer= 和 =org-w3ctr-center-block= ，但它在还未介绍的其他导出函数中也有使用。读者可能会疑惑为什么不需要在 =CONTENTS= 后面加上换行，这是因为 Org-mode 导出会保留必要的换行符：
+
+#+begin_src elisp
+  ;; end of `org-export-data', ox.el line 2018.
+  (org-export-filter-apply-functions
+   (plist-get info (intern (format ":filter-%s" type)))
+   (let ((blank (or (org-element-post-blank data) 0)))
+     (if (eq (org-element-class data parent) 'object)
+         (concat results (make-string blank ?\s))
+       (concat (org-element-normalize-string results)
+  	     (make-string blank ?\n))))
+   info)
+#+end_src
+
+下面是测试代码，很难说这么简单的代码有什么测试的必要：
+
+#+begin_src elisp
+  (ert-deftest t--maybe-contents ()
+    (should (equal (t--maybe-contents nil) ""))
+    (should (equal (t--maybe-contents "") "\n"))
+    (should (equal (t--maybe-contents "abc") "\nabc"))
+    (should (equal (t--maybe-contents 123) ""))
+    (should (equal (t--maybe-contents '(1 2)) "")))
+#+end_src
+
+** =org-w3ctr--nw-p=
+
+#+begin_src elisp
+  (defsubst t--nw-p (s)
+    (and (stringp s) (string-match-p "[^ \r\t\n]" s) s))
+#+end_src
+
+此函数用于判断参数是否为字符串，且至少含有一个非空白字符，若满足条件则返回原字符串，否则返回空值。此函数直接来自 =org-string-nw-p= ：
+
+#+begin_src elisp
+  (defun org-string-nw-p (s)
+    "Return S if S is a string containing a non-blank character.
+  Otherwise, return nil."
+    (and (stringp s)
+         (string-match-p "[^ \r\t\n]" s)
+         s))
+#+end_src
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--nw-p ()
+    (should (equal (t--nw-p "123") "123"))
+    (should (equal (t--nw-p " 1") " 1"))
+    (should (equal (t--nw-p "\t\r\n2") "\t\r\n2"))
+    (should-not (t--nw-p ""))
+    (should-not (t--nw-p "\t\s\r\n")))
+#+end_src
+
+** =org-w3ctr--2str=
+
+#+begin_src elisp
+  (defsubst t--2str (s)
+    (cl-typecase s
+      (null nil)
+      (symbol (symbol-name s))
+      (string s)
+      (number (number-to-string s))
+      (otherwise nil)))
+#+end_src
+
+该函数将数字，符号和字符串转换为字符串，若为其他类型则返回空值。测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--2str ()
+    (should (eq (t--2str nil) nil))
+    (should (string= (t--2str 1) "1"))
+    (should (string= (t--2str 114.514) "114.514"))
+    (should (string= (t--2str ?a) "97"))
+    (should (string= (t--2str 'hello) "hello"))
+    (should (string= (t--2str 'has\ space) "has space"))
+    (should (string= (t--2str 'has\#) "has#"))
+    (should (string= (t--2str "string") "string"))
+    (should-not (t--2str [1]))
+    (should-not (t--2str (make-char-table 'sub)))
+    (should-not (t--2str (make-bool-vector 3 t)))
+    (should-not (t--2str (make-hash-table)))
+    (should-not (t--2str (lambda (x) x))))
+#+end_src
+
+** =org-w3ctr--read-attr=
+
+#+begin_src elisp
+  (defun t--read-attr (attribute element)
+    (when-let* ((value (org-element-property attribute element))
+                (str (t--nw-p (mapconcat #'identity value " "))))
+      (read (concat "(" str ")"))))
+#+end_src
+
+此函数用于从元素 =ELEMENT= 中读取属性 =ATTRIBUTE= ，并使用 =read= 将字符串转换为列表。若属性不存在或属性值为空字符串则返回空值。此函数的实现基本上参考了 =org-export-read-attribute= ，尤其是需要注意到如果某个 =ELEMENT= 附加了多个 =ATTRIBTUE= 时的情况，这对应于实现中的 =mapconcat= 。
+
+如果想要在不进行实际导出的情况下进行测试，那就需要 mock 一下 =org-element-property= ，下面的做法有点 hack，这与 =org-element-property= 的实现有关。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--read-attr ()
+    ;; `org-element-property' use `org-element--property'
+    ;; and defined using `define-inline'.
+    (cl-letf (((symbol-function 'org-element--property)
+               (lambda (_p n _deft _force) n)))
+      (should (equal (org-element-property :attr__ 123) 123))
+      (should (equal (org-element-property nil 1) 1))
+      (should (equal (t--read-attr nil '("123")) '(123)))
+      (should (equal (t--read-attr nil '("1 2 3" "4 5 6"))
+                     '(1 2 3 4 5 6)))
+      (should (equal (t--read-attr nil '("(class data) [hello] (id ui)"))
+                     '((class data) [hello] (id ui))))
+      (should (equal (t--read-attr nil '("\"123\"")) '("123"))))
+    (t-check-element-values
+     #'t--read-attr
+     '(("#+attr__: 1 2 3\n#+attr__: 4 5 6\nhello world"
+        (1 2 3 4 5 6))
+       ("#+attr__: [hello world] (id no1)\nhello"
+        ([hello world] (id no1)))
+       ("nothing but text" nil)
+       ("#+attr__: \"str\"\nstring" ("str"))
+       ("#+attr__:\nempty" nil))))
+#+end_src
+
+** =org-w3ctr--read-attr__=
+
+#+begin_src elisp
+  (defun t--read-attr__ (element)
+    (when-let* ((attrs (t--read-attr :attr__ element)))
+      (mapcar (lambda (x)
+                (cond ((not (vectorp x)) x)
+                      ((equal x []) nil)
+                      (t (list "class" (mapconcat #'t--2str x " ")))))
+              attrs)))
+#+end_src
+
+此函数用于从元素 =ELEMENT= 中提取 =#+attr__= 属性并转换为列表，其中的向量会被转换为 =(class ...)= 列表。一种可能的情况是向量长度为 0，此时该函数会直接当作空值处理。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--read-attr__ ()
+    (cl-letf (((symbol-function 'org-element--property)
+               (lambda (_p n _deft _force) n)))
+      (should (equal (t--read-attr__ '("1 2 3")) '(1 2 3)))
+      (should (equal (t--read-attr__ '("(class data) open"))
+  		   '((class data) open)))
+      (should (equal (t--read-attr__ '("(class hello world)" "foo"))
+  		   '((class hello world) foo)))
+      (should (equal (t--read-attr__ '("[nim zig]"))
+  		   '(("class" "nim zig"))))
+      (should (equal (t--read-attr__ '("[]")) '(nil)))
+      (should (equal (t--read-attr__ '("[][][]")) '(()()()))))
+    (t-check-element-values
+     #'t--read-attr__
+     '(("#+attr__: 1 2 3\n#+attr__: 4\ntest" (1 2 3 4))
+       ("#+attr__: [hello world] (id no1)\ntest"
+        (("class" "hello world") (id no1)))
+       ("test" nil)
+       ("#+attr__:\n#+attr__:\ntest" nil)
+       ("#+attr__: []\ntest" (nil))
+       ("#+attr__: [][][]\ntest" (nil nil nil)))))
+#+end_src
+
+** =org-w3ctr--encode-plain-text=
+
+#+begin_src elisp
+  (defconst t--protect-char-alist
+    '(("&" . "&amp;") ("<" . "&lt;") (">" . "&gt;")))
+  (defun t--encode-plain-text (text)
+    (dolist (pair t--protect-char-alist text)
+      (setq text (replace-regexp-in-string
+                  (car pair) (cdr pair) text t t))))
+#+end_src
+
+该函数会对参数文本中的某些字符进行转义，这是因为它们在 HTML 中具有特殊含义。出现在 =org-w3ctr--protect-char-alist= 中的 =<= 和 =>= 字符是 HTML 标签的开始和结束符， =&= 是实体引用的开始。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--encode-plain-text ()
+    "Tests for `org-w3ctr--encode-plain-text'."
+    (should (equal (t--encode-plain-text "") ""))
+    (should (equal (t--encode-plain-text "123") "123"))
+    (should (equal (t--encode-plain-text "hello world") "hello world"))
+    (should (equal (t--encode-plain-text "&") "&amp;"))
+    (should (equal (t--encode-plain-text "<") "&lt;"))
+    (should (equal (t--encode-plain-text ">") "&gt;"))
+    (should (equal (t--encode-plain-text "<&>") "&lt;&amp;&gt;"))
+    (dolist (a '(("a&b&c" . "a&amp;b&amp;c")
+  	       ("<div>" . "&lt;div&gt;")
+  	       ("<span>" . "&lt;span&gt;")))
+      (should (string= (t--encode-plain-text (car a)) (cdr a)))))
+#+end_src
+
+** =org-w3ctr--make-attr=
+
+#+begin_src elisp
+  (defsubst t--make-attr (list)
+    (when-let* (((not (null list)))
+                (name (t--2str (car list))))
+      (if-let* ((rest (cdr list)))
+          ;; use lowercase prop name.
+          (concat " " (downcase name)
+                  "=\""
+                  (replace-regexp-in-string
+                   "\"" "&quot;"
+                   (t--encode-plain-text
+                    (mapconcat #'t--2str rest)))
+                  "\"")
+        (concat " " (downcase name)))))
+#+end_src
+
+该函数根据属性列表生成带空格的属性字符串。可见除了调用 =org-w3ctr--encode-plain-text= 还转义了属性中的双引号：[[https://stackoverflow.com/questions/9187946/escaping-inside-html-tag-attribute-value][escaping inside html tag attribute value]]。也许我们还需要转义单引号，但是如果我们始终使用双引号包裹属性值则无需关心单引号转义的问题。
+
+以下是测试：
+
+#+begin_src elisp
+  (ert-deftest t--make-attr ()
+    (should-not (t--make-attr nil))
+    (should-not (t--make-attr '(nil 1)))
+    (should-not (t--make-attr '([x])))
+    (should (string= (t--make-attr '(open)) " open"))
+    (should (string= (t--make-attr '("disabled")) " disabled"))
+    (should (string= (t--make-attr '(FOO)) " foo"))
+    (should (string= (t--make-attr '(a b)) " a=\"b\""))
+    (should (string= (t--make-attr '(class "example two"))
+  		   " class=\"example two\""))
+    (should (string= (t--make-attr '(foo [bar] baz))
+  		   " foo=\"baz\""))
+    (should (string= (t--make-attr '(data-A "base64..."))
+  		   " data-a=\"base64...\""))
+    (should (string= (t--make-attr '(data-tt "a < b && c"))
+  		   " data-tt=\"a &lt; b &amp;&amp; c\""))
+    (should (string= (t--make-attr '(data-he "\"hello world\""))
+  		   " data-he=\"&quot;hello world&quot;\"")))
+#+end_src
+
+** =org-w3ctr--make-attr__=
+
+#+begin_src elisp
+  (defun t--make-attr__ (attributes)
+    (mapconcat (lambda (x) (t--make-attr (if (atom x) (list x) x)))
+               attributes))
+#+end_src
+
+该函数通过调用 =org-w3ctr--make-attr= 将属性列表转换为 HTML 属性字符串。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--make-attr__ ()
+    (should (equal (t--make-attr__ nil) ""))
+    (should (equal (t--make-attr__ '(nil)) ""))
+    (should (equal (t--make-attr__ '(nil nil [])) ""))
+    (should (equal (t--make-attr__ '(a)) " a"))
+    (should (equal (t--make-attr__ '((id yy 123) (class a\ b) test))
+  		 " id=\"yy123\" class=\"a b\" test"))
+    (should (equal (t--make-attr__ '((test this th&t <=>)))
+  		 " test=\"thisth&amp;t&lt;=&gt;\"")))
+#+end_src
+
+** =org-w3ctr--make-attr__id=
+
+#+begin_src elisp
+  (defun t--make-attr__id (element info &optional named-only)
+    (let* ((reference (t--reference element info named-only))
+           (attributes (t--read-attr__ element))
+           (a (t--make-attr__
+               (if (or (not reference)
+                       (cl-find 'id attributes :key #'car-safe))
+                   attributes
+                 (cons `("id" ,reference) attributes)))))
+      (if (t--nw-p a) a "")))
+#+end_src
+
+相比 =org-w3ctr--make-attr__= ，该函数通过 =org-w3ctr--reference= 获取了元素的 =id= 并加入到属性列表中。如果属性列表中已存在 =id= 则不加入由 =org-w3ctr--reference= 获取的 =id= 。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--make-attr__id ()
+    (t-check-element-values
+     #'t--make-attr__id
+     '(("#+attr__:\ntest" "")
+       ("#+name:test\n#+attr__: hello\ntest" " id=\"test\" hello")
+       ("#+name:1\n#+attr__:[data] (style {a:b})\ntest"
+        " id=\"1\" class=\"data\" style=\"{a:b}\"")
+       ("#+name:1\n#+attr__:[hello world]\ntest"
+        " id=\"1\" class=\"hello world\"")
+       ("#+name:1\n#+attr__:(data-test \"test double quote\")\nh"
+        " id=\"1\" data-test=\"test double quote\"")
+       ("#+name:1\n#+attr__:(something <=>)\nt"
+        " id=\"1\" something=\"&lt;=&gt;\""))))
+#+end_src
+
+** =org-w3ctr--make-attribute-string=
+
+#+begin_src elisp
+  (defun t--make-attribute-string (attributes)
+    (let (output)
+      (dolist ( item attributes
+                (mapconcat 'identity (nreverse output) " "))
+        (cond
+         ((null item) (pop output))
+         ((symbolp item) (push (substring (symbol-name item) 1) output))
+         (t (let ((key (car output))
+                  (value (replace-regexp-in-string
+                          "\"" "&quot;" (t--encode-plain-text item))))
+              (setcar output (format "%s=\"%s\"" key value))))))))
+#+end_src
+
+该函数会将属性 plist =ATTRIBUTES= 转换为 HTML 属性字符串。
+
+测试如下：
+
+#+begin_src elisp
+(ert-deftest t--make-attribute-string ()
+  "Tests for `org-w3ctr--make-attribute-string'."
+  (should (equal (t--make-attribute-string '(:a "1" :b "2"))
+		 "a=\"1\" b=\"2\""))
+  (should (equal (t--make-attribute-string nil) ""))
+  (should (equal (t--make-attribute-string '(:a nil)) ""))
+  (should (equal (t--make-attribute-string '(:a "\"a\""))
+		 "a=\"&quot;a&quot;\""))
+  (should (equal (t--make-attribute-string '(:open "open"))
+		 "open=\"open\""))
+  (t-check-element-values
+   #'t--make-attribute-string
+   '(("#+attr_html: :open open :class a\ntest"
+      "open=\"open\" class=\"a\"")
+     ("#+attr_html: :id wo-1 :two\ntest" "id=\"wo-1\"")
+     ("#+attr_html: :id :idd hhh\ntest" "idd=\"hhh\"")
+     ("#+attr_html: :null nil :this test\ntest" "this=\"test\""))))
+#+end_src
+
+** =org-w3ctr--make-attr_html=
+
+#+begin_src elisp
+  (defun t--make-attr_html (element info &optional named-only)
+    (let* ((attrs (org-export-read-attribute :attr_html element))
+           (reference (t--reference element info named-only))
+           (a (t--make-attribute-string
+               (if (or (not reference) (plist-member attrs :id))
+                   attrs (plist-put attrs :id reference)))))
+      (if (t--nw-p a) (concat " " a) "")))
+#+end_src
+
+该函数根据 =ELEMENT= 的 =#+attr_html= 属性生成 HTML 属性字符串。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--make-attr_html ()
+    (t-check-element-values
+     #'t--make-attr_html
+     '(("#+attr_html:\ntest" "")
+       ("#+attr_html: :hello hello\ntest" " hello=\"hello\"")
+       ("#+name: 1\n#+attr_html: :class data\ntest"
+        " class=\"data\" id=\"1\"")
+       ("#+attr_html: :id 1 :class data\ntest"
+        " id=\"1\" class=\"data\"")
+       ("#+name: 1\n#+attr_html: :id 2 :class data two\ntest"
+        " id=\"2\" class=\"data two\"")
+       ("#+attr_html: :data-id < > ? 2 =\ntest"
+        " data-id=\"&lt; &gt; ? 2 =\""))))
+#+end_src
+
+** =org-w3ctr--make-attr__id*=
+
+#+begin_src elisp
+  (defun t--make-attr__id* (element info &optional named-only)
+    (if (org-element-property :attr__ element)
+        (t--make-attr__id element info named-only)
+      (t--make-attr_html element info named-only)))
+#+end_src
+
+该函数首先会尝试根据 =#+attr__= 生成 HTML 属性字符串；若没有找到 =#+attr__= 属性则使用 =#+attr_html= 属性。
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t--make-attr__id* ()
+    (t-check-element-values
+     #'t--make-attr__id*
+     '(("#+attr__:\n#+attr_html: :class a\ntest" "")
+       ("#+attr_html: :class a\ntest" " class=\"a\"")
+       ("#+name: 1\n#+attr__: (id 2)\n#+attr_html: :id 3\ntest"
+        " id=\"2\"")
+       ("#+name: 1\n#+attr_html: :id 3\ntest" " id=\"3\""))))
+#+end_src
+
+** =org-w3ctr-center-block=
+
+#+begin_src elisp
+  (defun t-center-block (_center-block contents _info)
+    (format "<div style=\"text-align:center;\">%s</div>"
+            (t--maybe-contents contents)))
+#+end_src
+
+此函数用于将 Org center block 元素生成 HTML 字符串。由于作用过于单一似乎没有什么太多需要补充的了。这样的导出函数只能在导出时进行测试，因为对测试来说直接以 Org 语法树节点作为输入过于复杂。为此我编写了如下辅助测试代码：
+
+#+begin_src elisp
+  (defvar t-test-values nil
+    "A list to store return values during testing.")
+  (defun t-advice-return-value (result)
+    "Advice function to save and return RESULT.
+  Pushes RESULT onto `org-w3ctr-test-values' and returns RESULT."
+    (prog1 result
+      (push (if (not (stringp result)) result
+  	    (substring-no-properties result))
+  	  t-test-values)))
+  (defun t-check-element-values (fn pairs &optional body-only plist)
+    "Check that FN returns the expected values when exporting.
+
+  FN is a function to advice.  PAIRS is a list of the form
+  ((INPUT . EXPECTED) ...).  INPUT is a string of Org markup to be
+  exported.  EXPECTED is a list of expected return values from FN.
+  BODY-ONLY and PLIST are optional arguments passed to
+  `org-export-string-as'."
+    (advice-add fn :filter-return #'t-advice-return-value)
+    (unwind-protect
+        (dolist (test pairs)
+  	(let (t-test-values)
+  	  (ignore (org-export-string-as
+  		   (car test) 'w3ctr body-only plist))
+  	  (should (equal t-test-values (cdr test)))))
+      (advice-remove fn #'t-advice-return-value)))
+#+end_src
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t-center-block ()
+    (t-check-element-values
+     #'t-center-block
+     '(("#+begin_center\n#+end_center"
+        "<div style=\"text-align:center;\"></div>")
+       ("#+begin_center\n123\n#+end_center"
+        "<div style=\"text-align:center;\">\n<p>123</p>\n</div>")
+       ("#+BEGIN_CENTER\n\n\n#+END_CENTER"
+        "<div style=\"text-align:center;\">\n\n</div>")
+       ("#+BEGIN_CENTER\n\n\n\n\n\n#+END_CENTER"
+        "<div style=\"text-align:center;\">\n\n</div>"))))
+#+end_src
+
+** =org-w3ctr-drawer=
+
+#+begin_src elisp
+  (defun t-drawer (drawer contents info)
+    (let* ((name (org-element-property :drawer-name drawer))
+           (cap (if-let* ((cap (org-export-get-caption drawer))
+                          (exp (t--nw-p (org-export-data cap info))))
+                    exp name))
+           (attrs (t--make-attr__id* drawer info t)))
+      (format "<details%s><summary>%s</summary>%s</details>"
+              attrs cap (t--maybe-contents contents))))
+#+end_src
+
+该函数导出 drawer 到 details HTML 标签。测试如下：
+
+#+begin_src elisp
+  (ert-deftest t-drawer ()
+    (t-check-element-values
+     #'t-drawer
+     '((":hello:\n:end:"
+        "<details><summary>hello</summary></details>")
+       ("#+caption: what can i say\n:test:\n:end:"
+        "<details><summary>what can i say</summary></details>")
+       ("#+name: id\n#+attr__: [example]\n:h:\n:end:"
+        "<details id=\"id\" class=\"example\"><summary>\
+  h</summary></details>")
+       ("#+attr__: (open)\n:h:\n:end:"
+        "<details open><summary>h</summary></details>")
+       (":try-this:\n=int a = 1;=\n:end:"
+        "<details><summary>try-this</summary>\n<p><code>\
+  int a = 1;</code></p>\n</details>")
+       ("#+CAPTION:\n:test:\n:end:"
+        "<details><summary>test</summary></details>")
+       ("#+caption: \n:test:\n:end:"
+        "<details><summary>test</summary></details>")
+       ("#+caption:         \t\n:test:\n:end:"
+        "<details><summary>test</summary></details>"))))
+#+end_src
+
+** =org-w3ctr-dynamic-block=
+
+#+begin_src elisp
+  (defun t-dynamic-block (_dynamic-block contents _info)
+    (or contents ""))
+#+end_src
+
+测试如下：
+
+#+begin_src elisp
+  (ert-deftest t-dynamic-block ()
+    (t-check-element-values
+     #'t-dynamic-block
+     '(("#+begin: hello\n123\n#+end:" "<p>123</p>\n")
+       ("#+begin: nothing\n#+end:" ""))))
+#+end_src
+
+* 总结
+
+草，很难说这到底算不算博客，不过等到真正写项目文档的时候，这样的笔记应该是有用的。
+
+# | [[https://x.com/asaeve/status/1749473344142168126][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/96410657][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/111965960][file:dev/p3.jpg]] |

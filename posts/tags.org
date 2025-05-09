@@ -1,8 +1,11 @@
 #+TITLE: include-yy :: blog :: tags
 #+DATE: [2024-04-22 01:08]
 
-#+HTML_LINK_RIGHT: ./index.html
-#+HTML_LINK_RNAME: ARCH
+# #+HTML_LINK_RIGHT: ./index.html
+# #+HTML_LINK_RNAME: ARCH
+
+#+HTML_LINK_HOMEUP: [[../../index.html][HOME]]
+#+HTML_LINK_HOMEUP: [[./index.html][ARCH]]
 
 #+MACRO: arch_tag (eval (yynt/yy-post-tag-list "." $1))
 #+MACRO: arch_num (eval (yynt/yy-post-tag-num $1))
