@@ -1,0 +1,991 @@
+#+TITLE: ox-w3ctr 开发笔记 (2)
+#+subtitle: 简单的元素和对象
+#+DATE: [2025-05-09 Fri 19:22]
+#+FILETAGS: orgmode
+#+DESCRIPTION: 本文是 ox-w3ctr，Org-mode 导出工具开发笔记的第二部分，介绍了简单元素和对象的导出
+
+# [[https://www.pixiv.net/artworks/130212836][file:dev/0.jpg]]
+
+我（2025/05/09）开始写本笔记的第二篇。这一片会记录所有比较简单的元素 (element) 和对象 (object) 的导出。由于各元素的导出是不相关的，这一篇倒不用太参考上一篇那样的分总结构，写成总分然后在最后给出调用关系图（ +懒得画了+ ）也许是不错的做法。
+
+经过本文和上一篇的整理，还未改进或记录的部分还有：
+
+- template 和 inner-template
+- headline 以及 section
+- special-block
+- table, table-row, table-cell
+- latex-environment, latex-fragment
+- src-block, inline-src-block
+- footnote-reference
+- link
+- timestamp
+  
+上面的每一条大概都可以水一篇的样子...本文对应的最近的 Commit 为 [[https://github.com/include-yy/ox-w3ctr/commit/9026ce99ec78ce171beb9a12492868e9145ac239][9026ce9]]。
+
+* Elements
+
+** Item and Plain lists
+
+在 ox-html 中， Item 对应于 HTML 中的有序列表或无序列表中的 =<li>= 或描述列表的 =<dt>= 和 =<dd>= ，Plain List 则对应于 =<ol>= ， =<ul>= 和 =<dl>= 三大列表。在最简单的情况下，我们希望 Org 列表的 HTML 导出应该如下所示：
+
+#+begin_src org
+  # ordered list
+  1. hello
+  # unordered list
+  - world
+  # descriptive list
+  - what's this ::     
+#+end_src
+
+#+begin_src html
+<ol><li>hello</li></ol>
+<ul><li>world</li></ul>
+<dl><dt>what's this</dt><dd></dd></dl>
+#+end_src
+
+在介绍实现之前，让我们先进一步了解一下这三种列表。下面的内容来自 MDN 文档。
+
+*** 有序列表 =<ol>=
+
+HTML =<ol>= 元素表示有序列表，通常渲染为一个带编号的列表。允许的内容只有 =<li>=, =<script>= 和 =<template>= 。 =<ol>= 可以有如下属性：
+
+- =reversed= :: 此布尔值属性指定列表中的条目是否是倒序排列，即编号是否应从高到低反向标注。
+- =start= :: 一个整数值属性，制定了列表编号的起始值。此属性的值应为阿拉伯数字。
+- =type= :: 设置编号的类型。 =a= 表示小写英文字母编号； =A= 表示大写英文字母编号； =i= 表示小写罗马数字编号； =I= 表示大写罗马数字编号； =1= 表示默认数字编号。 =type= 在 HTML4 中被启用，但在 HTML5 中被重新引入。文档建议我们尽量使用 CSS 的 [[https://developer.mozilla.org/zh-CN/docs/Web/CSS/list-style-type][=list-style-type=]] 而不是 =type= 属性。
+
+=<ol>= 的这些属性都可以使用我们在上一篇介绍的 =#+attr__= 或传统的 =#+attr_html= 来指定，没什么好说的了。
+
+*** 无序列表 =<ul>=
+
+HTML =<ul>= 元素表示无序的项目列表，通常渲染为项目符号列表。相比 =<ol>= 它没有那些属性，这里我们来介绍一下 =<ul>= 和 =<ol>= 的共同子元素 =<li>= 。
+
+=<li>= 元素用于表示列表中的项目。它必须包含在一个父元素中：有序列表 =<ol>= 、无序列表 =<ul>= 或菜单 =<menu>= 。在菜单和无序列表中，列表项通常使用项目符号显示。在有序列表中，通常在左侧显示一个升序计数器。
+
+对于有序列表中的 =<li>= ，属性 =value= 可以指定一个数字来作为列表项当前序数值，后续列表项从该数值开始继续编号。这个属性对于 =<ul>= 或 =<menu>= 没有意义。
+
+*** 描述列表 =<dl>=
+
+=<dl>= 是 description list 的意思，用来表示一组名词和对应的描述，定义或值的配对。在 =<dl>= 中，名词或术语使用 =<dt>= 指定，描述详情使用 =<dd>= 指定。一般来说 =<dt>= 后面通常跟着一个 =<dd>= 元素，不过多个连续的 =<dt>= 元素可以表示由紧随其后的一个 =<dd>= 元素定义的多个术语。根据 MDN 的描述，单 (=<dt>=) 对单 (=<dd>=)，多对单，单对多，多对多都是可以的。但是，零对Ｘ或者Ｘ对零是不行的：
+
+| [[./1.png]] | [[./2.png]] |
+
+*** ox-html 的实现
+
+在 ox-html 中，item 的导出由 =org-html-item= 和 =org-html-format-list-item= 实现，前者从 item 元素中提取信息，后者负责将提取信息格式化为 HTML 字符串：
+
+#+begin_src elisp
+  (defun org-html-item (item contents info)
+    "Transcode an ITEM element from Org to HTML.
+  CONTENTS holds the contents of the item.  INFO is a plist holding
+  contextual information."
+    (let* ((plain-list (org-element-parent item))
+  	 (type (org-element-property :type plain-list))
+  	 (counter (org-element-property :counter item))
+  	 (checkbox (org-element-property :checkbox item))
+  	 (tag (let ((tag (org-element-property :tag item)))
+  		(and tag (org-export-data tag info)))))
+      (org-html-format-list-item
+       contents type checkbox info (or tag counter))))
+#+end_src
+
+我个人对 =org-html-format-list-item= 的实现不是很满意，它的参数数量太多了，而且还被用于 low-level headline 的导出，对一个函数来说功能太多了：
+
+:org-html-format-list-item:
+#+begin_src elisp
+  (defun org-html-format-list-item (contents type checkbox info
+  					   &optional term-counter-id
+  					   headline)
+    "Format a list item into HTML.
+  CONTENTS is the item contents.  TYPE is one of symbols `ordered',
+  `unordered', or `descriptive'.  CHECKBOX checkbox type is nil or one of
+  symbols `on', `off', or `trans'.   INFO is the info plist."
+    (let ((class (if checkbox
+  		   (format " class=\"%s\""
+  			   (symbol-name checkbox)) ""))
+  	(checkbox (concat (org-html-checkbox checkbox info)
+  			  (and checkbox " ")))
+  	(br (org-html-close-tag "br" nil info))
+  	(extra-newline (if (and (org-string-nw-p contents) headline) "\n" "")))
+      (concat
+       (pcase type
+         (`ordered
+  	(let* ((counter term-counter-id)
+  	       (extra (if counter (format " value=\"%s\"" counter) "")))
+  	  (concat
+  	   (format "<li%s%s>" class extra)
+  	   (when headline (concat headline br)))))
+         (`unordered
+  	(let* ((id term-counter-id)
+  	       (extra (if id (format " id=\"%s\"" id) "")))
+  	  (concat
+  	   (format "<li%s%s>" class extra)
+  	   (when headline (concat headline br)))))
+         (`descriptive
+  	(let* ((term term-counter-id))
+  	  (setq term (or term "(no term)"))
+  	  ;; Check-boxes in descriptive lists are associated to tag.
+  	  (concat (format "<dt%s>%s</dt>"
+  			  class (concat checkbox term))
+  		  "<dd>"))))
+       (unless (eq type 'descriptive) checkbox)
+       extra-newline
+       (and (org-string-nw-p contents) (org-trim contents))
+       extra-newline
+       (pcase type
+         (`ordered "</li>")
+         (`unordered "</li>")
+         (`descriptive "</dd>")))))
+#+end_src
+:end:
+
+*** ox-w3ctr 的实现
+
+我将 =org-html-format-list-item= 根据列表种类拆分为了多个小函数，方便测试和维护。但目前我还没有重构到 headline，不得不暂时让新老代码共存。
+
+**** checkbox
+
+#+begin_quote
+Every item in a plain list(1) (see *note Plain Lists::) can be made into
+a checkbox by starting it with the string ‘[ ]’.  This feature is
+similar to TODO items (see *note TODO Items::), but is more lightweight.
+Checkboxes are not included into the global TODO list, so they are often
+great to split a task into a number of simple steps.  Or you can use
+them in a shopping list.
+
+--- =(info "(org)Checkboxes")=
+#+end_quote
+
+通过在列表开头添加 =[x]=, =[ ]= 或 =[-]= ，我们可以标注列表项的完成情况。ox-html 为 checkbox 的导出提供了三种选项，分别是 =unicode=, =ascii= 和 =html= ：
+
+#+begin_src elisp
+  (defconst org-html-checkbox-types
+    '((unicode .
+               ((on . "&#x2611;")
+  	      (off . "&#x2610;")
+  	      (trans . "&#x2610;")))
+      (ascii .
+             ((on . "<code>[X]</code>")
+              (off . "<code>[&#xa0;]</code>")
+              (trans . "<code>[-]</code>")))
+      (html .
+  	  ((on . "<input type='checkbox' checked='checked' />")
+  	   (off . "<input type='checkbox' />")
+  	   (trans . "<input type='checkbox' />"))))
+    ...)
+#+end_src
+
+在原版注释中提到只有 =ascii= 支持三选 checkbox，不过我发现可以使用 =&#x2610;= 勉强表示一下中间态，因此 ox-w3ctr 中的 checkbox 定义如下：
+
+#+begin_src elisp
+  (defconst t-checkbox-types
+    '(( unicode .
+        ((on . "&#x2611;")
+         (off . "&#x2610;")
+         (trans . "&#x2612;")))
+      ( ascii .
+        ((on . "<code>[X]</code>")
+         (off . "<code>[&#xa0;]</code>")
+         (trans . "<code>[-]</code>")))
+      ( html .
+        ((on . "<input type=\"checkbox\" checked>")
+         (off . "<input type=\"checkbox\">")
+         (trans . "<input type=\"checkbox\">"))))
+    ...)
+#+end_src
+
+实际上 HTML 的 =<input>= 也可以做到中间态，但是[[https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/indeterminate][需要 JavaScript]]。
+
+在由 checkbox 状态获取对应 HTML 字符串上我采用了 =org-html-checkbox= 的代码：
+
+#+begin_src elisp
+  (defsubst t--checkbox (checkbox info)
+    "Format CHECKBOX into HTML.
+  See `org-w3ctr-checkbox-types' for customization options."
+    (declare (ftype (function (t plist) (or null string)))
+             (side-effect-free t) (important-return-value t))
+    (cdr (assq checkbox
+               (cdr (assq (plist-get info :html-checkbox-type)
+                          t-checkbox-types)))))
+
+  (defsubst t--format-checkbox (checkbox info)
+    "Format a CHECKBOX option to string.
+
+  CHECKBOX can be `on', `off', `trans', or anything else.
+  Returns an empty string if CHECKBOX is not one of the these three."
+    (declare (ftype (function (t plist) string))
+             (side-effect-free t) (important-return-value t))
+    (let ((a (t--checkbox checkbox info)))
+      (concat a (and a " "))))
+#+end_src
+
+（在实现 =t--checkbox= 时由于我错误地标注返回类型为 =string= ，经过 =native-comp= 后 =t--format-checkbox= 输出存在问题：[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00587.html][bug#78394: 31.0.50; Questions about native-comp-speed and type decl]]。）
+
+**** =<ol>, <ul>, <dl>=
+
+相比原版 =org-html-format-list-item= ，我的实现只是拆分了逻辑，添加了一些类型声明：
+
+#+begin_src elisp
+(defun t--format-ordered-item (contents checkbox info cnt)
+  "Format a ORDERED list item into HTML."
+  (declare (ftype (function ((or null string) t plist t) string))
+           (side-effect-free t) (important-return-value t))
+  (let ((checkbox (t--format-checkbox checkbox info))
+        (counter (if (not cnt) "" (format " value=\"%s\"" cnt))))
+    (concat (format "<li%s>" counter) checkbox
+            (t--nw-trim contents) "</li>")))
+
+(defun t--format-unordered-item (contents checkbox info)
+  "Format a UNORDERED list item into HTML."
+  (declare (ftype (function ((or null string) t plist) string))
+           (side-effect-free t) (important-return-value t))
+  (let ((checkbox (t--format-checkbox checkbox info)))
+    (concat "<li>" checkbox (t--nw-trim contents) "</li>")))
+
+(defun t--format-descriptive-item (contents checkbox info term)
+  "Format a DESCRIPTIVE list item into HTML."
+  (declare (ftype (function ((or null string) t plist t) string))
+           (side-effect-free t) (important-return-value t))
+  (let ((checkbox (t--format-checkbox checkbox info))
+        (term (or term "(no term)")))
+    (concat (format "<dt>%s</dt>" (concat checkbox term))
+            "<dd>" (t--nw-trim contents) "</dd>")))
+#+end_src
+
+在上一节中我们已经看到描述列表中 =<dt>= 与 =<dd>= 对应关系的多样性，但 ox-html 中的实现只支持了一对一这一种。添加这一支持倒不是什么困难的事情，检查第一个 item 有没有 =<dt>= 和最后一个 item 有没有 =<dd>= 即可：
+
+#+begin_src elisp
+(defun t--format-descriptive-item-ex (contents item checkbox info term)
+  "Format a DESCRIPTION list item into HTML."
+  (declare (ftype (function ((or null string) t t plist t) string))
+           (side-effect-free t) (important-return-value t))
+  (let ((checkbox (t--format-checkbox checkbox info))
+        (contents (let ((c (t--nw-trim contents)))
+                    (if (equal c "") nil c))))
+    (cond
+     ;; first item
+     ;; not need actually.
+     ((not (org-export-get-previous-element item info))
+      (let ((term (or term "(no term)")))
+        (concat (format "<dt>%s</dt>" (concat checkbox term))
+                (when contents (format "<dd>%s</dd>" contents)))))
+     ;; last item
+     ((not (org-export-get-next-element item info))
+      (let ((term (let ((c (concat checkbox term)))
+                    (if (string= c "") nil c))))
+        (concat
+         (when term (format "<dt>%s</dt>" term))
+         "<dd>" contents "</dd>")))
+     ;; normal item
+     (t (let ((term (let ((c (concat checkbox term)))
+                      (if (string= c "") nil c))))
+          (concat (when term (format "<dt>%s</dt>" term))
+                  (when contents (format "<dd>%s</dd>" contents))))))))
+#+end_src
+
+虽然但是，我还是使用了上面的朴素实现，也许使用它更不容易出现“难以理解”的行为，比如明明 Org-mode 源文件存在列表项但在导出中却消失了之类的问题。
+
+至于负责调用这些函数的函数 =org-w3ctr-item= 和 =org-w3ctr-plain-list= 就没什么好说的了，直接放代码吧：
+
+#+begin_src elisp
+  ;;;; Item
+  ;; See (info "(org)Plain Lists")
+  ;; Fixed export. Not customizable.
+  (defun t-item (item contents info)
+    "Transcode an ITEM element from Org to HTML.
+  CONTENTS holds the contents of the item."
+    (declare (ftype (function (t (or null string) plist) string))
+             (side-effect-free t) (important-return-value t))
+    (let* ((plain-list (org-export-get-parent item))
+           (type (org-element-property :type plain-list))
+           (checkbox (org-element-property :checkbox item)))
+      (pcase type
+        ('ordered
+         (let ((counter (org-element-property :counter item)))
+           (t--format-ordered-item contents checkbox info counter)))
+        ('unordered
+         (t--format-unordered-item contents checkbox info))
+        ('descriptive
+         (let ((term (when-let* ((a (org-element-property :tag item)))
+                       (org-export-data a info))))
+           ;;(t--format-descriptive-item-ex
+           ;; contents item checkbox info term)))
+           (t--format-descriptive-item contents checkbox info term)))
+        (_ (error "Unrecognized list item type: %s" type)))))
+
+  ;;;; Plain List
+  ;; See (info "(org)Plain Lists")
+  ;; Fixed export. Not customizable.
+  (defun t-plain-list (plain-list contents info)
+    "Transcode a PLAIN-LIST element from Org to HTML.
+  CONTENTS is the contents of the list."
+    (declare (ftype (function (t (or null string) plist) string))
+             (important-return-value t))
+    (let* ((type (pcase (org-element-property :type plain-list)
+                   (`ordered "ol") (`unordered "ul") (`descriptive "dl")
+                   (other (error "Unknown HTML list type: %s" other))))
+           (attributes (t--make-attr__id* plain-list info t)))
+      (format "<%s%s>\n%s</%s>" type attributes contents type)))
+#+end_src
+
+** Quote Block
+
+在 HTML 中，块引用使用 =<blockquote>= 来表示，代表其中的文字是引用内容。通常在渲染时，这部分的内容会有一定的缩进。若引文来源于网络，则可以将原内容的出处 URL 地址设置倒 cite 特性上，若要以文本的形式告知读者引文的出处时，可以通过 =<cite>= 元素。
+
+=<blockquote>= 的 =cite= 属性可以通过 =#+attr__= 指定，至于它提到的使用 =<cite>= 注明出处，我们可以考虑使用 =#+caption= 来指定并在 =org-w3ctr-quote-block= 中实现，不过我感觉似乎没有太大的必要。下面是实现代码：
+
+#+begin_src elisp
+  (defun t-quote-block (quote-block contents info)
+    "Transcode a QUOTE-BLOCK element from Org to HTML.
+  CONTENTS holds the contents of the block."
+    (declare (ftype (function (t (or null string) plist) string))
+             (important-return-value t))
+    (format "<blockquote%s>%s</blockquote>"
+            (t--make-attr__id* quote-block info t)
+            (t--maybe-contents contents)))
+#+end_src
+
+** Example Block
+
+#+begin_quote
+You can include literal examples that should not be subjected to markup.
+Such examples are typeset in monospace, so this is well suited for
+source code and similar examples.
+
+--- =(info "(org)Literal Examples")=
+#+end_quote
+
+在 ox-html 的实现中， =org-html-example-block= 会在内部调用 =org-html-format-code= 最终生成形如 =<pre>...</pre>= 的 HTML 字符串。 =<pre>= 元素表示预定义格式文本。在该元素中的文本通常按照原文件中的编排，以等宽字体的形式展现出来。文本中的空白符都会显示出来。
+
+#+begin_src elisp
+  (defun org-html-example-block (example-block _contents info)
+    "Transcode a EXAMPLE-BLOCK element from Org to HTML.
+  CONTENTS is nil.  INFO is a plist holding contextual
+  information."
+    (let ((attributes (org-export-read-attribute :attr_html example-block)))
+      (if (plist-get attributes :textarea)
+  	(org-html--textarea-block example-block)
+        (if-let* ((class-val (plist-get attributes :class)))
+            (setq attributes (plist-put attributes :class (concat "example " class-val)))
+          (setq attributes (plist-put attributes :class "example")))
+        (format "<pre%s>\n%s</pre>"
+  	      (let* ((reference (org-html--reference example-block info))
+  		     (a (org-html--make-attribute-string
+  			 (if (or (not reference) (plist-member attributes :id))
+  			     attributes
+  			   (plist-put attributes :id reference)))))
+  		(if (org-string-nw-p a) (concat " " a) ""))
+  	      (org-html-format-code example-block info)))))
+#+end_src
+
+可以看到代码对 =#+attr_html= 做了一些工作，比如检查 =:textarea= 判断是否生成为 =<textarea>= 标签，添加 =example= 类和 =id= 属性。我同样不是很喜欢 ox-html 中 example block 导出的实现方法，功能太复杂了，textarea 应该使用专门的方式导出。
+
+#+begin_src elisp
+  (defun t-example-block (example-block _contents info)
+    "Transcode a EXAMPLE-BLOCK element from Org to HTML.
+  CONTENTS is nil."
+    (declare (ftype (function (t t plist) string))
+             (important-return-value t))
+    (format "<div%s>\n<pre>\n%s</pre>\n</div>"
+            (t--make-attr__id* example-block info)
+            (org-remove-indentation
+             (org-element-property :value example-block))))
+#+end_src
+
+在我的实现中移除了默认的 =example= 类，而导出为一个比较“干净”的 =<div><pre>...</pre></div>= 字符串， =#+attr__= 属性会附加在外层的 =<div>= 而不是内部的 =<pre>= 上。
+
+** Export Block
+
+#+begin_quote
+The HTML export backend transforms ‘<’ and ‘>’ to ‘&lt;’ and ‘&gt;’.  To
+include raw HTML code in the Org file so the HTML export backend can
+insert that HTML code in the output, use HTML export code blocks.
+
+--- =(info "(org) Quoting HTML tags")=
+#+end_quote
+
+这一元素在 HTML 中当然没有直接对应物，毕竟是直接导出到 HTML 内容，下面是 ox-html 的实现：
+
+#+begin_src elisp
+  (defun org-html-export-block (export-block _contents _info)
+    "Transcode a EXPORT-BLOCK element from Org to HTML.
+  CONTENTS is nil.  INFO is a plist holding contextual information."
+    (when (string= (org-element-property :type export-block) "HTML")
+      (org-remove-indentation (org-element-property :value export-block))))
+#+end_src
+
+同样，由于我们的导出对象仅仅是 HTML，也许我们可以忽略掉导出类型，不过我选择了更有意思的做法，允许导出 CSS，JavaScript 或 S-exp 形式的 HTML，以及 elisp 代码的求值结果：
+
+#+begin_src elisp
+  (defun t-export-block (export-block _contents _info)
+    "Transcode a EXPORT-BLOCK element from Org to HTML.
+  CONTENTS is nil."
+    (declare (ftype (function (t t t) string))
+             (important-return-value t))
+    (let* ((type (org-element-property :type export-block))
+           (value (org-element-property :value export-block))
+           (text (org-remove-indentation value)))
+      (pcase type
+        ;; Add mhtml-mode also.
+        ((or "HTML" "MHTML") text)
+        ;; CSS
+        ("CSS" (format "<style>%s</style>" (t--maybe-contents value)))
+        ;; JavaScript
+        ((or "JS" "JAVASCRIPT") (concat "<script>\n" text "</script>"))
+        ;; Expression that return HTML string.
+        ((or "EMACS-LISP" "ELISP")
+         (format "%s" (eval (read (or (t--nw-p value) "\"\"")))))
+        ;; SEXP-style HTML data.
+        ("LISP-DATA" (t--sexp2html (read (or (t--nw-p value) "\"\""))))
+        (_ ""))))
+#+end_src
+
+** Fixed Width
+
+#+begin_quote
+For simplicity when using small examples, you can also start the
+example lines with a colon followed by a space.  There may also be
+additional whitespace before the colon:
+
+--- =(info "(org) Literal Examples")=
+#+end_quote
+
+=org-w3ctr-example-block= 的属性附加到 =div= 而不是 =pre= 似乎是个问题，那么 Fixed Width 元素的导出正好弥补了这一部分。ox-html 的导出固定了类：
+
+#+begin_src elisp
+  (defun org-html-fixed-width (fixed-width _contents _info)
+    "Transcode a FIXED-WIDTH element from Org to HTML.
+  CONTENTS is nil.  INFO is a plist holding contextual information."
+    (format "<pre class=\"example\">\n%s</pre>"
+  	  (org-html-do-format-code
+  	   (org-remove-indentation
+  	    (org-element-property :value fixed-width)))))
+#+end_src
+
+类似 example block 的导出，我也去掉了它，并让用户自己设定：
+
+#+begin_src elisp
+  (defun t-fixed-width (fixed-width _contents info)
+    "Transcode a FIXED-WIDTH element from Org to HTML.
+  CONTENTS is nil."
+    (declare (ftype (function (t t plist) string))
+             (important-return-value t))
+    (format "<pre%s>%s</pre>"
+            (t--make-attr__id* fixed-width info t)
+            (let ((value (org-remove-indentation
+                          (org-element-property :value fixed-width))))
+              (if (not (t--nw-p value)) value
+                (concat "\n" value "\n")))))
+#+end_src
+
+** Horizontal Rule
+
+#+begin_quote
+A line consisting of only dashes, and at least 5 of them, is exported as
+a horizontal line.
+
+--- =(info "(org) Horizontal Rules")=
+#+end_quote
+
+=<hr>= 元素表示段落级元素之间的主题转换（例如，一个故事中的场景的改变，或一个章节的主题的改变）。在 HTML 的早期版本中，它是一个水平线。现在它仍能在可视化浏览器中表现为水平线，但它目前被定义为是语义上而非表现层面上的术语。所以如果想画一条水平线，请使用适当的 CSS 样式来实现。
+
+ox-html 使用了 =org-html-close-tag= 来创建 =<hr>= 标签，我就直接实现为一个常函数了：
+
+#+begin_src elisp
+  (defun t-horizontal-rule (_horizontal-rule _contents _info)
+    "Transcode an HORIZONTAL-RULE object from Org to HTML.
+  CONTENTS is nil."
+    (declare (ftype (function (t t t) "<hr>"))
+             (pure t) (important-return-value t))
+    "<hr>")
+#+end_src
+
+** Keyword
+
+类似 export block，我也对 keyword 导出进行了一些扩展。在 ox-html 的实现中，keyword 用于导出 HTML 片段和 table of contents：
+
+#+begin_src elisp
+  (defun org-html-keyword (keyword _contents info)
+    "Transcode a KEYWORD element from Org to HTML.
+  CONTENTS is nil.  INFO is a plist holding contextual information."
+    (let ((key (org-element-property :key keyword))
+  	(value (org-element-property :value keyword)))
+      (cond
+       ((string= key "HTML") value)
+       ((string= key "TOC")
+        (let ((case-fold-search t))
+  	(cond
+  	 ((string-match "\\<headlines\\>" value)
+  	  (let ((depth (and (string-match "\\<[0-9]+\\>" value)
+  			    (string-to-number (match-string 0 value))))
+  		(scope
+  		 (cond
+  		  ((string-match ":target +\\(\".+?\"\\|\\S-+\\)" value) ;link
+  		   (org-export-resolve-link
+  		    (org-strip-quotes (match-string 1 value)) info))
+  		  ((string-match-p "\\<local\\>" value) keyword)))) ;local
+  	    (org-html-toc depth info scope)))
+  	 ((string= "listings" value) (org-html-list-of-listings info))
+  	 ((string= "tables" value) (org-html-list-of-tables info))))))))
+#+end_src
+
+TOC 对我目前的 ox-w3ctr 实现来说还是一个没有探索过的元素，这里只能先搁置之后再看：
+
+#+begin_src elisp
+  (defun t-keyword (keyword _contents _info)
+    "Transcode a KEYWORD element from Org to HTML.
+  CONTENTS is nil."
+    (declare (ftype (function (t t t) string))
+             (important-return-value t))
+    (let ((key (org-element-property :key keyword))
+          (value (org-element-property :value keyword)))
+      (pcase key
+        ((or "H" "HTML") value)
+        ("E" (format "%s" (eval (read (or (t--nw-p value) "\"\"")))))
+        ("D" (t--sexp2html (read (or (t--nw-p value) "\"\""))))
+        ("L" (mapconcat #'t--sexp2html
+                        (read (format "(%s)" value))))
+        (_ ""))))
+#+end_src
+
+** Paragraph
+
+=<p>= HTML 元素表示文本的一个段落。在视觉媒体中，段落通常表现为用空行和/或首行缩进与相邻段落分隔的文本块，但 HTML 段落可以是相关内容的任何结构分组，如图像或表格字段。
+
+:org-html-paragraph:
+#+begin_src elisp
+  (defun org-html-paragraph (paragraph contents info)
+    "Transcode a PARAGRAPH element from Org to HTML.
+  CONTENTS is the contents of the paragraph, as a string.  INFO is
+  the plist used as a communication channel."
+    (let* ((parent (org-element-parent paragraph))
+  	 (parent-type (org-element-type parent))
+  	 (style '((footnote-definition " class=\"footpara\"")
+  		  (org-data " class=\"footpara\"")))
+  	 (attributes (org-html--make-attribute-string
+  		      (org-export-read-attribute :attr_html paragraph)))
+  	 (extra (or (cadr (assq parent-type style)) "")))
+      (cond
+       ((and (eq parent-type 'item)
+  	   (not (org-export-get-previous-element paragraph info))
+  	   (let ((followers (org-export-get-next-element paragraph info 2)))
+  	     (and (not (cdr followers))
+  		  (org-element-type-p (car followers) '(nil plain-list)))))
+        ;; First paragraph in an item has no tag if it is alone or
+        ;; followed, at most, by a sub-list.
+        contents)
+       ((org-html-standalone-image-p paragraph info)
+        ;; Standalone image.
+        (let ((caption
+  	     (let ((raw (org-export-data
+  			 (org-export-get-caption paragraph) info))
+  		   (org-html-standalone-image-predicate
+  		    #'org-html--has-caption-p))
+  	       (if (not (org-string-nw-p raw)) raw
+  		 (concat "<span class=\"figure-number\">"
+  			 (format (org-html--translate "Figure %d:" info)
+  				 (org-export-get-ordinal
+  				  (org-element-map paragraph 'link
+  				    #'identity info t)
+  				  info nil #'org-html-standalone-image-p))
+  			 " </span>"
+  			 raw))))
+  	    (label (org-html--reference paragraph info)))
+  	(org-html--wrap-image contents info caption label)))
+       ;; Regular paragraph.
+       (t (format "<p%s%s>\n%s</p>"
+  		(if (org-string-nw-p attributes)
+  		    (concat " " attributes) "")
+  		extra contents)))))
+#+end_src
+:end:
+
+在 ox-html 的实现中，当被导出项是 item 的第一个子元素，且该元素没有兄弟元素或者仅有一个 plain-list 兄弟元素时， =org-html-paragraph= 不会添加 =<p>= 标签而是直接导出为 plain text 内容。这一处理方式没什么问题，不过作者可能忽略了对 checkbox 的处理，下面的列表在 ox-html 中的导出结果如下（ox-html 默认 CSS 样式）：
+
+#+begin_src org
+  - [X] Racket Manual 10.4
+
+    对此，可以参考如下内容
+    - X
+    - XX  
+#+end_src
+
+[[./3.png]]
+
+在上面的例子中，由于列表首段的紧邻兄弟元素不是 plain list，它被导出为 =<p>= 元素，而 checkbox 由 =org-w3ctr-item= 分别处理从而不位于 =<p>= 中。虽然我不知道 ox-html 的导出是否有意这样，但至少它的导出看起来应该和 Org 原文档差不多才对。对此，一种解决方式是为 =<li>= 的第一个 =<p>= 指定内联显示方式，比如：
+
+#+begin_src org
+  ,#+begin_export html
+  <style>
+  li p:first-of-type {
+    display: inline;
+  }
+  </style>
+  ,#+end_export
+
+  - [ ] hello
+
+    world
+#+end_src
+
+[[./4.png]]
+
+不过我选择了一种更简单的方法，item 的第一个元素始终不导出到 HTML 段落元素，而是直接输出文本或带属性的 =<span>= 元素：
+
+#+begin_src elisp
+  (cond
+   (;; Item's first line.
+    (and (eq parent-type 'item)
+         (not (org-export-get-previous-element paragraph info)))
+    (if (string= attrs "") contents
+      (format "<span%s>%s</span>" attrs contents)))
+   ...)
+#+end_src
+
+=org-html-paragraph= 做的另一件事是导出 standalone 图片为 =img= 而不是段落元素，可以注意到代码为图片添加了数字顺序，这一任务实际上可以使用现代 CSS 的 counter 来实现，因此我也对这一部分实现进行了简化：
+
+#+begin_src elisp
+  (;; Standalone image.
+   (t-standalone-image-p paragraph info)
+   (let* ((caption (org-export-get-caption paragraph))
+          (cap (or (and caption (org-export-data caption info)) "")))
+     (t--wrap-image contents info cap attrs)))
+#+end_src
+
+最后是通常段落的导出，这倒是没有什么差别，完整的 =org-w3ctr-paragraph= 如下：
+
+#+begin_src elisp
+  (defun t-paragraph (paragraph contents info)
+    "Transcode a PARAGRAPH element from Org to HTML.
+  CONTENTS is the contents of the paragraph, as a string."
+    (declare (ftype (function (t string plist) string))
+             (important-return-value t))
+    (let* ((parent (org-export-get-parent paragraph))
+           (parent-type (org-element-type parent))
+           (attrs (t--make-attr__id* paragraph info t)))
+      (cond
+       (;; Item's first line.
+        (and (eq parent-type 'item)
+             (not (org-export-get-previous-element paragraph info)))
+        (if (string= attrs "") contents
+          (format "<span%s>%s</span>" attrs contents)))
+       (;; Standalone image.
+        (t-standalone-image-p paragraph info)
+        (let* ((caption (org-export-get-caption paragraph))
+               (cap (or (and caption (org-export-data caption info)) "")))
+          (t--wrap-image contents info cap attrs)))
+       ;; Regular paragraph.
+       (t (let ((c (t--trim contents)))
+            (if (string= c "") ""
+              (format "<p%s>%s</p>" attrs c)))))))
+#+end_src
+
+*** filter
+
+由于 paragraph 是 Org 文档中出现最频繁的元素，我写了个 filter 来去掉元素尾部多余的换行符：
+
+#+begin_src elisp
+(defun t-paragraph-filter (value _backend _info)
+  "Delete paragraph's trailing newlines."
+  (declare (ftype (function (string t t) string))
+           (pure t) (important-return-value t))
+  (concat (string-trim-right value) "\n"))
+#+end_src
+
+不过老实说这应该是 HTML Formatter 的工作，加或者不加这个 filter 并没有太大的影响。
+
+** Verse Block
+
+评价为几乎没用过的东西。
+
+#+begin_src elisp
+  (defun org-html-verse-block (_verse-block contents info)
+    "Transcode a VERSE-BLOCK element from Org to HTML.
+  CONTENTS is verse block contents.  INFO is a plist holding
+  contextual information."
+    (format "<p class=\"verse\">\n%s</p>"
+  	  ;; Replace leading white spaces with non-breaking spaces.
+  	  (replace-regexp-in-string
+  	   "^[ \t]+" (lambda (m) (org-html--make-string (length m) "&#xa0;"))
+  	   ;; Replace each newline character with line break.  Also
+  	   ;; remove any trailing "br" close-tag so as to avoid
+  	   ;; duplicates.
+  	   (let* ((br (org-html-close-tag "br" nil info))
+  		  (re (format "\\(?:%s\\)?[ \t]*\n" (regexp-quote br))))
+  	     (replace-regexp-in-string re (concat br "\n") contents)))))
+#+end_src
+
+ox-html 为 =.verse= 使用了 =p.verse { margin-left: 3%; }= 的 CSS，我还是交给用户去设定 CSS 类了：
+
+#+begin_src elisp
+  (defun t-verse-block (verse-block contents info)
+    "Transcode a VERSE-BLOCK element from Org to HTML.
+  CONTENTS is verse block contents."
+    (declare (ftype (function (t (or null string) plist) string))
+             (important-return-value t))
+    (format
+     "<p%s>\n%s</p>"
+     (t--make-attr__id* verse-block info t)
+     ;; Replace leading white spaces with non-breaking spaces.
+     (replace-regexp-in-string
+      "^[ \t]+" (lambda (m) (t--make-string (length m) "&#xa0;"))
+      ;; Replace each newline character with line break. Also
+      ;; remove any trailing "br" close-tag so as to avoid
+      ;; duplicates.
+      (let* ((re (format "\\(?:%s\\)?[ \t]*\n"
+                         (regexp-quote "<br>"))))
+        (replace-regexp-in-string
+         re "<br>\n" (or contents ""))))))
+#+end_src
+
+* Objects
+
+** Entity
+
+没什么好说的。
+
+#+begin_src elisp
+  (defun t-entity (entity _contents _info)
+    "Transcode an ENTITY object from Org to HTML."
+    (declare (ftype (function (t t t) string))
+             (pure t) (important-return-value t))
+    (org-element-property :html entity))
+#+end_src
+
+** Export Snippet
+
+同上。
+
+#+begin_src elisp
+  (defun t-export-snippet (export-snippet _contents _info)
+    "Transcode a EXPORT-SNIPPET object from Org to HTML."
+    (declare (ftype (function (t t t) string))
+             (important-return-value t))
+    (let* ((backend (org-export-snippet-backend export-snippet))
+           (value (org-element-property :value export-snippet)))
+      (pcase backend
+        ;; plain html text.
+        ((or 'h 'html) value)
+        ;; Read, Evaluate, Print, no Loop :p
+        ('e (format "%s" (eval (read (or (t--nw-p value) "\"\"")))))
+        ;; sexp-style html data.
+        ('d (t--sexp2html (read (or (t--nw-p value) "\"\""))))
+        ;; sexp-style html data list.
+        ('l (mapconcat #'t--sexp2html (read (format "(%s)" value))))
+        (_ ""))))
+#+end_src
+
+** Line Break
+
+同上。
+
+#+begin_src elisp
+  (defun t-line-break (_line-break _contents _info)
+    "Transcode a LINE-BREAK object from Org to HTML."
+    (declare (ftype (function (t t t) "<br>\n"))
+             (pure t) (important-return-value t))
+    "<br>\n")
+#+end_src
+
+** Target
+
+在 ox-html 中，target 导出为无文本的 =<a>= 标签，标签指定了 =id= 属性。在现代 HTML 中 *似乎* 更加推荐使用 =<span>= 作为 target，因此我的 =org-w3ctr-target= 实现如下：
+
+#+begin_src elisp
+  (defun t-target (target _contents info)
+    "Transcode a TARGET object from Org to HTML.
+  CONTENTS is nil.  INFO is a plist holding contextual
+  information."
+    (declare (ftype (function (t t plist) string))
+             (important-return-value t))
+    (format "<span id=\"%s\"></span" (t--reference target info)))
+#+end_src
+
+** Radio Target
+
+类似 target，没什么好说的。
+
+#+begin_src elisp
+  (defun t-radio-target (radio-target text info)
+    "Transcode a RADIO-TARGET object from Org to HTML."
+    (declare (ftype (function (t (or null string) plist) string))
+             (important-return-value t))
+    (format "<span id=\"%s\">%s</span>"
+            (t--reference radio-target info) (or text "")))
+#+end_src
+
+** Statistics Cookie
+
+同上。
+
+#+begin_src elisp
+  (defun t-statistics-cookie (statistics-cookie _contents _info)
+    "Transcode a STATISTICS-COOKIE object from Org to HTML."
+    (declare (ftype (function (t t t) string))
+             (pure t) (important-return-value t))
+    (format "<code>%s</code>"
+            (org-element-property :value statistics-cookie)))
+#+end_src
+
+** Subscript
+
+同上。
+
+#+begin_src elisp
+  (defun t-subscript (_subscript contents _info)
+    "Transcode a SUBSCRIPT object from Org to HTML."
+    (declare (ftype (function (t string t) string))
+             (pure t) (important-return-value t))
+    (format "<sub>%s</sub>" contents))
+#+end_src
+
+** Superscript
+
+同上。
+
+#+begin_src elisp
+  (defun t-superscript (_superscript contents _info)
+    "Transcode a SUPERSCRIPT object from Org to HTML."
+    (declare (ftype (function (t string t) string))
+             (pure t) (important-return-value t))
+    (format "<sup>%s</sup>" contents))
+#+end_src
+
+** 富文本
+
+这里是 org 支持的六种富文本标记，很简单直接给出代码了：
+
+:rich-text:
+#+begin_src elisp
+  (defcustom t-text-markup-alist
+    ;; See also `org-html-text-markup-alist'.
+    '((bold . "<strong>%s</strong>")
+      (code . "<code>%s</code>")
+      (italic . "<em>%s</em>")
+      (strike-through . "<s>%s</s>")
+      (underline . "<span class=\"underline\">%s</span>")
+      (verbatim . "<code>%s</code>"))
+    ...)
+
+  (defsubst t--get-markup-format (name info)
+    "Get markup format string for NAME from INFO plist.
+  Returns \"%s\" if not found.
+
+  NAME is a symbol (like \\='bold), INFO is Org export info plist."
+    (declare (ftype (function (symbol plist) string))
+             (pure t) (important-return-value t))
+    (if-let* ((alist (plist-get info :html-text-markup-alist))
+              (str (cdr (assq name alist))))
+        str "%s"))
+
+  ;;;; Bold
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-bold (_bold contents info)
+    "Transcode BOLD from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'bold info) contents))
+
+  ;;;; Italic
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-italic (_italic contents info)
+    "Transcode ITALIC from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'italic info) contents))
+
+  ;;;; Underline
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-underline (_underline contents info)
+    "Transcode UNDERLINE from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'underline info) contents))
+
+  ;;;; Verbatim
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-verbatim (verbatim _contents info)
+    "Transcode VERBATIM from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'verbatim info)
+            (t--encode-plain-text
+             (org-element-property :value verbatim))))
+
+  ;;;; Code
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-code (code _contents info)
+    "Transcode CODE from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'code info)
+            (t--encode-plain-text
+             (org-element-property :value code))))
+
+  ;;;; Strike-Through
+  ;; See (info "(org) Emphasis and Monospace")
+  ;; Change `org-w3ctr-text-markup-alist' to do customizations.
+  (defun t-strike-through (_strike-through contents info)
+    "Transcode STRIKE-THROUGH from Org to HTML."
+    (declare (ftype (function (t string plist) string))
+             (pure t) (important-return-value t))
+    (format (t--get-markup-format 'strike-through info) contents))
+#+end_src
+:end:
+
+在 ox-html 中， italic 导出为 =<i>= 标签，在 ox-w3ctr 中我改为 =<em>= 标签；在 ox-html 中 =strike-through= 导出为 =<del>= 标签，我改为 =<s>= 标签；在 ox-html 中 bold 导出为 =<b>= 标签，我改为 =<strong>= 标签。
+
+** Plain text
+
+同样，没什么好说的，基本照抄 ox-html 的实现。
+
+#+begin_src elisp
+  (defconst t-special-string-regexps
+    '(("\\\\-" . "&#x00ad;"); shy
+      ("---\\([^-]\\)" . "&#x2014;\\1"); mdash
+      ("--\\([^-]\\)" . "&#x2013;\\1"); ndash
+      ("\\.\\.\\." . "&#x2026;")); hellip
+    "Regular expressions for special string conversion.")
+
+  (defun t--convert-special-strings (string)
+    "Convert special characters in STRING to HTML."
+    (declare (ftype (function (string) string))
+             (side-effect-free t) (important-return-value t))
+    (dolist (a t-special-string-regexps string)
+      (let ((re (car a))
+            (rpl (cdr a)))
+        (setq string (replace-regexp-in-string re rpl string t)))))
+
+  (defun t-plain-text (text info)
+    "Transcode a TEXT string from Org to HTML."
+    (declare (ftype (function (string plist) string))
+             (side-effect-free t) (important-return-value t))
+    (let ((output text))
+      ;; Protect following characters: <, >, &.
+      (setq output (t--encode-plain-text output))
+      ;; Handle smart quotes.  Be sure to provide original
+      ;; string since OUTPUT may have been modified.
+      (when (plist-get info :with-smart-quotes)
+        (setq output (org-export-activate-smart-quotes
+                      output :html info text)))
+      ;; Handle special strings.
+      (when (plist-get info :with-special-strings)
+        (setq output (t--convert-special-strings output)))
+      ;; Handle break preservation if required.
+      (when (plist-get info :preserve-breaks)
+        (setq output
+              (replace-regexp-in-string
+               "\\(\\\\\\\\\\)?[ \t]*\n"
+               "<br>\n" output)))
+      ;; Return value.
+      output))
+#+end_src
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/10039200][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/32912274][file:dev/p6.jpg]] | [[https://www.pixiv.net/artworks/80283178][file:dev/p3.jpg]] |
+| [[https://www.pixiv.net/artworks/101250310][file:dev/p4.jpg]] | [[https://www.pixiv.net/artworks/7245779][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/45430248][file:dev/p2.jpg]] |
+#+end_comment
