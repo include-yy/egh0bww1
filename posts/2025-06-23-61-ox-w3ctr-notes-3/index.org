@@ -1,0 +1,1127 @@
+#+TITLE: ox-w3ctr 开发笔记 (3)
+#+subtitle: 导出 timestamp 
+#+DATE: [2025-05-16 Fri 15:32]--[2025-06-23 Mon 23:07]
+#+FILETAGS: orgmode
+#+DESCRIPTION: 本文是 ox-w3ctr 开发笔记的第三篇，介绍了 timestamp 对象的导出
+
+# | [[https://www.pixiv.net/artworks/131597753][file:dev/p0.jpg]] | [[https://www.pixiv.net/artworks/131331195][file:dev/p1.jpg]] |
+
+我在 [2025-05-16 Fri] 开始写本系列笔记的第三篇。我原本打算在这一篇记录 template 和 inner-template 导出的代码，但这部分过于庞杂，也许拆成两到三小篇更加合适。不过，主要的原因是 template 中的 preamble 涉及到时间戳（timestamp）的导出。我原先采取了绕过 =org-timestamp-formats= 来允许用户自定义时间戳格式的方法，现在感觉有点太蹩脚了。
+
+于是，六月初我在几乎要完成 template 的重构时转向重构时间戳部分的代码，并在 [2025-06-20 Fri] 完成了绝大部分的工作。时间戳的导出比我想象的要麻烦的多，我用了差不多 400 行 Elisp 才感觉差强人意。
+
+本文对应的最近的 commit 为 [[https://github.com/include-yy/ox-w3ctr/commit/90922cf2d47a40b1671b927a4c9821dc2b5bc813][90922cf]]。本文使用的 Emacs 为 GNU Emacs 31.0.50 (build 4, x86_64-w64-mingw32) of 2025-06-06 (commit [[https://github.com/emacs-mirror/emacs/commit/1903b0062b168824][1903b00]])，Org-mode 版本为 Org mode version 9.7.11。
+
+* Org 的 timestamp
+
+如果你是 Org-mode 的“轻度用户”，就像我一样只是用来记笔记，而不是拿来做 GTD (Getting Things Down) 或者 PIM (Personal Information Management) 的话，那么我们对时间戳的运用可能只是记录当前的时间，就比如我在 [2025-06-20 09:32] 写下这行字一样。
+
+根据 Org 的[[https://orgmode.org/worg/org-syntax.html][语法参考]]，Org-mode 支持以下 timestamp 语法：
+
+#+begin_src text
+<%%(SEXP)>                                                     (diary)
+<%%(SEXP) TIME>                                                (diary)
+<%%(SEXP) TIME-TIME>                                           (diary)
+<DATE TIME REPEATER-OR-DELAY>                                  (active)
+[DATE TIME REPEATER-OR-DELAY]                                  (inactive)
+<DATE TIME REPEATER-OR-DELAY>--<DATE TIME REPEATER-OR-DELAY>   (active range)
+<DATE TIME-TIME REPEATER-OR-DELAY>                             (active range)
+[DATE TIME REPEATER-OR-DELAY]--[DATE TIME REPEATER-OR-DELAY]   (inactive range)
+[DATE TIME-TIME REPEATER-OR-DELAY]                             (inactive range)
+#+end_src
+
+- SEXP :: 为不含 =>= 和换行符的字符串
+- DATE :: 为 =YYYY-MM-DD DAYNAME= 式的日期字符串，其中 =YMD= 为数字，​=DAYNAME= 为不含 =+-]>=​，数字和换行符的字符串
+- TIME :: 可选项，为 =H:MM= 式时间字符串，其中 =H= 可为一个或两个数字， =M= 为单个数字
+- REPEATOR-OR-DELAY :: 可选项，任意顺序的 =REPEATOR= 或 =DELAY=
+- REPEATOR :: 为以下模式的实例：
+  #+begin_src text
+    MARK VALUE UNIT
+    MARK VALUE UNIT/VALUE UNIT
+  #+end_src
+  其中 =MARK= 可为 =+= (cumulative), =++= (catch-up) 或 =.+= (restart)，​=VALUE= 是一个数字，​=UNIT= 是 =h= (hour), =d= (day), =w= (week), =m= (month) 或 =y= (year) 其中之一。在 =MARK=, =VALUE= 和 =UNIT= 之间没有空格。
+- DELAY :: 为以下模式的实例：
+  #+begin_src text
+    MARK VALUE UNIT
+  #+end_src
+  其中 =MARK= 可为 =-= (all type) 或 =--= (first type)；​=VALUE= 和 =UNIT= 与 =REPEATOR= 一致。
+
+在实际使用中，我用的最多的格式是以下两种：
+
+#+begin_src text
+  [DATE TIME]
+  [DATE TIME]--[DATE TIME]
+#+end_src
+
+当然，你可能更习惯使用尖括号而不是方括号，这对于不使用 Org agenda 的人来说没有区别。要实现一个比较完整的 timestamp transcoder，我们也不得不考虑支持所有的 Org 时间戳语法，下面让我们简单了解一下它们的实际用法。
+
+** 插入与修改
+
+创建时间戳最直接的方法就是手动插入它，至少我是这样做的。Org-mode 提供了一些时间戳操作命令，这里简单抄一下 Org-mode manual：
+
+- =C-c .= (=org-timestamp=) ::
+  弹出一个 prompt 来插入时间戳，如果光标位于某个已存在的时间戳，该命令会修改该时间戳而不是创建新的。如果连续使用该命令（指两次 =C-c .= 之间没有其他命令），那么会插入一个时间范围（time range）。当带有 =C-u= 前缀调用时，该命令会插入日期+时间而不仅仅是日期。
+- =C-c != (=org-timestamp-inactive=) ::
+  类似 =org-timestamp= ，但会插入非活跃时间戳（inactive timestamp）
+- =C-c C-c= :: 令时间戳正规化
+- =C-c <= (=org-date-from-calendar=) :: 从日历的当前 point 插入时间戳
+- =C-c >= (=org-goto-calendar=) :: 根据当前所在时间戳访问日历对应位置
+- =S-<LEFT>= (=org-timestamp-down-day=) :: 时间戳减去一天
+- =S-<RIGHT>= (=org-timestamp-up-day=) :: 时间戳增加一天
+- =S-<UP>= (=org-timestamp-up=) ::
+  这是个多功能的命令。当 point 位于时间戳的开始或结束符时，改变时间戳的类型（活跃或非活跃）；当 point 位于时间戳的年、月、日、小时或时间上时，修改（增加）对应部分。当时间戳为时间范围形式（特指 =YYYY-MM-DD DAYNAME TIME-TIME=​）时，修改前一 =TIME= 也会修改后一 =TIME= 来保持时间范围长度不变，如果要修改范围，文档建议首先修改后一 =TIME=​。
+- =S-<DOWN>= (=org-timestamp-down=) :: 除减少时间外与 =S-<UP>= 没有区别。当 =S-<UP/DOWN>= 作用于分钟时，默认的步长是五分钟，这一数值可以通过 =org-timestamp-rounding-minutes= 调整。
+- =C-c C-y= (=org-evaluate-time-range=) :: 计算时间范围，带有前缀参数时该命令还会插入计算结果
+  
+到目前为止，在这些命令中对我来说唯一常用的是 =S-<UP/DOWN>=​，用来调整时间很方便，但也会时不时和 =M-<UP/DOWN>=​(=org-metaup= 和 =org-metadown=)弄混。
+
+** diary
+
+因为不怎么用 Org agenda，我没有使用过 diary 形式的时间戳，但也值得一提。
+
+就像我们在上面看到的，diary 与普通时间戳的主要不同之处在于它的 =DATE= 部分是一个带 =%%= 前缀的 S-表达式，这一整体被叫做 *Special diary entires*​，具体是什么可以参考 [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Special-Diary-Entries.html][=(info "(emacs)Special Diary Entries")=​]]：
+
+#+begin_quote
+In addition to entries based on calendar dates, the diary file can
+contain “sexp entries” for regular events such as anniversaries.  These
+entries are based on *Lisp expressions* (sexps) that Emacs evaluates as it
+scans the diary file.  Instead of a date, a sexp entry contains ‘%%’
+followed by a Lisp expression which must begin and end with parentheses.
+The Lisp expression determines which dates the entry applies to.
+#+end_quote
+
+Org Manual 同时也提到了 diary 的一下问题：
+
+#+begin_quote
+When working with the standard diary expression functions, you need to
+be very careful with *the order of the arguments*.  That order depends
+*evilly* on the variable ‘calendar-date-style’.  For example, to specify
+a date December 1, 2005, the call might look like ‘(diary-date 12 1
+2005)’ or ‘(diary-date 1 12 2005)’ or ‘(diary-date 2005 12 1)’,
+depending on the settings.  This has been the source of much confusion.
+Org mode users can resort to *special versions of these functions*, namely
+‘org-date’, ‘org-anniversary’, ‘org-cyclic’, and ‘org-block’.
+These work just like the corresponding ‘diary-’ functions, but with
+stable ISO order of arguments (year, month, day) wherever applicable,
+independent of the value of ‘calendar-date-style’.
+#+end_quote
+
+** =DELAY= and =REPEATOR=
+
+diary, repeator 和 delay 都是为 agenda 和 GTD 服务的，对于仅仅记录时间的非活跃时间戳来说这些都不重要。但是默认情况下 ox-html 也会导出 repeator 和 delay，此处我仅仅从了解的角度来介绍一下它们是什么。
+
+我们可以在时间戳的前面加上特殊的关键字来用于任务规划目的，Org-mode 支持 =DEADLINE= 和 =SCHEDULED= 两个关键字，前者表示任务计划完成的期限，后者表示任务计划开始的时间。比如 =SCHEDULED: <2004-12-25 Sat>= 和 DEADLINE: =<2004-02-29 Sun>=​。
+
+- DEADLINE 时间戳开始出现在 agenda 中的时间取决于 =org-deadline-warning-days=​，它的默认值为 14，这也就是说默认情况下，某个 DEADLINE 到达的前两周你就能在 agenda 界面看到它了。通过在时间戳尾部指定 =DELAY= ，我们可以指定它在 DDL 到达前多少时间出现在 agenda 上，比如 =DEADLINE: <2004-02-29 Sun -5d>= 表示提前 5 天提醒 DDL。
+- SCHEDULED 时间戳在 agenda 中位于它所在的那一天，并且在经过指定日期后，这一规划的任务会始终显示在​_今天_​的 agenda 中，直到它被标记为完成。类似 DEADLINE，我们可以通过 =DELAY= 延迟它的“每日显示”，比如 =SCHEDULED: <2004-12-25 Sat -2d>= 直到 12 月 27 日才会每日显示该任务。默认情况下 SCHEDULE 的 =DELAY= 为 0，由 =org-scheduled-delay-days= 决定。
+
+考虑当前时间为 [2025-06-20 Fri]，以下 timestamp 的 agenda 显示应该能比较清晰地说明 =DELAY= 的用法：
+#+begin_src org
+  ,*** TODO Task 1
+  DEADLINE: <2025-07-01 Tue -1d>
+  ,*** TODO Task 2
+  DEADLINE: <2025-07-05 Sat>
+  ,*** TODO Task 3
+  DEADLINE: <2025-07-05 Tue -15d>
+  ,*** TODO Task 4
+  DEADLINE: <2025-07-15 Tue -1m>
+  ,*** TODO Task 5
+  SCHEDULED: <2025-06-21 Sat>
+  ,*** TODO Task 6
+  SCHEDULED: <2025-06-22 Fri>
+  ,*** TODO Task 7
+  SCHEDULED: <2025-06-17 Sun>
+  ,*** TODO Task 8
+  SCHEDULED: <2025-06-16 Mon>
+  ,*** TODO Task 9
+  SCHEDULED: <2025-06-18 Wed -2d>
+#+end_src
+
+[[./1.png]]
+
+在任务管理中，某些任务可能并不仅仅执行一次，Org-mode 为它们提供了“重复器”这一实体，可以使用我们上面提到的语法来在时间戳中指定重复频率，比如 =<2005-10-01 Sat +1m>= 就表示某个任务从 2005 年 10 月 1 日开始每个月重复一次。在有 =REPEATOR= 的时间戳中，​=REPEATOR= 需要位于 =DELAY= 的前面。
+
+读者可以参考 [[https://orgmode.org/manual/Repeated-tasks.html][=(info "(org)Repeated tasks")=]] 学习这些小玩意的详细用法，这里我就不继续展开了，毕竟我真没怎么用过。
+
+* ox-html 是如何导出 timestamp 的
+
+通过上一节，读者至少应该了解了 Org-mode 时间戳的组成。这一节我们来介绍一下 ox-html 的导出函数 =org-html-timestamp=​，为后续在 ox-html 基础上扩展时间戳导出做做铺垫。出于简单起见，这里我就不展示所有的完整代码了，只要机器上安装了 Emacs 就可以方便地顺着函数调用链找到所有的函数。
+
+=org-html-timestamp= 本身的实现非常简单，通过调用 =org-translate-timestamp= 获取时间戳字符串后，简单添加 =<span>= 标签，比较有意思的是它将可能出现的时间范围 =--= 替换为了 Unicode 字符 =&#x2013;=​，即 En Dash：
+
+#+begin_src elisp
+  (defun org-html-timestamp (timestamp _contents info)
+    (let ((value (org-html-plain-text (org-timestamp-translate timestamp) info)))
+      (format "<span class=\"timestamp-wrapper\"><span class=\"timestamp\">%s</span></span>"
+  	    (replace-regexp-in-string "--" "&#x2013;" value))))
+#+end_src
+
+当时间戳的类型为 diary 或者 =org-display-custom-times= 为空时，​=org-timestamp-translate= 会使用 =org-element-interpret-data= 格式化时间戳；当 =org-display-custom-times= 为非空值时， =org-timestamp-translate= 会在通过 =org-time-stamp-format= 获取时间戳格式化字符串后，通过 =org-foramt-timestamp= 获取时间戳字符串：
+
+#+begin_src elisp
+  (defun org-timestamp-translate (timestamp &optional boundary)
+    (let ((type (org-element-property :type timestamp)))
+      (if (or (not org-display-custom-times) (eq type 'diary))
+  	(org-element-interpret-data timestamp)
+        (let ((fmt (org-time-stamp-format
+                    (org-timestamp-has-time-p timestamp) nil 'custom)))
+  	(if (and (not boundary) (memq type '(active-range inactive-range)))
+  	    (concat (org-format-timestamp timestamp fmt)
+  		    "--"
+  		    (org-format-timestamp timestamp fmt t))
+  	  (org-format-timestamp timestamp fmt (eq boundary 'end)))))))
+#+end_src
+
+从这里开始，我们就可以分为两种情况讨论了：默认格式化和 custom 格式化。为了方便接下来的讨论，这里引入一个函数，它能够根据字符串解析得到一个时间戳对象：
+
+#+begin_src elisp
+  (defun yy/ts (str)
+    (car (org-element-map
+             (with-temp-buffer
+               (insert str) (org-element-parse-buffer))
+             'timestamp #'identity)))
+#+end_src
+
+** =org-element-interpret-data=
+
+=org-element-interpret-data= 可以将 Org 语法元素或对象“还原”为字符串，通过这个函数我们可以由时间戳对象得到它的对应字符串，它实际上通过调用 =org-element-timestamp-interpreter= 完成转换。为什么不直接使用时间戳的 =:raw-value= 属性，还要多一次转换呢？那可能是因为我们需要考虑以下这些不标准的时间戳：
+
+#+begin_src text
+  [2000-01-32] [2008-02-31] [2000-01-01 99:99] [2000-15-51]
+#+end_src
+
+=org-element-interpret-date= *能够*​将这些不规则的时间戳标准化：
+
+#+begin_src elisp
+  (let ((tss '("[2000-01-32] " "[2008-02-31]" "[2000-01-01 99:99]" "[2000-15-51]")))
+    (mapcar (lambda (s) (org-element-interpret-data (yy/ts s))) tss))
+  ;;=> ("[2000-02-01 Tue] " "[2008-03-02 Sun]" "[2000-01-05 Wed 04:39]" "[2001-04-20 Fri]")
+#+end_src
+
+你可以注意到在上面的例子中 =[2000-01-32]= 的导出结果末尾带有空格，这是因为原对象的末尾也有空格而 =org-element-interpret-data= 保留了它，来方便作为结果直接插入导出结果中。这一行为也导致 ox-html 的时间戳导出会在 =</sapn>= 之前插入多余的空格：[[https://lists.gnu.org/archive/html/emacs-orgmode/2025-06/msg00220.html][[bug] org-html-timestamp adds unintended extra spaces]]，这一问题应该会在 Emacs 31 中得到修复。
+
+=org-element-timestamp-interpreter= 会使用 =org-timestamp-formats= 格式化时间，它的默认值为 =("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")=​，可以注意到它有两个字符串，前者用于仅有日期的情况，比如 [2000-01-01]，后者用于时间戳精确到时间的情况，比如 [2008-08-08 15:15]。可能你和我一样感觉 Org 默认的时间戳格式中的星期比较扎眼，一种可行的修改导出行为的方法是在导出时临时绑定 =org-timestamp-formats= 为另一值，比如 =("%F" . "%F %R")= 来取消星期的导出。为了与原格式匹配，这一设定的格式最好以 "YYYY" 开头，以 "MM" 结尾。
+
+虽然这里我没有展示 =org-element-timestamp-interpreter= 的实现，不过它也像 =org-timestamp-translate= 一样调用 =org-time-stamp-format= 来获取时间格式化字符串，你可以注意到它会去掉格式化字符串可能的最外层 =[]= 或 =<>=​，然后再根据参数选择合适的括号：
+
+#+begin_src elisp
+  (defun org-time-stamp-format (&optional with-time inactive custom)
+    (let ((format (funcall
+                   (if with-time #'cdr #'car)
+                   (if custom
+                       org-timestamp-custom-formats
+                     org-timestamp-formats))))
+      ;; Strip brackets, if any.
+      (when (or (and (string-prefix-p "<" format)
+                     (string-suffix-p ">" format))
+                (and (string-prefix-p "[" format)
+                     (string-suffix-p "]" format)))
+        (setq format (substring format 1 -1)))
+      (pcase inactive
+        (`no-brackets format)
+        (`nil (concat "<" format ">"))
+        (_ (concat "[" format "]")))))
+#+end_src
+
+最后需要说明的是，在时间范围中「存在/不存在时间」与「活跃/非活跃」取决于第一个时间，这可以由以下测试来说明：
+
+#+begin_src elisp
+  (let ((tss '("[2000-01-01]--[2000-01-02 13:00]"
+               "[2000-01-01 13:00]--[2000-01-02]"
+               "[2000-01-01 13:00]--[2000-01-02] 14:00")))
+    (mapcar (lambda (s) (org-timestamp-has-time-p (yy/ts s))) tss))
+  ;;=> (nil 13 13)
+  (let ((tss '("<2000-01-01>--[2000-02-02]"
+               "[2000-01-01]--<2000-02-02>")))
+    (mapcar (lambda (s) (org-element-property :type (yy/ts s))) tss))
+  ;;=> (active-range inactive-range)
+#+end_src
+
+得益于 =org-element-timestamp-interpreter= 的实现方式，对于时间范围，即使整个时间戳在 =org-timestamp-has-time-p= 意义下被判定为假，后一时间戳在导出时仍带有时间。当时间戳的前半部分带有时间而后半部分没有时，后半部分将使用前半部分的时间：
+
+#+begin_src elisp
+  (org-element-interpret-data
+   (yy/ts "[2000-01-01]--[2020-01-01 13:00]"))
+  ;;=> "[2000-01-01 Sat]--[2020-01-01 Wed 13:00]"
+  (org-element-interpret-data
+   (yy/ts "[2000-01-01 12:00]--[2020-01-01]"))
+  ;;=> "[2000-01-01 Sat 12:00]--[2020-01-01 Wed 12:00]"
+#+end_src
+
+** =org-display-custom-times=
+
+当 =org-display-custom-times= 为非空值时，如前所述，​=org-timestamp-translate= 将会使用下面的代码进行 timestamp 格式化：
+
+#+begin_src elisp
+  (let ((fmt (org-time-stamp-format
+              (org-timestamp-has-time-p timestamp) nil 'custom)))
+    (if (and (not boundary) (memq type '(active-range inactive-range)))
+        (concat (org-format-timestamp timestamp fmt)
+                "--"
+                (org-format-timestamp timestamp fmt t))
+      (org-format-timestamp timestamp fmt (eq boundary 'end))))
+#+end_src
+
+我们可以注意到 =org-timestamp-translate= 根据 =org-timestamp-has-time-p= 来判断整个时间戳是否使用带时间的格式化字符串，这也就意味着在时间范围中即使后半有时间也不会显示。它与 =org-element-timestamp-interpreter= 的另一个不同点在于 =org-time-stamp-format= 的 =CUSTOM= 参数非空以及 =INACTIVE= 为空，这也意味着会使用 =org-timestamp-custoom-formats= 和总是使用尖括号：
+
+#+begin_src elisp
+  org-timestamp-custom-formats ;;=> ("%m/%d/%y %a" . "%m/%d/%y %a %H:%M")
+  (org-time-stamp-format t nil 'custom) ;;=> "<%m/%d/%y %a %H:%M>"
+  (org-time-stamp-format nil nil 'custom) ;;=> "<%m/%d/%y %a>"
+  (org-time-stamp-format t 'no-brackets 'custom) ;;=> "%m/%d/%y %a %H:%M"
+  (org-time-stamp-format nil 'no-brackets 'custom) ;;=> "%m/%d/%y %a"
+  (org-time-stamp-format t 'other 'custom) ;;=> "[%m/%d/%y %a %H:%M]"
+  (org-time-stamp-format nil 'other 'custom) ;;=> "[%m/%d/%y %a]"
+#+end_src
+
+在获取时间戳格式化字符串后，若时间戳是时间范围则使用 =--= 连接两个 timestamp，否则直接返回时间戳。这一点也与 =org-element-timestamp-interpreter= 存在区别，当时间戳的 =:range-type= 为 =timerange= 时后者会保持原样输出：
+
+#+begin_src elisp
+  (let ((org-display-custom-times t))
+    (org-timestamp-translate (yy/ts "[2001-01-01 12:00-13:00]")))
+  ;;=> "<01/01/01 Mon 12:00>--<01/01/01 Mon 13:00>"
+  (let ((org-display-custom-times nil))
+    (org-timestamp-translate (yy/ts "[2001-01-01 12:00-13:00]")))
+  ;;=> "[2001-01-01 Mon 12:00-13:00]"
+#+end_src
+
+在 =org-timestamp-translate= 中，时间戳的格式化由 =org-format-timestamp= 完成。​=org-timestamp-to-time= 会从时间戳获取时间属性，然后交给 =org-encode-time= 得到时间， =org-encode-time= 最后会调用 =encode-time=​：
+
+#+begin_src elisp
+  (defun org-format-timestamp (timestamp format &optional end utc)
+    (format-time-string format (org-timestamp-to-time timestamp end)
+  		      (and utc t)))
+#+end_src
+
+** 小结与调用关系图
+
+Org-mode 的代码在 timestamp 这一块的命名非常没有规律，第一次看这些变量和函数名很容易不知所以，下图展示了这些函数的调用关系。
+
+[[./2.png]]
+
+- 当 =org-display-custom-times= 为空时， =org-timestamp-translate= 调用 =org-element-interpret-data= 来格式化时间戳，后者会调用 =org-element-timestamp-interpreter= 且使用 =org-timestamp-formats=​；
+- 当 =org-display-custom-times= 非空， =org-timestamp-translate= 会使用 =org-format-timestamp= 格式化时间戳，且使用 =org-timestamp-custom-formats=​。
+
+至少在我看来，ox-html 的 timestamp 导出有两个问题
+
+- 其一，对 =org-display-custom-times= 的设定是全局的，如果我们想要为不同的 buffer 指定不同的时间戳格式，我们需要在不同 buffer 中设定 buffer-local 或 file-local 变量，就像这样：
+  #+begin_src text
+    # Local Variables:
+    # org-display-custom-times: t
+    # End:
+  #+end_src
+- 其二， =org-timestamp-translate= 的自定义格式并不区分 timerange 和 daterange，而是全部生成形如 =T1--T2= 的字符串，如果还想利用 =org-elelment-interpret-data= 来正确处理 timerange 时间戳，用户只能修改 =org-timestamp-formats=​，但这是一个全局行为。当然用户也可以 advice 导出相关函数，但这可能导致难以预料的影响。
+
+我的“改进”主要围绕这两方面来进行。在介绍我的实现之前，首先让我们先了解一个可能不那么明显的问题：timestamp 的范围问题。
+
+* 2038 及其衍生问题
+
+（​*在 Windows 上*​）
+
+假设某一天，你在记录某些历史笔记时碰到了一战和二战的问题，那么你可能会写下这样的时间戳：
+
+#+begin_src text
+  [1914-07-28]--[1918-11-11]
+  [1939-09-01]--[1945-09-02]
+#+end_src
+
+很不幸，当你按下 =C-c C-e h H=​（记得打开 =debug-on-error=​）时，你会得到这样的错误信息：
+
+[[./3.png]]
+
+经过一番调查（指对 =org-element-timestamp-interpreter= 使用 =edebug-defun=​），我发现问题出在 =org-encode-time=​，而在 =org-encode-time= 内部使用的 =encode-time= 的 docstring 中有这样一段话：
+
+#+begin_quote
+The range of supported years is at least 1970 to the near future.
+Out-of-range values for SECOND through MONTH are brought into range
+via date arithmetic.  This can be tricky especially when combined with
+DST; see Info node ‘(elisp)Time Conversion’ for details and caveats.
+#+end_quote
+
+在 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Time-Conversion.html][=(info "(elisp)Time Conversion")=]] 中对时间的范围问题做了一些说明，这里我也简单翻译一下：
+
+#+begin_quote
+许多操作系统使用 64 位有符号整数来计数秒数，因此可以表示遥远过去或未来的时间。不过，也有一些操作系统受限较多。例如，老式操作系统如果使用 32 位有符号整数，通常只能处理从 1901 年 12 月 13 日 20:45:52 到 2038 年 1 月 19 日 03:14:07（协调世界时，UTC）之间的时间。
+#+end_quote
+
+但实际上，就 Windows 来说， =encode-time= 的下限​*看上去*​就是 1970 年 1 月 1 日：
+
+#+begin_src elisp
+  (encode-time '(0 0 0 1 1 1970 nil nil 0)) ;;=> (0 0)
+  (encode-time '(0 0 0 31 12 1969 nil nil 0))
+  ;;=> (error "Invalid time specification")
+#+end_src
+
+与之类似的还有 =format-time-string= ，我们甚至可以用个函数测测 =format-time-string= 的上限：
+
+#+begin_src elisp
+  (defun my/find (bound up)
+    (cl-flet ((fmt (num)
+                (condition-case nil
+                    (format-time-string "%F %R" num t)
+                  (error nil))))
+      (while (not (and (fmt bound) (not (fmt (1+ bound)))))
+        (let ((mid (/ (+ bound up) 2)))
+          (if (fmt mid) (setq bound mid)
+            (setq up mid))))
+      bound))
+  (my/find 0 most-positive-fixnum)
+  ;;=> 32536850399
+
+  (format-time-string "%F %R:%S" 32536850399 t)
+  ;;=> "3001-01-19 21:59:59"
+  (format-time-string "%F %R:%S" 32536850400 t)
+  ;;=> (error "Invalid time specification")
+
+  (log 32536850399 2) ;;=> 34.9213555522607
+#+end_src
+
+嗯...这个 3001-01-19 21:59:59 是什么？这到底是怎么一回事呢？
+
+** -43200 与 32536850399
+
+实际上，如果我们稍微修改上面的测试代码，就可以发现 =format-time-string= 的下限并不是 1970-01-01 00:00 UTC，而是 UNIX 纪年前 43200 秒，即 1969-12-31 12:00 UTC：
+
+#+begin_src elisp
+  (defun my/find (bound up)
+      (cl-flet ((fmt (num)
+                  (condition-case nil
+                      (format-time-string "%F %R" num t)
+                    (error nil))))
+        (while (not (and (fmt (- bound)) (not (fmt (- (1+ bound))))))
+          (let ((mid (/ (+ bound up) 2)))
+            (if (fmt (- mid)) (setq bound mid)
+              (setq up mid))))
+        bound))
+
+  (my/find 0 most-positive-fixnum)
+  ;;=> 43200
+
+  (encode-time '(0 0 12 31 12 1969 nil nil 0))
+  ;;=> (-1 22336)
+  (encode-time '(59 59 11 31 12 1969 nil nil 0))
+  ;;=> (error "Invalid time specification")
+#+end_src
+
+如果你拿同样的代码去 Linux 上测试，你得到的结果可能是 -67768040609740800 和 67767976233532799，这也说明在 Linux 上可用的时间范围要远大于 Windows。在 Windows 上出现这一结果的原因是 C 运行时的限制，即 [[https://ruche-home.net/boyaki/2021-04-21/VC3001][VC++：3001年問題]]：
+
+[[./5.png]]
+
+我在 Emacs-China 上的一个帖子也印证了这个问题：[[https://emacs-china.org/t/org-timestamp/29690][Org timestamp 范围问题]]。
+
+** 什么是 2038 问题
+
+这里直接抄维基百科了，他们甚至还有一张 GIF：
+
+#+begin_quote
+在计算机应用上，2038 年问题可能会导致某些软件在 2038 年 1 月 19 日 3 时 14 分 07 秒之后无法正常工作。所有使用 POSIX 时间表示时间的程序都将受其影响，因为它们以自 1970 年 1 月 1 日经过的秒数（忽略闰秒）来表示时间。这种时间表示法在类 Unix（Unix-like）操作系统上是一个标准，并会影响以其 C 编程语言开发给其他大部分操作系统使用的软件。在大部分的 32 位操作系统上，此“time_t”数据模式使用一个有正负号的 32 位整数（signed int32）存储计算的秒数。依照此“time_t”标准，在此格式能被表示的最后时间是 2038 年 1 月 19 日 03:14:07，星期二（UTC）。超过此一瞬间，时间将会“绕回”（wrap around）且在内部被表示为一个负数，并造成程序无法工作，因为它们无法将此时间识别为 2038 年，而可能会依个别实现而跳回 1970 年或 1901 年。因此可能产生错误的计算及动作。
+
+大部分 64 位操作系统已经把 time_t 这个系统变量改为 64 位宽。不过，其他现有架构的改动仍在进行中，不过预期“应该可以在 2038 年前完成”。然而，直到 2006 年，仍然有数以亿计的 32 位系统在运行中，特别是许多嵌入式系统。相对于一般电脑科技 18 至 24 个月的革命性更新，嵌入式系统可能直至使用寿命终结都不会改变。32 位time_t 的使用亦被编码于文件格式，例如众所周知的 ZIP 文件压缩格式。其能存在的时间远比受影响的机器长。
+
+新的 64 位运算器可以记录至约 2900 亿年后的 292,277,026,596 年 12 月 4 日15:30:08，星期日（UTC）。
+
+--- [[https://zh.wikipedia.org/wiki/2038%E5%B9%B4%E9%97%AE%E9%A2%98][2038 年问题]]
+#+end_quote
+
+#+caption: 作者 Monaneko - https://commons.wikimedia.org/w/index.php?curid=1711901
+[[./4.gif]]
+
+Org 中有一个选项用来限制时间戳的范围，它就是 =org-read-date-force-compatible-dates= ，它的 docstring 翻译如下：
+
+#+begin_quote
+日期/时间提示是否应该强制限制为在 Emacs 中保证可用的日期？
+
+取决于 Emacs 所运行的系统，某些日期无法用 Emacs 内部用来表示时间的类型来表示。1970 年 1 月 1 日到 2038 年 1 月 1 日之间的日期始终可以被正确表示。有些系统支持更早的日期，有些支持更晚的日期，有些两者都支持。一种测试方法是，将任意日期插入 Org 缓冲区，把光标放在年份上，然后按 S-up 和 S-down 来测试支持的年份范围。
+
+当此变量设置为 t 时，日期/时间提示将不允许你指定 1970-2037 范围之外的日期，这样可以确保这些日期无论在你所使用的任何版本的 Emacs 中都能正常工作，同时也确保你可以将文件在不同 Emacs 实现之间迁移而不会出问题。每当 Org 强制修改年份时，它会显示一条消息并发出提示音。
+
+当此变量为 nil 时，Org 会检查你当前使用的 Emacs 实现是否能够表示该日期。如果不能，它会强制设定为某个年份（通常是当前年份），并发出提示音提醒你。目前不推荐使用 nil，因为你将 Org 文件在一个日期范围有限制的 Emacs 中打开的概率并不低。
+
+对此问题的一个变通方法是，对超出该范围的时间戳，使用 diary sexp 形式的日期。
+#+end_quote
+
+看来，对于 Org-mode 来说，由于 2038 年问题，始终正确的时间戳范围只有 1970-01-01 到 2038-01-01，作为时间戳来说，​*目前*​确实是够用了。从上面的测试来看，UCRT 可能是为了保持与 MSVCRT 的兼容性，在时间范围上并没有 Linux/MacOS 那样的大范围。
+
+** 更加友好的错误提示
+
+仅仅是 =(error "Invalid time specification")= 很容易让人一头雾水，对于要调用 =encode-time= 或 =format-time-string= 的函数可以考虑使用以下 =wrapper=​：
+
+#+begin_src elisp
+  (defun t--call-with-invalid-time-spec-handler (fn timestamp &rest args)
+    (condition-case e
+        (apply fn timestamp args)
+      (error
+       (when (equal e '(error "Invalid time specification"))
+         (error "Timestamp %s encode failed"
+                (org-element-property :raw-value timestamp))))))
+#+end_src
+
+这样一来，在 Org 文件中出现不能正常格式化的时间戳时，能得到这样的报错信息：
+
+#+begin_src elisp
+  (let ((timestamp (yy/ts "[3333-03-03 13:33]")))
+    (t--call-with-invalid-time-spec-handler
+     #'org-element-timestamp-interpreter timestamp :nothing))
+  ;;=> (error "Timestamp [3333-03-03 13:33] encode failed")
+#+end_src
+
+* <time> 与 datetime 属性
+
+在 =org-html-timestamp= 中，时间戳整体使用了两个 =<span>=​：
+
+#+begin_src elisp
+  (format "<span class=\"timestamp-wrapper\"><span class=\"timestamp\">%s</span></span>"
+  	(replace-regexp-in-string "--" "&#x2013;" value))
+#+end_src
+
+实际上，除了 =<span>= 我们在 HTML 中有更适合时间戳的 tag：​=<time>= 
+
+#+begin_quote
+The =<time>= HTML element represents a specific period in time. It may
+include the datetime attribute to translate dates into machine-readable
+format, allowing for better search engine results or custom features
+such as reminders.
+
+--- [[https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/time][<time>: The (Date) Time element]]
+#+end_quote
+
+** =<time>= 标签可以填充什么内容
+
+#+begin_quote
+The time element represents its contents, along with a *machine-readable*
+form of those contents in the datetime attribute. The kind of content is
+limited to various kinds of dates, times, time-zone offsets, and
+durations, as described below.
+
+The datetime attribute may be present. If present, its value *must* be a
+representation of the element's contents in a machine-readable format.
+
+A time element that does not have a datetime content attribute must not
+have any element descendants.
+
+The datetime value of a time element is the value of the element's
+datetime content attribute, if it has one, otherwise the child text
+content of the time element.
+
+The datetime value of a time element must match one of the following syntaxes.
+
+--- [[https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-time-element][HTML Standard]]
+#+end_quote
+
+在 HTML 标准文档中，​对 =<time>= 的要求是：
+
+- 如果元素具有 =datetime= 属性，则解析其属性值；
+- 否则，使用元素的文本，文本必须满足规定的格式。
+
+Org-mode 的默认时间戳 =org-timestamp-formats= 格式 =("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")= 并不满足 HTML 的时间戳要求，因为里面含有星期字符串，更不用说外面的 =[]= 或 =<>= 符号了，虽然我们可以修改默认格式来令其满足 HTML 标准要求，但一般情况下用户并不会这样做，于是，​*我们可以认为无法直接对 Org 时间戳使用 <time> 标签*​，如果要用必须加上合乎标准的 =datatime= 属性。
+
+** =datetime= 格式要求
+
+HTML 支持的时间戳格式还是很丰富多样的，不过对应到 Org-mode 支持的 DATE 或 DATE-TIME 这两种时间戳来说就比较有限了，大概有以下这些：
+
+- DATE 字符串 =<time>2011-11-18</time>=
+- 本地 DATE-TIME 字符串
+  - =<time>2011-11-18T14:54</time>=
+  - =<time>2011-11-18 14:54</time>=
+
+你可能注意到了本地 DATE-TIME 字符串存在使用 =T= 或空格作为日期-时间分隔符两种情况，前者来自 ISO-8601 标准，后者可能是 RFC 3339 或 2822。当然，如果你也想在时间戳中引入时区（timezone）信息的话，那就还有一种可能的 DATE-TIME-TIMEZONE 字符串：
+
+- =<time>2011-11-18T14:54Z</time>=
+- =<time>2011-11-18T14:54+0000</time>=
+- =<time>2011-11-18T14:54+00:00</time>=
+- =<time>2011-11-18T06:54-0800</time>=
+- =<time>2011-11-18T06:54-08:00</time>=
+- =<time>2011-11-18 14:54Z</time>=
+- =<time>2011-11-18 14:54+0000</time>=
+- =<time>2011-11-18 14:54+00:00</time>=
+- =<time>2011-11-18 06:54-0800</time>=
+- =<time>2011-11-18 06:54-08:00</time>=
+
+就时间戳的类型上大致可以这样分为 11 类：DATE 一种，「日期时间 =T= 分隔/空格分隔」的 local DT(Date-Time) 两种，以及将 DTZ(Date-Time-Zone) 按「日期时间 =T= 分隔/空格分隔」，「时区有冒号/无冒号」「使用/不使用 Zulu」两两分类的八种。
+
+如果 Org-mode 时间戳没有包含时间自然归为 DATE，如果包含时间且使用本地时间，是否使用 =T= 作为分隔符可以归并到其余的八种 DTZ 中。
+
+** 允许 Org 文件指定 =datetime= 选项
+
+Org-mode 和 ox-html 导出后端并没有指定 Org 文档的时区的选项，所以这个需要我们自己加。另外，文档的编写所在时区和希望的导出时区是可以不一致的（比如我在 UTC+8 写下这篇 blog，但是希望 =datetime= 为 UTC 标准时间），导出时区也可作为一个选项：
+
+#+begin_src elisp
+  (org-export-define-backend 'w3ctr
+    '(...)
+    ...
+    :options-alist
+    '((:html-timezone "HTML_TIMEZONE" nil t-timezone)
+      (:html-export-timezone "HTML_EXPORT_TIMEZONE" nil t-export-timezone)
+      ...))
+#+end_src
+
+在时区值的选取上，我使用如下正则表达式进行约束，它允许 =UTC/GMT[+-]XX= 或 =[+-]XXXX= 或 =local= 作为输入：
+
+#+begin_src elisp
+  (defconst t-timezone-regex
+    (rx string-start
+        (or "local"
+            (seq
+             (or "UTC" "GMT")
+             (group
+              (seq (or "+" "-")
+                   (or (seq (? "0") num)
+                       (seq "1" (any (?0 . ?2)))))))
+            (group
+             (seq
+              (or "+" "-")
+              (or (seq "0" num)
+                  (seq "1" (any (?0 . ?3))))
+              (any (?0 . ?5))
+              (any (?0 . ?9)))))
+        string-end)
+    "Regular expression for matching UTC/GMT time zone designators
+  and time zone offsets, including \"local\" for local timezone.")
+#+end_src
+
+在编写/导出时区默认值的选择上当然是 =local=​，这样也不会暴露自己的当前位置：
+
+#+begin_src elisp
+  (defcustom t-timezone "local"
+    "Time zone string for Org files.
+
+  This value is used when generating datetime metadata. It should be in
+  one of the following formats: [+-]HHMM, GMT/UTC[+-]XX or local.
+
+  Examples of valid values:
+  -  \"+0800\" for Beijing time
+  -  \"-0500\" for Eastern Time
+  -  \"UTC+8\" for Alternative format
+  -  \"GMT-5\" for Eastern Time alternative
+  -  \"local\" for Local time
+
+  See ISO 8601 and RFC 2822 or 3339 for more details.
+  - https://datatracker.ietf.org/doc/html/rfc2822
+  - https://datatracker.ietf.org/doc/html/rfc3339"
+    :group 'org-export-w3ctr
+    :set (lambda (symbol value)
+           (let ((case-fold-search t))
+             (if (not (string-match-p t-timezone-regex value))
+                 (error "Not a valid time zone designator: %s" value)
+               (set symbol value))))
+    :type 'string)
+
+  (defcustom t-export-timezone nil
+    "Time zone string for exporting.
+
+  This specifies the time zone used for datetime attributes during export.
+  If nil, the value of `org-w3ctr-timezone' is used instead.
+
+  The value format follows the same rules as `org-w3ctr-timezone'."
+    :group 'org-export-w3ctr
+    :set (lambda (symbol value)
+           (when value
+             (let ((case-fold-search t))
+               (if (not (string-match-p t-timezone-regex value))
+                   (error "Not a valid time zone designator: %s" value))))
+           (set symbol value))
+    :type '(choice (const nil) string))
+#+end_src
+
+在时间戳格式化的选择上，我们上面已经将所有情况分为了 11(9) 类，其中本地 DATE 是最简单的情况，因为它完全不涉及 DATE-TIME 分隔符，时区分隔符和是否使用 Zulu 符号，作为导出选项来说，我们只需要八种即可包括所有情况：
+
+#+begin_src elisp
+  (:html-datetime-option nil "dt" t-datetime-format-choice)
+  ;;...
+  (defcustom t-datetime-format-choice 'T-none-zulu
+    "Option for datetime attribute's format.
+
+  This option controls how timestamps are formatted when exporting
+  datetime attributes, with variations in:
+
+  Separator : Use `\s' or `T' between date and time.
+  Timezone  : Use `:' in zone offset or not (`+08:00' and `+0800').
+  UTC-Zulu  : Use a trailing `Z' when the timezone is UTC+0, or omit it."
+    :group 'org-export-w3ctr
+    :type '(radio (const s-none) (const s-none-zulu)
+                  (const s-colon) (const s-colon-zulu)
+                  (const T-none) (const T-none-zulu)
+                  (const T-colon) (const T-colon-zulu)))
+#+end_src
+
+** 生成 =datetime= 属性
+
+对于某一时区字符串，我使用了如下代码来计算 UTC+0 到这一时区的秒数，这一函数会首先从字符串中匹配得到数字，然后根据数字的长度判断是 UTC 记号还是时间差记号：
+
+#+begin_src elisp
+  (defun t--timezone-to-offset (zone)
+    "Convert timezone string ZONE to offset in seconds.
+
+  Valid formats are UTC/GMT[+-]XX (e.g., UTC+8), [+-]HHMM (e.g., -0500)
+  or \"local\", which means use zero offset.  Return nil if ZONE doesn't
+  match `org-w3ctr-timezone-regex'."
+    (declare (ftype (function (string) (or fixnum symbol)))
+             (pure t) (important-return-value t))
+    (let ((case-fold-search t)
+          (zone (t--trim zone)))
+      (when (string-match t-timezone-regex zone)
+        (if (string-equal-ignore-case zone "local") 'local
+          (let* ((time (or (match-string 1 zone)
+                           (match-string 2 zone)))
+                 (len (length time))
+                 (number (string-to-number time)))
+            (cond
+             ;; UTC/GMT[+-]xx
+             ((<= 2 len 3) (* number 3600))
+             ;; [+-]MMMM
+             ((= len 5)
+              (let ((hour (/ number 100))
+                    (minute (% number 100)))
+                (+ (* hour 3600) (* minute 60))))))))))
+#+end_src
+
+有了这一转换函数，我们也能够将来自 INFO 列表的时区属性值转换为相对于标准时间的差值：
+
+#+begin_src elisp
+  (defun t--get-info-timezone-offset (info)
+    "Return timezone offset from INFO plist.
+
+  If it is a fixnum, return it directly; if it is the symbol \\='local,
+  return \\='local; if it is a string, attempt to parse it as a timezone
+  offset using `org-w3ctr--timezone-to-offset'.
+
+  On successful parsing, the numeric offset will be stored back into INFO
+  to avoid repeated parsing.  If timezone is `nil' or timezone format is
+  invalid, signal an error."
+    (declare (ftype (function (list) fixnum))
+             (important-return-value t))
+    (if-let* ((zone (t--pget info :html-timezone)))
+        (cond
+         ((fixnump zone) zone)
+         ((eq zone 'local) 'local)
+         (t (if-let* ((time (t--timezone-to-offset zone)))
+                (t--pput info :html-timezone time)
+              (error "timezone format not correct: %s" zone))))
+      (error ":html-timezone is deliberately set to nil")))
+
+  (defun t--get-info-export-timezone-offset (info &optional zone1-offset)
+    "Return export timezone offset from INFO plist.
+
+  The export timezone is determined by:
+  - If `:html-export-timezone' is nil, use `:html-timezone' value.
+  - If `:html-timezone' is \\='local, always use \\='local.
+  - Otherwise use `:html-export-timezone' value.
+
+  If optional argument ZONE1-OFFSET is non-nil, use it as the default
+  timezone offset instead of querying `:html-timezone' via
+  `org-w3ctr--get-info-timezone-offset'.  This avoids redundant lookups
+  when the caller already knows the default timezone offset."
+    (declare (ftype (function (list &optional (or fixnum symbol))
+                              (or fixnum symbol)))
+             (important-return-value t))
+    (let ((zone1 (or zone1-offset (t--get-info-timezone-offset info)))
+          (zone2 (t--pget info :html-export-timezone)))
+      (cond
+       ((not zone2) zone1)
+       ((eq zone1 'local) 'local)
+       ((eq zone2 'local) 'local)
+       ((fixnump zone2) zone2)
+       (t (if-let* ((time (t--timezone-to-offset zone2)))
+              (t--pput info :html-export-timezone time)
+            (error "export timezone format not correct: %s" zone2))))))
+#+end_src
+
+现在，我们有时间 T，它所在的时区为 Z1，我们希望的导出时区为 Z2，那么时间 T 在时区 Z2 的时间可以用 T - (Z1 - UTC) + (Z2 - UTC) 来表示，即 T - Z1 + Z2。拿东京时间和北京时间为例，北京时间 10:00AM 对应于东京时间 11:00AM，即 10:00 - 8:00 + 9:00：
+
+#+begin_src elisp
+  (defun t--get-info-timezone-delta (info &optional z1 z2)
+    "Return the offset difference of export timezone(Z2) and timezone(Z1).
+
+  The returned value is (Z2 - Z1), in seconds.  If either timezone is
+  \\='local or both offsets are equal, returns 0.
+
+  If optional argument Z1 or Z2 is provided, use directly; otherwise,
+  their values are retrieved from INFO using
+  `org-w3ctr--get-info-timezone-offset' and
+  `org-w3ctr--get-info-export-timezone-offset'.
+
+  This value can be used to convert timestamps between timezones:
+  1. Subtract the base timezone offset from a local timestamp to obtain
+     the corresponding UTC time.
+  2. Then add the export timezone offset to the UTC time to get the
+     timestamp in the export timezone."
+    (declare (ftype (function (list &optional t t) fixnum))
+             (important-return-value t))
+    (let* ((offset1 (or z1 (t--get-info-timezone-offset info)))
+           (offset2 (or z2 (t--get-info-export-timezone-offset
+                            info offset1))))
+      (cond
+       ((or (eq offset1 'local) (eq offset2 'local)) 0)
+       ((= offset1 offset2) 0)
+       (t (- offset2 offset1)))))
+#+end_src
+
+在得到目标时区下的时间后，我们就可以考虑一下时间的格式化问题了。如果时间戳没有时间只有日期，那么 =%F= 足矣，如果使用本地 DATE-TIME，​=%F %R= 足矣，剩下的就是上面提到的八种情况了：
+
+#+begin_src elisp
+  (defconst t--timestamp-datetime-options
+    '((s-none . (" " "" "+0000"))
+      (s-none-zulu . (" " "" "Z"))
+      (s-colon . (" " ":" "+00:00"))
+      (s-colon-zulu . (" " ":" "Z"))
+      (T-none . ("T" "" "+0000"))
+      (T-none-zulu . ("T" "" "Z"))
+      (T-colon . ("T" ":" "+00:00"))
+      (T-colon-zulu . ("T" ":" "Z")))
+    "HTML <time>'s datetime format options.
+
+      See `org-w3ctr-datetime-format-choice' for more details.")
+
+  (defun t--get-datetime-format (offset option &optional notime)
+    "Return a datetime format string for HTML <time> tags.
+
+    OFFSET is the timezone offset in seconds.  OPTION is a symbol specifying
+    the format style, as defined in `org-w3ctr--timestamp-datetime-options'.
+
+    If NOTIME is non-nil, only the date format (\"%F\") will be returned;
+    If NOTIME is nil, this function looks up the formatting option and
+    builds the timezone string based on OFFSET and the selected formatting
+    rule, and returns a full datetime format string suitable for use in HTML
+    <time> tag's `datetime' attributes."
+    (declare (ftype (function (fixnum t &optional boolean)
+                              (or string null)))
+             (pure t) (important-return-value t))
+    (if notime "%F"
+      (when-let* (((symbolp option))
+                  (ls (alist-get option t--timestamp-datetime-options)))
+        (if (eq offset 'local)
+            (format "%%F%s%%R" (nth 0 ls))
+          (let* ((hours (/ (abs offset) 3600))
+                 (minutes (/ (- (abs offset) (* hours 3600)) 60))
+                 (zone (if (= offset 0) (nth 2 ls)
+                         (format "%s%02d%s%02d"
+                                 (if (plusp offset) "+" "-")
+                                 hours (nth 1 ls) minutes))))
+            (format "%%F%s%%R%s" (nth 0 ls) zone))))))
+
+  (defun t--format-datetime (time info &optional notime)
+    "Format TIME into a datetime string."
+    (declare (ftype (function (list list &optional boolean) string))
+             (important-return-value t))
+    (let* ((offset0 (t--get-info-timezone-offset info))
+           (offset1 (t--get-info-export-timezone-offset info offset0))
+           (delta (t--get-info-timezone-delta info offset0 offset1)))
+      (if-let* ((option (t--pget info :html-datetime-option))
+                (fmt (t--get-datetime-format offset1 option notime))
+                (time (if notime time (time-add time delta))))
+          (condition-case nil
+              (format-time-string fmt time)
+            (error (error "Time may be out of range: %s" time)))
+        (let ((opt (t--pget info :html-datetime-option)))
+          (error ":html-datetime-option is invalid: %s" opt)))))
+#+end_src
+
+最后，就是直接用于时间戳的格式化函数了：
+
+#+begin_src elisp
+  (defun t--format-ts-datetime (timestamp info &optional end)
+    "Format Org timestamp object to its datetime string.
+
+  For time ranges, whether the timestamp is considered to have a time part
+  depends on whether the starting timestamp of the range includes an hour
+  and minute specification, as determined by `org-timestamp-has-time-p'."
+    (declare (ftype (function (t list &optional t) string))
+             (important-return-value t))
+    (format " datetime=\"%s\""
+            (t--format-datetime
+             (t--call-with-invalid-time-spec-handler
+              #'org-timestamp-to-time timestamp end)
+             info (not (org-timestamp-has-time-p timestamp)))))
+#+end_src
+
+* 时间戳格式化
+
+在时间戳格式化这件事上，​=org-html-timestmap= 给了我们两个选择：默认的 =org-element-interpret-data= 和允许自定义格式的 =org-display-custom-times=​，当然前文我也提到了这两种方式的局限性。在已有方式的基础上我还添加了一些，一共是 6 种：
+
+- =raw=​，不使用 =org-element-interpret-data= 格式化时间戳，而是直接使用时间戳的 =:raw-value= 属性。如果用户能够频繁地使用 =C-c C-c= 格式化时间戳或总是输入正确时间戳的话，这是最为 WYSIWYG（What You See Is What You Get）的选择。
+- =int=​，仅使用 =org-element-interpret-data= 格式化时间戳，不考虑 =org-display-custom-times=​。
+- =fmt=​，使用 =org-w3ctr-timestamp-formats= 替代 =org-timestamp-formats= 来调用 =org-element-interpret-data=​（实际上是 =org-element-timestamp-interpreter=​）。这一选项要求格式与 =org-timestamp-formats=​“兼容”。
+- =org=​，与 =org-html-timestamp= 行为基本一致，尊重 =org-display-custom-times=​。
+- =cus=​，相当于 =org-display-custom-times= 总为真的 =org-html-timestamp=​，但自定义字符串使用 =org-w3ctr-timestamp-formats= 而不是 =org-timestamp-custom-formats=​。
+- =fun=​，完全由用户编写时间戳格式化函数。
+
+除时间戳本身外，时间戳的标签也有几乎正交的几个选项：
+
+- =none=​，不为时间戳附加标签，即直接输出时间戳字符串。
+- =span=​，使用 =org-html-timestamp= 的方法，添加 ~"<span class=\"timestamp-wrapper\"><span class=\"timestamp\">%s</span></span>"~
+- =time=​，使用 ~<time datetime="xxx"></time>~ 作为时间戳的标签
+
+#+begin_src elisp
+  (:html-timestamp-formats nil "tsf" t-timestamp-formats)
+  (:html-timestamp-option nil "ts" t-timestamp-option)
+  (:html-timestamp-wrapper nil "tsw" t-timestamp-wrapper-type)
+  (:html-timestamp-format-function nil "tsfn" t-timestamp-format-function)
+  ;;...
+  (defcustom t-timestamp-option 'org
+    "Option for ox-w3ctr timestamp export.
+
+  Possible values:
+
+  - raw: Use the timestamp's `:raw-value' property directly.
+  - int: Use `org-element-timestamp-interpreter' to format the timestamp.
+  - fmt: Like `int', but dynamically bind `org-timestamp-formats' to
+         `org-w3ctr-timestamp-formats'.
+  - org: Behave like `org-html-timestamp', respecting both
+         `org-display-custom-times' and `org-timestamp-custom-formats'.
+  - cus: Like `org', but behave as if `org-display-custom-times' is always
+         non-nil and use `org-w3ctr-timestamp-formats' instead of
+         `org-timestamp-custom-formats' for custom string output.
+  - fun: Use a user-supplied function to handle timestamp formatting."
+    :group 'org-export-w3ctr
+    :type '(choice (const raw) (const int) (const fmt)
+                   (const org) (const cus) (const fun)))
+
+  (defcustom t-timestamp-wrapper-type 'span
+    "The way to wrap timestamps with HTML tags during export.
+
+  Possible values:
+  - none: Export the plain timestamp string.
+  - span: Wrap the timestamp like `org-html-timestamp'.
+  - time: Wrap the timestamp inside a <time> element."
+    :group 'org-export-w3ctr
+    :type '(choice (const none) (const span) (const time)))
+#+end_src
+
+diary 类型比较特殊，就单独拿出来实现了：
+
+#+begin_src elisp
+  (defun t--format-timestamp-diary (timestamp info)
+    "Format a diary-like TIMESTAMP object.
+
+  If `:html-timestamp-option' is `raw', use the `:raw-value' property of
+  TIMESTAMP. Otherwise, use `org-w3ctr--interpret-timestamp' or signal an
+  error if the option is unknown."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (let* ((option  (t--pget info :html-timestamp-option))
+           (text (pcase option
+                   (`raw (org-element-property :raw-value timestamp))
+                   (_ (t--interpret-timestamp timestamp)))))
+      (t-plain-text text info)))
+#+end_src
+
+** =raw=, =int= 与 =fmt=
+
+对于这三种情况，时间戳的格式化方法相当简单，大致可以使用以下代码来说明：
+
+#+begin_src elisp
+  (pcase type
+    (`raw (org-element-property :raw-value ts))
+    (`int (org-element-timestamp-interpreter ts :nothing))
+    (`fmt (dlet ((org-timestamp-formats (plist-get info :html-timestamp-formats)))
+            (org-element-timestamp-interpreter ts :nothing)))
+    ...)
+#+end_src
+
+当 wrapper 类型为 =none= 时，直接输出结果即可；当类型为 =span= 时，使用 =org-html-timestamp= 中的 =<span>= 标签即可；当类型为 =time= 就有一点麻烦了，我们需要从原字符串中提取出时间然后添加 =<time>= 标签。这里就会涉及到两种可能的做法：
+
+- 将时间戳当作整体处理，得到 =<time ...>[XXXX-XX-XX]</time>=
+- 具体到不含括号的时间，得到 =[<time ...>XXXX-XX-XX</time>]=
+
+简单起见，我选择了前者。另一个问题是如何处理 =:range-type= 为 timerange 的时间戳，比如 =[2000-01-01 12:00-13:00]=​。同样简单起见，我直接选择对整体使用时间段开头的时间作为 =datetime=​，即：
+
+#+begin_src html
+  <time datetime="2000-01-01T04:00+0800">[2000-01-01 12:00-13:00]</time>
+#+end_src
+
+以下是我给出的实现：
+
+#+begin_src elisp
+  (defun t--format-ts-span-time (str info &optional time)
+    "Format timestamp string STR using <span> or <time>."
+    (declare (ftype (function (string list &optional boolean) string))
+             (pure t) (important-return-value t))
+    (if (not time)
+        ;; taken from `org-html-timestamp'.
+        (concat "<span class=\"timestamp-wrapper\">"
+                "<span class=\"timestamp\">"
+                (t-plain-text str info) "</span></span>")
+      (concat "<time%s>" (t-plain-text str info) "</time>")))
+
+  (defun t--format-timestamp-raw-1 (timestamp raw info)
+    "Format a TIMESTAMP with its RAW string.
+
+  RAW is a string matching `org-ts-regexp-both'."
+    (declare (ftype (function (t string list) string))
+             (important-return-value t))
+    (pcase (t--pget info :html-timestamp-wrapper)
+      (`none (t-plain-text raw info))
+      (`span (t--format-ts-span-time raw info))
+      (`time
+       (let* ((tss (t--find-all org-ts-regexp-both raw))
+              (len (length tss))
+              (str (mapconcat
+                    (lambda (s) (t--format-ts-span-time s info t))
+                    tss (if (t--pget info :with-special-strings)
+                            "&#x2013;" "--"))))
+         (pcase len
+           (1 (format str (t--format-ts-datetime timestamp info)))
+           (2 (format str (t--format-ts-datetime timestamp info)
+                      (t--format-ts-datetime timestamp info t)))
+           (_ (error "Abnormal timestamp: %s" raw)))))
+      (w (error "Unknown timestamp wrapper: %s" w))))
+#+end_src
+
+通过 =t--format-timestamp-raw-1=​，​=raw=, =int= 和 =fmt= 三种格式化可以这样实现：
+
+#+begin_src elisp
+  (defun t--format-timestamp-raw (timestamp info)
+    "Format TIMESTAMP without altering its string content."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (let ((raw (org-element-property :raw-value timestamp)))
+      (t--format-timestamp-raw-1 timestamp raw info)))
+
+  (defun t--format-timestamp-int (timestamp info)
+    "Format TIMESTAMP with `org-timestamp-formats'."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (let ((raw (t--interpret-timestamp timestamp)))
+      (t--format-timestamp-raw-1 timestamp raw info)))
+
+  (defun t--format-timestamp-fmt (timestamp info)
+    "Format TIMESTAMP with `org-w3ctr-timestamp-formats'."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (if-let* ((fmt (t--pget info :html-timestamp-formats))
+              (org-timestamp-formats fmt)
+              (raw (t--interpret-timestamp timestamp)))
+        (t--format-timestamp-raw-1 timestamp raw info)
+      (error ":html-timestamp-formats not valid: %s"
+             (t--pget info :html-timestamp-formats))))
+#+end_src
+
+** =org= 和 =cus=
+
+当时间戳导出类型选 =org= 时基本上可以照抄 =org-html-timestamp= 了，但是考虑到我还要支持 =cus= 选项，这里先把自定义导出功能抽象出一个函数来：
+
+#+begin_src elisp
+  (defun t--format-timestamp-fix (timestamp fmt info)
+    "Internal function used for formatting `org' and `cus' option.
+
+  Fix means not influenced by timestamp's range type."
+    (declare (ftype (function (t string list) string))
+             (important-return-value t))
+    (let* ((wrap (t--pget info :html-timestamp-wrapper))
+           (type (org-element-property :type timestamp)))
+      (pcase type
+        ((or `active `inactive)
+         (let ((time (org-format-timestamp timestamp fmt)))
+           (pcase wrap
+             (`none (t-plain-text time info))
+             (`span (t--format-ts-span-time time info))
+             (`time
+              (format (t--format-ts-span-time time info t)
+                      (t--format-ts-datetime timestamp info)))
+             (_ (error "Unknown timestamp wrap: %s" wrap)))))
+        ((or `active-range `inactive-range)
+         (let* ((t1 (org-format-timestamp timestamp fmt))
+                (t2 (org-format-timestamp timestamp fmt t)))
+           (pcase wrap
+             (`none (t-plain-text (concat t1 "--" t2) info))
+             (`span (t--format-ts-span-time (concat t1 "--" t2) info))
+             (`time
+              (let* ((de (if (t--pget info :with-special-strings)
+                             "&#x2013;" "--"))
+                     (tt (concat (t--format-ts-span-time t1 info t) de
+                                 (t--format-ts-span-time t2 info t))))
+                (format tt (t--format-ts-datetime timestamp info)
+                        (t--format-ts-datetime timestamp info t))))
+             (_ (error "Unknown timestamp wrap: %s" wrap)))))
+        (_ (error "Unknown timestamp type: %s" type)))))
+#+end_src
+
+下面是选项为 =org= 和 =cus= 时的导出实现：
+
+#+begin_src elisp
+  (defun t--format-timestamp-org (timestamp info)
+    "Format TIMESTAMP like `org-timestamp-translate'.
+
+  When `org-display-custom-times' is nil, fall back to `int' formatting.
+  Otherwise, format TIMESTAMP using custom formats defined in
+  `org-timestamp-custom-formats'."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (if (not org-display-custom-times)
+        (t--format-timestamp-int timestamp info)
+      (let ((fmt (org-time-stamp-format
+                  (org-timestamp-has-time-p timestamp)
+                  nil 'custom)))
+        (t--format-timestamp-fix timestamp fmt info))))
+
+  (defun t--format-timestamp-cus (timestamp info)
+    "Format TIMESTAMP according to custom formats.
+
+  The format string accepted by this function must be enclosed in one of
+  three types of brackets: [], <>, or {}. When using curly braces ({}), it
+  indicates that no enclosing brackets should be applied."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (let* ((re (rx string-start
+                   (or (seq "[" (*? anything) "]")
+                       (seq "{" (*? anything) "}")
+                       (seq "<" (*? anything) ">"))
+                   string-end))
+           (fmts (t--pget info :html-timestamp-formats))
+           (fmt (if (org-timestamp-has-time-p timestamp)
+                    (cdr fmts) (car fmts))))
+      (unless (and (stringp fmt) (string-match-p re fmt))
+        (error "FMT not fit in `cus': %s" fmts))
+      (let ((fmt (if (/= (aref fmt 0) ?\{) fmt (substring fmt 1 -1))))
+        (t--format-timestamp-fix timestamp fmt info))))
+#+end_src
+
+** =fun=
+
+如果用户选择了 =fun=​，那么时间戳的导出就完全交给用户定义的函数了。
+
+#+begin_src elisp
+  (defun t-ts-default-format-function (timestamp _info)
+    "The default custom timestamp format function."
+    (declare (ftype (function (t list) string))
+             (pure t) (important-return-value t))
+    (org-element-property :raw-value timestamp))
+
+  (defun t--format-timestamp-fun (timestamp info)
+    "Format TIMESTAMP using a user-specified function from INFO."
+    (declare (ftype (function (t list) string))
+             (important-return-value t))
+    (if-let* ((fun (t--pget info :html-timestamp-format-function)))
+        (funcall fun timestamp info)
+      (error ":html-timestamp-format-function is nil")))
+#+end_src
+
+最后，我们终于得到了时间戳导出函数：
+
+#+begin_src elisp
+  (defun t-timestamp (timestamp _contents info)
+    "Transcode a TIMESTAMP object from Org to HTML."
+    (declare (ftype (function (t t list) string))
+             (important-return-value t))
+    (let ((type (org-element-property :type timestamp)))
+      (if (eq type 'diary)
+          (t--format-timestamp-diary timestamp info)
+        (let* ((option (t--pget info :html-timestamp-option))
+               (fun (pcase option
+                      (`raw #'t--format-timestamp-raw)
+                      (`int #'t--format-timestamp-int)
+                      (`fmt #'t--format-timestamp-fmt)
+                      (`cus #'t--format-timestamp-cus)
+                      (`org #'t--format-timestamp-org)
+                      (`fun #'t--format-timestamp-fun)
+                      (o (error "Unknown timestamp option: %s" o)))))
+          (funcall fun timestamp info)))))
+#+end_src
+
+* 后记
+
+我是没想到时间戳的导出会涉及到这么多细节，原本计划 6 月 20 日写完的结果拖到了 23 号。接下来总算是到了 template 的导出。
+
+# [[https://www.pixiv.net/artworks/95182925][file:dev/p2.jpg]]
+
+
