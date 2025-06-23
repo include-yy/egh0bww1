@@ -33,6 +33,11 @@
 (defvar yynt/yy-common-plist
   '( :with-sub-superscript {} ; #+options: ^:{}
      :html-head-include-default-style nil ; #+options: html-style:nil
+     :html-timestamp-option int
+     :html-timestamp-wrapper time
+     :html-datetime-option T-none-zulu
+     :html-timezone 28800
+     :html-export-timezone 0
      ))
 
 (defvar yynt/yy-index)
@@ -57,6 +62,8 @@
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"./assets/img/lily.svg\">"
 		 :html-fixup-js "\
 <script src=\"./assets/js/fixup.js\"></script>"
+                 :html-timestamp-option fmt
+                 :html-timestamp-formats ("%F" . "%F %R")
 		 ))))
 
 (defvar yynt/yy-404)
@@ -264,6 +271,8 @@ build_name='projecteuler' AND ex='0'")))
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
 		   :html-link-right ""
+                   :html-timestamp-formats ("%F" . "%F %R")
+                   :html-timestamp-option fmt
 		   )))
 
 (defun yynt/yy-repost-list (prefix limit)
@@ -327,6 +336,8 @@ LIMIT ?" (list (or limit 100000)))))
 		   :html-link-left "../index.html"
 		   :html-link-rname "TAGS"
 		   :html-link-right "./tags.html"
+                   :html-timestamp-option fmt
+                   :html-timestamp-formats ("%F" . "%F %R")
 		   )))
 
 (defun yynt/yy-post-list (prefix limit)
@@ -439,6 +450,8 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
 		   :html-link-right ""
+                   :html-timestamp-option fmt
+                   :html-timestamp-formats ("%F" . "%F %R")
 		   )))
 
 (defun yynt/yy-drafts-tmp-list (prefix tmp)

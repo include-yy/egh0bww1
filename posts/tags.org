@@ -4,7 +4,7 @@
 # #+HTML_LINK_RIGHT: ./index.html
 # #+HTML_LINK_RNAME: ARCH
 
-#+HTML_LINK_HOMEUP: [[../../index.html][HOME]]
+#+HTML_LINK_HOMEUP: [[../index.html][HOME]]
 #+HTML_LINK_HOMEUP: [[./index.html][ARCH]]
 
 #+MACRO: arch_tag (eval (yynt/yy-post-tag-list "." $1))

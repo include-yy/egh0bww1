@@ -1,6 +1,5 @@
 #+TITLE: Home :: include-yy
 #+DATE: [2024-04-21 Sun 21:08]
-
 #+MACRO: po_n (eval (yynt/yy-post-list "./posts" 10))
 #+MACRO: re_n (eval (yynt/yy-repost-list "./republish" 5))
 
