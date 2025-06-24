@@ -2,7 +2,7 @@
 #+DATE: [2025-06-24 Tue 09:02]--[2025-06-24 Tue 10:56]
 #+FILETAGS: tr
 #+DESCRIPTION: 本文整理翻译了和 motherfuckingwebsite.com 并翻译了它
-
+#+options: license:cc0
 #+attr_html: :class note
 #+begin_div
 本文是对页面 https://motherfuckingwebsite.com/ 的中文翻译，由 ChatGPT 在我的协助下完成。我也留了一份：[[file:motherfuckingwebsite.htm][This is a motherfucking website]]。
