@@ -183,7 +183,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 	      yynt/yy-common-plist
 	      '( :html-zeroth-section-tocname nil
 		 :author "include-yy"
-		 :html-link-home/up [("../index.html" . "HOME")
+		 :html-link-navbar [("../index.html" . "HOME")
 				     ("./index.html" . "SUM")]
 		 :html-link-left "../index.html"
 		 :html-link-lname "HOME"
@@ -196,7 +196,7 @@ LIMIT ?" (list yynt/yy-rss-post-n))))
 <script src=\"../assets/js/fixup.js\"></script>"))
        :info-ex '( :html-preamble nil
 		   :section-numbers nil
-		   :html-link-home/up [("../index.html". "HOME")]
+		   :html-link-navbar [("../index.html". "HOME")]
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-right ""
@@ -253,7 +253,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
 <script src=\"../../assets/js/fixup.js\"></script>"
-		 :html-link-home/up [("../../index.html". "HOME")
+		 :html-link-navbar [("../../index.html". "HOME")
 				     ("../index.html" . "REPUB")]
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
@@ -266,7 +266,7 @@ build_name='projecteuler' AND ex='0'")))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
 <script src=\"../assets/js/fixup.js\"></script>"
-		   :html-link-home/up [("../index.html" . "HOME")]
+		   :html-link-navbar [("../index.html" . "HOME")]
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
@@ -316,7 +316,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
 <script src=\"../../assets/js/fixup.js\"></script>"
-		 :html-link-home/up [("../../index.html" . "HOME")
+		 :html-link-navbar [("../../index.html" . "HOME")
 				     ("../index.html" . "BLOG")]
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
@@ -330,7 +330,7 @@ LIMIT ?" (list (or limit 100000)))))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
 <script src=\"../assets/js/fixup.js\"></script>"
-		   :html-link-home/up [("../index.html" . "HOME")
+		   :html-link-navbar [("../index.html" . "HOME")
 				       ("./tags.html" . "TAGS")]
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
@@ -431,7 +431,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../../assets/img/lily.svg\">"
 		 :html-fixup-js "\
 <script src=\"../../assets/js/fixup.js\"></script>"
-		 :html-link-home/up [("../../index.html" . "HOME")
+		 :html-link-navbar [("../../index.html" . "HOME")
 				     ("../index.html" . "DRAFT")]
 		 :html-link-lname "HOME"
 		 :html-link-left "../../index.html"
@@ -445,7 +445,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"../assets/img/lily.svg\">"
 		   :html-fixup-js "\
 <script src=\"../assets/js/fixup.js\"></script>"
-		   :html-link-home/up [("../index.html" . "HOME")]
+		   :html-link-navbar [("../index.html" . "HOME")]
 		   :html-link-lname "HOME"
 		   :html-link-left "../index.html"
 		   :html-link-rname ""
