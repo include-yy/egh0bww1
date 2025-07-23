@@ -32,12 +32,13 @@
 
 (defvar yynt/yy-common-plist
   '( :with-sub-superscript {} ; #+options: ^:{}
-     :html-head-include-default-style nil ; #+options: html-style:nil
+     :html-head-include-style nil ; #+options: html-style:nil
      :html-timestamp-option int
      :html-timestamp-wrapper time
      :html-datetime-option T-none-zulu
      :html-timezone 28800
      :html-export-timezone 0
+     :author "include-yy"
      ))
 
 (defvar yynt/yy-index)
