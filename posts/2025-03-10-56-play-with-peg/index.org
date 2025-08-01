@@ -20,7 +20,7 @@
 
 本文主要由三部分组成：对 PEG（Parsing Expression Grammar）的简单介绍，对 peg.el 用法的介绍，最后是用 peg.el 整点花活。本文使用 Emacs 30.1 on Windows 11 作为具体的 Emacs 版本，对应的 peg.el 版本为 1.0.1。
 
-@@h:<del>在每次启动 Emacs 后，请执行以下表达式来为 =define-peg-rule= 设定正确的缩进 <a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-02/msg02831.html">（bug#76555: 30.1; PEG's doc needs some correction）</a>：</del>@@ @@h:<ins><a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-03/msg02339.html">已修复</a>: <a href="https://github.com/emacs-mirror/emacs/commit/1db7aaceb9fe9b78838ad06199e3fbba830737e9">1db7aac</a></ins>@@
+@@h:<del>在每次启动 Emacs 后，请执行以下表达式来为 <code>define-peg-rule</code> 设定正确的缩进 <a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-02/msg02831.html">（bug#76555: 30.1; PEG's doc needs some correction）</a>：</del>@@ @@h:<ins><a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-03/msg02339.html">已修复</a>: <a href="https://github.com/emacs-mirror/emacs/commit/1db7aaceb9fe9b78838ad06199e3fbba830737e9">1db7aac</a></ins>@@
 
 #+begin_src elisp
   (setf (get 'define-peg-rule 'lisp-indent-function) 2)
