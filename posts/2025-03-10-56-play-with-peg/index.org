@@ -13,11 +13,14 @@
 | [[https://www.pixiv.net/artworks/127716125][file:dev/3.jpg]]  | [[https://www.pixiv.net/artworks/38405072][file:dev/9.jpg]]  | [[https://www.pixiv.net/artworks/127040750][file:dev/1.jpg]]  |
 #+end_comment
 
+#+attr__: [note]
+本文于 [2025-08-02 00:17] 更新，peg.el 在过去几个月的一些改动修复了部分问题。
+
 随着 Emacs 30.1 的发布，peg.el 也正式内置到了 Emacs 中，可以用它来编写一些简单的 Parser，做一些字符串处理工作。目前能找到的 peg.el 资料相当少，只能阅读源代码中的注释或 info 文档相关章节来学习用法，info 文档[[https://emacs-china.org/t/emacs30-peg/29023][似乎还有那么一点小问题]]。在完善 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] Org 导出后端的过程中我发现可以使用 peg.el 做一些 CSS 最小化的工作（用 peg.el 做 JavaScript 最小化就太复杂了），不过距离完成还[[https://github.com/include-yy/minifycss][遥遥无期]]。考虑到 [[https://www.w3.org/TR/REC-CSS1/][CSS(1.0)]] 语法足够简单但比算术表达式又复杂一点，借用 CSS(1.0) 来写个 peg.el 教程方便查阅应该是个不错的选择（不过到本文写完为止还没写完）。
 
 本文主要由三部分组成：对 PEG（Parsing Expression Grammar）的简单介绍，对 peg.el 用法的介绍，最后是用 peg.el 整点花活。本文使用 Emacs 30.1 on Windows 11 作为具体的 Emacs 版本，对应的 peg.el 版本为 1.0.1。
 
-在每次启动 Emacs 后，请执行以下表达式来为 =define-peg-rule= 设定正确的缩进（[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-02/msg02831.html][bug#76555: 30.1; PEG's doc needs some correction]]）：
+@@h:<del>在每次启动 Emacs 后，请执行以下表达式来为 =define-peg-rule= 设定正确的缩进 <a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-02/msg02831.html">（bug#76555: 30.1; PEG's doc needs some correction）</a>：</del>@@ @@h:<ins><a href="https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-03/msg02339.html">已修复</a>: <a href="https://github.com/emacs-mirror/emacs/commit/1db7aaceb9fe9b78838ad06199e3fbba830737e9">1db7aac</a></ins>@@
 
 #+begin_src elisp
   (setf (get 'define-peg-rule 'lisp-indent-function) 2)
@@ -282,6 +285,17 @@ and call FAILURE-FUNCTION with one argument, which is a list of PEG expressions 
 
 这也就是说如果想要通过 =failure-function= 获取一些（不怎么可读的）错误信息，我们最好不要在 PEX 中使用 =guard= 或 =opt= （ =opt= 使用了 =(guard t)= ）。但换一个角度来看这说明 peg.el 作者不希望处理由 =(guard E)= 导致的匹配失败，也许我们能在这个 =E= 上整点花活。（话虽如此，我希望至少把 =(guard t)= 给处理了）
 
+#+attr__: [note]
+Commit [[https://github.com/emacs-mirror/emacs/commit/df86d10316e0e67c4c49161980b54907ed518f32][df86d10]] 解决了 =guard= 不能被 merge 的问题，同样使用上面的代码，在此 commit 及以后编译得到的 Emacs 中会得到如下内容：
+
+#+begin_src elisp
+  (with-temp-buffer
+    (save-excursion (insert "12"))
+    (with-peg-rules ((ss "1" (opt "2.") (eob)))
+      (list (peg-run (peg ss) #'identity))))
+  ;;=> ((eob "2." "1"))
+#+end_src
+
 在绑定 PEX 规则到某个非终结符号后，如果我们想要在 =peg-run= 中使用它，我们需要通过 =peg= 这个宏将 PEX 表达式转换为 PEG 匹配器。对于简单 PEX =(and "1" "2")= ，它对应的匹配器函数如下：
 
 #+begin_src elisp
@@ -521,6 +535,21 @@ simplest:
 
 --- docstring
 #+end_quote
+
+#+attr__: [note]
+在 commit [[https://github.com/emacs-mirror/emacs/commit/68100ca656ad76e937622a1a74b6ca185bc82e07][68100ca]] 中，Stefan Monnier 对 =peg-parse= 的 docstring 进行了修改，现在看来他更加支持我们上面提到的第二种用法，为了规避第一种用法可以使用空字符串 =""= 作为 =peg-parse= 的首个参数：
+
+#+begin_src elisp
+  (defmacro peg-parse (&rest pexs)
+    "Match PEXS at point.
+  PEXS is a sequence of PEG expressions, implicitly combined with `and'.
+  Returns STACK if the match succeed and signals an error on failure,
+  moving point along the way.
+  For backward compatibility (and convenience) PEXS can also be a list of
+  RULES in which case we run the first such rule.  In case of ambiguity,
+  prefix PEXS with \"\" so it doesn't look like a list of rules."
+    ...)
+#+end_src
 
 与 =peg-run= 不同， =peg-parse= 在失败是会使用 =peg-signal-failure= 引发解析错误，而不是返回空值。
 
