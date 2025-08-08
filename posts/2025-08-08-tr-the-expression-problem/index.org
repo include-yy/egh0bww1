@@ -3,6 +3,8 @@
 #+FILETAGS: fp
 #+DESCRIPTION: 本文是对 Eli Bendersky 的博客 The Expression Problem and its solutions 一文的翻译，作者介绍了 FP 和 OOP 存在的表达式问题，并给出了一些解决方法。
 
+[[https://www.pixiv.net/artworks/133622579][file:0.webp]]
+
 #+begin_note
 本文翻译自 Eli Bendersky 的博客 [[https://eli.thegreenplace.net/2016/the-expression-problem-and-its-solutions/][The Expression Problem and its solutions]]。 
 #+end_note
