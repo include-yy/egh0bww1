@@ -1,0 +1,497 @@
+#+TITLE: 「翻译」The Expression Problem and its solutions
+#+DATE: [2025-08-08 Fri 10:59]--[2025-08-08 Fri 14:19]
+#+FILETAGS: fp
+#+DESCRIPTION: 本文是对 Eli Bendersky 的博客 The Expression Problem and its solutions 一文的翻译，作者介绍了 FP 和 OOP 存在的表达式问题，并给出了一些解决方法。
+
+#+begin_note
+本文翻译自 Eli Bendersky 的博客 [[https://eli.thegreenplace.net/2016/the-expression-problem-and-its-solutions/][The Expression Problem and its solutions]]。 
+#+end_note
+
+编程这门技艺几乎总是与不同类型的数据以及作用于这些数据的操作/算法相关联[fn:1]。因此，如何为数据类型和操作设计抽象，“自古以来”就一直是软件工程师和编程语言设计者们苦苦思索的核心问题。
+
+然而，我最近才偶然得知一个我在职业生涯中多次遇到的软件设计问题，它原来是有名字的。这个问题是如此基础，以至于我惊讶于之前竟然从未见过它被命名。下面是一个简要的问题陈述：
+
+想象一下，我们有一组数据类型和一组作用于这些类型的操作。有时，我们需要添加更多操作，并确保它们在所有类型上都能正常工作；有时，我们需要添加更多类型，并确保所有现有操作都能在它们上正常工作。但有时，我们需要同时添加这两者 —— 而问题就出在这里。大多数主流编程语言都没有提供很好的工具，让我们能够在不修改现有代码的情况下，向一个已有系统同时添加新类型和新操作。这被称为「​*表达式问题*​」(Expression Problem)。研究这个问题及其可能的解决方案，可以深刻洞察面向对象和函数式编程之间的根本差异，以及接口 (interfaces) 和多重派发 (multiple dispatch) 等概念。
+
+[fn:1] "Types of data" and "operations" are two terms that should be fairly obvious to modern-day programmers. Philip Wadler, in his discussion of the expression problem (see the "historical perspective" section of the article) calls them "datatypes" and "functions". A famous quote from Fred Brooks's /The Mythical Man Month/ (1975) is "Show me your flowcharts and conceal your tables, and I shall continue to be mystified. Show me your tables, and I won’t usually need your flowcharts; they’ll be obvious."
+
+* A motivating example
+
+就像我一贯的套路，我的例子来自编译器和解释器领域。不过，我要为自己辩护一下，这也是一些关于「表达式问题」的经典历史文献中所用的例子，正如我在下面历史回顾部分所详述的。
+
+想象一下我们正在设计一个简单的表达式求值器。遵循标准的[[https://eli.thegreenplace.net/2016/on-the-composite-and-interpreter-design-patterns][解释器设计模式]]，我们有一个由表达式组成的树形结构，以及一些可以对这些树进行的操作。在 C++ 中我们会定义一个接口，表达式树中的每个节点都必须实现它：
+
+#+begin_src cpp
+  class Expr {
+  public:
+    virtual std::string ToString() const = 0;
+    virtual double Eval() const = 0;
+  };
+#+end_src
+
+这个接口表明，我们目前对表达式树可以进行两项操作：求值 (evaluate) 和查询它们的字符串表示 (string representations)。一个典型的叶子节点表达式如下所示：
+
+#+begin_src cpp
+  class Constant : public Expr {
+  public:
+    Constant(double value) : value_(value) {}
+
+    std::string ToString() const {
+      std::ostringstream ss;
+      ss << value_;
+      return ss.str();
+    }
+
+    double Eval() const {
+      return value_;
+    }
+
+  private:
+    double value_;
+  };
+#+end_src
+
+下面是一个典型的组合表达式：
+
+#+begin_src cpp
+  class BinaryPlus : public Expr {
+  public:
+    BinaryPlus(const Expr& lhs, const Expr& rhs) : lhs_(lhs), rhs_(rhs) {}
+
+    std::string ToString() const {
+      return lhs_.ToString() + " + " + rhs_.ToString();
+    }
+
+    double Eval() const {
+      return lhs_.Eval() + rhs_.Eval();
+    }
+
+  private:
+    const Expr& lhs_;
+    const Expr& rhs_;
+  };
+#+end_src
+
+到目前为止，这些都相当基础。那么，这个设计有多少可扩展性呢？让我们来看看... 如果我们想添加新的表达式类型（比如「变量引用」、「函数调用」等），这相当容易。我们只需要定义额外的类，让它们继承 =Expr= 并实现 =Expr= 接口（即 =ToString= 和 =Eval=​）。
+
+然而，如果我们想添加新的、可应用于表达式树的「操作」呢？目前我们有 =Eval= 和 =ToString=​，但我们可能需要额外的操作，比如「类型检查」、「序列化」或「编译成机器码」等等。
+
+事实证明，添加新操作并不像添加新类型那么容易。我们必须修改 =Expr= 接口，因此也必须修改每一个已有的表达式类型，让它们都支持新的方法（们）。如果我们无法控制原始代码，或者由于其他原因很难修改它，那我们就有麻烦了。换句话说，我们不得不违反开闭原则 (open-closed principle)，这是面向对象设计（OOP）的[[https://en.wikipedia.org/wiki/SOLID][一项主要原则]]。它的定义是：
+
+#+begin_quote
+software entities (classes, modules, functions, etc.) should be open for extension, but closed for modification
+
+软件实体（类、模块、函数等）应该对扩展开放，但对修改关闭。
+#+end_quote
+
+我们在这里遇到的问题就是「表达式问题」，上面的例子展示了它在面向对象编程中的体现。有趣的是，表达式问题同样会困扰函数式编程语言。接下来让我们看看它是如何发生的。
+
+* The expression problem in functional programming
+
+#+attr__: [note]
+Update 2018-02-05: a [[https://eli.thegreenplace.net/2018/more-thoughts-on-the-expression-problem-in-haskell/][new post]] discusses the problem and its solutions in Haskell in more depth.
+
+面向对象的方法倾向于将功能收集在对象（类型）中。而函数式语言则从另一个角度来切分蛋糕，通常更倾向于将类型作为轻量级的数据容器，并将大部分功能收集在作用于这些类型的函数（操作）中。函数式语言也无法逃脱表达式问题 —— 它只是以不同的方式表现出来。
+
+为了说明这一点，我们来看看用 Haskell 实现的表达式 evaluator/stringifier 是什么样子。Haskell 是函数式编程的一个绝佳代表，因为它对类型的模式匹配 (pattern matching) 使得这类代码异常简洁：
+
+#+begin_src haskell
+  module Expressions where
+
+  data Expr = Constant Double
+            | BinaryPlus Expr Expr
+
+  stringify :: Expr -> String
+  stringify (Constant c) = show c
+  stringify (BinaryPlus lhs rhs) = stringify lhs
+                                  ++ " + "
+                                  ++ stringify rhs
+
+  evaluate :: Expr -> Double
+  evaluate (Constant c) = c
+  evaluate (BinaryPlus lhs rhs) = evaluate lhs + evaluate rhs
+#+end_src
+
+现在，假设我们想要添加一个新操作 —— 类型检查。我们只需添加一个新的 =typecheck= 函数，并定义它如何作用于所有已知的表达式类型。无需修改任何现有代码。
+
+另一方面，如果我们想添加一个新的类型（比如「函数调用」），我们就会遇到麻烦。我们现在必须修改所有已有的函数来处理这个新的类型。因此，我们遇到了完全相同的问题，只是角度不同而已。
+
+* The expression problem matrix
+
+为了更好地理解表达式问题是如何在 OOP 和 FP 中以不同方式体现的，以及潜在的解决方案会是什么样子，一个可视化表示会非常有帮助。
+
+下面这个二维表格（或者叫「矩阵」）的行是类型 (Types)，列是操作 (Operations)。当某个行 (=row=) 中的类型实现了某个列 (=col=) 中的操作时，相应的矩阵单元格 (=row=, =col=) 会被标记。
+
+[[./expr-problem-matrix.png]]
+
+在 OOP 语言中，添加新类型很容易但添加新操作很困难：
+
+[[./expr-problem-oop.png]]
+
+但在 FP 语言中，添加新操作很容易但添加新类型很困难：
+
+[[./expr-problem-fp.png]]
+
+* A historical perspective
+
+「表达式问题」并非新事物，很可能自编程的早期阶段就已存在；只要程序达到一定复杂度，这个问题就会浮现出来。这个名字很可能来自 [[https://en.wikipedia.org/wiki/Philip_Wadler][Philip Wadler]] 在 20 世纪 90 年代发给一个关于 Java 泛型邮件列表的[[https://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt][一封邮件]]。
+
+在那封邮件中，Wadler 提到了 Krishnamurthi、Felleisen 和 Friedman 的论文 [[https://cs.brown.edu/~sk/Publications/Papers/Published/kff-synth-fp-oo/]["Synthesizing Object-Oriented and Functional Design to Promote Re-Use"]]，并指出这篇论文是更早描述该问题和提出解决方案的著作。这是一篇很棒的论文，我强烈推荐阅读。Krishnamurthi 等人在他们的参考文献中甚至追溯到了 1975 年的论文，这些论文描述了在 Algol 语言中出现的各种类似问题。
+
+* Flipping the matrix with the visitor pattern
+
+到目前为止，这篇文章一直聚焦于表达式​*问题*​，我相信现在这个问题已经很清楚了。然而，本文标题中还有 /Solution/ 一词，所以让我们转向这一点。
+
+在面向对象语言中，我们可以「某种程度上」解决（请继续阅读以理解我为何用这个词）表达式问题。首先，我们需要看看如何利用访问者模式 (visitor pattern) 来反转这个问题。访问者模式在这种类型的问题中非常常见，这并非没有原因。它能让我们以一种方式重构代码，使其在某些维度上更容易修改（尽管在其他维度上会更困难）。
+
+对于上面展示的 C++ 示例，使用访问者模式进行重写意味着需要添加一个新的「访问者」接口：
+
+#+begin_src cpp
+  class ExprVisitor {
+  public:
+    virtual void VisitConstant(const Constant& c) = 0;
+    virtual void VisitBinaryPlus(const BinaryPlus& bp) = 0;
+  };
+#+end_src
+
+并将 =Expr= 接口修改为：
+
+#+begin_src cpp
+  class Expr {
+  public:
+    virtual void Accept(ExprVisitor* visitor) const = 0;
+  };
+#+end_src
+
+现在，表达式类型将实际的计算推迟 (defer) 给访问者，就像这样：
+
+#+begin_src cpp
+  class Constant : public Expr {
+  public:
+    Constant(double value) : value_(value) {}
+
+    void Accept(ExprVisitor* visitor) const {
+      visitor->VisitConstant(*this);
+    }
+
+    double GetValue() const {
+      return value_;
+    }
+
+  private:
+    double value_;
+  };
+
+  // ... similarly, BinaryPlus would have
+  //
+  //    void Accept(ExprVisitor* visitor) const {
+  //      visitor->VisitBinaryPlus(*this);
+  //    }
+  //
+  // ... etc.
+#+end_src
+
+一个用于求值的访问者示例如下[fn:2]：
+
+#+begin_src cpp
+  class Evaluator : public ExprVisitor {
+  public:
+    double GetValueForExpr(const Expr& e) {
+      return value_map_[&e];
+    }
+
+    void VisitConstant(const Constant& c) {
+      value_map_[&c] = c.GetValue();
+    }
+
+    void VisitBinaryPlus(const BinaryPlus& bp) {
+      bp.GetLhs().Accept(this);
+      bp.GetRhs().Accept(this);
+      value_map_[&bp] = value_map_[&(bp.GetLhs())] + value_map_[&(bp.GetRhs())];
+    }
+
+  private:
+    std::map<const Expr*, double> value_map_;
+  };
+#+end_src
+
+显而易见，对于一组给定的数据类型，添加新的访问者 (visitors) 是很容易的，并且不需要修改任何其他代码。另一方面，添加新的类型则是麻烦的，因为这意味着我们必须更新 =ExprVisitor= 接口，为其添加一个新的抽象方法，从而也必须更新所有的访问者去实现它。
+
+所以，看起来我们只是把表达式问题颠倒了过来：我们使用面向对象语言，但现在添加类型变得困难，而添加操作变得容易，这与函数式编程的方法如出一辙。我发现这一点非常有趣，它凸显了不同抽象和范式所具有的力量，以及它们如何让我们能够从一个全新的角度来重新思考问题。
+
+因此，我们目前还没有真正解决任何问题，只是改变了我们所面临问题的性质。不过别担心 —— 这只是通往真正解决方案的垫脚石。
+
+[fn:2] Note the peculiar way in which data is passed between =Visit*= methods in a =Expr* -> Value= map kept in the visitor. This is due to our inability to make =Visit*= methods return different types in different visitors. For example, in =Evaluator= we'd want them to return =double=, but in =Stringifier= they'd probably return =std::string=. Unfortunately C++ won't let us easily mix templates and virtual functions, so we have to resort to either returning =void*= the C way or the method I'm using here.
+
+Curiously, in their paper Krishnamurthi et.al. run into the same issue in the dialect of Java they're using, and propose some language extensions to solve it. Philip Wadler uses proposed Java generics in /his/ approach.
+
+* Extending the visitor pattern
+
+以下是摘自一个 C++ 解决方案的代码片段，该方案遵循了 Krishnamurthi 等人在他们的论文中提出的扩展访问者模式 (extended visitor pattern)。如果你想深入理解这段代码，我强烈建议你阅读这篇论文（尤其是第三节）。一个完整的、可编译运行的 C++ 代码示例可以[[https://github.com/eliben/code-for-blog/blob/main/2016/expression-problem/c%2B%2B/visitor-extended.cpp][在这里]]找到。
+
+使用访问者模式，添加新的访问者（即操作）是容易的。而我们的挑战在于，如何在不大幅改动现有代码的情况下，添加一个新 /类型/​。让我们来看看这是如何做到的。
+
+我们要对原始访问者模式做的一个小设计改动是，为 =Evaluator= 使用虚继承 (virtual inheritance)，其原因很快就会变得很明显：
+
+#+begin_src cpp
+  class Evaluator : virtual public ExprVisitor {
+    // .. the rest is the same
+  };
+#+end_src
+
+现在让我们添加新类型 —— =FunctionCall=​：
+
+#+begin_src cpp
+  // This is the new ("extended") expression we're adding.
+  class FunctionCall : public Expr {
+  public:
+    FunctionCall(const std::string& name, const Expr& argument)
+        : name_(name), argument_(argument) {}
+
+    void Accept(ExprVisitor* visitor) const {
+      ExprVisitorWithFunctionCall* v =
+          dynamic_cast<ExprVisitorWithFunctionCall*>(visitor);
+      if (v == nullptr) {
+        std::cerr << "Fatal: visitor is not ExprVisitorWithFunctionCall\n";
+        exit(1);
+      }
+      v->VisitFunctionCall(*this);
+    }
+
+  private:
+    std::string name_;
+    const Expr& argument_;
+  };
+#+end_src
+
+既然我们不想修改已有的访问者，那么我们就创建一个新的，通过扩展 =Evaluator= 来支持函数调用。但在此之前，我们需要扩展 =ExprVisitor= 接口，以支持这个新类型：
+
+#+begin_src cpp
+  class ExprVisitorWithFunctionCall : virtual public ExprVisitor {
+  public:
+    virtual void VisitFunctionCall(const FunctionCall& fc) = 0;
+  };
+#+end_src
+
+最后，我们来编写新的求值器，它将扩展 Evaluator 并支持新类型：
+
+#+begin_src cpp
+  class EvaluatorWithFunctionCall : public ExprVisitorWithFunctionCall,
+                                    public Evaluator {
+  public:
+    void VisitFunctionCall(const FunctionCall& fc) {
+      std::cout << "Visiting FunctionCall!!\n";
+    }
+  };
+#+end_src
+
+这里，我们必须使用多重继承、虚继承、动态类型检查......这些相当硬核的 C++ 特性，但别无选择。不幸的是，在 C++ 中，多重继承是唯一能够表达一个类既实现某个接口，又从另一个类派生功能的方式。我们在这里想要的，是一个求值器 (=EvaluatorWithFunctionCall=)，它能继承 =Evaluator= 的所有功能，同时又实现 =ExprVisitorWithFunctionCall= 接口。在 Java 中，我们可以这样表达：
+
+#+begin_src java
+  class EvaluatorWithFunctionCall extends Evaluator implements ExprVisitor {
+    // ...
+  }
+#+end_src
+
+然而，在 C++ 中，虚多重继承就是我们拥有的工具。这里虚继承是必不可少的，因为它能让编译器识别出 =Evaluator= 和 =ExprVisitorWithFunctionCall= 底层共同的 =ExprVisitor= 基类是同一个，并且在 =EvaluatorWithFunctionCall= 中只出现一次。如果没有虚继承，编译器就会报错 =EvaluatorWithFunctionCall= 没有实现 =ExprVisitor= 接口。
+
+这确实是一个解决方案。我们某种程度上添加了一个新类型 =FunctionCall=​，并且现在可以在不修改现有代码的情况下对其进行访问（前提是虚继承从一开始就被纳入设计，以预见到这种方法）。我再次用到了「某种程度上」这个词......现在是时候解释原因了。
+
+在我看来，这种方法存在多个缺陷：
+
+1. 注意 =FunctionCall::Accept= 中的 =dynamic_cast=​。我们被迫将动态类型检查混入本应依赖于静态类型和编译器的代码中，这相当不美观。但这只是一个更大问题的征兆。
+
+2. 如果我们有一个 =Evaluator= 的实例，它将无法再作用于整个扩展后的表达式树，因为它对 =FunctionCall= 一无所知。我们很容易说所有新的求值器都应该是 =EvaluatorWithFunctionCall=​，但我们并非总能控制这一点。那些已经写好的代码怎么办？那些我们无法控制的第三方或库代码中创建的 =Evaluator= 实例又怎么办？
+
+3. 虚继承并不是我们为了支持这种模式而唯一需要内置到设计中的东西。一些访问者可能需要创建新的、递归的访问者来处理复杂的表达式。但我们无法提前预知需要创建哪种动态类型的访问者。因此，访问者接口还应该接受一个「访问者工厂」(visitor factory)，由扩展后的访问者提供。我知道这听起来很复杂，我不想在这里花更多时间，但 Krishnamurthi 的论文在 3.4 节对此问题有详尽的讨论。
+
+4. 最后，这个解决方案对于实际应用来说过于笨拙。添加一个新类型看起来还可行；但如果随着时间的推移，我们逐渐添加 15 个新类型呢？想象一下，这会造成一个由 =ExprVisitor= 扩展和动态检查组成的可怕的动物园 (horrible zoo)。
+
+没错，编程很难。我可以滔滔不绝地继续讨论经典 OOP 的局限性，以及它们如何在这个例子[fn:3]中显现出来。但我将就此打住，转而展示如何在支持多重派发 (multiple dispatch) 并将方法定义与其作用的类型主体分离的语言中，解决表达式问题。
+
+[fn:3] I can't resist, so just in brief: IMHO inheritance is only good for a very narrow spectrum of uses, but languages like C++ hail it as the main extension mechanism of types. But inheritance is deeply flawed for many other use cases, such as implementations of interfaces. Java is a bit better in this regard, but in the end the primacy of classes and their "closed-ness" make a lot of tasks - like the expression problem - very difficult to express in a clean way.
+
+* Solving the expression problem in Clojure
+
+在 Clojure 中，利用其内置特性，有多种方法可以解决这篇文章中展示的表达式问题。让我们从最简单的一种开始 —— 多方法 (multi-methods)。
+
+首先，我们定义类型为记录 (records)：
+
+#+begin_src clojure
+  (defrecord Constant [value])
+  (defrecord BinaryPlus [lhs rhs])
+#+end_src
+
+然后，我们定义 =evaluate= 为一个 multimethod，它根据其参数的类型进行派发，并为 =Constant= 和 =BinaryPlus= 添加方法实现：
+
+#+begin_src clojure
+  (defmulti evaluate class)
+  (defmethod evaluate Constant
+    [c] (:value c))
+  (defmethod evaluate BinaryPlus
+    [bp] (+ (evaluate (:lhs bp)) (evaluate (:rhs bp))))
+#+end_src
+
+现在我们已经可以对表达式进行求值了：
+
+#+begin_src text
+  user=> (use 'expression.multimethod)
+  nil
+  user=> (evaluate (->BinaryPlus (->Constant 1.1) (->Constant 2.2)))
+  3.3000000000000003
+#+end_src
+
+添加一个新操作是很容易的。让我们添加 =stringify=​：
+
+#+begin_src clojure
+  (defmulti stringify class)
+  (defmethod stringify Constant
+    [c] (str (:value c)))
+  (defmethod stringify BinaryPlus
+    [bp]
+    (clojure.string/join " + " [(stringify (:lhs bp))
+                                (stringify (:rhs bp))]))
+#+end_src
+
+测试一下：
+
+#+begin_src text
+  user=> (stringify (->BinaryPlus (->Constant 1.1) (->Constant 2.2)))
+  "1.1 + 2.2"
+#+end_src
+
+那么添加新类型呢？假设我们想添加 =FunctionCall=​。首先，我们定义新类型。为了简单起见，​=FunctionCall= 的 =func= 字段只是一个 Clojure 函数。在实际代码中，它可能是在我们所解释的语言中的某种函数对象：
+
+#+begin_src clojure
+  (defrecord FunctionCall [func argument])
+#+end_src
+
+并定义 =evaluate= 和 =stringify= 如何作用于 =FunctionCall=​：
+
+#+begin_src clojure
+  (defmethod evaluate FunctionCall
+    [fc] ((:func fc) (evaluate (:argument fc))))
+  (defmethod stringify FunctionCall
+    [fc] (str (clojure.repl/demunge (str (:func fc)))
+              "("
+              (stringify (:argument fc))
+              ")"))
+#+end_src
+
+让我们实际运行一下（完整代码在[[https://github.com/eliben/code-for-blog/blob/main/2016/expression-problem/clojure/expression/src/expression/multimethod.clj][这里]]）：
+
+#+begin_src clojure
+  user=> (def callexpr (->FunctionCall twice (->BinaryPlus (->Constant 1.1)
+                                                           (->Constant 2.2))))
+  #'user/callexpr
+  user=> (evaluate callexpr)
+  6.6000000000000005
+  user=> (stringify callexpr)
+  "expression.multimethod/twice@52e29c38(1.1 + 2.2)"
+#+end_src
+
+由此可见，Clojure 的表达式问题矩阵是：
+
+[[./expr-problem-clojure.png]]
+
+我们可以在不触碰任何现有代码的情况下添加新操作。我们也可以在不触碰任何现有代码的情况下添加新类型。我们所添加的代码，仅仅是处理这些新操作/新类型所必需的新代码。 现有的操作和类型可以来自我们无法访问其源代码的第三方库。我们仍然可以为我们的新操作和新类型扩展它们，而无需触碰（甚至无需查看）原始源代码[fn:4]。
+
+[fn:4] In fact, there are plenty of examples in which the Clojure implementation and the standard library provide protocols that can be extended by the user for user-defined types. Extending user-written protocols and multimethods for built-in types is trivial. As an exercise, add an =evaluate= implementation for =java.lang.Long=, so that built-in integers could participate in our expression trees without requiring wrapping in a =Constant=.
+
+* Is multiple dispatch necessary to cleanly solve the expression problem?
+
+我之前写过关于 [[https://eli.thegreenplace.net/2016/a-polyglots-guide-to-multiple-dispatch-part-4][Clojure 中的多重派发]]，在之前的章节中我们看到了如何使用该语言的 =defmulti/defmethod= 构造的另一个例子。但这真的是多重派发吗？不是！这实际上只是单派发 (single dispatch)。我们的操作（​=evaluate= 和 =stringify=​）只在一个参数 —— 表达式类型 —— 上进行派发[fn:5]。
+
+如果这并不是真正的多重派发，那么究竟是什么秘密武器 (secret sause) 让 Clojure 如此优雅地解决了表达式问题呢？答案是开放方法 (open methods)。注意 C++/Java 和 Clojure 中定义方法的关键区别：在 C++/Java 中，方法必须是类的一部分，并在其主体中定义（或至少声明）。你无法在不修改类的源代码的情况下向其中添加方法。
+
+但在 Clojure 中，你可以做到这一点。事实上，由于数据类型和多方法是正交 (orthogonal) 的实体，这是其设计宗旨。方法存在于类型之外 —— 它们是一等公民，而不是类型的属性。我们不是向一个类型添加方法，而是添加新的作用于该类型的方法。这完全不需要以任何方式修改类型的代码（甚至不需要访问其代码）。
+
+一些其他流行的编程语言采取了中间路线。在 Python、Ruby 和 JavaScript 这样的语言中，方法属于类型，但我们可以在类创建后动态地添加、移除和替换方法。这种技术被亲切地称为「猴子补丁」(monkey patching)。虽然它最初看起来很吸引人，但如果不够小心，可能会给代码带来巨大的维护麻烦。因此，如果我不得不在 Python 中面对表达式问题，我宁愿为我的程序实现某种[[https://eli.thegreenplace.net/2016/a-polyglots-guide-to-multiple-dispatch-part-2][多重派发机制]]，而不是依赖猴子补丁。
+
+[fn:5] FWIW, we can formulate a multiple dispatch solution to the expression problem in Clojure. The key idea is to dispatch on two things: type and operation. Just for fun, I coded a prototype that does this which you can see [[https://github.com/eliben/code-for-blog/blob/main/2016/expression-problem/clojure/expression/src/expression/multidispatch.clj][here]]. I think the approach presented in the article - each operation being its own multimethod - is preferable, though.
+
+* Another Clojure solution - using protocols
+
+Clojure 的多方法非常通用和强大。但它们的通用性也意味着，对于最常见的情况 —— 即基于单个方法参数的类型进行单重派发 —— 其性能可能不是最优的；值得注意的是，这正是我在本文中使用的派发类型。因此，从 Clojure 1.2 开始，用户代码获得了定义和使用「协议」(protocols) 的能力，这是一种之前仅限于内置类型的语言特性。
+
+协议利用了宿主平台（Clojure 的宿主平台主要是 Java）提供快速虚派发 (virtual dispatch) 的能力，因此使用它们是实现运行时多态的一种非常高效的方式。此外，协议保留了多方法足够的灵活性，可以优雅地解决表达式问题。有意思的是，Clojure 的设计者们从一开始就考虑到了这一点。Clojure 关于协议的[[https://clojure.org/reference/protocols][官方文档]]页面将此列为其能力之一：
+
+#+begin_quote
+[...] Avoid the 'expression problem' by allowing independent extension of the set of types, protocols, and implementations of protocols on types, by different parties. [...] do so without wrappers/adapters
+
+通过允许不同参与方独立地扩展类型集、协议集以及类型上的协议实现，从而避免「表达式问题」。[...] 并且无需使用包装器/适配器。
+#+end_quote
+
+Clojure 的协议是一个很有趣的话题，尽管我很想花更多时间来讨论，但这篇文章已经太长了。所以我将把更深入的探讨留到以后，现在我只展示协议如何被用来解决我们正在讨论的表达式问题。
+
+保持类型定义不变：
+
+#+begin_src clojure
+  (defrecord Constant [value])
+  (defrecord BinaryPlus [lhs rhs])
+#+end_src
+
+然而，我们不再为每个操作定义一个 multimethod，而是定义一个「协议」。可以将协议看作是 Java、C++ 或 Go 等语言中的接口 —— 当一个类型定义了接口声明的一组方法时，它就实现了该接口。在这方面，Clojure 的协议更像 Go 的接口，而不是 Java 的，因为我们无需在定义类型时就预先声明它实现了哪些接口。
+
+让我们从 =Evaluatable= 协议开始，它包含一个方法 =evaluate=​：
+
+#+begin_src clojure
+  (defprotocol Evaluatable
+    (evaluate [this]))
+#+end_src
+
+我们定义的另一个协议是 =Stringable=​：
+
+#+begin_src clojure
+  (defprotocol Stringable
+    (stringify [this]))
+#+end_src
+
+现在，我们可以确保我们的类型实现了这些协议：
+
+#+begin_src clojure
+  (extend-type Constant
+    Evaluatable
+      (evaluate [this] (:value this))
+    Stringable
+      (stringify [this] (str (:value this))))
+
+  (extend-type BinaryPlus
+    Evaluatable
+      (evaluate [this] (+ (evaluate (:lhs this)) (evaluate (:rhs this))))
+    Stringable
+      (stringify [this]
+        (clojure.string/join " + " [(stringify (:lhs this))
+                                    (stringify (:rhs this))])))
+#+end_src
+
+=extend-type= 宏是一个方便的封装，它基于更通用的 =extend= 宏，允许我们为一个给定的类型实现多个协议。一个名为 =extend-protocol= 的兄弟宏则允许我们在同一次调用中，为多个类型实现同一个协议[fn:6]。
+
+显而易见，添加新的数据类型是容易的 —— 就像我们上面所做的那样，我们只需为每个新的数据类型使用 =extend-type= 来实现我们当前的协议即可。但是，我们如何添加一个新协议并确保所有现有的数据类型都实现了它呢？同样，这也很容易，因为我们不需要修改任何现有代码。下面是一个新协议：
+
+#+begin_src clojure
+  (defprotocol Serializable
+    (serialize [this]))
+#+end_src
+
+这是它对当前支持的数据类型的实现：
+
+#+begin_src clojure
+  (extend-protocol Serializable
+    Constant
+      (serialize [this] [(type this) (:value this)])
+    BinaryPlus
+      (serialize [this] [(type this)
+                         (serialize (:lhs this))
+                         (serialize (:rhs this))]))
+#+end_src
+
+这一次，为了为多个数据类型扩展一个协议 —— 使用 =extend-protocol= 是更方便的宏。
+
+[fn:6] The sharp-eyed reader will notice a cool connection to the expression problem matrix. extend-type can add a whole new row to the matrix, while extend-protocol adds a column. extend adds just a single cell.
+
+* Small interfaces are extensibility-friendly
+
+你可能已经注意到，在 Clojure 解决方案中定义的协议（接口）都非常小，仅包含一个方法。由于向现有协议添加方法会带来更多问题（据我所知，在 Clojure 中没有直接的方法可以做到这一点），因此保持协议小巧是一个很好的做法。这项原则在其他语境中也有体现；例如，在 Go 语言中，将接口保持得非常简洁也是一种好的实践。
+
+在我们的 C++ 解决方案中，将 =Expr= 接口拆分也可能是一个好主意，但这并不能帮助我们解决表达式问题，因为一旦定义了一个类，我们就不能再修改它所实现的接口；而在 Clojure 中，我们则可以做到这一点。
