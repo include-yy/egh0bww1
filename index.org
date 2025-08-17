@@ -15,13 +15,201 @@
 
 * 其他页面
 
+#+attr__: [index]
 - [[./posts/tags.org][博客的分类页面]]
 - [[./projecteuler/index.org][ProjectEuler 题解]]
+- 可能有用的文章
+  - [[file:posts/2021-10-04-13-emacs-list-functions/index.org][emacs 的 list 函数]]
+  - [[file:republish/2024-06-21-diataxis-documentation/index.org][Diátaxis documentation framework]]
 
-** 可能有用的文章
+* TARGETS
 
-- [[file:posts/2021-10-04-13-emacs-list-functions/index.org][emacs 的 list 函数]]
-- [[file:republish/2024-06-21-diataxis-documentation/index.org][Diátaxis documentation framework]]
+草，整理目标并不比写正经的博客简单。
+
+** BLOGGING
+
+*Emacs*
+
+- 在 [[https://lists.gnu.org/archive/html/emacs-devel/2025-08/msg00405.html][igc: GC responsiveness]] 讨论中，Helmut Eller 使用滚动屏幕测试 GC 性能
+  - [ ] 总结 2025 年 8 月的所有讨论邮件，观察 IGC 相比 Emacs GC 的不同之处
+- 为 Windows 平台上的 Emacs 添加 ='alpha-background= 支持，即「背景透明」而非整个窗口的透明。具体讨论可以参考 emacs-devel 上的 [[https://lists.gnu.org/archive/html/emacs-devel/2025-07/msg00174.html][The frame parameter 'alpha-background semms not work on MS-Windows]]。这一目标主要可以分解为以下两个子目标：
+  - [ ] 学习和总结如何在 Windows 上为基本窗口实现透明和背景透明效果
+  - [ ] 完成 ='alpha-background= 相关补丁，提交到 Emacs 主线并总结过程
+
+- 参考 Org-mode 的 ox-html.el，完成对 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 的重构，即代码整理以及编写对应文档。在开始 special-block 的重构之前，应首先完成如下两部分的学习和博客记录：
+  - [ ] 学习如何编写良好且可维护的 docstring，即文档字符串
+  - [ ] 学习如何使用 ERT 编写良好且可维护的单元测试，或称回归测试
+
+- 完成「Emacs 的 treesit」的第二，第三部分：
+  - [ ] 第二部分应使用 MoonBit 这一语言的 tree-sitter parser 来介绍 Emacs treesit 的 API 使用，在现在 [2025-08-17]，Emacs 的 treesit 已基本稳定
+  - [ ] 第三部分介绍如何使用 treesit 编写基本的 major-mode，并考虑介绍传统的实现方法来作为 fallback
+
+- 完成对 Emacs Lisp Manual 核心部分的学习与总结，即大致记录到 Emacs Lisp Manual 的前二十章（大概是到 Reading and Printing Lisp Object，可以扩展到 Documentation），目前尚未完成的章节包括：
+  #+attr__: [index]
+  - [ ] 4 Strings and Characters
+  - [ ] 6 Sequences, Arrays, and Vectors
+  - [ ] 11 Control Structures 
+  - [ ] 12 Variables
+  - [ ] 13 Functions
+  - [ ] 17 Byte Compilation, [[https://rocky.github.io/elisp-bytecode.pdf][GNU Emacs Lisp Bytecode Reference Manual]]
+  - [ ] 18 Compilation of Lisp to Native Code
+
+- 已存在的草稿
+  #+attr__: [index]
+  - [ ] 「Emacs 的模式匹配 —— pcase 与 cond*」，介绍 Emacs 中模式匹配的用法和实现
+  - [ ] 「Emacs 中的 Error Handling」，介绍如何在 Emacs 中做错误处理
+  - [ ] 「如何编译 Emacs」，介绍如何在不同操作系统上使用工具链获取完全功能的 Emacs
+  - [ ] 「Emacs 的 oclosure」，介绍如何使用 =oclosure= 来创建可手动捕获的「开闭包」
+  - [ ] 「Emacs 与 OOP」，介绍 Emacs 中的 OOP 设施与它的 OOP 历史  
+  - [ ] 邮件列表整理 --- 加速 Emacs 包查找
+  - [ ] Emacs 与 Windows 上的 ConPTY
+  - [ ] 介绍如何使用 Emacs 29 内置的 =sqlite3= 支持
+  - [ ] 介绍 Emacs 30 内置的简单补全前端 =completion-preview=
+
+---------------------
+
+*FP*
+
+- 25 年 8 我完成了 [[file:posts/2025-08-08-tr-the-expression-problem/index.org][「翻译」The Expression Problem and its solutions]]，作者还有一篇
+  - [ ] [[https://eli.thegreenplace.net/2018/more-thoughts-on-the-expression-problem-in-haskell/][More thoughts on the Expression Problem in Haskell]]
+
+- 25 年年初我写了 [[file:posts/2025-01-19-monad-mother-cps/index.org][CPS and Cont Monad --- The Mother of all Monads]]，可以看作对 Monad 的入门理解。但这实际上是一篇未完成的博客，它至少还需要包括对以下内容的介绍：
+  #+attr__: [index]
+  - [ ] 简单 Monad，包括 =Maybe=, =Either=, =List=, =State=, =Reader=, =Writer=, =IO=, =Free=
+  - [ ] 介绍 Monad Transformer
+  - [ ] 对 delimited continuation 的进一步介绍
+  - [ ] 介绍 effect 与 Koka
+  ​
+  delimited continuation 可以参考以下链接
+  - [[https://www.khoury.northeastern.edu/home/amal/course/7480-s12/delim-control-notes.pdf][Types for Delimited Control Operators]]
+  - [[https://legacy.cs.indiana.edu/~dyb/pubs/LaSC-7-1-pp83-110.pdf][Subcontinuations*]]
+  - [[https://stackoverflow.com/questions/46379461/understanding-sub-partial-full-one-shot-continuations-in-procedural-languages][Understanding (sub,partial,full,one-shot) continuations (in procedural languages)]]
+  - [[https://dev.to/yelouafi/algebraic-effects-in-javascript-part-1---continuations-and-control-transfer-3g88][Algebraic Effects in JavaScript part 1 - continuations and control transfer]]
+  - [[https://www.deinprogramm.de/sperber/papers/shift-reset-direct.pdf][Final Shift for Call/cc: Direct Implementation of Shift and Reset]]
+
+- 25 年年初我写了 [[file:posts/2025-02-24-aitac-1/index.org][「笔记」An Invitation to Applied Category Theory — Chapter 1]]，这本书是范畴论的入门级教程，目前还剩 2 到 7 章没有读和记笔记
+  - [ ] 「笔记」An Invitation to Applied Category Theory — Chapter *2*
+
+- 24 年 7 月我完成了[[file:posts/2024-07-24-tr-plai3-evaluation/index.org][「翻译」Programming Languages: Application and Interpretation [Evaluation]​]]，后续内容尚待翻译
+  - [ ] 完成 /Syntactic Sugar/ 一章的翻译
+
+*Others*
+
+- [ ] 完成 Sakura, Moyu. -as the Night's, Reincarnation 的感想
+
+
+** LEARNING
+
+*LISP 系列*
+
+- 对于 Racket，我希望我能够使用它建立起一种标准编程语言模型，来让学习其他编程语言更加容易。
+
+- 我希望有时间能读完以下书籍：
+  - [ ] /Structure and Interpretation of Computer Programs/​，即《计算机程序的构造与解释》
+  - [ ] /Essentials of Programming Language/
+  - [ ] /Beautiful Racket/ -- an introduction to language-oriented programming using Racket
+  - [ ] /Let Over Lambda/: 50 Years of Lisp
+  - [ ] /The Art of the Metaobject Protocol/
+
+*JavaScript 与前端技术*
+
+- 读完两本分别介绍 JavaScript 和 TypeScript 的书：
+  - [ ] 完成一本 JavaScript 教程
+  - [ ] 完成一本 TypeScript 教程
+
+- 我对 WASM 很感兴趣，这可能是因为 WASM 的 WAT 格式使用了 S-EXP，而且 WASM 有完成 JVM 当年没有完成的使命的可能性，即成为多语言的跨平台虚拟机（当然现在 JS 差不多已经是了）。对于 WASM，我可能会完成以下这几件事：
+  - [ ] 读一遍 WASM 标准
+  - [ ] 学会在浏览器中使用 WASM 模块
+  - [ ] 使用 WASM 实现 Scheme （可参考 [[https://github.com/PollRobots/scheme][PollRobots/scheme]] 和 [[https://github.com/google/schism][schism]] 和 [[https://spritely.institute/hoot/][hoot]]）
+
+- 最后是 WebGPU，我对计算机图形学有一定的兴趣，可能可以做这些事情：
+
+  - [ ] 读完 WGSL 和 WebGPU 的标准文档
+  - [ ] 为 WGSL 写一个 Emacs treesit 或普通 syntax-table 高亮
+  - [ ] 使用 WebGPU 或 DirectX12 完成 GAMES101
+
+*其他编程语言*
+
+#+attr__: [index]
+- [ ] Haskell
+- [ ] Scala3
+- [ ] Koka
+- [ ] Rust
+- [ ] Zig
+- [ ] Moonbit
+- [ ] Swift
+
+*范畴论*
+
+- [ ] 范畴论入门书 [[https://arxiv.org/abs/1803.05316][Seven Sketches in Compositionality: An Invitation to Applied Category Theory]]
+
+*OOP*
+
+「面向对象是如此的成功，以至于我们可能忘记了它本来的目的。」 --- 沃·兹基硕得
+
+当前广为流传的、以类（class）、继承（inheritance）和多态（polymorphism）为中心的面向对象编程（Object-Oriented Programming, OOP）范式，与其最初的、更为激进的目标发生了显著且影响深远的偏离。
+
+我计划对 OOP 展开一些「研究」。
+
+
+** LONG-TERM
+
+#+attr__: [index]
+- [ ] 学会可持续性地整理资料
+- [ ] 学点日语
+
+** FUN
+
+*ギャルゲー*
+
+#+attr__: [index]
+- [ ] 灵感满溢的甜蜜创想
+  - 常轨脱离 Creative
+  - ハミダシクリエイティブ
+- [ ] 交响乐之雨
+  - シンフォニック＝レイン
+- [ ] 苍之彼方四重奏
+  - 蒼の彼方のフォーリズム
+- [ ] 突然之间发现我已恋上你
+  - いきなりあなたに恋している
+- [ ] 不败世界与终焉之花
+  - 永不枯萎的世界与终结之花
+  - 枯れない世界と終わる花
+- [ ] 鬼的捉迷藏
+  - 鬼ごっこ！
+- [ ] rewrite
+- [ ] Yumeutsutsu Re:Master
+- [ ] 爱上火车
+  - まいてつ
+- [ ] 近月少女的礼仪
+  - 月に寄りそう乙女の作法
+- [ ] eden*
+- [ ] Summer Pockets
+- [ ] 秽翼的尤斯蒂娅
+  - 穢翼のユースティア
+- [ ] よめがみ My Sweet Goddess!
+- [ ] 琉璃交错~妹物语~
+  - ルリのかさね～いもうと物語り
+
+*アニメ*
+
+#+attr__: [index]
+- [ ] 变态王子与不笑猫
+- [ ] 我心中危险的东西
+- [ ] 实况主的逃脱游戏
+- [ ] 魔界天使加百列
+- [ ] 爱丽丝和特雷斯的梦幻工厂
+- [ ] 战 x 恋
+- [ ] 公主闯天关
+- [ ] 现世研二代目
+- [ ] 七人魔法使
+- [ ] [[https://myself-bbs.com/thread-47670-1-1.html][桃子男孩渡海而来]]
+- [ ] 恋爱要在世界征服后
+- [ ] [[https://myself-bbs.com/thread-44208-1-1.html][紅 Kure-nai【全 12 集】]]
+- [ ] 漫画家与助手们
+- [ ] 超元气三胞胎
+- [ ] 未确定进行式
+- [ ] 今日の5の2
 
 * FOLKS
 
