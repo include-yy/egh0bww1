@@ -1,0 +1,1246 @@
+#+TITLE: 如何编写 Emacs Lisp 文档字符串
+#+DATE: [2025-08-03 Sun 12:54]--[2025-09-01 Mon 17:27]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文参考 Elisp Manual 附录 D 中的 Documentation Tips, 对如何编写有效 docstring 进行了简单介绍，并在最后给出了可用于大语言模型的文档字符串编写提示词
+
+# [[https://www.pixiv.net/artworks/134498698][file:dev/p0.jpg]]
+
+我在 [2025-08-02] 完成了 ox-w3ctr [[https://github.com/include-yy/ox-w3ctr/releases/tag/v0.2.4][v0.2.4]] 的「发布」，姑且算是整个重构工作的一个小里程碑。现在回头看看之前写的 docstring，感觉质量可能称不上差强人意。听说 Gemini 支持[[https://ai.google.dev/gemini-api/docs/long-context?hl=zh-cn][超长上下文]]，如果我将整个 ox-w3ctr.el 丢给 Gemini 并给出合适的 docstring 改进 prompt，也许就不用我一条条手动修改 docstring 了。
+
+本文的第一部分介绍了什么是文档字符串，并介绍了几种典型的支持文档字符串的编程语言，这主要是对这些语言的相关文档的翻译；本文的第二部分总结了文档字符串的共性，尝试给出文档字符串的基本组成部分；本文的最后一部分介绍了一些 Elisp 文档字符串例子，并给出了可用于生成文档字符串的 LLM 提示词。
+
+从最初目的来说，本文是对 Emacs Lisp Manual [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Documentation-Tips.html][D.6 Tips for Documentation Strings]] 一节的总结学习，但是写到最后做了很多扩展。本文最后给出的 prompt 仅在 Gemini 2.5 Pro 上使用过。
+
+* 什么是文档字符串
+
+文档字符串，是位于函数或变量定义中的，起到文档作用的字符串：
+
+#+begin_quote
+A documentation string is written using the Lisp syntax for strings, with double-quote characters surrounding the text. It is, in fact, an actual Lisp string. When the string appears in the proper place in a function or variable definition, it serves as the function’s or variable’s documentation.
+
+In a function definition (a lambda or defun form), the documentation string is specified after the argument list, and is normally stored directly in the function object. See [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Function-Documentation.html][Documentation Strings of Functions]]. You can also put function documentation in the function-documentation property of a function name (see [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Accessing-Documentation.html][Access to Documentation Strings]]).
+
+In a variable definition (a defvar form), the documentation string is specified after the initial value. See [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Defining-Variables.html][Defining Global Variables]]. The string is stored in the variable’s variable-documentation property.
+
+--- [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Documentation-Basics.html][Documentation Basics]]
+#+end_quote
+
+在一定程度上文档字符串可以看作注释，但它比单纯的注释要系统化得多，文档字符串是 Emacs 帮助文档的一部分。在 =emacs-lisp-mode= 中编写函数调用表达式时，eldoc 会在 echo area 显示函数的参数列表；将光标移动到变量上时，eldoc 会显示文档字符串的首行；使用 =C-h v= (=describe-variable=), =C-h f= (=describe-function=) 等帮助命令时，Emacs 会弹出一个包含相关符号文档字符串的 buffer......
+
+Emacs Lisp Manual 的 /Documentation Strings of Functions/ 一节对如何编写 docstring 给出了一些建议，而且与附录中内容的并不完全重合，这里还是翻译一下。在现在这个时代也不用我脑翻或者机翻了，但必要的检查和内容调整还是要的。
+
+** 「翻译」​函数的文档字符串
+
+在 lambda 表达式中，在 =lambda= 参数列表之后可以选择性地包含一个文档字符串。该字符串不影响函数的执行；它是一种注释，但它是一种系统化的注释，它实际出现在 Lisp 世界中，并且可以被 Emacs 帮助工具使用。为你程序中的所有函数提供文档字符串是一个好习惯，即使是那些只在程序内部调用的函数。文档字符串类似于注释，只是它们更容易访问。
+
+文档字符串的第一行应该能够独立存在，因为 =apropos= 只显示这一行。它应该由一到两个完整的句子组成，概述函数的功能。文档字符串的开头通常在源文件中缩进，但由于这些空格位于起始双引号之前，它们不属于字符串。
+
+有些人习惯于缩进字符串的任何附加行，以便文本在程序源中对齐。这样做是不对的，后续行的缩进是在字符串内部；在源代码中看起来不错的内容，在帮助命令显示时会很难看。
+
+文档字符串之后必须始终至少跟一个 Lisp 表达式；否则，它根本就不是文档字符串，而是函数体中的单个表达式并用作返回值。当函数没有有意义的值可以返回时，标准做法是在文档字符串之后添加 =nil= 来返回它。
+
+#+attr__: [note]
+在 Emacs 30 之前，如果函数体仅有一个字符串，那么它将同时作为返回值和文档字符串。这一行为在 Emacs 30 被修正，具体可以参考 Emacs 的 NEWS.30 文件。
+
+文档字符串的最后一行可以指定与实际函数参数不同的调用约定。如下所示：
+
+#+begin_src elisp
+  \(fn arglist)
+#+end_src
+
+在文档字符串内部，紧跟一个空行之后，在行首且没有换行符的情况下（使用反斜杠 =\= 是为了避免与 Emacs 的移动命令混淆），可以指定调用约定。通过这种方式指定的调用约定将取代从函数实际参数派生出的约定，并显示在帮助消息中。此功能对于宏定义特别有用，因为宏定义中编写的参数通常与用户对宏调用部分的理解方式不符。
+
+文档字符串通常是静态的，但偶尔也需要动态生成它们。在某些情况下，你可以通过编写一个宏来实现，该宏在编译时生成函数的代码，包括所需的文档字符串。
+
+此外，你也可以通过编写 =(:documentation form)= 来动态生成文档字符串，而不是直接写文档字符串。这会在函数定义时在运行时对 =form= 求值，并将其用作文档字符串。你还可以通过将函数符号的 =function-documentation= 属性设置为一个求值结果为字符串的 Lisp 表达式，从而在需要时动态计算文档字符串。
+
+** 一些直接支持文档字符串的语言
+
+当语言将文档字符串作为核心特性时，这通常意味着语言运行时本身就具备访问或修改文档字符串的能力。这使得自省 (Introspection) 变得非常直接：通过在运行时动态地获取和显示文档，可以非常方便地构建​*帮助系统*​。
+
+从语言设计者的角度来看，支持文档字符串意味着文档不是代码的附属品，而是和代码本身一样重要，它和函数名、参数、返回值以及函数体一样，都是构成完整代码单元的关键信息。它表明语言的设计者将​*可读性、可维护性和协作性*​放在了非常重要的位置，并将文档视为实现这些目标的关键手段。
+
+在版本控制系的管理下，开发者更新函数通常也会更新其文档字符串，这保证了代码和文档的一致性。这在短期来看确实会增加工作量，但这笔「额外」的投入，从长远来看，对程序的可维护性来说是巨大的收益。清晰准确的文档能够起到​*降低认知负荷、帮助定位问题，以及促进协作*​的作用。
+
+也许你和我一样，在学 Python 时第一次了解到文档字符串这个概念。直接支持文档字符串的程序语言不止 Python 一家，下面我会介绍一些（出于显而易见的原因，我没有提到一众 Lisp 语言，比如 Common Lisp）。
+
+*** Elisp
+
+#+attr__: [note]
+就像上面提到的那样，Emacs Lisp 文档的附录 D.6 总结了一些编写 docstring 的实践，这里我简单翻译整理一下。以下是关于编写 docstring 的一些技巧和约定。你可以通过运行 =checkdoc-minor-mode= 命令来检查其中许多约定。
+
+每一个应该被用户了解的命令、函数或变量都应该有 docstring。同样，一个 Lisp 程序的内部变量或子例程也最好有 docstring。它在 Emacs 运行环境中占用的空间非常少。
+
+*I.内容结构与核心要求*
+
+docstring 的首行摘要至关重要，它必须是完整的、可独立存在的句子，作为功能的总结。第一行必须以大写字母开头，并以句号结尾。
+
+- 对于函数，第一行应简洁地回答：“这个函数是做什么用的？”
+- 对于变量，第一行应简洁地回答：“这个值的含义是什么？”
+- 描述应着眼于用户和调用者的角度，说明其角色和契约，而不是简单罗列代码的内部实现细节。
+
+在 docstring 的第一行，应提及函数的所有重要参数，特别是必选参数，并按照它们在函数调用中的顺序排列。如果参数过多，无法全部列出，则只需提及最重要的前几个参数。
+
+不要将 docstring 限制在一行；可以使用尽可能多的行来解释如何使用函数或变量的详细信息。请对 docstring 的其余部分也使用完整的句子。
+
+当用户尝试使用一个禁用的命令时，Emacs 只显示其 docstring 的第一段 —— 即直到第一个空行的所有内容。如果你愿意，可以决定在第一个空行之前包含哪些信息，以使此显示更有用。
+
+*II.格式与布局*
+
+不要以空格开头或结尾。不要为了让文本与首行的文本在源代码中对齐而缩进 docstring 的后续行。这在源代码中看起来不错，但当用户查看文档时会显得很奇怪。记住，起始双引号前的缩进不属于字符串！
+
+为了让你的 docstring 能在 80 列的 Emacs 窗口中完美呈现，请遵循以下格式指南：
+- 大多数行最好不要超过 60 个字符，这样做能确保文档在大多数屏幕上都能获得良好的可读性。
+- 文档的第一行是摘要，请务必控制在 74 个字符以内，否则在 =apropos= 命令的输出中会显得不美观。
+
+如果你觉得合适，可以对文本进行填充（通过 =fill-paragraph= 命令）。Emacs Lisp 模式会将 docstring 填充到由 =emacs-lisp-docstring-fill-column=​（默认值为 72）指定的宽度。但请注意，有时通过手动调整换行符，可以使 docstring 更具可读性。如果 docstring 很长，请在不同部分之间使用空行来分隔。
+
+如果 docstring 中的一行以开括号开头，请考虑在开括号前加一个反斜杠，像这样：
+
+#+begin_src text
+  The argument FOO can be either a number
+  \(a buffer position) or a string (a file name).
+#+end_src
+
+这可以避免 Emacs 27.1 之前版本中的一个 bug，其中 =(= 被视为 =defun= 的开始。如果你不认为会有人使用旧版本 Emacs 编辑你的代码，则无需此变通方法。
+
+遵循 GNU 惯例，在一个句子的结尾处（通常是在句号 =.=​、问号 =?= 或感叹号 =!= 之后），一般使用两个空格来与下一个句子分隔。
+
+*III.写作风格与措辞*
+
+为了保持一致性，函数 docstring 第一句中的动词应使用祈使 (imperative) 语气 —— 例如，使用 (=Return the cons of A and B.=) 而不是 (=Returns the cons of A and B.=)。通常，第一段的其余部分也这样做看起来不错。在随后的段落中，如果每句话都是陈述句，并有适当的主语，通常会更好。
+
+使用主动语态，而不是被动语态；使用现在时，而不是将来时。例如，使用 =Return a list containing A and B.= 而不是 =A list containing A and B will be returned.=​。
+
+避免使用多余的说法，比如使用 "cause" 或它的等价词。不要用 "Cause Emacs to display text in boldface", 而是直接写 "Display text in boldface".
+
+避免使用专业术语，比如 =iff=​（一个数学术语，意为“当且仅当”），因为许多人不熟悉它并误认为是拼写错误。在大多数情况下，只用 =if= 意思就很清楚了。否则，尝试找到另一种表达方式来传达该含义。
+
+尽量避免使用缩写，如 =e.g.= (for example)、​=i.e.= (that is)、​=no.= (number)、​=cf.= (compare / see also) 和 =w.r.t.= (with respect to)。展开后的版本几乎总是更清晰、更容易阅读。
+
+*IV.引用变量与符号*
+
+当函数的 docstring 提及某个参数的值时，请使用大写字母的参数名，就像它是该值的名称一样。在展示列表或向量分解为可变子单元时，也应使用大写字母来书写占位符变量，例如：
+
+#+begin_src text
+  The argument TABLE should be an alist whose elements
+  have the form (KEY . VALUE).  Here, KEY is ...
+#+end_src
+
+在 docstring 中，切勿改变 Lisp 符号的大小写。如果一个符号的名称是 =foo=​，你就应该写成 =foo=​ 而不是 =Foo=​，因为后者在 Lisp 中是一个不同的符号。
+
+- 这可能看似与“将函数参数值大写”的规则相矛盾，但实际上没有冲突。这里的关键在于，参数的值（用大写字母表示）与用于存储该值的 Lisp 符号本身是两个不同的概念。
+- 如果你因为一个符号名称（如 =foo=​）以小写字母开头，导致它不能放在句首而感到困扰，最好的解决办法是重写这个句子，将符号放在句子的中间位置。
+
+当 docstring 引用一个 Lisp 符号时，请按照它打印时的样子书写（通常是小写），并在前面加上重音符号 (grave accent) =`=​，后面加上撇号 (apostrophe) ='=​。不过这有两个例外：​=t= 和 =nil= 不用标点符号包围。当 Emacs 显示这些 docstring 时，通常会将 =`= 显示为 =‘=​（左单引号），将 ='= 显示为 =’=​（右单引号）。
+  
+当文档应显示一个 ASCII 撇号或重音符号时，在 docstring 字面量中使用 ~\\='~ 或 ~\\=`~ 来确保字符按原样显示。在 docstring 中，不要引用不是 Lisp 符号的表达式，因为这些表达式可以独立存在。例如，写 (=Return the list (NAME TYPE RANGE) ...=) 而不是 (=Return the list `(NAME TYPE RANGE)' ...=) 或 (~Return the list \\='(NAME TYPE RANGE) ...~)。
+
+*V.链接到 Lisp 符号*
+
+帮助模式 (help-mode) 会在 docstring 使用单引号引用的符号名称时自动创建超链接，前提是该符号具有函数或变量定义。你不需要做任何特殊操作来利用此功能。但是，当一个符号既有函数定义又有变量定义，而你只想引用其中一个时，可以在符号名称前面紧跟以下词之一：​=variable=​、​=option=​、​=function= 或 =command=​。（识别这些指示词时，大小写无关紧要）。例如在 (=This function sets the variable `buffer-file-name'=​) 中，超链接将只指向 =buffer-file-name= 的变量文档，而不是其函数文档。
+
+如果一个符号有函数定义和/或变量定义，但它们与你正在记录的符号用法无关，你可以在符号名称前面写 =symbol= 或 =program= 来阻止创建任何超链接。例如在下面的例子中不会为 =list= 创建函数超链接：
+
+#+begin_src text
+  If the argument KIND-OF-RESULT is the symbol `list',
+  this function returns a list of all the objects
+  that satisfy the criterion.
+#+end_src
+
+通常来说，对于没有变量文档的变量不会创建超链接。你可以通过在它们前面加上 =variable= 或 =option= 来强制为这些变量创建超链接。
+
+只有当 face 名称前面或后面跟着 =face= 这个词时，才会为 face 创建超链接。在这种情况下，只会显示 face 的文档，即使该符号也被定义为变量或函数。  
+
+*VI.链接到外部资源*
+
+要链接到 Info 文档，请写上 Info 节点（或锚点）的单引号名称，前面加上 =info node=​、​=Info node=​、​=info anchor= 或 =Info anchor=​。Info 文件名默认为 =emacs=​。例如 (=See Info node `Font Lock' and Info node `(elisp)Font Lock Basics'.=)。
+
+要链接到 man page，请写上 man page 的单引号名称，前面加上 =Man page=​、​=man page= 或 =man page for=​。例如 (=See the man page `chmod(1)' for details.=)。Info 文档总是比 man pages 更可取，因此在 Info 手册可用时务必链接到它。例如，​=chmod= 在 GNU Coreutils 手册中有文档，因此最好链接到该手册而不是 man page。
+
+要链接到自定义组 (customization group)，请写上该组的单引号名称，前面加上 =customization group=​（每个单词的首字母大小写不敏感）。例如 (=See the customization group `whitespace' for details.=​)。
+
+最后，要创建指向 URL 的超链接，请在 URL 前面加上 =URL=​。例如：
+
+#+begin_src text
+  The GNU project website has more information (see URL
+  `https://www.gnu.org/').
+#+end_src
+
+*VII.引用按键绑定*
+
+不要在 docstring 中直接写按键序列。相反，使用 =\\[...]= 构造来代表它们。例如，不要写 =C-f=​，而应写 =\\[forward-char]=​。当 Emacs 显示 docstring 时，它会替换为当前绑定到 =forward-char= 的按键。（这通常是 =C-f=​，但如果用户改动了按键绑定，它可能是其他字符。）
+
+在 major-mode 的 docstring 中，你可能需要引用该模式的局部键映射的按键绑定，而不是全局的。因此，在 docstring 中使用一次 =\\<...>= 构造来指定要使用的键映射。在第一次使用 =\\[...]= 之前这样做，并且不要在句子中间（因为如果键映射未加载，对该键映射的引用将被替换为一个句子，说明该键映射当前未定义）。​=\\<...>= 内的文本应该是包含主模式局部键映射的变量名称。
+
+每次使用 =\\[...]= 都会带来微小的显示性能开销，如果一篇文档中大量使用，累加的延迟可能会变得明显。因此建议不要过度使用它。在同一 docstring 中应尽量避免对同一个命令进行多次引用。
+
+*VIII.针对特定类型符号的规范*
+
+对于一个布尔（是或否）判断函数的 docstring，应该以 =Return t if= 之类的词语开头，以明确指出什么构成真值。使用 =return= 可以避免以小写字母 =t= 开头，小写的 =t= 可能会有点令人分心。
+
+当一个命令只在特定模式或情况下有意义时，请在 docstring 中说明。例如，​=dired-find-file= 的文档是：
+
+#+begin_src text
+  In Dired, visit the file or directory named on this line.
+#+end_src
+
+当你定义一个用户可能想要设置的选项变量时，使用 =defcustom=​。参见 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Defining-Variables.html][Defining Global Variables]]。
+
+对于一个布尔标志变量的 docstring，应该以 =Non-nil means= 之类的词语开头，以明确所有非空值都是等效的，并明确指出空和非空的含义。
+
+Elisp Manual 中的附录 D.6 条目实在是太没有条理了，也许我应该考虑写个 patch 改进一下。
+
+*** Python
+
+#+attr__: [note]
+[[https://peps.python.org/pep-0257/][PEP 257]] 提出了一种文档字符串约定，下面是对它的简单介绍（照搬）。
+
+docstring 是一个字符串字面量，它作为模块、函数、类或方法定义中的第一条语句出现。这样的字符串会自动成为该对象的特殊属性 =__doc__=​，作为其文档。为了保持代码的可读性和可维护性，良好的实践建议是：所有模块都应该有 docstring，所有公共函数和类都应该有，公开方法（包括 =__init__= 构造器）也是。
+
+此外，整个包的文档可以通过其包目录下的 =__init__.py= 模块中的 docstring 来编写。为了一致性，docstring 应该总是使用 ="""triple double quotes"""= 或 =r"""raw triple double quotes"""=​。
+
+Python 的 docstring 分为两种，即单行和多行 docstring：
+
+*单行*
+
+#+begin_src python
+  def kos_root():
+      """Return the pathname of the KOS root directory."""
+      global _kos_root
+      if _kos_root: return _kos_root
+      ...
+#+end_src
+
+文档对单行 docstring 给出了如下注解：
+
+- 即使字符串只有一行，也应该使用三引号。这样做的好处是，将来需要扩展文档内容时，可以非常方便地直接在三引号内部添加多行文本，而无需修改引号类型。
+- 单行 docstring 的开头和结尾引号应该在同一行。这让单行文档看起来更简洁更美观。
+- 在 docstring 之前和之后都不应该有空行。它应该紧跟在函数或方法的定义行后面。
+- docstring 应该是一个以句号结尾的短语。它应该以命令式语气来描述函数或方法的作用，就像在下达一个指令一样。例如，写成「Do this」，「Return that」，而不是描述式的，例如，不要写成「Returns the pathname ...」。
+- 不应该在单行 docstring 中重复函数的签名（即参数列表），因为这些信息可以通过内省获得。例如，不要写
+  #+begin_src python
+    def function(a, b):
+        """function(a, b) -> list"""
+  #+end_src
+  这种类型的 docstring 只适用于 C 语言实现的函数（比如内置函数），因为它们无法进行内省。然而，返回值的具体性质（the nature of the return value）无法通过内省确定，因此应该在文档中提及。这类 docstring 的首选形式应该是：
+  #+begin_src python
+    def function(a, b):
+        """Do X and return a list."""
+  #+end_src
+
+*多行*
+
+多行 docstring 有像单行 docstring 一样的摘要，其后跟着一个空行，再接着是更详细的描述。摘要行可被自动化索引工具使用；因此它必须能容纳在一行内，并通过一个空行与 docstring 的其余部分分隔开。摘要行可以与起始引号在同一行，也可以在下一行。整个 docstring 的缩进应与第一行的引号保持一致。
+
+建议在所有类 docstring（无论是单行还是多行）之后插入一个空行 —— 一般来说，类的各个方法之间以一个空行分隔，因此 docstring 也需要与第一个方法之间留一个空行。
+- 脚本 docstring ::
+  脚本（独立程序）的 docstring 应该能作为其「用法」信息，在脚本以不正确或缺少参数的方式调用时（或可能带有 =-h= 选项，表示「help」）被打印出来。这类 docstring 应该说明脚本的功能、命令行语法、环境变量和文件。用法信息可以相当详细（多达数屏），并应足以让新用户正确使用该命令，同时也为熟练用户提供所有选项和参数的完整快速参考。
+
+- 模块和包 docstring ::
+  模块的 docstring 通常应列出该模块导出的类、异常和函数（以及任何其他对象），并为每个对象提供一个单行摘要。（这些摘要通常比对象自身 docstring 中的摘要更简略。）包的 docstring（即包的 =__init__.py= 模块的 docstring）还应列出该包导出的模块和子包。
+
+- 函数和方法的 docstring ::
+  函数或方法的 docstring 应该总结其行为，并文档化其参数、返回值、副作用、可能引发的异常以及可以调用的时机限制（如果适用）。可选参数应该被注明。如果关键字参数是接口的一部分，也应进行文档化。
+
+- 类 docstring ::
+  类的 docstring 应该总结其行为，并列出公共方法和实例变量。如果该类旨在被继承，并且为子类提供额外的接口，此接口应单独列出在 docstring 中。类构造器应在其 =__init__= 方法的 docstring 中进行文档化。各个方法应有各自的 docstring 来进行文档化。
+
+  如果一个类继承了另一个类，并且其行为主要从父类继承而来，其 docstring 应该提及这一点并总结差异。使用动词「覆盖」（override）来表示子类方法替换了父类方法并且不调用父类方法；使用动词「扩展」（extend）来表示子类方法在自身行为之外，还会调用父类方法。
+
+*请勿*​使用 Emacs 约定，即在正文中使用大写字母来提及函数或方法的参数。Python 是区分大小写的，参数名可用于关键字参数，因此 docstring 应该文档化正确的参数名。最好是将每个参数单独列在一行上。例如：
+
+#+begin_src python
+  def complex(real=0.0, imag=0.0):
+      """Form a complex number.
+
+      Keyword arguments:
+      real -- the real part (default 0.0)
+      imag -- the imaginary part (default 0.0)
+      """
+      if imag == 0.0 and real == 0.0:
+          return complex_zero
+      ...
+#+end_src
+
+除非整个 docstring 能放在一行内，否则将闭合引号单独放在一行。这样，就可以使用 Emacs 的 =fill-paragraph= 命令了。
+  
+*** Julia
+
+#+begin_quote
+Julia enables package developers and users to document functions, types
+and other objects easily via a built-in documentation system.
+#+end_quote
+
+#+attr__: [note]
+以下内容来自对 Julia 文档 [[https://docs.julialang.org/en/v1/manual/documentation/][Documentation]] 一节的整理。
+
+在 Julia 中，docstring 的基本语法很简单：任何出现在对象（函数、宏、类型或实例）之前的字符串都会被解释为其文档，在 docstring 和被文档化的对象之间不能有空行或注释，下面是一个基本示例：
+
+#+begin_src julia
+  "Tell whether there are too foo items in the array."
+  foo(xs::Array) = ...
+#+end_src
+
+文档会被解析为 Markdown，因此可以使用缩进和代码块来将代码示例与文本区分开。从技术上讲，任何对象都可以与任何其他对象作为元数据关联；Markdown 只是默认选项，我们也可以构建其他字符串宏并将它们传递给 =@doc= 宏。下面是一个更复杂的例子：
+
+#+begin_src julia
+  """
+      bar(x[, y])
+
+  Compute the Bar index between `x` and `y`.
+
+  If `y` is unspecified, compute the Bar index between all pairs of columns of `x`.
+
+  # Examples
+  ```julia-repl
+  julia> bar([1, 2], [1, 2])
+  1
+  ```
+  """
+  function bar(x, y) ...
+#+end_src
+
+以下是编写文档的一些简单惯例：
+
+1. 在文档顶部显示函数的签名，并使用四个空格缩进，使其能被作为 Julia 代码打印。\\
+
+   这可以与 Julia 代码中的签名相同（如 =mean(x::AbstractArray)=​），也可以是简化形式。可选参数应尽可能用其默认值表示（如 ~f(x, y=1)~​），遵循实际的 Julia 语法。
+
+   没有默认值的可选参数应放在方括号中（如 =f(x[, y])= 和 =f(x[, y[, z]])=​）。另一种方法是使用多行：一行不带可选参数，另一行或多行带可选参数。这种方法也可用于记录给定函数的多个相关方法。
+
+   当函数接受许多关键字参数时，签名中只包含一个 =<keyword arguments>= 占位符（即 =f(x; <keyword arguments>)=​），并在 =# Arguments= 部分下给出完整的列表（参见下文第 4 点）。
+
+2. 在简化签名块后，包含一个单行句子来描述函数的作用或对象所代表的意义。如果需要的话，可以在一个空行后的第二段中提供更多细节。\\
+
+   对于函数文档，这个单行句子应该使用祈使句形式（"Do this"，"Return that"），而不是第三人称（不要写 "Returns the length..."）。它应该以句号结束。如果一个函数的意义难以简单概括，将其拆分为可组合的独立部分可能是有益的（但这不应被视为每种情况的绝对要求）。
+
+3. 不要重复自己。\\
+
+   由于函数名已由签名给出，因此文档无需以 "The function `bar`..." 开头，直奔主题即可。同样，如果签名已指定参数类型，在描述中再次提及是多余的。
+
+4. 只在确实必要时提供参数列表。\\
+
+   对于简单的函数，在描述其用途时直接提及参数的作用通常更清晰，参数列表只会重复已经提供的信息。然而，对于有许多参数（特别是关键字参数）的复杂函数来说，提供参数列表是个好主意。在这种情况下，请将其插入到函数的一般描述之后，放在 =# Arguments= 标题下，并使用 =-= 项目符号列出每个参数。列表应提及参数的类型和默认值（如果有的话）：
+
+   #+begin_src julia
+     """
+     ...
+     # Arguments
+     - `n::Integer`: the number of elements to compute.
+     - `dim::Integer=1`: the dimensions along which to perform the computation.
+     ...
+     """
+   #+end_src
+
+5. 提供相关函数的提示。\\
+
+   有时会有功能相关的函数。为了提高可发现性，请在 =See also= 段落中提供一个简短的列表。
+
+   #+begin_src julia
+     See also [`bar!`](@ref), [`baz`](@ref), [`baaz`](@ref).
+   #+end_src
+
+6. 在 =# Examples= 部分中包含任何代码示例。\\
+
+   示例应尽可能以 /doctest/ 形式编写。​/doctest/ 是一个带围栏的代码块（参见[[https://docs.julialang.org/en/v1/stdlib/Markdown/#Code-blocks][Code blocks]]），以 =```jldoctest= 开头，包含任意数量的 =julia>= 提示符，以及模拟 Julia REPL 的输入和预期输出。例如，在以下 docstring 中，定义了一个变量 =a=​，其预期结果（在 Julia REPL 中打印的样子）随后出现：
+
+   #+begin_src julia
+     """
+     Some nice documentation here.
+
+     # Examples
+     ```jldoctest
+     julia> a = [1 2; 3 4]
+     2×2 Array{Int64,2}:
+      1  2
+      3  4
+     ```
+     """
+   #+end_src
+
+   你可以运行 =make -C doc doctest=true= 来运行 Julia 手册和 API 文档中的所有 doctest，这将确保你的示例正常工作。要表示输出结果被截断，你可以在应该停止检查的那一行写入 =[...]=​。这对于隐藏堆栈跟踪（其中包含对 Julia 代码行的非永久性引用）非常有用，例如当 doctest 显示抛出异常时：
+
+   #+begin_src julia
+     ```jldoctest
+     julia> div(1, 0)
+     ERROR: DivideError: integer division error
+     [...]
+   #+end_src
+
+   不可测试的示例应放在以 =```julia= 开头的带围栏代码块内，以便在生成的文档中正确高亮显示。
+
+7. 使用反引号来标识代码和公式。\\
+
+   Julia 标识符和代码片段应始终出现在反引号 =`= 之间，以便高亮显示。LaTeX 语法的公式可以插入在双反引号 =``= 之间。使用 Unicode 字符而不是它们的 LaTeX 转义序列，即使用 =``α = 1``= 而不是 =``\\alpha = 1``=​。
+
+8. 将起始和结束的 ="""= 放在独立的行上。\\
+
+   也就是说，写成：
+
+   #+begin_src julia
+     """
+     ...
+
+     ...
+     """
+     f(x, y) = ...
+   #+end_src
+
+   而不是
+
+   #+begin_src julia
+     """...
+
+     ..."""
+     f(x, y) = ...
+   #+end_src
+
+   这使得 docstring 的开始和结束位置更加清晰。
+
+9. 遵循周围代码使用的行长限制。\\
+
+   docstring 使用与代码相同的工具进行编辑。因此，应适用相同的约定。建议行宽最多为 92 个字符。
+
+10. 在 =# Implementation= 部分提供允许自定义类型实现该函数的信息。\\
+
+    这些实现细节是为开发者而非用户准备的，解释例如哪些函数应该被重写，以及哪些函数会自动使用适当的回退。这些细节最好与函数行为的主要描述分开。
+
+11. 对于长文档字符串，请考虑使用 =# Extended help= 标题来分割文档。
+
+    典型的帮助模式只会显示标题以上的内容；我们可以通过在表达式开头使用 =??= 而不是 =?= 来访问完整帮助（如 =??foo= 之于 =?foo=​）。
+
+在文档的剩余部分还提到了如何动态生成 docstring 以及为不同对象添加 docstring 的例子，这里就不介绍了。
+
+*** Elixir
+
+「[[https://hexdocs.pm/elixir/writing-documentation.html][文档]]」是 Elixir 的一等公民。Elixir (ɪˈlɪk.sɪə^{r}) 和 Julia 一样，使用 Markdown 作为 docstring 的格式。在 Elixir 中，​=@moduledoc= 属性用于为模块添加文档。​=@doc= 用在函数之前，为其提供文档。除了以上属性，​=@typedoc= 也可用于为作为类型规范 (typespecs) 一部分定义的类型附加文档。
+#+begin_src elixir
+  defmodule MyApp.Hello do
+    @moduledoc """
+    This is the Hello module.
+    """
+    @moduledoc since: "1.0.0"
+
+    @doc """
+    Says hello to the given `name`.
+
+    Returns `:ok`.
+
+    ## Examples
+
+        iex> MyApp.Hello.world(:john)
+        :ok
+
+    """
+    @doc since: "1.3.0"
+    def world(name) do
+      IO.puts("hello #{name}")
+    end
+  end
+#+end_src
+
+在编写文档时：
+
+- 保持第一段简洁明了，通常为一行。[[https://github.com/elixir-lang/ex_doc/][ExDoc]] 等工具会使用首行生成摘要。
+
+- 通过完整的模块名引用模块。 Markdown 使用反引号 (=`=) 来引用代码。Elixir 在此基础上实现了当引用模块或函数名时自动生成链接。因此，我们应该始终使用完整的模块名。如果你有一个名为 =MyApp.Hello= 的模块，请始终将其引用为 =`MyApp.Hello`=​，而不要只写 =`Hello`=​。
+
+- 引用函数时，如果是本地函数，使用名称和元数 (arity)， 例如 =`world/1`=​；如果指向外部模块，则使用模块、名称和元数， 例如 =`MyApp.Hello.world/1`=​。
+
+- 引用 =@callback= 时，在其前面加上 =c:=​， 例如 =`c:world/1`=​。
+
+- 引用 =@type= 时，在其前面加上 =t:=​， 例如 =`t:values/0`=​。
+
+- 使用二级 Markdown 标题 =##= 开启新章节。一级标题保留给模块和函数名称使用。
+
+- 将文档放在多子句 (multi-clause) 函数的第一个子句之前。文档针对整个函数及其元数而不是针对每个子句。
+
+- 在文档元数据中使用 =:since= 键，以标记何时向你的 API 添加了新的函数或模块。
+
+我们建议开发者在文档中包含示例，通常放在独立的 =## Examples= 标题下。为了确保示例不会过时，Elixir 的测试框架（ExUnit）提供了一个名为「doctests」的功能，允许开发者测试其文档中的示例。Doctests 的工作原理是从文档中解析出以 =iex>= 开头的代码示例。你可以在 [[https://hexdocs.pm/ex_unit/ExUnit.DocTest.html][ExUnit.DocTest]] 中阅读更多相关内容。
+
+Elixir 将文档和代码注释视为不同的概念。​*文档*​是你与应用程序接口（API）用户之间的一份明确契约，这些用户可能是第三方开发者、同事，甚至是未来的你自己。如果模块和函数是你的 API 的一部分，它们就必须始终有文档。​*代码注释*​则面向阅读代码的开发者。它们可用于标记改进之处、留下笔记（例如，解释为何因某个库的 bug 而不得不使用变通方案），等等。它们与源代码紧密相连：你可以完全重写一个函数并移除所有现有的代码注释，而它的行为和文档都不会有任何改变。
+
+由于私有函数无法从外部访问，如果一个私有函数有 =@doc= 属性，Elixir 会发出警告并丢弃其内容。但是，你可以像对待其他任何代码一样，为私有函数添加代码注释。我们建议开发者在认为会为代码阅读者和维护者增加相关信息时这样做。
+
+总而言之，文档是与你的 API 用户之间的契约，这些用户不一定能访问到源代码；而代码注释则是为那些直接与源代码交互的人准备的。通过区分这两个概念，你可以学习并表达关于你软件的不同保证。
+
+** 使用注释作为文档字符串
+
+[[./2.jpg]]
+
+当然，如果我们把标准放宽一点，由「语言本身支持」到「语言主流工具支持」的话，那么绝大多数主流语言也算是有自己的文档字符串，或者直接叫做「文档注释」。它们是以特殊格式编写的注释，可由一些工具生成文档。
+
+在 C/C++ 中，[[https://doxygen.nl/][doxygen]] 这一工具几乎是代码文档注释的事实标准，它的约定格式被 Visual Studio 以及多数工具支持，比如一众 LSP。下图是 Visual Studio 中 IntelliSense 的文档显式效果：
+
+[[./2.png]]
+
+C# 采用了一种 XML 格式的约定来编写注释文档：[[https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/documentation-comments#d3-recommended-tags][Annex D Documentation comments]]。​=<summary>= 用于提供一个类型或成员的简短摘要；​=<param>= 用来描述方法的参数，通常包含一个 =name= 属性来指定参数名；​=<returns>= 描述方法的返回值；​=<exception>= 描述方法可能抛出的异常；​=<remarks>= 提供比 =<summary>= 更详细的描述，可以包含关于成员更深入的说明，用法示例或实现细节；​=<see>= 用于创建一个对另一个代码元素的引用......
+
+[[./3.png]]
+
+除了这里提到的 C/C++ 和 C# 外，Java，JavaScript，Swift，Rust 和 Zig 等语言都或多或少地支持文档注释，这里就不一一展开了。
+
+* 文档字符串要包含哪些内容
+
+在上一节中我们简单介绍了各语言中 docstring 和文档注释的要求，在这一节让我们做个简短的分析，找到各要求的相同点和不同点，并尝试对这些要求做出合理的解释。就本节的标题来说，C# 的 D.3.1 算是给出了一个答案：
+
+#+caption: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/documentation-comments#d31-general
+#+attr_html: :class data
+| Tag              | Reference | Purpose                                                |
+|------------------+-----------+--------------------------------------------------------|
+| =<c>=            | §D.3.2    | Set text in a code-like font                           |
+| =<code>=         | §D.3.3    | Set one or more lines of source code or program output |
+| =<example>=      | §D.3.4    | Indicate an example                                    |
+| =<exception>=    | §D.3.5    | Identifies the exceptions a method can throw           |
+| =<include>=      | §D.3.6    | Includes XML from an external file                     |
+| =<list>=         | §D.3.7    | Create a list or table                                 |
+| =<para>=         | §D.3.8    | Permit structure to be added to text                   |
+| =<param>=        | §D.3.9    | Describe a parameter for a method or constructor       |
+| =<paramref>=     | §D.3.10   | Identify that a word is a parameter name               |
+| =<permission>=   | §D.3.11   | Document the security accessibility of a member        |
+| =<remarks>=      | §D.3.12   | Describe additional information about a type           |
+| =<returns>=      | §D.3.13   | Describe the return value of a method                  |
+| =<see>=          | §D.3.14   | Specify a link                                         |
+| =<seealso>=      | §D.3.15   | Generate a See Also entry                              |
+| =<summary>=      | §D.3.16   | Describe a type or a member of a type                  |
+| =<typeparam>=    | §D.3.17   | Describe a type parameter for a generic type or method |
+| =<typeparamref>= | §D.3.18   | Identify that a word is a type parameter name          |
+| =<value>=        | §D.3.19   | Describe a property                                    |
+
+首先让我们来聊聊文档字符串的「定位」吧。
+
+** 作为「中介」的文档字符串
+
+关于代码注释的争议一直存在。一方主张通过详细注释帮助理解，另一方则强调通过直观的代码和清晰的命名实现「自文档」(self-documenting)，从而减少注释。然而，无论你支持哪种观点，你都默认了一个显而易见的前提：​*注释是代码实现的补充说明*​。换句话说，代码和注释一起构成了完整的程序，且注释依附于代码而存在。
+
+我们将脑子中的思维以程序语言的形式固化到代码中，然后进一步抽象得到文档字符串。与依附于代码的​*补充性注释*​不同，文档字符串是抽象化的产物，它是一种面向外部的​*调用契约*​。它不关心如何实现 (how)，而只专注于它是什么 (what) 和为什么存在 (why)。
+
+Emacs 对 docstring 的要求也是「​*不要*​通过列举其代码的操作来描述函数的作用；相反，要描述这些操作的角色和函数的契约」。我不知道我之所以要写这样一小节是不是也受到了 Elixir 文档的影响，不过意思表达出来就好。
+
+因此，文档字符串天然地扮演着一种中介的角色。它首先是​*接口与实现*​之间的中介，实现了函数用户与函数可变实现细节的解耦。调用者在阅读文档字符串时无需关心实现，即使内部实现完全重写，只要接口不变，文档字符串依然有效。其次，它也是​*代码与正式文档*​之间的中介。通过解析文档字符串自动生成文档的工具，可以确保文档内容与代码行为同步，大大降低了因手动更新而导致文档过时的风险。
+
+写到这里，我不由得想到了《人月神话》第一章的一小段内容：
+
+#+begin_quote
+有两种途径可以使程序转变成更有用的，但是成本更高的东西，它们表现为图中的边界。
+
+#+attr__: [sidefigure]
+[[./1.png]]
+
+水平边界以下，程序变成编程产品（Programming Product）。这是可以被任何人运行、测试、修复和扩展的程序。它可以运行在多种操作系统平台上，供多套数据使用。要成为通用的编程产品，程序必须按照普遍认可的风格来编写，特别是输入的范围和形式必须扩展，以适用于所有可以合理使用的基本算法。接着，对程序进行彻底测试，确保它的稳定性和可靠性，使其值得信赖。这就意味着必须准备、运行和记录详尽的测试用例库，用来检查输入的边界和范围。此外，要将程序提升为程序产品，还需要有完备的文档，每个人都可以加以使用、修复和扩展。经验数据表明，相同功能的编程产品的成本，至少是已经过测试的程序的三倍。
+
+回到图中，垂直边界的右边，程序变成编程系统（Programming System）中的一个构件单元。它是在功能上能相互协作的程序集合，具有规范的格式，可以进行交互，并可以用来组装和搭建整个系统。要成为系统构件，程序必须按照一定的要求编制，使输入和输出在语法和语义上与精确定义的接口一致。同时程序还要符合预先定义的资源限制——内存空间、输入输出设备、计算机时间。最后，程序必须同其它系统构件单元一道，以任何能想象到的组合进行测试。由于测试用例会随着组合不断增加，所以测试的范围非常广。因为一些意想不到的交互会产生许多不易察觉的 bug，测试工作将会非常耗时，因此相同功能的编程系统构件的成本至少是独立程序的三倍。如果系统有大量的组成单元，成本还会更高。
+
+图 1.1 的右下部分代表编程系统产品（Programming Systems Product）。和以上的所有的情况都不同的是，它的成本高达九倍。然而，只有它才是真正有用的产品，是大多数系统开发的目标。
+
+--- 焦油坑（The Tar Pit）
+#+end_quote
+
+要成为一个“编程产品”，程序必须拥有“完备的文档，每个人都可以加以使用、修复和扩展”，文档字符串直接服务于此目的。文档字符串解释了函数或模块的功能、参数和返回值，使得其他开发者无需阅读全部源代码就能正确地使用它；当出现问题时，文档字符串提供了组件的预期行为和设计契约，帮助维护者理解其应有的功能，从而能更快地定位和修复缺陷；当需要增加新功能时，文档字符串帮助开发者理解现有代码的构建块，使他们能够在此基础上进行可靠的扩展。
+
+要成为“编程系统”的一个构件，程序必须“与精确定义的接口一致”。文档字符串正是定义和沟通这些接口的主要形式之一。它在代码层面就明确了一个函数的契约：需要什么样的输入、会产生什么样的输出，以及其行为是什么。这对于确保系统中多个“能相互协作的程序集合”能够正确交互至关重要。
+
+** 首行/首段/总结
+
+如果将文档字符串（docstring）看作一篇自成一体的微型文章，那么它所描述的实体（函数、类、变量等）便是文章的标题，而文档字符串的第一段就是这篇微文的摘要。这第一段至关重要，它需要简洁明了地揭示此实体的核心用途与契约，让使用者一眼就能掌握其功能，而无需深入阅读后续的详细内容。
+
+在对首行摘要的具体要求上，几种语言的风格指引各有侧重：
+
+- Emacs Lisp：建议使用一到两个完整句子。摘要中应尽可能按照函数调用顺序，以大写形式提及重要参数。
+- Python：建议在单行摘要后紧跟一个空行，之后再展开更详细的描述。
+- Julia：建议使用一个单行句子来描述其作用，如果需要更多细节，则在一个空行后的第二段中提供。
+
+与 Python 和 Julia 强制要求空行的风格不同，Elisp 并未作此硬性规定。它只是提到在某些情况下（例如，显示已禁用命令的帮助时），帮助系统只会展示第一个空行之前的内容。这似乎在暗示，如果功能相对简单，最好用一段完整的文字将其说明清楚。
+
+一个有趣的共同点是，Elisp、Python 和 Julia 的风格指南都强调应使用祈使句（如 "Return the value..."），而非第三人称描述（如 "This function returns..."）。这种风格的背后逻辑在于，实体名称本身已经扮演了主语的角色。祈使句省略了主语，直接陈述实体执行的动作，语言因此更加精炼、直接。它将函数或方法视为一个待执行的“命令”，强调其功能与效果，而非仅仅描述其行为。Elisp 推荐使用主动语态而非被动语态，也正是出于这种追求直接与清晰的哲学。
+
+** 参数与返回值
+
+如果将函数看作一个无法窥探其内部的黑盒子，那么输入（参数）和输出（返回值）就是我们与其交互的唯一接口。换句话说，作为契约的文档字符串可以省略其他细节，但核心部分必须清晰地说明其参数和返回值。
+
+尽管文档字符串的核心是参数和返回值，但不同语言的风格和侧重点却有所不同。Python 的风格指南要求文档字符串应全面总结函数行为，并文档化其参数、返回值、副作用、可能引发的异常及调用限制，但它并没有强制规定具体的格式；Elisp 也未指定具体格式，只要求​*尽量在首行提及所有参数*​，以便快速概览；Julia 则更强调简洁，建议仅在​*必要时*​提供参数列表，对于简单函数，通常直接在描述中提及参数的作用会更加清晰有效。
+
+如果说需要通过列表来列举参数，我们是否需要给出参数的类型信息呢？从上面的 Julia 例子来看是需要的，不过 Emacs 30 引入了 =ftype= 函数类型声明，可以在 =declare= 中指定函数的类型信息，并显示在 =describe-function= 弹出的 buffer 中：
+
+[[./4.png]]
+
+** 样例与测试
+
+如你所见，在本文第一节中，Julia 和 Elixir 的文档都提到了可以在 docstring 中添加 doctest 来同时作为函数的示例和测试。Elisp 没有提到这些内容，我们需要在 docstring 中添加可能的用例吗？最早在 Emacs 28 中引入了 shortdoc 来定义简单的函数用例，也许可以起到其他语言中的 doctest 的效果。
+
+** 引用与链接
+
+在 ELisp 和 Elixir 的文档中，一个独特而强大的特性是对代码实体的引用和链接。以 ELisp 为例，我们通过反引号 =`'= 来引用某个符号。帮助系统会智能地将这些引用转化为可点击的超链接，将你带到该符号所代表的实体文档。这种机制将独立的文档字符串连成一张有机的信息网，让你在阅读一个函数的帮助时，可以无缝地跳转到它所引用的其他函数、变量或宏，从而在不离开帮助界面的情况下，探索整个代码库的内在联系。
+
+这也正是为什么说它是“帮助系统”，而不仅仅是一系列独立的文档。这种内置的、跨文档的导航能力提升了开发者在复杂代码库中的探索和学习效率。
+
+[[./5.png]]
+
+* 编写文档字符串
+
+通过前面的内容，相信你已经理解了文档字符串的核心概念和必备要素。然而，理论和实践之间总有鸿沟。文档字符串的编写，就像编程本身一样，需要通过不断练习才能熟练掌握。
+
+尽管像 Elisp 这样的语言有其文档规范，但实际项目中的文档字符串往往并非完全遵守规则（我怀疑绝大多数人应该都像我一样没看过 docstring 的规范）。考虑到文档字符串的终极目标是帮助他人理解，而约定只是达成这个目标的途径之一。只要文档能清晰地传达信息，其价值就已实现。
+
+为了让读者和我更好地理解和实践，接下来我们将一起探索一些 Emacs 内置模块或流行包中的文档字符串范例，从中学习如何编写既规范又实用的文档。
+
+** Elisp 文档字符串示例
+
+在函数示例的选取上，我选择了长度较短或适中（10~20 行）的函数，一方面太长了不好理解，另一方面函数越长职责不单一的可能性更大。
+
+*=seq-mapn=*
+
+#+begin_src elisp
+  (cl-defgeneric seq-mapn (function sequence &rest sequences)
+    "Return the result of applying FUNCTION to each element of SEQUENCEs.
+  Like `seq-map', but FUNCTION is mapped over all SEQUENCEs.
+  The arity of FUNCTION must match the number of SEQUENCEs, and the
+  mapping stops on the shortest sequence.
+  Return a list of the results.
+
+  \(fn FUNCTION SEQUENCES...)"
+    (let ((result nil)
+          (sequences (seq-map (lambda (s)
+                                (seq-into s 'list))
+                              (cons sequence sequences))))
+      (while (not (memq nil sequences))
+        (push (apply function (seq-map #'car sequences)) result)
+        (setq sequences (seq-map #'cdr sequences)))
+      (nreverse result)))
+#+end_src
+
+我们可以注意到，​=seq-mapn= 的第一句采用祈使句直接说明了函数的功能，在第二句通过与读者可能已经熟悉的函数 =seq-map= 进行比较来帮助理解。随后，文档清晰地说明了 =FUNCTION= 的元数必须与 =SEQUENCE= 的数量匹配，以及映射会停止于最短的序列。对这两个关键行为的描述避免了使用者在调用时产生误解。
+
+可以看到 =seq-map= 在 docstring 中以 =`'= 包围，帮助系统会生成跳转到 =seq-map= 的链接并高亮。在 docstring 的最后还使用 =\(fn FUNCTION SEQUENCES...)= 修改了与实际函数参数不同的调用约定，方便读者理解。
+
+*=which-key-reload-key-sequence=*
+
+#+begin_src elisp
+  (defun which-key-reload-key-sequence (&optional key-seq)
+    "Simulate entering the key sequence KEY-SEQ.
+  KEY-SEQ should be a list of events as produced by
+  `listify-key-sequence'.  If nil, KEY-SEQ defaults to
+  `which-key--current-key-list'.  Any prefix arguments that were
+  used are reapplied to the new key sequence."
+    (let* ((key-seq (or key-seq (which-key--current-key-list)))
+           (next-event (mapcar (lambda (ev) (cons t ev)) key-seq)))
+      (setq prefix-arg current-prefix-arg
+            unread-command-events next-event)))
+#+end_src
+
+文档明确指出了 =KEY-SEQ= 的类型以及它的缺省值；它清晰地说明了函数会重用前缀参数，这是一种副作用，将其记录在文档中可以防止用户误解函数行为。
+
+*=breadcrumb--bisect=*
+
+#+begin_src elisp
+  (cl-defun bc--bisect (a x &key (from 0) (to (length a)) key from-end)
+    "Compute index to insert X in sequence A, keeping it sorted.
+  If X already in A, the resulting index is the leftmost such
+  index, unless FROM-END is t.  KEY is as usual in other CL land."
+    (cl-macrolet ((search (from-end key)
+                    `(cl-loop while (< from to)
+                              for mid = (/ (+ from to) 2)
+                              for p1 = (elt a mid)
+                              for p2 = ,(if key `(funcall key p1) `p1)
+                              if (,(if from-end '< '<=) x p2)
+                              do (setq to mid) else do (setq from (1+ mid))
+                              finally return from)))
+      (if from-end (if key (search t key) (search t nil))
+        (if key (search nil key) (search nil nil)))))
+#+end_src
+
+以上 docstring 明确说明了当 =X= 已经在序列中时，返回的索引是最左侧的，除非 =FROM-END= 参数被设置为 =t=​；对于 =key= 和 =from-end= 这两个可选参数，文档用了最少的文字给出了清晰的解释，特别是将 =key= 的行为与 Common Lisp 的常规用法进行类比。
+
+** 使用 checkdoc 检查文档字符串
+
+由于 docstring 规则​/过于复杂/​，在 Emacs 中早就出现了帮忙检查 docstring 的内置插件，即 =checkdoc=​。命令 =checkdoc= 可以检查当前 buffer 并给出修改意见；开启 =checkdoc-minor-mode= 会在通过 =C-M-x= 对代码求值时检查 docstring；通过在 Elisp buffer 中打开 =flymake-mode= 也可以检查 docstring。
+
+** 用于生成文档字符串的提示词
+
+当然，现在的编程已经进入 LLM 时代了，再一个人傻乎乎地编写函数的 docstring 已经不够高效了。在这一节中让我们尝试编写一个根据代码生成对应 docstring 的提示词。如果想要一步到位的话应该是让 LLM 为我们生成带 docstring 的完整 Elisp 代码，但目前 LLM 生成的 Elisp 代码质量和可用性暂时还没达到我的要求。
+
+在上一节我们提到了不同语言中文档字符串的一些共性，现在主要考虑的是 Elisp 的个性。
+
+*** 什么是好的提示词
+
+从 LLM(Gemini) 的角度来看，一份比较好的提示词至少要具有如下特性：
+
+- 明确的角色与身份 (A Clear Role and Persona)
+  - 是什么: 明确指示我应该扮演什么样的角色。例如，“你是一位资深的软件架构师”、“你是一位专业的市场营销文案写手”或“你是一个帮助初学者的 Emacs Lisp 导师”。
+  - 为什么好: 角色设定为我提供了一个完整的框架，它隐含了回答的语气、风格、知识深度和视角。这比用很多形容词来描述你想要什么要高效得多。
+- 清晰具体的目标 (A Specific and Unambiguous Goal)
+  - 是什么: 准确说明你希望我完成的任务是什么，避免使用模糊的词语。
+  - 为什么好: 我无法猜测你的真实意图。模糊的指令（如“帮我写点关于 Elisp 的东西”）会让我只能给出一个宽泛、普适的回答。而具体的指令（如“请为以下 Elisp 函数编写一段符合 GNU 规范的 docstring，并解释其中的特殊标记用法”）则能让我精确地执行任务。
+- 完整的上下文 (Sufficient Context)
+  - 是什么: 提供所有与任务相关的背景信息。如果任务是总结文章，就要提供文章；如果是基于特定风格写作，就要提供风格说明（就像我们之前做的那样）。
+  - 为什么好: 我的知识是海量的，但不是通灵的。我不知道你正在看的文档或你脑中的具体想法。你提供的上下文是我完成任务的唯一“事实依据”。
+- 结构化的格式 (Structured Formatting)
+  - 是什么: 使用标题、列表（有序或无序）、分隔符等方式来组织你的指令，而不是将所有要求都写在一个大段落里。
+  - 为什么好: 结构化的格式就像一份蓝图。它帮助我理解不同指令之间的层级关系和优先级。例如，我可以清楚地知道哪些是核心要求，哪些是补充说明，哪些是示例。我们之前将 Elisp 文档规范拆分为多个模块，就是一个典型的例子。
+- 提供范例 (Providing Examples / Few-Shot Prompting)
+  - 是什么: 如果你对输出的格式或风格有非常具体的要求，给我一两个范例是最好的方式。
+  - 为什么好: “展示”远胜于“描述”。一个好的例子能让我瞬间理解你想要的模式，并进行模仿和推广，这比用语言描述同样的规则要准确得多，也能有效减少后续修改的次数。
+- 明确的约束条件 (Clear Constraints)
+  - 是什么: 定义任务的边界。例如，“请将回答限制在 300 字以内”、“输出必须是纯文本格式”、“在回答中不要使用比喻”。
+  - 为什么好: 约束条件为我设定了“护栏”，确保我的输出能精准地落在你期望的范围内，避免产生不符合要求的多余内容。
+
+*** 具体的提示词
+
+在第一节中我已经初步整理了 Elisp 的 docstring 约定和规范，接下来把它们喂给 LLM 就好了，使用上一小节的提示词即可（草，这是什么用于生成提示词的提示词）。LLM 简直天生就是干压缩文本的料。
+
+*人设*
+
+既然都写 Elisp 了，那 LLM 最好扮演一位高级 Emacs Lisp 开发者，而且要精通 Emacs Lisp 文档编写规范。
+
+#+begin_src text
+  ====================================
+  角色 (ROLE)
+  ====================================
+
+  你是一位经验丰富的 Emacs Lisp 专家，拥有数十年的编程经验并且完全精通
+  《GNU Emacs Lisp Reference Manual》附录 D.6 中详述的所有文档编写规范。
+
+  ====================================
+  核心任务 (CORE TASK)
+  ====================================
+
+  你的任务是根据我提供的 Emacs Lisp 函数代码，为其编写一个符合 GNU 规范的、
+  高质量的英文文档字符串 (docstring)。
+
+  ====================================
+  关键指令与约束 (KEY DIRECTIVES & CONSTRAINTS)
+  ====================================
+
+  - 输出格式: 你的回答 [必须] 只包含完整的文档字符串本身，并用双引号 "" 包
+    裹。[禁止] 包含任何额外的解释、问候或评论。[禁止] 使用 Markdown。
+  - 输出语言: 文档字符串 [必须] 使用清晰、专业的 [英文] 纯文本编写
+  - 信息源: 你 [必须] 仔细分析我提供的代码（包括函数名、参数、函数体）以及
+    任何已经存在的、不完整的 docstring，从中尽可能地推断出函数的确切用途、
+    行为和设计契约。
+  - 规范遵循: 你 [必须] 严格遵循下面给出的文档编写规范。
+
+  ====================================
+  工作流程与交互模式 (WORKFLOW & INTERACTION MODEL)
+  ====================================
+
+  - 首次响应: 你的第一个回答应该是你基于现有信息能给出的最佳、最完整的文档字符串版本。
+  - 迭代改进: 在我提供反馈或要求修改后，你应该在后续的交流中对文档字符串进
+    行逐步的优化和完善。
+
+  ====================================
+  知识库：必须遵循的规范模块 (KNOWLEDGE BASE: REQUIRED MODULES)
+  ====================================
+
+  你必须严格应用以下所有模块中定义的规则：
+  1. 内容结构与核心要求
+  2. 格式与布局 (包括句子间使用两个空格的规则)
+  3. 写作风格与措辞
+  4. 引用变量与符号
+  5. 连接到 lisp 符号
+  6. 链接到外部资源
+  7. 引用按键绑定
+  8. 针对特定类型符号的规范
+
+#+end_src
+
+*内容结构与核心要求*
+
+#+begin_src text
+    ====================================
+    I. 内容结构与核心要求
+    ====================================
+
+    1. 首行规则：独立的摘要句
+       - [必须] 是 1-2 个完整的、可独立存在的句子，作为功能的精炼总结。
+       - [必须] 以大写字母开头，并以句号结尾。
+       - [必须] 在首行提及函数的重要参数（特别是必选参数），并严格按照它们在函数调用中出现的顺序列出。
+         - 如果参数过多，则只提及最重要的前几个。
+
+    2. 核心视角：回答关键问题
+       - 对于函数，首行摘要的核心任务是回答：“这个函数做什么？”。
+       - 对于变量，首行摘要的核心任务是回答：“这个值意味着什么？”。
+       - 描述 [必须] 着眼于用户和调用者的角度，说明其“角色和契约”。
+       - [禁止] 简单罗列代码的内部实现细节。
+
+    3. 主体内容：详尽解释
+       - 在首行摘要之后，[应该] 使用尽可能多的篇幅和完整的句子来详细解释用法和细节。
+
+    4. 首段策略：为禁用命令优化
+       - Emacs 会将第一个空行之前的所有内容视为“第一段”。 当命令被禁用时，用户只会看到这一段内容。
+       - 因此，[应该] 策略性地将最关键的用户提示信息放在第一段，以确保在任何情况下都能提供有用的信息。
+#+end_src
+
+*格式与布局*
+
+#+begin_src text
+  ====================================
+  II. 格式与布局
+  ====================================
+
+  1. 空白与缩进 (硬性规定)
+     - [禁止] 在文档字符串的开头或结尾使用任何空白字符。
+     - [禁止] 为了在源代码中对齐而缩进文档字符串的后续行。
+       - 说明：只有字符串双引号内的内容是有效的，源代码中的外部缩进会被忽略。
+
+  2. 行宽限制 (推荐标准)
+     - 首行 (摘要): [必须] 控制在 74 个字符以内，以确保在 apropos 命令中显示正常。
+     - 主体行: [建议] 控制在 60 个字符以内，以适应标准 80 列宽度的屏幕，保证最佳可读性。
+
+  3. 段落与换行
+     - 段落分隔: 对于较长的文档，[应该] 使用空行来分隔不同的逻辑部分。
+     - 换行策略: 虽然可以使用自动填充功能，但 [优先考虑] 手动调整换行，因为精心安排的换行能显著提升可读性。
+
+  4. 兼容性：行首的括号
+     - 为了兼容 Emacs 27.1 之前的版本，如果一行以 ( 开头，[应该] 在其前添加一个反斜杠 \。
+     - 示例：
+         The argument FOO can be either a number
+         \(a buffer position) or a string (a file name).
+     - 说明：如果项目不要求支持旧版 Emacs，则可以忽略此条规则。
+
+  5. 句子间距 (Sentence Spacing)
+     - 规则: 遵循 GNU 惯例，在一个句子的结尾处，[必须] 使用两个空格来与下一个句子分隔。
+       - 句子的结尾通常是在句号 (.)、问号 (?) 或感叹号 (!) 之后
+     - 示例: Return the frobnicator.  This function is idempotent.
+#+end_src
+
+*写作风格与措辞*
+
+#+begin_src text
+  ====================================
+  III. 写作风格与措辞
+  ====================================
+
+  1. 语法规范 (Grammar Rules)
+     - 语气 (Mood):
+       - 首句: 函数文档的首句动词 [必须] 使用祈使语气。 (例如，使用 "Return..." 而不是 "Returns...")
+       - 首段: 第一段的其余部分 [建议] 同样使用祈使语气。
+       - 后续段落: [应该] 使用包含明确主语的陈述句。
+     - 语态 (Voice): [必须] 使用主动语态，[禁止] 使用被动语态。
+     - 时态 (Tense): [必须] 使用现在时，[禁止] 使用将来时。
+       - 错误示例: "A list containing A and B will be returned."
+       - 正确示例: "Return a list containing A and B."
+
+  2. 措辞选择 (Word Choice)
+     - 力求直接: [避免] 使用 "cause" (导致) 等不必要的词语。应直接描述行为。
+       - 错误示例: "Cause Emacs to display text in boldface."
+       - 正确示例: "Display text in boldface."
+     - 力求通用: [避免] 使用 "iff" (当且仅当) 这类不常见的专业术语。通常，简单的 "if" 已经足够清晰。
+     - 力求完整: [避免] 使用 "e.g.", "i.e.", "w.r.t." 等拉丁缩写。[应该] 写出它们的完整形式。
+#+end_src
+
+*引用变量与符号*
+
+#+begin_src text
+  ====================================
+  IV. 引用变量与符号
+  ====================================
+
+  1. 引用格式与约定 (Formatting Conventions)
+     - 参数值: 当引用函数参数的值时，[必须] 使用全大写形式。
+     - 占位符: 当引用列表或向量中的可变占位符时，也 [必须] 使用全大写形式。
+       - 示例: The argument TABLE should be an alist... (KEY . VALUE)
+     - Lisp 符号: 引用 Lisp 符号时，[必须] 使用反引号和撇号包裹，格式为 `foo', `bar'。
+       - 例外: t 和 nil 无需任何包裹。
+
+  2. 核心禁令 (Hard Rules)
+     - [禁止] 改变大小写: 绝对禁止改变 Lisp 符号的原始大小写。
+       - `foo' 是正确的，而 `Foo' 是错误的，因为它们是不同的符号。
+       - 如果小写符号位于句首不便，[应该] 重写句子，而不是改变符号的大小写。
+     - [禁止] 滥用引用: 禁止对非 Lisp 符号的表达式（例如，一个列表的结构）使用反引号和撇号。
+       - 示例: 应写 (NAME TYPE RANGE)，而不是 `(NAME TYPE RANGE)' 或 \\='(NAME TYPE RANGE)。
+
+  3. 字面量符号 (Literal Characters)
+     - 当需要在文档中显示一个字面量的撇号 (') 或反引号 (`), [必须] 分别使用 (\\=') 和 (\\=`) 进行转义。
+#+end_src
+
+*链接到 Lisp 符号*
+
+#+begin_src text
+  ====================================
+  V. 链接到 lisp 符号
+  ====================================
+
+  核心语法: 所有链接的目标名称都 [必须] 被包裹：前面是反引号 (`), 后面是撇号 (')。
+
+  1. 自动链接
+     - 默认情况下，使用 `foo' 格式引用的符号，如果其有函数或变量定义，会自动创建超链接。
+
+  2. 精确链接 (消除歧义)
+     - 当一个符号有多种定义时（例如，既是函数又是变量），可以在其前面添加关键字来指定链接目标。
+     - 关键字: variable, option, function, command。(大小写不敏感)
+     - 示例: This function sets the variable `buffer-file-name'.
+
+  3. 阻止链接
+     - 如果不希望为某个符号创建链接，可以在其前面添加 symbol 或 program 关键字。
+
+  4. 特殊情况
+     - 强制链接: 为没有文档的变量强制创建链接，可在其前使用 variable 或 option。
+     - Face 链接: 为 Face 创建链接，[必须] 在其名称前面或后面加上 face 关键字。
+#+end_src
+
+*链接到外部资源*
+
+#+begin_src text
+  ====================================
+  VI. 链接到外部资源
+  ====================================
+
+  核心语法: 为不同类型的外部资源创建链接时，目标名称都 [必须] 被包裹：前面是反引号 (`), 后面是撇号 (')。
+
+  1. Info 节点
+     - 关键字: info node, Info node, info anchor, Info anchor。
+     - Info 文件名默认为 emacs。
+     - 示例: See Info node `Font Lock'.
+
+  2. Man Pages
+     - 关键字: Man page, man page, man page for。
+     - 示例: See the man page `chmod(1)' for details.。
+     - [注意]: Info 文档通常是首选，应优先链接到 Info 手册，而不是 man page。
+
+  3. 定制组 (Customization Groups)
+     - 关键字: customization group (首字母大小写不敏感)。
+     - 示例: See the customization group `whitespace' for details.。
+
+  4. URL
+     - 关键字: URL。
+     - 示例: The GNU project website has more information (see URL `https://www.gnu.org/').
+#+end_src
+
+*引用按键绑定*
+
+#+begin_src text
+  ====================================
+  VII. 引用按键绑定
+  ====================================
+
+  核心指令: 在文档中引用按键绑定时，[禁止] 硬编码具体的按键组合。 [必须] 使用以下动态构造来代替。
+
+  1. 通用按键绑定
+     - 格式: \\[command-name]
+     - 规则: 使用此格式引用一个命令 (command)。 Emacs 在显示时会自动将其替换为该命令当前绑定的按键。
+     - 错误示例: C-f
+     - 正确示例: \\[forward-char]
+
+  2. 主模式 (Major Mode) 的局部按键绑定
+     - 格式: \\<keymap-variable-name>
+     - 规则: [必须] 在首次使用 \\[...] 之前，先使用 \\<...> 构造一次，以声明主模式使用的局部按键映射。
+     - 放置位置: [应该] 将此构造放在文档中一个独立的位置（例如，段首），[禁止] 将其插入句子中间。
+
+  3. 性能建议
+     - 规则: [应该] 避免在单篇文档中过度使用 \\[...] 构造，因为它会轻微影响文档字符串的显示速度。
+     - 建议: 对于同一个命令，尽量在同一篇文档中只引用一次其按键绑定。
+#+end_src
+
+*针对特定类型符号的规范*
+
+#+begin_src text
+  ====================================
+  VIII. 针对特定类型符号的规范
+  ====================================
+
+  核心指令: 为以下特定类型的函数和变量编写文档时，[必须] 遵循对应的格式规范。
+
+  1. 谓词函数 (Predicate Functions)
+     - 功能: 返回真 (t) 或假 (nil) 的函数。
+     - 开头短语: [必须] 以 Return t if... 开头。
+     - 目的: 明确指出函数返回真值的条件。
+
+  2. 布尔标志变量 (Boolean Flag Variables)
+     - 功能: 值为 nil (假) 或 non-nil (真) 的变量。
+     - 开头短语: [必须] 以 Non-nil means... 开头。
+     - 目的: 明确指出 nil 和 non-nil 分别代表什么含义，并点明所有 non-nil 值是等效的。
+
+  3. 特定上下文的命令 (Context-Specific Commands)
+     - 功能: 只在特定模式或情况下才有意义的命令。
+     - 规则: [必须] 在文档字符串中明确说明其生效的上下文。
+     - 示例 (dired-find-file): In Dired, visit the file or directory named on this line.
+
+  4. 用户可定制选项 (User Options)
+     - 功能: 作为选项供用户设置的变量。
+     - 规则: [应该] 使用 defcustom 来定义。
+#+end_src
+
+将所有这些规则综合起来，经过一些测试和调整，我得到了如下最终结果（这里有一份独立的 [[file:docstring.txt]]）：
+
+:elisp-docstring-llm-prompt:
+#+begin_src text
+  你是一位经验丰富的 Emacs Lisp 专家，拥有数十年的编程经验并且完全精通《GNU Emacs Lisp Reference Manual》附录 D.6 中详述的所有文档编写规范。
+
+  ====================================
+  核心任务 (CORE TASK)
+  ====================================
+
+  你的任务是根据我提供的 Emacs Lisp 代码，为其编写一个符合 GNU 规范的、高质量的英文文档字符串 (docstring)。
+
+  ====================================
+  关键指令与约束 (KEY DIRECTIVES & CONSTRAINTS)
+  ====================================
+
+  - 输出格式: 你的回答 [必须] 只包含完整的文档字符串本身，并用双引号 ("") 包裹。
+    - [禁止] 包含任何额外的解释、问候或评论。
+    - 注意文档字符串的 [转义] 问题，例如，在文档字符串中使用 (\\") 来代替 (")
+  - 输出语言: 文档字符串 [必须] 使用清晰、专业的 [英文] 纯文本编写。
+  - 信息源: 你 [必须] 仔细分析我提供的代码，从中尽可能地推断出函数的确切用途、行为和设计契约。
+    - 这包括函数名、参数、函数体和注释，以及任何已经存在的、不完整的 docstring
+  - 规范遵循: 你 [必须] 严格遵循下面给出的文档编写规范。
+
+  ====================================
+  工作流程与交互模式 (WORKFLOW & INTERACTION MODEL)
+  ====================================
+
+  - 首次响应: 你的第一个回答应该是你基于现有信息能给出的最佳、最完整的文档字符串版本。
+  - 迭代改进: 在我提供反馈或要求修改后，你应该在后续的交流中对文档字符串进行逐步的优化和完善。
+
+  ====================================
+  知识库：必须遵循的规范模块 (KNOWLEDGE BASE: REQUIRED MODULES)
+  ====================================
+
+  你必须严格应用以下所有模块中定义的规则：
+  I.    内容结构与核心要求
+  II.   格式与布局
+  III.  写作风格与措辞
+  IV.   引用变量与符号
+  V.    连接到 lisp 符号
+  VI.   链接到外部资源
+  VII.  引用按键绑定
+  VIII. 针对特定类型符号的规范
+
+  ====================================
+  I. 内容结构与核心要求
+  ====================================
+
+  1. 首行规则：独立的摘要句
+     - [必须] 是 1-2 个完整的、可独立存在的句子，作为功能的精炼总结。
+     - [必须] 以大写字母开头，并以句号结尾。
+     - [必须] 在首行提及函数的重要参数（特别是必选参数），并严格按照它们在函数调用中出现的顺序列出。
+       - 如果参数过多，则只提及最重要的前几个。
+
+  2. 核心视角：回答关键问题
+     - 对于函数，首行摘要的核心任务是回答：“这个函数做什么？”。
+     - 对于变量，首行摘要的核心任务是回答：“这个值意味着什么？”。
+     - 描述 [必须] 着眼于用户和调用者的角度，说明其“角色和契约”。
+     - [禁止] 简单罗列代码的内部实现细节。
+
+  3. 主体内容：详尽解释
+     - 在首行摘要之后，[应该] 使用尽可能多的篇幅和完整的句子来详细解释用法和细节。
+
+  4. 首段策略：为禁用命令优化
+     - Emacs 会将第一个空行之前的所有内容视为“第一段”。 当命令被禁用时，用户只会看到这一段内容。
+     - 因此，[应该] 策略性地将最关键的用户提示信息放在第一段，以确保在任何情况下都能提供有用的信息。
+
+  ====================================
+  II. 格式与布局
+  ====================================
+
+  1. 空白与缩进 (硬性规定)
+     - [禁止] 在文档字符串的开头或结尾使用任何空白字符。
+     - [禁止] 为了在源代码中对齐而缩进文档字符串的后续行。
+       - 说明：只有字符串双引号内的内容是有效的，源代码中的外部缩进会被忽略。
+
+  2. 行宽限制 (推荐标准)
+     - 首行 (摘要): [必须] 控制在 74 个字符以内，以确保在 apropos 命令中显示正常。
+     - 主体行: [建议] 控制在 60 个字符以内，以适应标准 80 列宽度的屏幕，保证最佳可读性。
+
+  3. 段落与换行
+     - 段落分隔: 对于较长的文档，[应该] 使用空行来分隔不同的逻辑部分。
+     - 换行策略: 虽然可以使用自动填充功能，但 [优先考虑] 手动调整换行，因为精心安排的换行能显著提升可读性。
+
+  4. 兼容性：行首的括号
+     - 为了兼容 Emacs 27.1 之前的版本，如果一行以 ( 开头，[应该] 在其前添加一个反斜杠 \。
+     - 示例：
+         The argument FOO can be either a number
+         \(a buffer position) or a string (a file name).
+     - 说明：如果项目不要求支持旧版 Emacs，则可以忽略此条规则。
+
+  5. 句子间距 (Sentence Spacing)
+     - 规则: 遵循 GNU 惯例，在一个句子的结尾处，[必须] 使用两个空格来与下一个句子分隔。
+       - 句子的结尾通常是在句号 (.)、问号 (?) 或感叹号 (!) 之后
+     - 示例: Return the frobnicator.  This function is idempotent.
+
+  ====================================
+  III. 写作风格与措辞
+  ====================================
+
+  1. 语法规范 (Grammar Rules)
+     - 语气 (Mood):
+       - 首句: 函数文档的首句动词 [必须] 使用祈使语气。 (例如，使用 "Return..." 而不是 "Returns...")
+       - 首段: 第一段的其余部分 [建议] 同样使用祈使语气。
+       - 后续段落: [应该] 使用包含明确主语的陈述句。
+     - 语态 (Voice): [必须] 使用主动语态，[禁止] 使用被动语态。
+     - 时态 (Tense): [必须] 使用现在时，[禁止] 使用将来时。
+       - 错误示例: "A list containing A and B will be returned."
+       - 正确示例: "Return a list containing A and B."
+
+  2. 措辞选择 (Word Choice)
+     - 力求直接: [避免] 使用 "cause" (导致) 等不必要的词语。应直接描述行为。
+       - 错误示例: "Cause Emacs to display text in boldface."
+       - 正确示例: "Display text in boldface."
+     - 力求通用: [避免] 使用 "iff" (当且仅当) 这类不常见的专业术语。通常，简单的 "if" 已经足够清晰。
+     - 力求完整: [避免] 使用 "e.g.", "i.e.", "w.r.t." 等拉丁缩写。[应该] 写出它们的完整形式。
+
+  ====================================
+  IV. 引用变量与符号
+  ====================================
+
+  1. 引用格式与约定 (Formatting Conventions)
+     - 参数值: 当引用函数参数的值时，[必须] 使用全大写形式。
+     - 占位符: 当引用列表或向量中的可变占位符时，也 [必须] 使用全大写形式。
+       - 示例: The argument TABLE should be an alist... (KEY . VALUE)
+     - Lisp 符号: 引用 Lisp 符号时，[必须] 使用反引号和撇号包裹，格式为 `foo', `bar'。
+       - 例外: t 和 nil 无需任何包裹。
+
+  2. 核心禁令 (Hard Rules)
+     - [禁止] 改变大小写: 绝对禁止改变 Lisp 符号的原始大小写。
+       - `foo' 是正确的，而 `Foo' 是错误的，因为它们是不同的符号。
+       - 如果小写符号位于句首不便，[应该] 重写句子，而不是改变符号的大小写。
+     - [禁止] 滥用引用: 禁止对非 Lisp 符号的表达式（例如，一个列表的结构）使用反引号和撇号。
+       - 示例: 应写 (NAME TYPE RANGE)，而不是 `(NAME TYPE RANGE)' 或 \\='(NAME TYPE RANGE)。
+
+  3. 字面量符号 (Literal Characters)
+     - 当需要在文档中显示一个字面量的撇号 (') 或反引号 (`), [必须] 分别使用 (\\=') 和 (\\=`) 进行转义。
+
+  ====================================
+  V. 链接到 lisp 符号
+  ====================================
+
+  核心语法: 所有链接的目标名称都 [必须] 被包裹：前面是反引号 (`), 后面是撇号 (')。
+
+  1. 自动链接
+     - 默认情况下，使用 `foo' 格式引用的符号，如果其有函数或变量定义，会自动创建超链接。
+
+  2. 精确链接 (消除歧义)
+     - 当一个符号有多种定义时（例如，既是函数又是变量），可以在其前面添加关键字来指定链接目标。
+     - 关键字: variable, option, function, command。(大小写不敏感)
+     - 示例: This function sets the variable `buffer-file-name'.
+
+  3. 阻止链接
+     - 如果不希望为某个符号创建链接，可以在其前面添加 symbol 或 program 关键字。
+
+  4. 特殊情况
+     - 强制链接: 为没有文档的变量强制创建链接，可在其前使用 variable 或 option。
+     - Face 链接: 为 Face 创建链接，[必须] 在其名称前面或后面加上 face 关键字。
+
+  ====================================
+  VI. 链接到外部资源
+  ====================================
+
+  核心语法: 为不同类型的外部资源创建链接时，目标名称都 [必须] 被包裹：前面是反引号 (`), 后面是撇号 (')。
+
+  1. Info 节点
+     - 关键字: info node, Info node, info anchor, Info anchor。
+     - Info 文件名默认为 emacs。
+     - 示例: See Info node `Font Lock'.
+
+  2. Man Pages
+     - 关键字: Man page, man page, man page for。
+     - 示例: See the man page `chmod(1)' for details.。
+     - [注意]: Info 文档通常是首选，应优先链接到 Info 手册，而不是 man page。
+
+  3. 定制组 (Customization Groups)
+     - 关键字: customization group (首字母大小写不敏感)。
+     - 示例: See the customization group `whitespace' for details.。
+
+  4. URL
+     - 关键字: URL。
+     - 示例: The GNU project website has more information (see URL `https://www.gnu.org/').
+
+  ====================================
+  VII. 引用按键绑定
+  ====================================
+
+  核心指令: 在文档中引用按键绑定时，[禁止] 硬编码具体的按键组合。 [必须] 使用以下动态构造来代替。
+
+  1. 通用按键绑定
+     - 格式: \\[command-name]
+     - 规则: 使用此格式引用一个命令 (command)。 Emacs 在显示时会自动将其替换为该命令当前绑定的按键。
+     - 错误示例: C-f
+     - 正确示例: \\[forward-char]
+
+  2. 主模式 (Major Mode) 的局部按键绑定
+     - 格式: \\<keymap-variable-name>
+     - 规则: [必须] 在首次使用 \\[...] 之前，先使用 \\<...> 构造一次，以声明主模式使用的局部按键映射。
+     - 放置位置: [应该] 将此构造放在文档中一个独立的位置（例如，段首），[禁止] 将其插入句子中间。
+
+  3. 性能建议
+     - 规则: [应该] 避免在单篇文档中过度使用 \\[...] 构造，因为它会轻微影响文档字符串的显示速度。
+     - 建议: 对于同一个命令，尽量在同一篇文档中只引用一次其按键绑定。
+
+  ====================================
+  VIII. 针对特定类型符号的规范
+  ====================================
+
+  核心指令: 为以下特定类型的函数和变量编写文档时，[必须] 遵循对应的格式规范。
+
+  1. 谓词函数 (Predicate Functions)
+     - 功能: 返回真 (t) 或假 (nil) 的函数。
+     - 开头短语: [必须] 以 Return t if... 开头。
+     - 目的: 明确指出函数返回真值的条件。
+
+  2. 布尔标志变量 (Boolean Flag Variables)
+     - 功能: 值为 nil (假) 或 non-nil (真) 的变量。
+     - 开头短语: [必须] 以 Non-nil means... 开头。
+     - 目的: 明确指出 nil 和 non-nil 分别代表什么含义，并点明所有 non-nil 值是等效的。
+
+  3. 特定上下文的命令 (Context-Specific Commands)
+     - 功能: 只在特定模式或情况下才有意义的命令。
+     - 规则: [必须] 在文档字符串中明确说明其生效的上下文。
+     - 示例 (dired-find-file): In Dired, visit the file or directory named on this line.
+
+  4. 用户可定制选项 (User Options)
+     - 功能: 作为选项供用户设置的变量。
+     - 规则: [应该] 使用 defcustom 来定义。
+#+end_src
+:end:
+
+这份提示词一共有大约 6,000 个字符，我试了几个简单的函数，效果还不错。
+
+*** LLM 对我的提示词的评价
+
+既然是 Gemini 输出的，那首先来看看它的评价吧：
+
+问：你觉得这段提示词怎么样？请尽量简单地给出一个总的评价
+
+Gemini Flash 2.5：它结构清晰、指令明确、内容全面、约束严格，几乎可以作为一份优秀的 Emacs Lisp 文档编写指南。它不仅详细列举了所有核心规范，还提供了具体的示例和解释，极大地降低了任务的理解和执行难度。
+
+Gemini Pro 2.5: 这是一个非常出色和专业的提示词。总的来说，它的清晰度、完整性和结构化都达到了非常高的水准，几乎可以作为编写高质量、领域专用提示词的典范。简单说，这个提示词不是在“请求”AI 做一件事，而是在为 AI 提供一份详尽的、几乎不会产生歧义的“工作指令说明书”。
+
+- 角色和任务极其明确：AI 的身份、目标和产出格式被严格限定，杜绝了不相关的回答。
+- 知识库非常完备：你不是简单地要求 AI “遵循规范”，而是将整个规范（从宏观结构到微观的标点符号）直接嵌入了提示词中，这极大地提高了结果的可靠性。
+- 结构化程度极高：使用模块化、分点的方式组织内容，逻辑清晰，便于 AI 精确理解和执行每一条指令。
+
+Deepseek V3.1: 优秀。这段提示词结构清晰、要求明确，涵盖了角色、任务、约束和详细的规范，能非常有效地指导AI生成高质量的Emacs Lisp文档字符串。
+
+Deepseek V3.1(深度思考):
+
+#+begin_quote
+好的，用户之前已经让我评价过同样的提示词，现在又发了一遍，可能是在测试我的一致性，或者想确认之前的评价是否可靠。首先我得确认用户的需求有没有变化，但看起来问题完全一样。
+
+用户可能是开发者或者技术文档编写者，专注于Emacs Lisp开发，需要确保生成的文档字符串符合严格的标准。深层需求可能不只是得到评价，而是想确认这个提示词是否真的能高效指导AI，避免后续反复修改。
+
+之前的回复已经给出“优秀”的评价，但用户再次提交，也许担心遗漏了什么细节。需要检查提示词的结构是否覆盖所有关键点，比如角色设定、任务明确性、约束条件、规范细节等。
+
+要注意用户可能隐藏的需求，比如是否适用于复杂函数，或者是否容易迭代改进。提示词里的工作流程部分强调了迭代，这对实际使用很重要，用户可能关心AI能否持续优化输出。
+
+最后得保持回答简洁，避免重复之前的内容，但确认提示词的全面性和有效性，让用户放心使用。
+
+这段提示词非常出色。它结构严谨、要求明确、细节详尽，完美地定义了一个高度专业和可执行的AI角色，能极其有效地生成符合严格标准的文档。
+#+end_quote
+
+看来确实还不错（笑）。这段提示词还可以继续改进，我原本也打算再添加几个具体的用例，不过考虑到要对比使用/不使用提示词以及测试不同的 LLM 工作量太大了，作罢。
+
+* 后记
+
+从质量上来说，我最好在使用通过写这篇博客过程中学到的知识“重构” ox-w3ctr 中所有的 docstring 后回来改进这篇博客，但那也不知道是何年何月的事情了。
+
+在仔细了解 Elisp 如何编写 docstring 之前，我还不知道居然有这么多的规则和约定，利用这些规则肯定有助于我们编写出清晰的 docstring。不过话又说回来，我们也不是先学完走路的方法才会走路的，文档字符串最后还是要回到文档上来，文档字符串一定要有文档，规则倒是其次。
+
+本文的大部分内容都是 LLM 生成的，不过我也出力不少就是了（笑）。如果说 LLM 给我雕了个人形出来，那我的工作大概是打磨掉多余的棱角和加上细节，某种意义上来说这部分的工作量一点也不小。
+
+
+感谢阅读。
+
+# | [[https://www.pixiv.net/artworks/76004937][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/79011447][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/77029927][file:dev/p3.jpg]] |
+
+# [[https://www.pixiv.net/artworks/85466331][file:dev/p4.jpg]]
