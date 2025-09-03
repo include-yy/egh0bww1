@@ -37,7 +37,7 @@
   - [ ] 完成 ='alpha-background= 相关补丁，提交到 Emacs 主线并总结过程
 
 - 参考 Org-mode 的 ox-html.el，完成对 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 的重构，即代码整理以及编写对应文档。在开始 special-block 的重构之前，应首先完成如下两部分的学习和博客记录：
-  - [ ] 学习如何编写良好且可维护的 docstring，即文档字符串
+  - [X] 学习如何编写良好且可维护的 docstring，即文档字符串
   - [ ] 学习如何使用 ERT 编写良好且可维护的单元测试，或称回归测试
 
 - 完成「Emacs 的 treesit」的第二，第三部分：
