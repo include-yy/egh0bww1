@@ -275,14 +275,14 @@
   - [[https://blog.hentioe.dev/posts/windows-chrome-128-noto-cjk-fonts.html][恭喜 Chrome 128 在 Windows 上默认使用 Noto 系列的 CJK 字体]]
 - [[https://blog.mecheye.net/][Clean Rinse --- Shampoo for your System]]
   - [[https://blog.mecheye.net/2019/05/why-is-2d-graphics-is-harder-than-3d-graphics/][Why are 2D vector graphics so much harder than 3D?]]
+- [[https://appetrosyan.github.io/][Aleksandr Petrosyan]]
+  - [[https://appetrosyan.github.io/posts/layoff/][Post-Eclipse Layoff: an Update and Plan]]
 
 * ABOUT
 
 本博客以 emacs 相关内容为主，也有一些我比较感兴趣的东西。博文皆以 [[https://creativecommons.org/licenses/by-sa/4.0/][CC BY-SA 4.0]]  发布。如果你发现了文中的问题，可以通过 [[https://github.com/include-yy/notes/issues][issue]] 告诉我，或是 yy@egh0bww1.com。
 
 你可以添加 [[file:rss.xml][RSS]] 以订阅此博客，链接为：https://egh0bww1.com/rss.xml 。如果你也有 emacs 相关的博客，或者是非常有趣的东西，我很高兴把你的链接放在 FOLKS 里。
-
-*如果您发现某些内容侵犯了著作权，请通过邮件告诉我，我会及时删除。*
 
 This blog primarily focuses on emacs-related content, with some other topics
 that I find interesting. All blog posts are published under CC-BY-SA 4.0. If you
@@ -293,7 +293,4 @@ You can add the RSS feed to subscribe to this blog. The link is
 https://egh0bww1.com/rss.xml. If you also have an emacs-related blog or
 something interesting, I would be happy to include your link in the FOLKS page.
 
-*If you find any content that infringes upon copyright, please inform me via
-email, and I will promptly remove it.*
-
-*include-yy [2024-04-21 Sun 21:04]*
+*include-yy [2025-09-09 Tue 03:03]*
