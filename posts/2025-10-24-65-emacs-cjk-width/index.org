@@ -126,6 +126,16 @@ https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00363.html
 
 [[./9.png]]
 
+对于引号这类模糊宽度的字符，WT 的选择是全部当作半宽字符：[[https://github.com/microsoft/terminal/issues/14702][East Asian Ambiguous Width are broken]]。开发者的解释如下（中文翻译）：
+
+#+begin_quote
+我们有意地将所有模糊宽度字形视为窄宽度。其原因在 [[https://github.com/microsoft/terminal/issues/2066][#2066]] 中有详细解释，但归结为以下几点：TUI 应用程序不知道终端使用的是什么字体，因此无法确定任何此类字形到底是 1 个还是 2 个单元格宽。为了让 TUI 应用程序能够在屏幕上准确地定位字形，其他终端模拟器已选择将所有模糊宽度字形都视为窄宽度，我们也遵循了这一做法。
+
+[[https://github.com/microsoft/terminal/issues/153][#153]] 中包含了一个允许用户覆盖我们这个默认选择的请求。添加一个简单的覆盖选项，将所有此类字形视为宽宽度而非窄宽度，是相对容易实现的，这也是我刚刚将其添加到近期待办事项的原因。但添加一个轮询用户字体来决定宽度的覆盖选项，由于我们目前的架构，实现起来有点困难，因为 =WindowsTerminal.exe= 和 =OpenConsole.exe=​（一个子进程，在基本层面上实现了 TTY 功能）都需要知道用户的字体选择，才能使终端和 "TTY" (OpenConsole) 在屏幕上所有字形的位置上达成一致。
+
+我打算将这个问题作为 #153 的重复问题关闭。您同意这样做吗？
+#+end_quote
+
 ** 匹配环境字符宽度
 
 接着 Eli 上一封邮件的是另一个建议：
