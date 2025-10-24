@@ -1,0 +1,389 @@
+#+TITLE: 在 Windows Terminal 的 Emacs 中规避中文环境下可能出现的全角符号导致的字符伪影问题
+#+DATE: [2025-10-10 Fri 08:54]--[2025-10-24 Fri 22:29]
+#+FILETAGS: emacs
+#+DESCRIPTION: 本文介绍了在 Windows Terminal 中启动的终端模式 Emacs 可能出现的 CJK 模糊宽度字符导致的伪影问题，并给出了有一定复杂度的配置代码来解决该问题
+
+# [[https://www.pixiv.net/artworks/136262511][file:dev/p0.jpg]]
+
+在 Windows 11 中使用 Windows Terminal（以下简称 WT）测试[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00029.html][终端真彩色]] patch 时，我注意到在 =*Help*= buffer 中可能会出现「幽灵字符」或「伪影」 (artifacts) 现象，这一问题在未使用该 patch 的 Emacs 中同样存在。一种比较简单的复现方法如下：
+
+1. 使用 Emacs V30.2 版本；设置 Windows 系统显示语言为中文
+2. 在 WT 中通过 =emacs.exe -nw= 打开终端界面的 Emacs
+3. 通过 =C-h v cursor-type= 打开 =*Help*= buffer，上下分屏使单个 window 无法完全显示所有内容
+4. 通过 =(setopt scroll-step 1)= 开启平滑滚动
+5. 将光标移动到 =*Help*= buffer 的顶部，通过 =C-n= 下滑至 buffer 底部
+
+「正常情况」下，你可能会观察到下图所示的效果（注意链接处单引号位置多出来的字符，以及 variabl​+he+​）：
+
+[[./1.png]]
+
+如果你尝试在 conhost 而非 WT 中测试，你会发现效果是正常的（可以很明显地看出上图中单引号 (single quotation mark，或者叫 apostrophe) 为英文符号，而下图中为中文符号）：
+
+[[./2.png]]
+
+本文对伪影这一问题出现的原因，以及如何通过 =cjk-ambiguous-char-are-wide= 在 WT 规避伪影进行了简单分析讨论。如果你对此没有兴趣而只想规避这些问题，考虑到在 22H2 后 WT 成为 Windows 11 中的[[https://learn.microsoft.com/en-us/windows/terminal/install#set-your-default-terminal-application][默认终端]]，可以将以下代码添加到 Windows 上的 Emacs 的配置中。我会在本文的末尾给出适应性更强的配置。
+
+#+begin_src elisp
+  (when (and (eq system-type 'windows-nt)
+             (not (display-graphic-p)))
+    (setopt cjk-ambiguous-chars-are-wide nil))
+#+end_src
+
+* #bug79298 相关讨论
+
+[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-09/msg00150.html][#bug79298]] 的讨论从 [2025-09-03] 开始，但我所碰到的问题与 patch 本身的关系不是很大。就我所遇到的问题展开的讨论主要集中在 10 月，为了方便阅读，我会在引用邮件内容时将其翻译为中文。
+
+** 伪影与环境排查
+
+[2025-10-07]，在 WT 中测试终端真彩 patch 时，我注意到了本文开头提到的伪影现象：
+
+#+begin_quote
+From: Yue Yi\\
+Subject: bug#79298: patch: full color in windows terminal\\
+Date: Tue, 7 Oct 2025 15:39:52 +0800\\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00228.html
+
+我使用最新的主分支 7f925b0 在 Windows 11 上测试了这两个补丁。在终端中一切运行正常，效果看起来不错。虽然我通常在 GUI 中使用 Emacs，但很高兴能在终端中看到彩色版本。
+
+当我向上或向下滚动函数或变量的帮助缓冲区时，某一行的部分字符会像“重影”（ghost）或“拖影”（trail）一样出现在下一行或上一行。然而，即使在没有启用新增加的 vterminal 支持时，这种现象也会发生。
+
+这表明该问题可能与补丁无关，而可能与 Windows 上的非图形（non-graphical）实现有关。
+#+end_quote
+
+在经过一番交流后，Eli [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00233.html][认为]]认为可能是我的某些系统设定导致了这个问题，在这一思路下我在 conhost.exe（也就是老终端）下测试 Emacs 并惊奇地发现它[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00236.html][能够正常显示]]。为了证实不是我的系统设定问题，我甚至在 Emacs-China 上开了个帖子讨论：[[https://emacs-china.org/t/windows-terminal-emacs/30189][Windows Terminal 下的非窗口 Emacs 可能存在的幽灵字符现象]]。Eli [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00260.html][表示]]他在同样的 Windows 11 上并未发现这个问题，并建议我检查 WT 的默认配置，以及 Emacs 使用的[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00339.html][代码页]]。此时他还修复了一个 Windows 上非图形 Emacs 的 bug：[[https://github.com/emacs-mirror/emacs/commit/5a70f5096eafb9bf2ea5b2e798293def1a8cf404][5a70f50]], [[https://github.com/emacs-mirror/emacs/commit/854690a9e3e1dfe5053535520aa8ab1ff7dbfb87][854690a]]
+
+#+begin_quote
+From: Eli Zaretskii \\
+Subject: bug#79298: patch: full color in windows terminal \\
+Date: Thu, 09 Oct 2025 12:20:25 +0300 \\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00345.html
+
+凭着直觉，我对终端编码为 UTF-8（也就是代码页 65001）的 MS-Windows TTY 输出进行了改进。所以，请尝试最新的 master 分支，看看您之前观察到的显示伪影/异常现象是否大体上消失了。
+
+目前的代码仍然不支持字符组合 (character compositions)，因此，对于那些 Windows 终端会产生组合字形的脚本（如某些语言的复杂文字），它们的显示仍然无法正常工作，可能会因此看到一些伪影。
+
+Ewan，我们需要在您补丁的真彩色 (true-color) 分支中也加入一个类似的修复，用于处理光标移动的问题。
+#+end_quote
+
+在 Eli 尝试修复后，我发现伪影问题似乎得到了一定程度的[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00349.html][改善]]，但是该问题仍然存在，此外我还注意到 WT Emacs 中的单引号似乎与它的后一个字符「粘在了一起」，或者说引号显示为半宽但实际是全宽。仅通过这一描述可能很难想象到底是个什么情况，这里我准备了两张 gif，前者描述伪影现象，后者描述字符粘连现象：
+
+| [[./3.gif]] | [[./4.gif]] |
+
+
+当然，Eli 还是表示他[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00355.html][没有看到类似的现象]]，但仅仅是引号所在行出现这些诡异现象不由得让我思考起了语言环境的问题，在我将系统语言设置为英文后，所有的伪影问题都不见了！
+
+** 全角引号与半角引号
+
+在意识到语言环境这一问题后，我通过邮件说明了我的发现：
+
+#+begin_quote
+From: Yue Yi \\
+Subject: bug#79298: patch: full color in windows terminal \\
+Date: Thu, 9 Oct 2025 21:56:50 +0800 \\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00360.html
+
+当我意识到我的引号在终端中占用了两个字符宽度时，我终于考虑到：即使我们都使用 Windows 11，我们系统的主要显示语言可能不同。因此，我将我的系统语言更改为英语，我描述的那个问题就完全消失了。
+
+我更改的设置是：设置 -> 时间和语言 -> 语言和区域 -> Windows 显示语言 -> 选择 英语（美国）。
+
+由于全角和半角引号使用相同的码点（包括单引号和双引号，U+2018、U+2019、U+201C 和 U+201D），这给混用中文和英文内容的场景带来了复杂性，因为引号的显示格式（全角还是半角）变得模棱两可。
+
+我的假设是：当选择中文作为系统显示语言时，即使我们在 Windows 终端（WT）配置文件中指定了等宽字体，系统仍然会默认使用中文字体来渲染这些特定的单引号/双引号。这最终导致了预期的逻辑宽度（半宽）与实际渲染的显示宽度（全宽）之间的不一致。
+
+如果您想重现这个问题，可以尝试以下步骤：
+
+1. 在上面提到的设置页面中，添加中文作为显示语言。
+2. 选择中文，然后启动 WT 和 Emacs 进行测试。
+
+致敬。
+#+end_quote
+
+在中文（或者说 CJK）环境下，引号字符为一般为全宽，在英语环境下，引号字符一般为半宽，我认为是字符「实际占用的宽度」和字体中字符「使用的宽度」不匹配导致的问题。不过，我这封邮件的假设内容​*存在错误*​，应该是：WT 中指定了英文等宽字体而且实际渲染时也使用了英文的半角引号字形，但是由于​*在 Emacs 中默认情况下*​中文环境下引号为全宽，而英文引号仅在全宽格子中占用一半空间。WT 使用半宽而 Emacs 使用全宽，这一宽度的不匹配应该是导致错位的原因。
+
+相对于 WT，conhost.exe 不会出问题​*可能*​是因为它为对应的语言环境选取了合适的字体来匹配 Emacs 在对应环境（CJK）下的字符宽度。如果在中文环境下在 conhost.exe 中选择了一款英文字体（比如 Consolas），熟悉的伪影问题又回来了：（在中文代码页下没有多少字体可选，首先应该通过 =chcp 65001= 切换代码页，随后选择一种字体）
+
+[[./5.png]]
+
+
+对我这一发现，Eli 的回复是：
+
+#+begin_quote
+From: Eli Zaretskii \\
+Subject: bug#79298: patch: full color in windows terminal \\
+Date: Thu, 09 Oct 2025 18:46:53 +0300 \\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00363.html
+
+感谢您的反馈。如果这是问题的症结所在，那么在安装真彩色补丁之前，我们可能无法修复它。因为我认为解决这个问题的唯一方法是让 Windows 终端根据它实际写入屏幕的文本显示宽度来移动光标。鉴于纯文本显示代码没有关于终端正在使用的字体的信息，我们甚至原则上也无法在这种情况下得知准确的显示宽度。
+#+end_quote
+
+在终端环境下的 Emacs 中我们无法得知具体的字体信息，那么​*终端本身*​是如何确定字符的宽度的呢？它究竟是根据字体的实际宽度来渲染，还是根据某个可能的字符-宽度对应表来渲染呢（比如 [[https://man7.org/linux/man-pages/man3/wcswidth.3.html][wcswidth]]）？对于 WT 和 conhost 来说，答案应该都是后者，只不过 conhost.exe 似乎会根据语言环境和字体对某些字符赋予不同宽度。以下是在中文环境中的 conhost.exe 中选择黑体和 Consolas，以及在 WT 中选择黑体和 Consolas 的效果：
+
+[[./6.png]]
+
+[[./7.png]]
+
+可见即使是在中文环境下 WT 中引号的宽度也是半宽，这与 conhost 在不同字体下具有不同宽度的行为不同，要想在 WT 中获得良好的渲染效果最好是使用英文等宽字体。下图大概可以简单地解释为什么在选择黑体的情况下 WT 中的单引号和双引号会重合在一起：
+
+[[./9.png]]
+
+** 匹配环境字符宽度
+
+接着 Eli 上一封邮件的是另一个建议：
+
+#+begin_quote
+From: Eli Zaretskii \\
+Subject: bug#79298: patch: full color in windows terminal \\
+Date: Thu, 09 Oct 2025 19:02:46 +0300 \\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00365.html
+
+顺便问一下，当您的 Windows 显示语言设置为中文时，如果您将 =cjk-ambiguous-chars-are-wide= 自定义设置为 =nil= 值，是否会发生任何变化？
+
+另一个问题是：当您的 Windows 显示语言设置为中文时，您启动 Emacs 时的 =current-language-environment= 的值是什么？如果它不是 ="Chinese-SOMETHING"=​（比如 ="Chinese-GB"= 或 ="Chinese-Big5"=​），请尝试手动将其设置为一个中文语言环境，然后查看在 master 分支的文本模式显示中，那些伪影/异常现象是否有所改变。
+#+end_quote
+
+在这封邮件中，Eli 提到了 =cjk-ambiguous-chars-are-wide= 这个选项和具体的语言环境 =current-language-environment=​。Emacs 内部使用了一个记录字符对应宽度的 char-table 来决定字符在终端环境中的宽度，这一 char-table 存储在 =char-width-table= 这一变量中，在不同的语言环境下具有不同的值。​=cjk-ambiguous-chars-are-wide= 考虑了某些字符（包括单双引号）在 CJK 环境中宽度的模糊性，它的默认值为 =t=​，即这些字符为全宽。当我们通过 =(setopt cjk-ambiguous-chars-are-wide nil)= 设置后，​=char-width-table= 中对应的 CJK 模糊字符会被设置为半宽。以下是该变量的 docstring 的中文翻译：
+
+#+begin_quote
+某些字符被 Unicode 定义为“模糊”宽度：其实际宽度，即 1 个终端列或 2 个终端列，应在显示时根据语言环境确定。如果此变量不为空，Emacs 会将这些字符视为全宽（即占用 2 个终端列）；否则，它们被视为窄字符（在显示时占用 1 个终端列）。哪个值是正确的取决于正在使用的字体。在某些 CJK 区域设置中，字体被设置为将这些字符显示为全宽。
+
+此选项对于文本模式窗口最为重要，因为在这种模式下，Emacs 无法访问控制台或终端模拟器所使用的字体的度量信息。您应当配置终端模拟器，使其行为与此选项的值保持一致，确保它根据此选项的值，将模糊宽度字符显示为半宽还是全宽。
+#+end_quote
+
+=cjk-ambiguous-chars-are-wide= 由 [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-07/msg00134.html][bug#64420: string-width of … is 2 in CJK environments]] 而诞生，并在 Emacs 30 中首次出现，这里我就不展开介绍了。
+
+通过将这一选项设定为 =nil=​，即使在中文环境下 WT Emacs 中也不再出现伪影，这代表 Emacs「认为」的字符宽度与 WT「认为」的匹配了。但在 conhost.exe 的 Emacs 中，如果你设定该选项为 =nil= 反倒会出现伪影，也就是说 Emacs 默认的字符宽度设定与 conhost.exe 是匹配的。通过[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00398.html][枚举]] characters.el 中所有被认为模糊的字符并复制到 conhost.exe 和 WT，然后移动光标进行观察，你会发现在 conhost.exe 中这些字符几乎都是全角，而在 WT 中几乎都是半角。
+
+#+caption: https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00448.html
+[[./10.png]]
+
+** 根据环境选择宽度
+
+既然在 conhost.exe 中和 WT 中分别设定 =cjk-ambiguous-chars-are-wide= 为 =t= 和 =nil= 能带来更好的显示效果，那么我们能否根据 Emacs 所在环境来在启动时自动设定该值？
+
+#+begin_quote
+From: Yue Yi \\
+Subject: bug#79298: patch: full color in windows terminal \\
+Date: Sat, 11 Oct 2025 14:02:35 +0800 \\
+https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00448.html
+
+#+HTML: <blockquote>
+Emacs 的默认行为应该与 conhost 和 WT 所选择的字体保持一致，因此它们选择字体的差异与我们手头的问题非常相关。那么，问题就变成了：如何在运行中的 Emacs 会话内部检测出正在使用的是它们之中的哪一个？您知道吗？
+#+HTML: </blockquote>
+
+我认为试图为此目的确定终端正在使用的确切字体是相当不现实的。
+
+首先，让我们考虑 Conhost（旧版控制台主机）的情况。相关的注册表项是 =HKEY_CURRENT_USER\Console\FaceName=​。它的默认值是 =__DefaultTTFont__=​，这可能意味着它会根据具体的区域设置/语言环境来选择最合适的字体。接下来是 WT。除了读取它的 =settings.json= 配置文件外，我想不到任何其他方法。
+
+然而，我们可以从一个不同的角度来看待这个问题。conhost 选择的字体最适合该区域设置，这意味着它默认与 Emacs 配合得很好（除非我们选择了一个宽度不合适的字体）。WT 的默认字体是等宽字体，而且当使用非等宽字体时，其渲染质量相当差。
+
+我的观点是，在 conhost 环境中，字体能很好地适应区域设置，而在 WT 环境中，我们可以默认假定这是一个等宽环境。虽然没有可靠的方法来确定具体的字体，但检测是否正在使用 WT 是可行的。
+
+以下代码可以确定控制台模式：在 conhost 下是 3，而在 WT 下是 7，这意味着它包含了 =ENABLE_VIRTUAL_TERMINAL_PROCESSING (0x0004)=​：
+
+#+begin_src c
+  // See also:
+  // https://github.com/Textualize/rich/issues/140
+  // https://learn.microsoft.com/en-us/windows/console/setconsolemode
+  HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD mode;
+  GetConsoleMode(h, &mode);
+#+end_src
+#+end_quote
+
+对此，Eli [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00507.html][表示]]可以通过调用 =SetConsoleMode= 设置 =ENABLE_VIRTUAL_TERMINAL_PROCESSING= 来判断当前是否在 WT 下，或者使用 =WT_SESSION= 环境变量，但后者[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00520.html][并不一定存在]]。随后前者也被 Ewan [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00526.html][否决]]了：比较新的 conhost.exe 也能够支持该标志。我[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00992.html][尝试]]通过 =GetStdHandle= 在不同环境下会返回不同的值来说服 Eli 使用这种方法分辨 conhost.exe 和 WT，但他[[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-10/msg00993.html][认为]]这不足以说明具体的环境。
+
+到此为止，我们的讨论就暂时结束了，在 [2025-10-23 Thu 00:04] 这一 patch 还未合并到主线，也许最迟这会在今年内完成。为了在中文环境下在 conhost.exe 和 WT 环境中都能获得不错的显示效果，我们需要一些比开头提到的配置更加复杂的代码。
+
+* 规避伪影问题
+
+如前所述，我们可以通过在 conhost.exe 和 WT 中使用不同的选项来避免伪影，但 Emacs 并​*不一定*​能在启动时判断当前环境是其中的哪一个（如果存在 =WT_SESSION= 环境变量当然好，但是如果[[https://github.com/microsoft/terminal/issues/13006][不存在呢]]）。
+
+一种思路是退一步根据系统级选项来「假设」使用了 conhost 还是 WT，这也是为什么我使用了​「规避」而不是「解决」这个词。好在 Emacs 提供了足够多的工具来让我们获取系统或注册表信息。虽然在系统使用 WT 而我们直接使用 conhost （或者反过来）的情况下我们没法弄对，但​*大多数*​情况下这是正确的设定。
+
+另一种思路通过递归查找 Emacs 的父进程是不是 WT 来判断是否为 WT 环境，我认为这才是比较好的做法。这样做的思路来自 [[https://stackoverflow.com/questions/72574412/how-to-distinguish-if-console-program-is-opened-in-powershell-or-in-windows-term][How to distinguish if console program is opened in Powershell or in Windows Terminal?]]，但我直接用 Elisp 实现了。
+
+** 有关 Windows Terminal 的一些信息
+
+在 Microsoft Build 2019 开发者大会上，Windows Terminal 发布了。如果你对这个时间点没什么印象的话，2019 年 5 月 8 日是伊朗宣布终止履行《伊朗核问题协议》的部分条款的时间。在 MS 的 Dev Blogs 上有这样一篇介绍 WT 的博客：[[https://devblogs.microsoft.com/commandline/introducing-windows-terminal/][Introducing Windows Terminal]]，时间是 19 年 5 月 6 日：
+
+#+begin_quote
+We are beyond excited to announce Windows Terminal! Windows Terminal is
+a new, modern, fast, efficient, powerful, and productive terminal
+application for users of command-line tools and *shells* like Command
+Prompt, PowerShell, and WSL.
+#+end_quote
+
+既然你能够看到这篇博客，我就不认为需要继续向你科普 Terminal 和 Shell 的区别了。MS 的博客就 WT 背后的技术写了一个系列：[[https://devblogs.microsoft.com/commandline/windows-command-line-backgrounder/][Windows Command-Line series]]，感兴趣的读者可以看看。
+
+在 Windows 10/11 上，我们可以在 Microsoft Store 中安装 WT，且 Windows 11 发布时就内置了 WT。这一点可以通过 Windows 11 的首个构建版本是 10.0.22000 和 [[https://blogs.windows.com/windows-insider/2021/03/17/announcing-windows-10-insider-preview-build-21337/][Announcing Windows 10 Insider Preview Build 21337]] 中提到的 *Windows Terminal now included as an inbox app* 来印证，Windows 11 的正式发布日期是 [[https://blogs.windows.com/windowsexperience/2021/08/31/windows-11-available-on-october-5/][2021 年 10 月 5 日]]。
+
+Windows 11 允许我们指定系统使用的终端，这一选项位于设置的「系统-高级-终端」中，有「让 Windows 决定」、「Windows 控制台主机」和「Windows 终端」三个或更多选项（如果你安装了其他版本的 WT）。从 Win11 22H2 (10.0.22621，2022 年 10 月 18 日发布) 开始起，如果我们选择了让 Windows 决定，系统会选择使用 WT 而不是 conhost 作为终端：[[https://devblogs.microsoft.com/commandline/windows-terminal-is-now-the-default-in-windows-11/][Windows Terminal is now the Default in Windows 11]]。
+
+[[./11.png]]
+
+
+根据[[https://learn.microsoft.com/zh-cn/windows/terminal/install][安装并开始设置 Windows 终端]]这一文档的说法，Windows 10 也可在某次更新后设定系统终端「安装 2023 年 5 月 23 日更新 KB5026435 后，在所有版本的 Windows 11 和 Windows 10 22H2 版本中均可使用该功能」。在 Windows 10 系统中，我们需要在「设置-更新与安全-开发者选项-终端」中设置。如果你没有在 Windows 10 上安装 WT，WT 不会出现在选项中。与 Windows 11 不同，如果让系统决定，系统总是会使用 conhost 而不是 WT。
+
+[[./12.png]]
+
+** 需要确定 Emacs 的 locale 吗？
+
+由于本文提到的问题只会在 CJK（我只测试了 CJ，[[https://www.bilibili.com/video/BV11k4y157hs][我没K]]）出现，我们需要根据当前所在 locale 来确定是否需要设定 =cjk-ambiguous-chars-are-wide= 吗？答案是否定的，当我们通过 =setopt= 设定它时，它的 =setter= 会检查当前环境是否为 CJK 环境：
+
+#+begin_src elisp
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (let ((locsym (get-language-info current-language-environment
+                                          'cjk-locale-symbol)))
+           (when locsym
+             (update-cjk-ambiguous-char-widths locsym))))
+#+end_src
+
+** 如何得知系统使用哪个终端
+
+22H2 版本之前的 Windows 10 无法指定终端，在 22H2 某个补丁后可以，且「让 Windows 决定」下始终是 conhost；Windows 11 始终可以指定终端，且当指定「让 Windows 决定」时在 22H2 之前为 conhost，之后为 WT。按照操作系统版本分类，要处理的有以下这几种情况：
+
+- Windows 10 22H2 以下不用管，默认 conhost
+- 「Windows 10 22H2」与「Windows 11 22H2 以下」，「让 Windows 决定」为 conhost
+- Windows 11 22H2 及以后，「让 Windows 决定」为 WT
+
+在 Emacs 中，​=(w32-version)= 会返回 =(主本版号 副版本号 构建版本)= 这一长度为 3 的列表。对当前所有的 Windows 10/11 来说，它们的前两个值都是 10 和 0，主要区别在于构建版本。Windows 10 22H2 对应上 19045，而且 22H2 是 Windows 10 的最后一个版本。Windows 11 22H2 对应于 22621。我们大致可以使用这个逻辑来判断 Windows 的版本：
+
+- (1) 主版本号小于 10 说明不是 Windows 10/11
+- (2) 主版本号和副版本号分别为 10 和 0
+- (2.1) 构建版本小于 19045 为 Windows 10 22H2 以下
+- (2.2) 构建版本是 19045 为 Windows 10 22H2
+- (2.3) 构建版本大于 19045 且小于 22621 为 Windows 11 22H2 以下版本
+- (2.4) 构建版本大于等于 22621 为 Windows 11 22H2 及以上版本。
+
+另一个问题是如何获取用户的终端选项，这可以通过读取注册表项 =HKEY_CURRENT_USER\Console\%%Startup= 中的 =DelegationConsole= 和 =DelegationTerminal= 来确定，当用户选择「让 Windows 决定时」，它们两项的值都为 ={00000000-0000-0000-0000-000000000000}=​；当用户选「控制台主机」时，它们的值都是 ={B23D10C0-E52E-411E-9D5B-C09FDF709C7D}=​；当用户选择 WT 相关选项时又是另外的值了。我们可以通过以下 Elisp 代码获取对应的注册表项：
+
+#+begin_src elisp
+  (w32-read-registry 'HKCU "Console\\%%Startup" "DelegationConsole")
+  (w32-read-registry 'HKCU "Console\\%%Startup" "DelegationTerminal")
+#+end_src
+
+基于这一逻辑，我们可以写出如下所示的配置代码，这也基于 =cjk-ambiguous-chars-are-wide= 的默认值为 =t=​：
+
+#+begin_src elisp
+  (when (and (eq system-type 'windows-nt)
+             (not (display-graphic-p)))
+    (pcase-let ((`(,a ,b ,c) (w32-version)))
+      (unless (or (< a 10) (and (= a 10) (= b 0) (< c 19045))
+                  (not (and (= a 10) (= b 0))))
+        (let* ((dc (w32-read-registry 'HKCU "Console\\%%Startup" "DelegationConsole"))
+               (dt (w32-read-registry 'HKCU "Console\\%%Startup" "DelegationTerminal"))
+               (flag (if (not (string-equal dc dt)) 2
+                       (pcase dc
+                         ("{00000000-0000-0000-0000-000000000000}" 0)
+                         ("{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" 1)
+                         (_ (error "Unrecognized Terminal Option"))))))
+          (cond
+           ((and (= c 19045) (= flag 2))
+            (setopt cjk-ambiguous-chars-are-wide nil))
+           ((and (< 19045 c 22621) (= flag 2))
+            (setopt cjk-ambiguous-chars-are-wide nil))
+           ((and (>= c 22621) (memq flag '(0 2)))
+            (setopt cjk-ambiguous-chars-are-wide nil)))))))
+#+end_src
+
+这一代码的最大问题是它实际上是在「猜测」当前使用的是 WT 还是 conhost，如果我们顺着系统设定来而不是手动使用 conhost 和 wt 这一般是没问题的。下面让我们看看如何真正获取当前的环境而不是机械判断。
+
+** 获取当前使用的终端信息
+
+既然我们是在 conhost 或 wt 中使用的 Emacs，那么能不能根据父子进程关系找到使用的终端进程是哪一个呢？你可能会写出这样的代码：
+
+#+begin_src elisp
+  (let ((pid (cdr (assq 'ppid (process-attributes (emacs-pid)))))
+        (chain))
+    (while-let ((_ (numberp pid))
+                (attr (process-attributes pid))
+                (name (cdr (assq 'comm attr))))
+      (push name chain)
+      (setq pid (cdr (assq 'ppid attr))))
+    chain)
+#+end_src
+
+在图形界面、conhost 和 WT 中运行这段代码，它们得到的结果分别为：
+
+- =nil=
+- =("explorer.exe" "conhost.exe" "cmd.exe")=
+- =("WindowsTerminal.exe" "powershell.exe")=
+
+通过在 WT 中套 conhost 和在 conhost 中套 WT，以及 WT 套 conhost 套 WT 和 conhost 套 WT 套 conhost，我得到的结果如下：
+
+- [WT -> CO] =("WindowsTerminal.exe" "powershell.exe" "conhost.exe" "cmd.exe")=
+- [CO -> WT] =("WindowsTerminal.exe" "powershell.exe")=
+- [WT -> CO -> WT] =("WindowsTerminal.exe" "powershell.exe")=
+- [CO -> WT -> CO] =("WindowsTerminal.exe" "powershell.exe" "conhost.exe" "cmd.exe")=
+- [WT -> WT] =("WindowsTerminal.exe" "powershell.exe")=
+- [CO -> CO] =("explorer.exe" "conhost.exe" "cmd.exe" "conhost.exe" "cmd.exe")=
+
+如你所见，从 Emacs 中获取父进程的情况来看 conhost「保留」了父进程信息而 WT 没有，如果我们将 =chain= 反转并从头遍历直到遇到第一个 conhost 或 WT，我们就能够知道究竟​*直接*​使用了 conhost 还是 WT。
+
+但是这样做还是存在一个问题，如果我们从 Win+R 直接启动 Emacs 或者在 Emacs 可执行文件目录的 Explorer.exe （也就是资源管理器）的地址栏中直接执行 =emacs.exe -nw= 的话，上述代码只能得到 =("explorer.exe")= 这一列表。不过好在此时系统会使用我们通过设定指定的终端，上一节给出的代码也派上了用场。将两端代码拼接起来我们就获得了最后可用的配置：
+
+#+begin_src elisp
+  (defun yy/check-w32-cjk-terminal ()
+    (when (and (eq system-type 'windows-nt)
+               (not (display-graphic-p)))
+      (let* ((eat (process-attributes (emacs-pid)))
+             (ppid (cdr (assq 'ppid eat)))
+             res)
+        (while-let ((_ (null res))
+                    (_ (numberp ppid))
+                    (attr (process-attributes ppid))
+                    (proc (cdr (assq 'comm attr))))
+          (when-let* ((a (assoc proc '(("WindowsTerminal.exe" . 0)
+                                       ("conhost.exe" . 1)))))
+            (setq res (cdr a)))
+          (setq ppid (cdr (assq 'ppid attr))))
+        (if res (and (= res 0) (setopt cjk-ambiguous-chars-are-wide nil))
+          (pcase-let ((`(,a ,b ,c) (w32-version)))
+            (unless (or (< a 10) (and (= a 10) (= b 0) (< c 19045))
+                        (not (and (= a 10) (= b 0))))
+              (let* ((fn (lambda (k) (w32-read-registry 'HKCU "Console\\%%Startup" k)))
+                     (dc (funcall fn "DelegationConsole"))
+                     (dt (funcall fn "DelegationTerminal"))
+                     (flag (if (not (string-equal dc dt)) 2
+                             (pcase dc
+                               ("{00000000-0000-0000-0000-000000000000}" 0)
+                               ("{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" 1)
+                               (_ (error "Unrecognized Terminal Option"))))))
+                (cond
+                 ((and (= c 19045) (= flag 2))
+                  (setopt cjk-ambiguous-chars-are-wide nil))
+                 ((and (< 19045 c 22621) (= flag 2))
+                  (setopt cjk-ambiguous-chars-are-wide nil))
+                 ((and (>= c 22621) (memq flag '(0 2)))
+                  (setopt cjk-ambiguous-chars-are-wide nil))))))))))
+#+end_src
+
+我在我的设备上通过指定系统终端为不同选项来测试不同终端下的 Emacs 能否使用以上代码正确设定 CJK 选项，并得到了满意的结果。由于我的测试环境为 Windows 11 25H2，低版本的 Windows 11 和 Windows 10 22H2 相当于没有测。读者有兴趣可以试试，把代码添加到配置文件并添加 =(yy/check-w32-cjk-terminal)= 调用即可。
+
+** 其他的终端环境
+
+从结果上来说，上一节的代码通过检查父进程和系统设定已经能够比较好地分辨 conhost 和 WT 并给出正确的选项设定了，但 Windows 上可​*不止*​这两终端，随便找找就有不少第三方实现：[[https://conemu.github.io/][ConEmu]]，[[https://cmder.app/][Cmder]]，[[https://mintty.github.io/][Mintty]]，[[https://hyper.is/][Hyper]]，[[https://alacritty.org/][Alacritty]]，[[https://wezterm.org/index.html][Wezterm]]，等等。为了满足读者和我的兴趣，使用上一节的递归查找父进程的代码分别针对这些终端可以得到如下结果：
+
+- ConEmu :: =("explorer.exe" "ConEmu64.exe" "ConEmuC64.exe" "cmd.exe")=
+- Cmder (基于 ConEmu) :: =("ConEmu64.exe" "ConEmuC64.exe" "cmd.exe")=
+- Mintty :: =("bash.exe" "bash.exe")=
+- Hyper :: =("explorer.exe" "Hyper.exe" "cmd.exe")=
+- Alacritty :: =("explorer.exe" "Alacritty-v0.16.1-portable.exe" "powershell.exe")=
+- Wezterm :: =("wezterm-gui.exe" "cmd.exe")=
+
+可见我们无法从父进程列表中获取什么比较有用的信息。不过通过将系统终端设定为 WT，通过使用上一节最后给出的配置函数 =yy/check-w32-cjk-terminal=​，这些终端中的 Emacs 能够正确选择 CJK 选项。也许我们可以对它们分别给出特定的设定，但我就懒得折腾了。
+
+* 后记
+
+草，上一篇博客都是快两个月之前的事情了，虽然我通过这篇博客保持了至少每月一篇的频率，但上一篇在上月初这一篇在本月末。这期间也是忙各种杂七杂八的事，忙的真 TM 恼火（未尝识你的萌，我初识你的萌，哇纯属难得萌，维持数年的萌，我去是真的萌，我迟视你的萌，我阐述你的萌），还顺便搬了一次家，到了现在总算有时间总结一下这个月碰到的字体问题。本来这一篇应该是介绍如何在 Emacs 中设计和编写测试代码，但中途我发现还有不少基础要掌握（比如看完《软件测试的艺术》），只能先放着了。
+
+目前来说，我对本文提到的真彩色 patch 使用效果是比较满意的，但是还有一个小问题：当不开启此功能时，Emacs 能享受到 WT 的背景透明效果，开启之后反倒不行。也许我应该继续在 bug-gnu-emacs 中反馈。
+
+[[./13.png]]
+
+[[./14.png]] 
+
+感谢阅读。
+
+# | [[https://www.pixiv.net/artworks/131849854][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/78591081][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/18416435][file:dev/p3.jpg]] |
