@@ -1,0 +1,1077 @@
+#+TITLE: 一个 case-lambda 的 CL/Elisp 实现，以及对它的分析和改进
+#+DATE: [2025-11-08 Sat 16:08]--[2025-11-09 Sun 18:13]
+#+FILETAGS: lisp
+#+DESCRIPTION: 某个朋友通过一段代码展示了他对模式识别的理解，也许这需要一点改进。
+
+本文是对一段 =case-lambda= ([[https://srfi.schemers.org/srfi-16/srfi-16.html][SRFI-16]]) 实现代码的分析与改进。这一代码来自我和朋友对 PM（Pattern Matching，模式匹配）的一些讨论，他随后实现了 SRFI-16，并给出了一个实现，某种意义上来说这个实现很有趣，但很可惜不怎么可读。正好最近在学习软件测试基础知识，既然良好的可读性有利于做静态测试，也许我可以试着改改这个代码，使用正确的实践方式提高一下可读性。
+
+如果让读者直接开始看这个代码估计连思路都摸不清楚，我们先从 SRFI-16 标准和参考实现开始说起，先了解基础实现思路后代码应该容易理解很多。接着我们逐段阅读一下这个实现，指出其中的一些问题。在最后我会给出我的改进实现，以及可能的我的朋友的改进。
+
+来点 bgm：[[https://www.bilibili.com/video/BV13H1DBgE4A][【初音ミク】何回だって【マヌカ・ハニー】]]
+
+* SRFI-16 及其参考实现
+
+#+begin_quote
+CASE-LAMBDA reduces the clutter of procedures that execute different code depending on the number of arguments they were passed; it is a pattern-matching mechanism that matches on the number of arguments. CASE-LAMBDA is available in some Scheme systems.
+#+end_quote
+
+相比使用不定参数 (variadic arguments)，​=case-lambda= 避免了手动获取参数个数和解包的过程，有利于提高代码的可读性。[[https://docs.racket-lang.org/reference/lambda.html#%28form._%28%28quote._~23~25kernel%29._case-lambda%29%29][Racket 文档]]给出了下面的例子：
+
+#+begin_src racket
+  (let ([f (case-lambda
+             [() 10]
+             [(x) x]
+             [(x y) (list y x)]
+             [r r])])
+    (list (f)
+          (f 1)
+          (f 1 2)
+          (f 1 2 3)))
+  ;;=> '(10 1 (2 1) (1 2 3))
+#+end_src
+
+如果我们手动实现，可能会给出这样的代码：
+
+#+begin_src racket
+  (let ([f (lambda args
+             (let ([len (length args)])
+               (cond
+                 [(= len 0) 10]
+                 [(= len 1) (car args)]
+                 [(= len 2) (list (second args) (first args))]
+                 [else args])))])
+    (list (f)
+          (f 1)
+          (f 1 2)
+          (f 1 2 3)))
+#+end_src
+
+SRFI-16 给出的 =case-lambda= 参考实现如下，使用了标准的 =syntax-rules= 宏：
+
+#+begin_src scheme
+  ;; This code is in the public domain.
+
+  (define-syntax case-lambda
+    (syntax-rules ()
+      ((case-lambda)
+       (lambda args
+         (error "CASE-LAMBDA without any clauses.")))
+      ((case-lambda 
+        (?a1 ?e1 ...) 
+        ?clause1 ...)
+       (lambda args
+         (let ((l (length args)))
+           (case-lambda "CLAUSE" args l 
+             (?a1 ?e1 ...)
+             ?clause1 ...))))
+      ((case-lambda "CLAUSE" ?args ?l 
+        ((?a1 ...) ?e1 ...) 
+        ?clause1 ...)
+       (if (= ?l (length '(?a1 ...)))
+           (apply (lambda (?a1 ...) ?e1 ...) ?args)
+           (case-lambda "CLAUSE" ?args ?l 
+             ?clause1 ...)))
+      ((case-lambda "CLAUSE" ?args ?l
+        ((?a1 . ?ar) ?e1 ...) 
+        ?clause1 ...)
+       (case-lambda "IMPROPER" ?args ?l 1 (?a1 . ?ar) (?ar ?e1 ...) 
+         ?clause1 ...))
+      ((case-lambda "CLAUSE" ?args ?l 
+        (?a1 ?e1 ...)
+        ?clause1 ...)
+       (let ((?a1 ?args))
+         ?e1 ...))
+      ((case-lambda "CLAUSE" ?args ?l)
+       (error "Wrong number of arguments to CASE-LAMBDA."))
+      ((case-lambda "IMPROPER" ?args ?l ?k ?al ((?a1 . ?ar) ?e1 ...)
+        ?clause1 ...)
+       (case-lambda "IMPROPER" ?args ?l (+ ?k 1) ?al (?ar ?e1 ...) 
+        ?clause1 ...))
+      ((case-lambda "IMPROPER" ?args ?l ?k ?al (?ar ?e1 ...) 
+        ?clause1 ...)
+       (if (>= ?l ?k)
+           (apply (lambda ?al ?e1 ...) ?args)
+           (case-lambda "CLAUSE" ?args ?l 
+             ?clause1 ...)))))
+#+end_src
+
+根据每条分支不同的参数列表情况，​=case-lambda= 将它们分为两类，分别是固定参数子句的 ="CLAUSE"= 和处理带不定参数子句的 ="IMPROPER"=​，前者的参数列表是常规列表 (proper list)，而后者是不当列表 (improper list, 即 CONS)。对于固定参数的子句，负责展开它的代码如下：
+
+#+begin_src scheme
+  ((case-lambda "CLAUSE" ?args ?l 
+    ((?a1 ...) ?e1 ...) 
+    ?clause1 ...)
+   (if (= ?l (length '(?a1 ...)))
+       (apply (lambda (?a1 ...) ?e1 ...) ?args)
+       (case-lambda "CLAUSE" ?args ?l 
+         ?clause1 ...)))
+#+end_src
+
+
+此分支中值得注意的是其参数匹配模式 =(?a1 ...)=​，在 =syntax-case= 中，这用于匹配一个常规列表。在展开式中，该列表长度会与函数接受的参数长度进行比较，若匹配则执行对应表达式，否则进入下一个子句。在这一规则的下面就是从 ="CLAUSE"= 向 ="IMPROPER"= 的转换过程，如果 =(?a1 ...)= 匹配失败，则说明参数列表不是一个常规列表（即不以 =nil= 结尾），而是带有剩余参数的不当列表：
+
+#+begin_src scheme
+  ((case-lambda "CLAUSE" ?args ?l
+    ((?a1 . ?ar) ?e1 ...) 
+    ?clause1 ...)
+   (case-lambda "IMPROPER" ?args ?l 1 (?a1 . ?ar) (?ar ?e1 ...) 
+     ?clause1 ...))
+#+end_src
+
+此时，它会落入 =((?a1 . ?ar) ?e1 ...)= 规则，此处的 =(?a1 . ?ar)= 表示匹配一个 CONS，​=?a1= 匹配第一个元素，​=?ar= 匹配剩余内容。因为这也会匹配普通的列表，所以它必须位于上一分支的下面。以 =((a b . c) e)= 这一子句为例，在这一转换后我们会得到 =(case-lambda "IMPROPER" ?args ?l 1 (a b . c) ((b . c) e) ...)=​。这里出现的数字 1 和去掉 =?a1= 后得到的 =(b . c)= 主要是用于递归找到固定参数个数的过程，具体由 =case-lambda= 的最后两个分支来实现：
+
+#+begin_src scheme
+  ((case-lambda "IMPROPER" ?args ?l ?k ?al ((?a1 . ?ar) ?e1 ...)
+    ?clause1 ...)
+   (case-lambda "IMPROPER" ?args ?l (+ ?k 1) ?al (?ar ?e1 ...) 
+    ?clause1 ...))
+  ((case-lambda "IMPROPER" ?args ?l ?k ?al (?ar ?e1 ...) 
+    ?clause1 ...)
+   (if (>= ?l ?k)
+       (apply (lambda ?al ?e1 ...) ?args)
+       (case-lambda "CLAUSE" ?args ?l 
+         ?clause1 ...)))
+#+end_src
+
+可以看到，上面代码中的第一个规则是递归的，只要传入的模式能匹配 =((?a1 . ?ar) ?e1 ...)= 形式，它就会继续迭代并使计数器 =?k= 加一。当传入的模式不再匹配此形式时，它就会落入第二条规则。此时 =?k= 正确地持有固定参数的个数，宏会生成最终的 =if= 结构，并继续展开可能的剩余子句。
+
+最后，是只带一个不定参数的形式，代码也很简单：
+
+#+begin_src scheme
+  ((case-lambda "CLAUSE" ?args ?l 
+        (?a1 ?e1 ...)
+        ?clause1 ...)
+       (let ((?a1 ?args))
+         ?e1 ...))
+#+end_src
+
+当然我略过了错误形式，这些比较容易理解。下面是在 Racket 中使用 SRFI-16 的实现对我们在开头给出的例子进行展开的结果：
+
+#+begin_src scheme
+  (expand '(case-lambda
+            [() 10]
+            [(x) x]
+            [(x y) (list y x)]
+            [r r]))
+
+  '(#%expression
+    (lambda args
+      (let-values (((l) (#%app length args)))
+        (if (#%app = l (#%app length '()))
+          (#%app apply (lambda () '10) args)
+          (if (#%app = l (#%app length '(x)))
+            (#%app apply (lambda (x) x) args)
+            (if (#%app = l (#%app length '(x y)))
+              (#%app apply (lambda (x y) (#%app list y x)) args)
+              (let-values (((r) args)) r)))))))
+#+end_src
+
+下面这个例子可以说明它对带有剩余参数的表达式的处理过程：
+
+#+begin_src scheme
+  (syntax->datum (expand '(case-lambda
+                           [(x) (+ x 1)]
+                           [(x y . z) (+ x y (car z))])))
+
+  '(#%expression
+    (lambda args
+      (let-values (((l) (#%app length args)))
+        (if (#%app = l (#%app length '(x)))
+          (#%app apply (lambda (x) (#%app + x '1)) args)
+          (if (#%app >= l (#%app + '1 '1))
+            (#%app apply (lambda (x y . z) (#%app + x y (#%app car z))) args)
+            (#%app error '"Wrong number of arguments to CASE-LAMBDA."))))))
+#+end_src
+
+** 可能的优化
+
+#+begin_quote
+While CASE-LAMBDA can be implemented as a macro using only facilities available in R5RS Scheme, it admits considerable implementation-specific optimization.
+#+end_quote
+
+由于 =syntax-rules= 并不会做​*展开时计算*​而只有​*展开时变换*​，我们可以注意到上面的某些能在展开时就完成的优化没有做，比如常数相加和求常量列表的长度（当然，一个正常的编译器会完成常量折叠优化）。
+
+不过，真正的开销瓶颈可能是参考实现中的运行时分派，SRFI-16 实现中需要通过 =length= 检查参数列表的长度然后通过嵌套 =if= 找到对应的子句，这和我们手写基本上没什么区别。如果 =case-lambda= 被原生实现，参数个数的获取可能就不是通过求取列表的长度而是获取栈上的参数数量然后直接跳转到对应子句的代码块。不过我不太了解 Racket 的源代码，不太清楚 =case-lambda= 的具体实现。
+
+除此之外，SRFI-16 的参考实现方式还决定了它的匹配语义。由于它本质上是递归地展开为一个嵌套的 =if= 结构，因此对于具有相同个数的子句，总是最先出现的那一个优先。如果我是原生实现者的话可能会对这样的情况给出警告。以下是 Racket 中具有相同数量的参数时 =case-lambda= 的表现：
+
+#+begin_src racket
+  ((case-lambda [(a) a] [(b) (+ b 1)]) 1)
+  ;;=> 1
+#+end_src
+
+* 一种 =case-lambda= 实现
+
+下面就是我的朋友的实现了，读者如果感兴趣可以简单看一遍，但我不太建议过于深入了，没必要再把我用掉的时间再用一遍。
+
+:code:
+#+begin_src lisp
+  (defun case-lambda--pure-list-p (x)
+    (do ((x x (cdr x)))
+        ((not (consp x)) (null x))))
+
+  (defmacro case-lambda--n-regular (x)
+    `(caar ,x))
+  (defmacro case-lambda--restp (x)
+    `(cdar ,x))
+  (defmacro case-lambda--restvar (x)
+    `(cdar ,x))
+  (defmacro case-lambda--arglist-body (x)
+    `(cdr ,x))
+  (defmacro case-lambda--arglist (x)
+    `(car (case-lambda--arglist-body ,x)))
+  (defmacro case-lambda--body (x)
+    `(cdr (case-lambda--arglist-body ,x)))
+  (defun case-lambda--make-clause (n-regular restvar arglist body)
+    (cons (cons n-regular restvar) (cons arglist body)))
+
+  (defun case-lambda--analyze (clauses)
+    "convert clauses litteral to internal structure"
+    (let ((res nil))
+      (dolist (c clauses (nreverse res))
+        (or (consp c)
+            (case-lambda--pure-list-p c)
+            (case-lambda--pure-list-p (car c))
+          (error "Bad case-lambda clauses"))
+        (let* ((arglist (car c))
+               (restp (member '&rest arglist))
+               (len-after-rest (and restp (length restp)))
+               (n-regular (if (not restp)
+                            (length arglist)
+                            (- (length arglist) len-after-rest))))
+          (and restp (/= 2 len-after-rest)
+            (error "Bad case-lambda clauses"))
+          (push (case-lambda--make-clause
+                  n-regular (cadr restp) (cl-subseq arglist 0 n-regular) (cdr c))
+                res)))))
+
+  (defun case-lambda--remove-unreachable (clauses)
+    "remove unreachable clauses and return reversed result"
+    (let ((res nil)
+          (max-n-regular -1)
+          (restp nil))
+      (do ((cs clauses (cdr cs)))
+          ((null cs) res)
+        (let ((c (car cs)))
+          (or restp
+            (cond ((case-lambda--restp c)
+                   (setq restp t)
+                   (push c res))
+                  ((> (case-lambda--n-regular c) max-n-regular)
+                   (setq max-n-regular (case-lambda--n-regular c))
+                   (push c res))))))))
+
+  (defmacro case-lambda--build-bind-if-tree ()
+    ;; only used in case-lambda, rely on side effect
+    ;; don't ever edit this unless understanding how is it going
+    `(let ((n-regular (case-lambda--n-regular c))
+           (nc-n-regular (if nextc (case-lambda--n-regular nextc) 0)))
+       (do ((i (- n-regular 1) (- i 1)))
+           ((< i nc-n-regular))
+         (setq resform
+           `(if (null ,input)
+              ,(if (= i (- n-regular 1))
+                 `(let (,@(cl-mapcar #'list (case-lambda--arglist c) regular-tmps))
+                    ,@(case-lambda--body c))
+                 error-form)
+              ,resform))
+         (when (and restp (= i rest-at))
+            (setq resform
+             `(let ((,rest-var ,input))
+                ,resform)))
+         (setq resform
+           `(let ((,(nth i regular-tmps) (car ,input)))
+              (setq ,input (cdr ,input))
+              ,resform))
+         (when (and restp (<= i rest-at))
+           (setq error-form '(error "case-lambda matching failure"))))))
+
+  (defun case-lambda--main-pattern (clauses)
+    ;; don't ever edit this unless understanding how is it going
+    ;; note that clauses is current reversed
+    (let* ((restp (case-lambda--restp (car clauses)))
+           (rest-clause (car clauses))
+           (rest-clause-n-regular
+             (and restp (case-lambda--n-regular rest-clause)))
+           (first-clause-with-only-regulars-n-regular
+             (if restp (case-lambda--n-regular (cadr clauses))
+                       (case-lambda--n-regular (car clauses))))
+           (max-n-regular
+             (if restp
+               (max rest-clause-n-regular
+                    first-clause-with-only-regulars-n-regular)
+               first-clause-with-only-regulars-n-regular))
+           (regular-tmps
+             (let ((res nil))
+               (dotimes (i max-n-regular res)
+                 (push (gensym) res))))
+           (rest-var (and restp (case-lambda--restvar rest-clause)))
+           (input (gensym))
+           (rest-at (and restp (- rest-clause-n-regular 1)))
+           (rest-clause-form 
+             `(let (,@(cl-mapcar #'list (case-lambda--arglist rest-clause)
+                                   regular-tmps)
+                     ,@(if (and restp (= max-n-regular rest-clause-n-regular))
+                         `((,rest-var ,input)) nil))
+                ,@(case-lambda--body rest-clause)))
+           (error-form
+             (if restp rest-clause-form '(error "case-lambda matching failure")))
+           (resform error-form))
+      ;; main loop
+      (do ((cs clauses (cdr cs)))
+          ((null (cdr cs)) (setq clauses cs))
+        (let ((c (car cs))
+              (nextc (cadr cs)))
+          (case-lambda--build-bind-if-tree)))
+      ;; handle the begining
+      (if (= 0 (case-lambda--n-regular (car clauses)))
+        (setq resform
+          `(if (null ,input)
+             ,@(case-lambda--body (car clauses))
+             ,resform))
+        (let ((c (car clauses))
+              (nextc nil))
+          (case-lambda--build-bind-if-tree)
+          (setq resform
+            `(if (null ,input)
+               ,(if (and restp (= 0 rest-clause-n-regular))
+                  rest-clause-form
+                  error-form)
+               ,resform))))
+      (and restp (= 0 rest-clause-n-regular)
+        (setq resform
+          `(let ((,rest-var ,input))
+             ,resform)))
+      `(lambda (&rest ,input)
+         ,resform)))
+
+  (defmacro case-lambda (&rest clauses)
+    "return a anoymous function that dispatch on arguments number.
+  (case-lambda (formals body ...) ...)
+  where formals = (id ... [&rest id])"
+    (let ((clauses (case-lambda--remove-unreachable
+                     (case-lambda--analyze clauses))))
+      (cond ((null clauses) '(lambda () nil))
+            ((null (cdr clauses))
+             (cons 'lambda (case-lambda--arglist-body (car clauses))))
+            (t (case-lambda--main-pattern clauses)))))
+
+  ; (macroexpand '(case-lambda ((x y) (+ x y)) ((x y z) (- x y z))))
+  ; (macroexpand '(case-lambda ((x y) (+ x y)) ((w x y z) (- w x y z))))
+  ; (macroexpand '(case-lambda ((x y z) (- x y z)) ((&rest xs) (cons 1 xs))))
+  ; (macroexpand '(case-lambda ((x y z) (- x y z)) ((x &rest xs) (list 1 x xs))))
+  ; (macroexpand '(case-lambda
+  ;                 ((x y z) (- x y z))
+  ;                 ((a b c d e &rest xs) (list a b c d e xs))))
+
+  (defmacro case-defun (name &rest xs)
+    "define a function named NAME that dispatch on arguments number.
+  (case-defun name (formals body ...) ...)
+  where formals = (id ... [&rest id])"
+    `(setf (symbol-function ',name)
+       (case-lambda ,@xs)))
+
+  (defmacro case-defmacro (name &rest xs)
+    "define a macro named NAME that dispatch on arguments number.
+  (case-defmacro name (formals body ...) ...)
+  where formals = (id ... [&rest id])"
+    (let ((x (gensym)))
+      `(defmacro ,name (&rest ,x)
+         (apply (case-lambda ,@xs) ,x))))
+
+  ; (case-defun range
+  ;   ((x) (range 0 x 1))
+  ;   ((x y) (range x y 1))
+  ;   ((x y z)
+  ;    (loop for i from x below y by z collect i)))
+#+end_src
+:end:
+
+** 另一种思路 -- 逐个绑定参数并检查
+
+SRFI-16 的参考实现允许子句中的参数数量并不按照递增的顺序出现，但是如果我们​*要求*​它们按升序出现的话，我们可以首先创建一个变量列表，然后逐次进行参数绑定直到穷尽参数，并判断此时的参数数量能否与某一子句匹配，从而调用对应的表达式。下面是一个说明性的例子：
+
+#+begin_src elisp
+  (case-lambda ((x y) (+ x y)) ((a b c d) (+ a b c d)))
+
+  (lambda (&rest g0)
+    (if (null g0)
+        (error "case-lambda match failure") ; <-- no argument
+      (let ((g1 (car g0)))
+        (setq g0 (cdr g0))
+        (if (null g0)
+            (error "case-lambda match failure") ; <-- only one argument
+          (let ((g2 (car g0)))
+            (setq g0 (cdr g0))
+            (if (null g0)
+                (let ((x g1) (y g2)) ; <-- first case, two arguments
+                  (+ x y))
+              (let ((g3 (car g0)))
+                (setq g0 (cdr g0))
+                (if (null g0)
+                    (error "case-lambda match failure") ; <-- three arguments
+                  (let ((g4 (car g0)))
+                    (setq g0 (cdr g0))
+                    (if (null g0)
+                        (let ((a g1) (b g2) (c g3) (d g4)) ; <-- second case,
+                          (+ a b c d))                     ; four arguments
+                      (error "case-lambda match failure")))))))))))
+#+end_src
+
+在他的代码中，第一个函数用于检查参数列表是否为常规列表，不过在 Elisp 中我们有 =proper-list-p= 可用。紧接着是一些 getter 函数，用于从被「分析」后的子句中提取组成，感觉这里最好加上注释说明用途：
+
+#+begin_src elisp
+  ;; 获取子句的固定参数个数
+  (defmacro case-lambda--n-regular (x)
+    `(caar ,x))
+  ;; 判断子句是否具有剩余参数
+  (defmacro case-lambda--restp (x)
+    `(cdar ,x))
+  ;; 获取子句的剩余参数名
+  (defmacro case-lambda--restvar (x)
+    `(cdar ,x))
+  ;; 获取子句的参数列表和函数体组成的列表
+  (defmacro case-lambda--arglist-body (x)
+    `(cdr ,x))
+  ;; 获取子句的参数列表
+  (defmacro case-lambda--arglist (x)
+    `(car (case-lambda--arglist-body ,x)))
+  ;; 获取子句的函数体
+  (defmacro case-lambda--body (x)
+    `(cdr (case-lambda--arglist-body ,x)))
+  ;; 构造「分析」后的子句结构
+  (defun case-lambda--make-clause (n-regular restvar arglist body)
+    (cons (cons n-regular restvar) (cons arglist body)))
+#+end_src
+
+=case-lambda--analyze= 负责将 =case-lambda= 中的所有子句通过 =case-lambda--make-clause= 转换成一种更容易分析的构造：
+
+#+begin_src elisp
+  (defun case-lambda--analyze (clauses)
+    "convert clauses litteral to internal structure"
+    (let ((res nil))
+      (dolist (c clauses (nreverse res))
+        (or (consp c)
+            (case-lambda--pure-list-p c)
+            (case-lambda--pure-list-p (car c))
+          (error "Bad case-lambda clauses"))
+        (let* ((arglist (car c))
+               (restp (member '&rest arglist))
+               (len-after-rest (and restp (length restp)))
+               (n-regular (if (not restp)
+                            (length arglist)
+                            (- (length arglist) len-after-rest))))
+          (and restp (/= 2 len-after-rest)
+            (error "Bad case-lambda clauses"))
+          (push (case-lambda--make-clause
+                  n-regular (cadr restp) (cl-subseq arglist 0 n-regular) (cdr c))
+                res)))))
+#+end_src
+
+你可以注意到它检查了所有的子句的参数列表并确保它们都是常规列表，这与 Scheme 不太一样，因为在 CL/Elisp 中剩余参数使用 =(&rest args)= 来表示。除此之外 CL/EL 还允许使用 =&optional= 指定一个可选参数，如果作者的目标是复刻 =case-lambda=​，不支持 =&optional= 是可以理解的。在调用 =case-lambda--make-clause= 的表达式中你可以发现作者使用了 =cl-subseq= 来仅取参数列表的固定参数作为构造中的参数列表。
+
+在 =case-lambda= 的定义中，​=case-lambda--analyze= 的返回值直接作为了 =case-lambda--remove-unreachable= 的参数来获取经过清理且反转的子句构造列表：
+
+#+begin_src elisp
+  (defmacro case-lambda (&rest clauses)
+    "return a anoymous function that dispatch on arguments number.
+  (case-lambda (formals body ...) ...)
+  where formals = (id ... [&rest id])"
+    (let ((clauses (case-lambda--remove-unreachable
+                    (case-lambda--analyze clauses))))
+      (cond ((null clauses) '(lambda () nil))
+            ((null (cdr clauses))
+             (cons 'lambda (case-lambda--arglist-body (car clauses))))
+            (t (case-lambda--main-pattern clauses)))))
+
+  (defun case-lambda--remove-unreachable (clauses)
+    "remove unreachable clauses and return reversed result"
+    (let ((res nil)
+          (max-n-regular -1)
+          (restp nil))
+      (do ((cs clauses (cdr cs)))
+          ((null cs) res)
+          (let ((c (car cs)))
+            (or restp
+                (cond ((case-lambda--restp c)
+                       (setq restp t)
+                       (push c res))
+                      ((> (case-lambda--n-regular c) max-n-regular)
+                       (setq max-n-regular (case-lambda--n-regular c))
+                       (push c res))))))))
+#+end_src
+
+你可以注意到在 =case-lambda--remove-unreachable= 中，如果某个子句含有剩余参数它将会成为最后一个子句，如果它不含剩余参数且固定参数数量小于先前子句的最大固定参数数量它会被直接忽略。这对于作者「按照参数数量排列子句」的设想来说没什么问题（大概？）。
+
+** 难懂的非卫生宏
+
+当 =case-lambda= 仅有一条子句时，我们把它当作普通的函数处理即可，整个实现真正麻烦的部分在 =case-lambda--main-pattern= 上。我们可以注意到仅变量绑定部分就有 12 个变量，更不用说「身首异处」的 =case-lambda--build-bind-if-tree= 了：
+
+#+begin_src elisp
+  (let* ((restp (case-lambda--restp (car clauses)))
+         (rest-clause (car clauses))
+         (rest-clause-n-regular
+          (and restp (case-lambda--n-regular rest-clause)))
+         (first-clause-with-only-regulars-n-regular
+          (if restp (case-lambda--n-regular (cadr clauses))
+            (case-lambda--n-regular (car clauses))))
+         (max-n-regular
+          (if restp
+              (max rest-clause-n-regular
+                   first-clause-with-only-regulars-n-regular)
+            first-clause-with-only-regulars-n-regular))
+         (regular-tmps
+          (let ((res nil))
+            (dotimes (i max-n-regular res)
+              (push (gensym) res))))
+         (rest-var (and restp (case-lambda--restvar rest-clause)))
+         (input (gensym))
+         (rest-at (and restp (- rest-clause-n-regular 1)))
+         (rest-clause-form 
+          `(let (,@(cl-mapcar #'list (case-lambda--arglist rest-clause)
+                              regular-tmps)
+                 ,@(if (and restp (= max-n-regular rest-clause-n-regular))
+                       `((,rest-var ,input)) nil))
+             ,@(case-lambda--body rest-clause)))
+         (error-form
+          (if restp rest-clause-form '(error "case-lambda matching failure")))
+         (resform error-form))
+    ...)
+#+end_src
+
+从实现上来说，真正的主循环只有一小段，但就是这一小段看的我有点大脑萎缩。我们阅读代码的时候最好把 =case-lambda--build-if-tree= 直接复制过来，就像这样：
+
+#+begin_src elisp
+  ;; main loop
+  (do ((cs clauses (cdr cs)))
+      ((null (cdr cs)) (setq clauses cs))
+      (let ((c (car cs))
+            (nextc (cadr cs)))
+        (case-lambda--build-bind-if-tree)))
+  ;;=>
+
+  (do ((cs clauses (cdr cs)))
+      ((null (cdr cs)) (setq clauses cs))
+      (let ((c (car cs))
+            (nextc (cadr cs)))
+        (let ((n-regular (case-lambda--n-regular c))
+              (nc-n-regular (if nextc (case-lambda--n-regular nextc) 0)))
+          (do ((i (- n-regular 1) (- i 1)))
+              ((< i nc-n-regular))
+              (setq resform
+                    `(if (null ,input)
+                         ,(if (= i (- n-regular 1))
+                              `(let (,@(cl-mapcar #'list (case-lambda--arglist c)
+                                                  regular-tmps))
+                                 ,@(case-lambda--body c))
+                            error-form)
+                       ,resform))
+              (when (and restp (= i rest-at))
+                (setq resform
+                      `(let ((,rest-var ,input))
+                         ,resform)))
+              (setq resform
+                    `(let ((,(nth i regular-tmps) (car ,input)))
+                       (setq ,input (cdr ,input))
+                       ,resform))
+              (when (and restp (<= i rest-at))
+                (setq error-form '(error "case-lambda matching failure")))))))
+#+end_src
+
+考虑到拥有最多参数的子句要留到最后处理（位于嵌套的最深处），而代码生成是一层套一层的，​=case-lambda--main-pattern= 接受反转的子句是非常合理的做法。在上面的代码中，外层循环 =(do ((cs clauses ...)))= 的作用是按顺序「剥离」子句构造。在每次迭代中，它获取当前子句 =c= 和下一子句 =nextc=​​，然后调用 =case-lambda--build-bind-if-tree= 来生成处理各子句的所有代码层。
+
+内存循环 (=case-lambda--build-bind-if-tree)= 的作用是处理相邻子句之间的「空缺」（比如两个子句分别有 4 个和 2 个参数，中间的 3 个参数不存在对应子句需要报错）。它通过 =i= 从子句 =c= 的固定参数数量减一迭代到 =nextc= 子句中的固定参数数。这通过 =setq resform= 反复将 =resform= 包裹在新的代码层中：
+
+- 在首次迭代时， ~(= i (- n-regular 1))~ 成立，此时会创建 =let= 绑定将子句的参数与实参对应的临时名字绑定并调用表达式；后续的构造过程只会生成引发错误的表达式，即对应于子句空缺的情况
+  #+begin_src elisp
+    (setq resform
+          `(if (null ,input)
+               ,(if (= i (- n-regular 1))
+                    `(let (,@(cl-mapcar #'list (case-lambda--arglist c)
+                                        regular-tmps))
+                       ,@(case-lambda--body c))
+                  error-form)
+             ,resform))
+  #+end_src
+
+- 迭代过程中会不断将输入参数绑定到各临时名字上，以此「消耗」输入：
+  #+begin_src elisp
+    (setq resform
+          `(let ((,(nth i regular-tmps) (car ,input)))
+             (setq ,input (cdr ,input))
+             ,resform))
+  #+end_src
+
+理解了 =case-lambda--build-if-tree= 基本上就理解了整体思路，下面是 =case-lambda--main-pattern= 的剩余部分：
+
+#+begin_src elisp
+  ;; handle the begining
+  (if (= 0 (case-lambda--n-regular (car clauses)))
+      (setq resform
+            `(if (null ,input)
+                 ,@(case-lambda--body (car clauses))
+               ,resform))
+    (let ((c (car clauses))
+          (nextc nil))
+      (case-lambda--build-bind-if-tree)
+      (setq resform
+            `(if (null ,input)
+                 ,(if (and restp (= 0 rest-clause-n-regular))
+                      rest-clause-form
+                    error-form)
+               ,resform))))
+  (and restp (= 0 rest-clause-n-regular)
+       (setq resform
+             `(let ((,rest-var ,input))
+                ,resform)))
+  `(lambda (&rest ,input)
+     ,resform))
+#+end_src
+
+如果你弄明白了 =case-lambda--build-bind-if-tree= 的工作原理，这里应该比较容易懂了。注意，此时 =clauses= 对应的是 =case-lambda= 中的第一个子句，如果它的固定参数数量为 0 需要一些特殊处理。
+
+如果你看到这里能看懂，那你是这个👍。男人！什么罐头我说，黑眼镜蛇出去。
+
+* 改进的实现
+
+这个代码看着可就舒服多了~它最大的改进就是将那段宏合并到了函数中且重排了其中一些表达式的顺序。
+
+#+begin_src lisp
+  ;;; case-lambda  -*- lexical-binding: t; -*-
+
+  ;;; consider (case-lambda ((x y) (+ x y)) ((a b c d) (+ a b c d)))
+  ;;; it would be nice that expand to
+
+  ;;; (lambda (&rest g0)
+  ;;;   (if (null g0)
+  ;;;     (error "case-lambda match failure") ; <-- no argument
+  ;;;     (let ((g1 (car g0)))
+  ;;;       (setq g0 (cdr g0))
+  ;;;       (if (null g0)
+  ;;;         (error "case-lambda match failure") ; <-- only one argument
+  ;;;         (let ((g2 (car g0)))
+  ;;;           (setq g0 (cdr g0))
+  ;;;           (if (null g0)
+  ;;;             (let ((x g1) (y g2)) ; <-- first case, two arguments
+  ;;;               (+ x y))
+  ;;;             (let ((g3 (car g0)))
+  ;;;               (setq g0 (cdr g0))
+  ;;;               (if (null g0)
+  ;;;                 (error "case-lambda match failure") ; <-- three arguments
+  ;;;                 (let ((g4 (car g0)))
+  ;;;                   (setq g0 (cdr g0))
+  ;;;                   (if (null g0)
+  ;;;                     (let ((a g1) (b g2) (c g3) (d g4)) ; <-- second case,
+  ;;;                       (+ a b c d))                     ; four arguments
+  ;;;                     (error "case-lambda match failure")))))))))))
+
+  ;;; By inspecting the expression above, we can see that it is essentially a
+  ;;; nested form of the following pattern.
+
+  ;;; (if (null g0)
+  ;;;   match-success-or-failure
+  ;;;   bind-rest-or-failure)
+
+  ;;; where match-success-or-failure is either (error ...) or (let ...)
+  ;;; bind-rest-or-failure is either (let ((gN (car g0))) (setq g0 (cdr g0)) ...)
+  ;;;   or (error ...)
+  ;;; which may build through a recursive routine easily, but could also build
+  ;;; reversed, from the deepest (error ...) form to the top (if ...) form
+
+  ;;; then, let's involve &rest, consider
+  ;;; (case-lambda ((x) x) ((i j k) (list i j k)) ((a &rest b) (list a b)))
+  ;;; the failure form would be the rest clause if possible, like
+
+  ;;; (lambda (&rest g0)
+  ;;;   (if (null g0)
+  ;;;     (error "case-lambda match failure") ; <-- failure form that raise an
+  ;;;                                         ;     error
+  ;;;     (let ((g1 (car g0)))
+  ;;;       (setq g0 (cdr g0))
+  ;;;       (let ((rest0 g0)) ; <-- preserve for the rest variable b
+  ;;;         (if (null g0)
+  ;;;           (let ((x g1)) x) ; <-- case 1
+  ;;;           (let ((g2 (car g0)))
+  ;;;             (setq g0 (cdr g0))
+  ;;;             (if (null g0)
+  ;;;               (let ((a g1) (b rest0)) ; <-- note that this is actually a
+  ;;;                 (list a b))           ;     failure form, with rest clause
+  ;;;                                       ;     involved and applied
+  ;;;               (let ((g3 (car g0)))
+  ;;;                 (setq g0 (cdr g0))
+  ;;;                 (if (null g0)
+  ;;;                   (let ((i g1) (j g2) (k g3)) ; <-- the last case
+  ;;;                     (list i j k))
+  ;;;                   (let ((a g1) (b rest0)) ; <-- still the rest clause
+  ;;;                     (list a b)))))))))))
+
+  ;;; finally, consider this (case-lambda ((x) 1) ((&rest xs) xs)), this should
+  ;;; construct (let ((rest0 g0)) ...) before any expression
+
+  (defun case-lambda--pure-list-p (x)
+    (cl-do ((x x (cdr x)))
+        ((not (consp x)) (null x))))
+
+  (defun case-lambda--check-syntax (clauses)
+    ;; assume clauses is generate by reader so that it couldn't be non-pure list
+    (cl-assert (case-lambda--pure-list-p clauses))
+    (dolist (c clauses)
+      (unless (consp c)
+        (error "bad case-lambda syntax"))
+      (let ((arglist (car c))
+            (body (cdr c)))
+        (when (or (not (case-lambda--pure-list-p arglist))
+                  (not (case-lambda--pure-list-p body)))
+          (error "bad case-lambda syntax"))
+        (when (let* ((rest-form (member '&rest arglist))
+                     (len (length rest-form)))
+                (and (/= 0 len) (/= 2 len)))
+          (error "bad case-lambda syntax")))))
+
+  ;; case-lambda clause descriptor
+  (defun case-lambda--make-clamcd (restp n-regular regular-arglist body)
+    "make a case-lambda clause descriptor
+  RESTP should be either rest argument name or nil
+  N-REGULAR is how many regular arguments
+  REGUAR-ARGLIST is regular arguments form"
+    (cons (cons restp n-regular) (cons regular-arglist body)))
+  (defmacro clamcd--restp (x)
+    `(caar ,x))
+  (defmacro clamcd--restvar (x)
+    `(caar ,x))
+  (defmacro clamcd--n-regular (x)
+    `(cdar ,x))
+  (defmacro clamcd--regular-arglist (x)
+    `(cadr ,x))
+  (defmacro clamcd--body (x)
+    `(cddr ,x))
+
+  (defun case-lambda--analyze-clauses (clauses)
+    "return reversed clause descriptors that unreachable clauses are removed"
+    (let ((result nil) (max-n-regular -1) (already-restp nil))
+      (dolist (c clauses result) ; note function result is declared here
+        (let* ((arglist (car c))
+               (restp (member '&rest arglist))
+               (restvar (and restp (cadr restp)))
+               (n-regular (if restp (- (length arglist) 2) (length arglist)))
+               (regulars (cl-subseq arglist 0 n-regular))
+               (body (cdr c)))
+          (when (and (not already-restp)
+                     (or restp (> n-regular max-n-regular)))
+            (when restp (setq already-restp restp))
+            (setq max-n-regular (max n-regular max-n-regular))
+            (push (case-lambda--make-clamcd restvar n-regular regulars body)
+                  result))))))
+
+  ;; you should read the section comments above before read this function
+  (defun case-lambda--build-main-form (clamcds)
+    ;; note that clamcds is now reversed, so the max-n-regular clause or
+    ;; the rest clause is sit on the top
+    (let* ((first-clamcd (car clamcds))
+           (second-clamcd (cadr clamcds))
+           (restp (clamcd--restp first-clamcd))
+           (rest-clamcd (and restp first-clamcd))
+           (restvar (and restp (clamcd--restvar rest-clamcd)))
+           (rest-n-regular (and restp (clamcd--n-regular rest-clamcd)))
+           ;; n-regular of rest clause could smaller than max-n-regular
+           (max-n-regular (max (clamcd--n-regular first-clamcd)
+                               (clamcd--n-regular second-clamcd)))
+           ;; gensyms
+           (input-tmp (gensym "INPUT"))
+           (regular-tmps
+            (let ((res nil))
+              (dotimes (_ max-n-regular res)
+                (push (gensym "G") res))))
+           (rest-tmp (gensym "REST"))
+           ;; the failure-form
+           (failure-form
+            (if (not restp)
+              '(error "case-lambda match failure")
+              (let ((rest-clause-regular-arglist (clamcd--regular-arglist rest-clamcd)))
+                `(let (,@(mapcar 'list rest-clause-regular-arglist regular-tmps)
+                       (,restvar ,rest-tmp))
+                   ,@(clamcd--body first-clamcd)))))
+           (resform failure-form))
+      (cl-do ((clamcds clamcds (cdr clamcds)))
+          ((null clamcds)
+           `(lambda (&rest ,input-tmp) ; <-- see, the result
+              ,(if (and restp (= 0 (clamcd--n-regular first-clamcd)))
+                `(let ((,rest-tmp ,input-tmp))
+                   ,resform)
+                resform)))
+        (let* ((clamcd (car clamcds))
+               (next-clamcd (cadr clamcds))
+               (n-regular (if (and restp (eq clamcd rest-clamcd))
+                            max-n-regular
+                            (clamcd--n-regular clamcd)))
+               (next-n-regular
+                 (if (null next-clamcd) -1 (clamcd--n-regular next-clamcd))))
+          ;; note that if the rest clause and the previous clause has same number
+          ;; of regular arguments, this do loop will simply skip the rest clause
+          (cl-do ((i n-regular (- i 1)))
+              ((= i next-n-regular))
+            (when (and restp (= i (- rest-n-regular 1)))
+              (setq failure-form '(error "case-lambda match failure"))
+              (setq resform
+                `(let ((,rest-tmp ,input-tmp))
+                   ,resform)))
+            (setq resform
+              `(if (null ,input-tmp)
+                 ,(if (= i n-regular)
+                    `(let (,@(cl-mapcar 'list (clamcd--regular-arglist clamcd) regular-tmps)
+                           ,@(if (and restp (= i max-n-regular)
+                                      (= rest-n-regular max-n-regular)
+                                      (/= rest-n-regular (clamcd--n-regular second-clamcd)))
+                               ;; if it is the deepest form, and it has the most
+                               ;; of regular arguments, and previous clause
+                               ;; doesn't has the same number of arguments with
+                               ;; this clause (which is rest clause),
+                               ;; which is, if the rest clause has the most of
+                               ;; regular arguments, and no other clauses have
+                               ;; the most of regular arguments
+                               `((,restvar ,rest-tmp))
+                               nil))
+                       ,@(clamcd--body clamcd))
+                    failure-form)
+                 ,(if (= i max-n-regular)
+                    failure-form
+                    `(let ((,(nth i regular-tmps) (car ,input-tmp)))
+                       (setq ,input-tmp (cdr ,input-tmp))
+                       ,resform)))))))))
+
+
+  (defmacro case-lambda (&rest clauses)
+    (case-lambda--check-syntax clauses)
+    (let ((clamcds (case-lambda--analyze-clauses clauses)))
+      (cl-case (length clamcds)
+        (0 '(lambda () nil))
+        (1 (let ((d (car clamcds)))
+             (if (clamcd--restp d)
+               `(lambda (,@(clamcd--regular-arglist d) &rest ,(clamcd--restvar d))
+                  ,@(clamcd--body d))
+               (cons 'lambda (cons (clamcd--regular-arglist d) (clamcd--body d))))))
+        (otherwise
+         (case-lambda--build-main-form clamcds)))))
+
+  (defmacro case-defun (name &rest clauses)
+    `(progn
+       (declaim (ftype (function (&rest t) (values &rest t)) ,name))
+       (setf (symbol-function ',name) (case-lambda ,@clauses))))
+
+  (defmacro case-defmacro (name &rest clauses)
+    (let ((xs (gensym)))
+      `(defmacro ,name (&rest ,xs)
+         (apply (case-lambda ,@clauses) ,xs))))
+
+  ; (case-defun range
+  ;   ((m) (range 0 m 1))
+  ;   ((m n) (range m n 1))
+  ;   ((m n k)
+  ;    (loop for i from m below n by k collect i)))
+
+  ; (macroexpand '(case-lambda))
+  ; (macroexpand '(case-lambda ((x y) (+ x y))))
+  ; (macroexpand '(case-lambda (() 1) ((x y) (+ x y))))
+  ; (macroexpand '(case-lambda ((x y) (+ x y)) ((x y z) (- x y z))))
+  ; (macroexpand '(case-lambda ((x y z) (+ x y z)) ((w x y z) (- w x y z))))
+  ; (macroexpand '(case-lambda ((x y) (+ x y)) ((w x y z) (- w x y z))))
+  ; (macroexpand '(case-lambda ((x y z) (- x y z)) ((&rest xs) (cons 1 xs))))
+  ; (macroexpand '(case-lambda ((x y z) (- x y z)) ((x &rest xs) (list 1 x xs))))
+  ; (macroexpand '(case-lambda ((x y z) (- x y z)) ((x y z &rest xs) (list 1 x xs))))
+  ; (macroexpand '(case-lambda
+  ;                 ((x y z) (- x y z))
+  ;                 ((a b c d e &rest xs) (list a b c d e xs))))
+
+  ;  (case-defun map*
+  ;    ((f xs)
+  ;     (if (null xs)
+  ;       nil
+  ;       (let* ((res (cons (funcall f (car xs)) nil))
+  ;              (cur res))
+  ;         (dolist (x (cdr xs) res)
+  ;           (rplacd cur (cons (funcall f x) nil))
+  ;           (setq cur (cdr cur))))))
+  ;    ((f xs ys)
+  ;     (if (or (null xs) (null ys))
+  ;       nil
+  ;       (let* ((res (cons (funcall f (car xs) (car ys)) nil))
+  ;              (cur res))
+  ;         (do ((xs (cdr xs) (cdr xs))
+  ;              (ys (cdr ys) (cdr ys)))
+  ;             ((or (null xs) (null ys))
+  ;              res)
+  ;           (rplacd cur (cons (funcall f (car xs) (car ys)) nil))
+  ;           (setq cur (cdr cur))))))
+  ;    ((f xs ys zs)
+  ;     (if (or (null xs) (null ys) (null zs))
+  ;       nil
+  ;       (let* ((res (cons (funcall f (car xs) (car ys) (car zs)) nil))
+  ;              (cur res))
+  ;         (do ((xs (cdr xs) (cdr xs))
+  ;              (ys (cdr ys) (cdr ys))
+  ;              (zs (cdr zs) (cdr zs)))
+  ;             ((or (null xs) (null ys) (null zs))
+  ;              res)
+  ;           (rplacd cur (cons (funcall f (car xs) (car ys) (car zs)) nil))
+  ;           (setq cur (cdr cur))))))
+  ;    ((f ws xs ys &rest zs)
+  ;     (declare (inline map* some))
+  ;     (if (or (null ws) (null xs) (null ys)
+  ;             (some #'null zs))
+  ;       nil
+  ;       (let* ((res (cons (apply f (car ws) (car xs) (car ys) (map* #'car zs)) nil))
+  ;              (cur res))
+  ;         (do ((ws (cdr ws) (cdr ws))
+  ;              (xs (cdr xs) (cdr xs))
+  ;              (ys (cdr ys) (cdr ys))
+  ;              (zs (map* #'cdr zs) (map* #'cdr zs)))
+  ;             ((or (null ws) (null xs) (null ys) (some #'null zs))
+  ;              res)
+  ;           (rplacd cur (cons (apply f (car ws) (car xs) (car ys)
+  ;                                    (map* #'car zs))
+  ;                             nil))
+  ;           (setq cur (cdr cur)))))))
+#+end_src
+
+如果是我的话，可能还会把子句构造改成 =cl-defstruct= 的形式然后添加点注释。不过在上面的实现中更值得关注的是 =case-lambda--build-main-form= 这个巨长无比的函数，应该考虑将它拆分成更已读的小函数。
+
+** 从递归的思路出发
+
+老实说，在看到上面这段代码时，我更倾向于从递归而不是迭代的思路来写。我们可以很容易地看出这是个将子句展开为嵌套 =if= 的过程，或者说前一子句就是对后面所有子句加上新的内容而已，就像是 =(if cond dosomething rest)= 的感觉，而 =rest= 内容可以由递归调用来生成。
+
+#+begin_src elisp
+  ;; -*- lexical-binding: t; -*-
+
+  (defun c--ensure-proper-arglists (clauses)
+    "Ensure clauses' arglist are all proper lists."
+    (thread-first 
+      (lambda (ls)
+        (and (proper-list-p ls)
+             (cl-every (lambda (s)
+                         (and (symbolp s)
+                              (not (keywordp s))))
+                       ls)))
+      (cl-every (mapcar #'car clauses))
+      (unless (error "Invalid arglist exist in %s" clauses))))
+
+  (defmacro case-lambda (&rest clauses)
+    "The case-lambda macro"
+    (c--ensure-proper-arglists clauses)
+    (pcase (length clauses)
+      (0 '(lambda () nil))
+      (1 `(lambda ,@(car clauses)))
+      (_ (let ((input (gensym "ARGS")))
+           `(lambda (&rest ,input)
+              ,(case-lambda-1 clauses 0 0 nil input))))))
+
+  (defun case-lambda-1 (clauses index cnt tmps input)
+    "Inner function for `case-lambda'"
+    (if (null clauses) '(error "case-lambda match failure")
+      (pcase-let* ((`(,first . ,rest) clauses)
+                   (`(,arglist . ,body) first))
+        (let* ((rvar (cadr (memq '&rest arglist)))
+               (args (if (not rvar) arglist (nbutlast arglist 2)))
+               (len (length args)))
+          (if (<= len index)
+              (if (not rvar)
+                  (let ((res (case-lambda-1 rest index (1+ cnt) tmps input)))
+                    (if (not (and (= cnt 0) (= len 0))) res
+                      `(if (null ,input) (progn ,@body) ,res)))
+                `(apply #'(lambda ,@first) (append (list ,@tmps) ,input)))
+            (let* ((new-tmps (cl-loop repeat (- len index) collect (gensym)))
+                   (params (append tmps new-tmps))
+                   (result (if (not rvar) (case-lambda-1 rest len (1+ cnt) params input)
+                             `(apply #'(lambda ,@first) (append (list ,@tmps) ,input)))))
+              (named-let f ((i index) (ls (reverse new-tmps))
+                            (r `(if (null ,input)
+                                    (let (,@(cl-mapcar #'list args params)) ,@body)
+                                  ,result)))
+                (if (= i len)
+                    (if (not (zerop cnt)) r
+                      `(if (null ,input) (error "case-lambda match failure") ,r))
+                  (f (1+ i) (cdr ls)
+                     (cond
+                      ((= i index)
+                       `(let ((,(car ls) (car ,input)))
+                          (setq ,input (cdr ,input))
+                          ,r))
+                      (t
+                       `(let ((,(car ls) (car ,input)))
+                          (setq ,input (cdr ,input))
+                          (if (null ,input) (error "case-lambda match failure")
+                            ,r)))))))))))))
+
+  ;; Local Variables:
+  ;; read-symbol-shorthands: (("c-" . "case-lambda-"))
+  ;; End:
+#+end_src
+
+Gemini 的评价是「相比迭代式的实现可读性好不了多少」，不过我想会递归的人应该很容易看懂吧（笑），而且整个代码不过 60 行，代码越短就越好理解。
+
+=c--ensure-proper-arglist= 和 =case-lambda= 所实现的功能基本上和上面提到的命令式实现没有太大区别，我的实现的重点在 =case-lambda-1= 这个函数上。在它的参数中，​=index= 表示当前已经从输入中取到的参数个数，​=cnt= 表示当前的子句序号，​=tmps= 表示所有的临时符号，​=input= 表示函数调用中获取的参数列表。
+
+实际上，我们不需要太多的变量来记录状态，甚至也不需要在开始构造前获取子句的参数信息，这些完全可以在递归过程中完成：
+
+#+begin_src elisp
+  (pcase-let* ((`(,first . ,rest) clauses)
+               (`(,arglist . ,body) first))
+    (let* ((rvar (cadr (memq '&rest arglist)))
+           (args (if (not rvar) arglist (nbutlast arglist 2)))
+           (len (length args)))
+      ...))
+#+end_src
+
+这一代码的作用是获取当前子句 =first=​，以及它的参数列表 =arglist= 和函数体 =body=​，然后尝试获取剩余参数变量 =rvar= 和不含剩余参数的固定参数列表 =args= 及其长度。接着，我们会判断当前子句的固定参数是否小于已从输入中获取的参数数量，如果是则说明该子句的参数数量小于某一之前出现过的子句，这种情况下该子句是要被舍弃的，就像命令式实现的一样：
+
+#+begin_src elisp
+  (if (<= len index)
+      (if (not rvar)
+          (let ((res (case-lambda-1 rest index (1+ cnt) tmps input)))
+            (if (not (and (= cnt 0) (= len 0))) res
+              `(if (null ,input) (progn ,@body) ,res)))
+        `(apply #'(lambda ,@first) (append (list ,@tmps) ,input)))
+    ...)
+#+end_src
+
+当然你可以看到这里的逻辑明显比我描述的要复杂一点，如果该子句不含剩余变量，但它是第一个子句且参数数量为 0，那么它需要一点表达式来处理输入参数为 0 的情况；如果它含有剩余变量，那我们直接使用 =apply= 配合已有临时变量和被修改过的输入重新组合得到完整参数来调用它即可。
+
+接下来是正常的处理过程，当当前子句固定参数数量大于之前最大参数数量的子句时，我们也可能需要从少到多的参数获取过渡过程，于是我们生成了新的临时符号，构建新的临时符号表并根据当前子句是否含有剩余变量来决定是否继续递归过程：
+
+#+begin_src elisp
+  (let* ((new-tmps (cl-loop repeat (- len index) collect (gensym)))
+         (params (append tmps new-tmps))
+         (result (if (not rvar) (case-lambda-1 rest len (1+ cnt) params input)
+                   `(apply #'(lambda ,@first) (append (list ,@tmps) ,input)))))
+    ...)
+#+end_src
+
+接下来是不断根据已有临时符号数量与需要的符号数量进行迭代的过程，不过我使用了 =name-let= 做尾递归来强行写成递归了：
+
+#+begin_src elisp
+  (named-let f ((i index) (ls (reverse new-tmps))
+                (r `(if (null ,input)
+                        (let (,@(cl-mapcar #'list args params)) ,@body)
+                      ,result)))
+    (if (= i len)
+        (if (not (zerop cnt)) r
+          `(if (null ,input) (error "case-lambda match failure") ,r))
+      (f (1+ i) (cdr ls)
+         (cond
+          ((= i index)
+           `(let ((,(car ls) (car ,input)))
+              (setq ,input (cdr ,input))
+              ,r))
+          (t
+           `(let ((,(car ls) (car ,input)))
+              (setq ,input (cdr ,input))
+              (if (null ,input) (error "case-lambda match failure")
+                ,r)))))))
+#+end_src
+
+这里需要注意的是当 ~(= i index)~ 时我们需要生成不一样的代码，这是因为它是「最内层」的代码，直接与 =result= 对接，而 =result= 已经含有 =(if (null ,input))= 的判定了。
+
+大概就是这样，如果是会 Lisp 的同学应该能轻松理解吧。
+
+* 后记
+
+老实说，我对一开始的代码并不怎么感兴趣，但现在看来也算不错的迭代改递归实现练习。这样的文章写起来比引经据典的轻松太多了。
