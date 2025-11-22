@@ -1,0 +1,598 @@
+#+TITLE: 通过使用 Emacs 31 的 load-path-filter-function 加快 Emacs 在 Windows 下包加载的查找过程
+#+DATE: [2025-05-01 Thu 22:27]--[2025-11-22 Sat 20:41]
+#+FILETAGS: elisp
+#+DESCRIPTION: 本文介绍了在加快 Emacs 在 Windows 上启动速度这件事上的一系列工作，并在已有实现的基础上给出了通过文件缓存的方法进一步加速包加载的实现。
+
+# [[https://www.pixiv.net/artworks/135054601][file:dev/p0.jpg]]
+
+在 Emacs 31.0.50 的 etc/NEWS 中有这样一条记录：
+
+#+begin_src text
+  +++
+  ,** New feature to speed up repeated lookup of Lisp files in 'load-path'.
+  If the new variable 'load-path-filter-function' is set to the new
+  function 'load-path-filter-cache-directory-files', calling 'load' will
+  cache the directories it scans and their files, and the following
+  lookups should be faster.
+#+end_src
+
+虽然目前 [2025-11-21] Emacs 31.1 还未正式发布，编译源代码使用主线 Emacs 的用户已经可以在配置文件中的靠前位置使用以下代码启用这一功能，在文件 I/O 非常昂贵的 Windows 系统上能看到肉眼可见的 Emacs 启动速度提升：
+
+#+begin_src elisp
+  (when (boundp 'load-path-filter-function)
+    (setq load-path-filter-function #'load-path-filter-cache-directory-files))
+#+end_src
+
+最近几天，在 Emacs-China 上的 [[https://emacs-china.org/t/emacs-2025/30467][emacs性能优化的新进展, 2025版]] 和 [[https://emacs-china.org/t/load-path-emacs/30456][关于load-path增多对emacs运行速度的重大影响]] 这两个帖子中，和坛友的讨论给了我一些启发，可以在 =load-path-filter-function= 的基础上将插件包的加载路径缓存写入文件，让 Emacs 在随后的启动过程中直接读取缓存来加快路径查找过程。当然，这需要一些解释，这里我首先给出实际可用的代码：[[https://github.com/include-yy/persistent-cached-load-filter][include-yy/persistent-cached-load-filter]]。
+
+* 历史讨论
+
+在 Windows 上使用 Emacs 的同学大概都像我一样，对启动时间已经麻木，懒得在意这几秒的事情了。最近翻 emacs-devel 和 bug-gnu-emacs 的时候我发现一些讨论和补丁似乎能够在一定程度上缓解这个问题。在 LLM 出现之前阅读和整理这些讨论比较麻烦，但现在不是太大的问题。如果你对这部分不感兴趣可以跳过这一节。
+
+** #bug41646 by Nicolas Bértolo
+
+- [2020-06-01] [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2020-06/msg00012.html][bug#41646: Startup in Windows is very slow when load-path contains many entries.]]
+  - [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2020-08/msg01395.html][2020-08]], [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2021-05/msg01093.html][2021-05]], [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg00748.html][2024-10]], [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2024-11/msg00007.html][2024-11]], [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00463.html][2025-05]], [[https://yhetil.org/emacs-bugs/jwvv7xwf26k.fsf-monnier+emacs@gnu.org/T/#u][full]]
+
+由于 2020~2021 年的讨论相对独立，我将它们整合到了一个文件中单独交给 LLM 解读，读者也可以自己试一试：[[file:41646.txt][41646.txt]], [[file:0001-In-Windows-check-if-file-exists-before-opening-it.patch][0001-In-Windows-check-if-file-exists-before-opening-it.patch]]。下面是我使用的提示词：
+
+#+begin_src text
+  在 2020 年，Nicolas Bértolo 在 bug-gnu-emacs 邮件列表上发表了题为
+  Startup in Windows is Very slow when load-path contains many entries 的
+  讨论。整个讨论包括 2020-6, 2020-8, 2021-5 以及 2024 年和 2025 年的内容，
+  其中 2024 及其后与前面的讨论关系不大。我现在给你其中 2020-2021 年的讨论
+  文本，以及附件，你帮我总结一下发生了什么，并准备回答我稍后提出的问题。
+#+end_src
+
+在 2020 年 6 月，N.B. 报告称 Emacs 在 Windows 上的启动速度非常慢，并且他注意到了 Emacs 加载某个功能时需要遍历 =load-path=​，这非常耗时。例如，对于功能包 =foo=​，加载这个包需要在 =load-path= 中搜索 =("foo.el" "foo.elc" "foo.el.gz" "foo.elc.gz" "foo.dll")= 之一是否存在，而检查方法是调用 =wopen= 判断是否能打开指定路径文件。如果这个包所在路径位于 =load-path= 末尾，这差不多需要 =load-path= 长度乘以 5 次调用。在 Windows 上，文件系统对大量小文件的访问优化较差。他对比了 Ubuntu，同样的配置在 Ubuntu 上启动仅需 10 秒（其中 =openp= 耗时 5 秒），而在 Windows 上需 40 秒（其中 =openp= 耗时 32 秒） 。
+
+为了解决这个问题，N.B. 提议建立一个缓存机制，在各个包目录下创建 =load-cache.el=​，其中包含该包名与具体文件路径的映射关系： =foo -> ("foo-pkg/foo.el" "foo-pkg/foo.elc")=​​，并由 package.el 负责管理和加载这些文件。这意味着当请求加载 =foo= 时，Emacs 知道直接去这两个路径寻找而不是遍历整个 =load-path=​。他也考虑过在 =package-user-dir= 中维护一个巨大的 =load-cache.el=​，但他认为这会是一场同步噩梦 (synchronization nightmare)，特别是多个 Emacs 实例同时安装或删除包的时候。
+
+Eli 指出缓存机制的主要难点在于如何确保缓存与磁盘内容同步（例如文件被添加或删除时）。他认为，与其做一个复杂的缓存系统，不如优化 =openp= 函数。他提出在尝试“打开”文件（昂贵的 wopen 操作）之前，先使用开销更小的系统调用（如 =access= 或 =GetFileAttributes=​）来检查文件是否存在 。如果文件不存在，就跳过打开操作。N.B. 采纳并实现了这一 idea（具体使用了 =faccessat= 函数），并在测试中带来了 15% 的启动时间提升。虽然他在 2020 年 6 月就提交了该补丁，但这一提交 [[https://github.com/emacs-mirror/emacs/commit/0e69c85d7d6d46ab9c0d10051066a365e76a901f][0e69c85]] 最终于 2021 年 5 月 13 日才合入主线，而 Emacs 28.1 发布于 2022 年 4 月 4 日。
+
+** loadhints.el by Lin Sun
+
+- [2024-10-13] [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2024-10/msg00748.html][bug#41646: Startup in Windows is very slow when load-path contains many entries.]]
+  - [[https://mail.gnu.org/archive/html/bug-gnu-emacs/2024-11/msg00007.html][2024-11]], [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00463.html][2025-05]], [[https://yhetil.org/emacs-bugs/jwvv7xwf26k.fsf-monnier+emacs@gnu.org/T/#u][full]]
+
+在三年后的 2024 年，#bug41646 被重新打开了，不过讨论的内容转向了 Lin Sun 的 loadhints.el，上一节开头给出的 2024-10, 2024-11 和 2025-05 三个讨论链接都和它有关，读者可以点击 =full= 链接并复制粘贴内容到 LLM 中快速阅读。
+
+在 2024 年 10 月 13 日，Stefan Kangas 取消了 bug#41646 的归档，并提及了 L.S. 在 2023 年 8 月 19 日提交的一个补丁 =lisp/loadhints.el=​，不过我似乎找不到相关讨论了。在 S.K. 提供的讨论上下文中，L.S. 的实现会从 =load-history= 中提取信息，构建一个从 =feature=​ 到 =filepath= 的映射表。这个构建好的映射表会被存储到磁盘上。在随后的加载过程中，Emacs 可以利用这个存储在磁盘上的映射表直接找到文件，从而避免在拥有数百个包的 =load-path= 中进行耗时的搜索。根据 L.S. 的测试，通过在配置中添加 =(require 'loadhints)= 和 =(loadhints-init 'startup)= 后，他的 Emacs 启动时间从 9.703 秒变成了 4.175 秒。下面是 loadhints.el 的最初实现：
+
+:load-hints:
+#+begin_src elisp
+  ;;; loadhints.el --- Give hints for `require'  -*- lexical-binding:t -*-
+
+  ;; Copyright (C) 2023-2024 Free Software Foundation, Inc.
+
+  ;; Author: Lin Sun <sunlin7@hotmail.com>
+  ;; Keywords: utility
+
+  ;; This file is part of GNU Emacs.
+
+  ;; GNU Emacs is free software: you can redistribute it and/or modify
+  ;; it under the terms of the GNU General Public License as published by
+  ;; the Free Software Foundation, either version 3 of the License, or
+  ;; (at your option) any later version.
+
+  ;; GNU Emacs is distributed in the hope that it will be useful,
+  ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ;; GNU General Public License for more details.
+
+  ;; You should have received a copy of the GNU General Public License
+  ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+  ;;; Commentary:
+
+  ;; loadhints will save the feature pathes to a cache file, and uses the
+  ;; cache to speed up the `require' function, it will rapidly speed up the
+  ;; `require' function when hundreds directories in `load-path' (especially
+  ;; for windows). Just call `(loadhints-init 'startup)' in emacs user init
+  ;; file.
+
+  ;;; Code:
+
+  (defcustom loadhints-type (if (eq system-type 'windows-nt) 'startup)
+    "The loadhints-type behavior.
+  A nil value means to disable this feature.
+  `startup' means to work on startup.
+  `manual' means depending on user manually update the cache.
+  `aggressive' means update the cache at emacs quit."
+    :type '(choice (const :tag "Disable" nil)
+                   (const :tag "Startup" startup)
+                   (const :tag "Manual" manual)
+                   (const :tag "Aggressive" aggressive)))
+
+  (defcustom loadhints-cache-file
+    (expand-file-name "loadhints-cache" user-emacs-directory)
+    "File to save the recent list into."
+    :version "31.0"
+    :type 'file
+    :initialize 'custom-initialize-default
+    :set (lambda (symbol value)
+           (let ((oldvalue (symbol-value symbol)))
+             (custom-set-default symbol value)
+             (and loadhints-type
+                  (not (equal value oldvalue))
+                  (load oldvalue t)))))
+
+  (defvar loadhints--cache nil)
+  (defvar loadhints--modified nil)
+
+  ;;;###autoload
+  (defun loadhints-refresh-maybe (&optional force async)
+    "(Re)generate the loadhints cache file.
+  When call with prefix, will FORCE refresh the loadhints cache."
+    (interactive "P")
+    (when (and force (null loadhints-type))
+      (user-error "Loadhints not avaliable for `loadhints-type' is nil"))
+    (when (and loadhints-type
+               (or force
+                   loadhints--modified
+                   (null (locate-file loadhints-cache-file '("/")
+                                      (get-load-suffixes)))))
+      (let ((res (make-hash-table :test 'equal))
+            (filepath (concat loadhints-cache-file ".el")))
+        (cl-loop for (path . rest) in load-history
+                 do (when-let ((x (cl-find 'provide rest
+                                           :test (lambda (a b)
+                                                   (and (consp b)
+                                                        (eq a (car b)))))))
+                      (puthash (cdr x) path res)))
+        (with-temp-file filepath
+          (insert (format "(setq loadhints--cache %S)" res)))
+        (if async
+            (async-byte-compile-file filepath)
+          (byte-compile-file filepath)))))
+
+  ;;;###autoload
+  (defun loadhints-init (&optional type)
+    "Setup the advice for `require' and load the cached hints."
+    (when type
+      (setopt loadhints-type type))
+
+    (when loadhints-type
+      (define-advice require (:around (fn feature &optional filename noerror))
+        (when-let (((null filename))
+                   ((null  (featurep feature)))
+                   (loadhints--cache)
+                   (path (gethash feature loadhints--cache)))
+          (if (not (file-exists-p path))
+              (setq loadhints--modified t)
+            (setq filename path)))
+        (funcall fn feature filename noerror))
+
+      (when-let ((filepath (locate-file loadhints-cache-file '("/")
+                                        (get-load-suffixes))))
+        (load filepath))
+
+      (cond ((eq loadhints-type 'startup)
+             (add-hook 'after-init-hook #'(lambda ()
+                                            (loadhints-refresh-maybe nil t))))
+            ((eq loadhints-type 'aggressive)
+             (add-hook 'kill-emacs-hook #'loadhints-refresh-maybe)))))
+
+  (provide 'loadhints)
+#+end_src
+:end:
+
+在 13 日至 16 日之间的讨论没有太多实质性的内容，Stefan Monnier 承认 =load-path= 的机制是一个长期存在的问题，但他认为将缓存存储在硬盘上会带来较大的维护成本，如果要做缓存建议通过动态生成。Eli 询问是否可以扩展 =filecache.el= 来解决这个问题而不是造新轮子，L.S. 没有想出什么比较好的办法。
+
+在 10 月 16 日和 21 日，L.S. 重新实现了 loadhints 机制并给出了具体的补丁代码，这可以看作 N.B. 思路的一种实现。L.S. 的新机制通过引入一个名为 =load-hints= 的变量来实现对文件查找过程的短路优化：他修改了底层的 =load= 函数，使其在加载功能时优先检查该变量中的映射（支持如 ="org*"= 的前缀匹配），若命中则直接定位到指定目录，从而避免遍历庞大的全局 =load-path=​。
+
+为了实现自动化维护且不依赖额外的全局缓存文件，他修改了 package.el，使得包管理器在安装或更新包时，会自动计算文件列表并将配置 =load-hints= 的代码直接写入各个包自身的 autoloads.el 文件中；这样一来，Emacs 启动加载 autoloads 时便会自动在内存中构建起这份高效索引，以安装阶段的“预计算”换取了运行时 =open= 系统调用次数的大幅减少。他在 Ubuntu 20.04 和 Windows 11 上进行了测试，未使用/使用这一机制的启动时间分别是 6.327s/5.392s 和 11.769s/7.279s。
+
+在 10 月 21 日，S.M. 给出了非常详细的评价，他指出 =load-hints= 可能会破坏那些手动在 =init.el= 中修改 =load-path= 的用户的配置。他担心 =load-hints= 列表会变得很长，线性扫描本身也会耗时。他建议将其转换为哈希表或 Radix Tree（基数树）。S.M. 提议了一种基于「最长公共前缀」（Longest Common Prefix）的反向过滤策略来替代单纯的文件索引。他的核心思想是：不需要记录「哪个文件在哪里」，而是给每个目录打上标签，表明「这个目录下只能找到以此前缀开头的文件」（例如某目录下所有文件都以 "helm" 开头）。这样，当 Emacs 试图加载不匹配该前缀的文件（如 org）时，就能直接判定不匹配并排除该目录。这种方法既能显著减小内存占用（从记录每个文件变为记录每个目录），又能通过排除法高效地过滤掉绝大多数无关路径。
+
+同样是在 21 日，L.S. 修复了 S.M. 提到的一些问题并表达了自己的观点。他认为 Radix Tree 虽然高效但对终端用户来说难以调试和直接查看，使用简单列表更容易理解和维护。他也强调了 load-hints 这一功能默认关闭，不会强迫所有用户改变习惯。对 =load-hints= 可能过大的问题，他认为绝对意义上不会很大。
+
+在 10 月 31 日，S.M. 还是认为 =load-hints= 的实现不应暴露给用户，用户也不需要了解。他指出 L.S. 的方案存在隐患，如果 package.el 自动填充了 =load-hints=​，而用户又在 init 文件中手动修改了 =load-path=​，两者可能发生优先级冲突而导致难以排查的错误。他进一步展示了使用最长公共前缀的反向过滤机制的代码逻辑，以及使用 radix-tree 的一些例子。
+
+接着时间来到 2024 年 11 月，接下来主要是 Eli 与 L.S. 的对话。在 11 月 1 日，L.S. 向 Eli 和 S.M. 提出了两个具体的方案，方案一是使用 =load-hints=​，方案二是扩展 =load-path= 的结构来不仅仅支持目录字符串还支持包含文件列表来支持快速查找，例如 ='(("<path1>" "file1" "file2") "<path2>")=​。这一方式不需要引入新变量但可能与旧代码不兼容。
+
+Eli 就第二种方案与 L.S. 展开了讨论，他询问这些列表数据如何生成，L.S. 表示可以在 bootstrap 阶段生成并写入，但 Eli 指出问题在用户安装的第三方包，构建阶段的生成对第三方包没有作用。鉴于难以达成共识，L.S. 提议编写一段仅针对 Windows 的代码来缓存 =load-path= 文件列表，但 Eli 明确表示他不希望引入 Windows 独有的特性。总的来说，讨论陷入了僵局。
+
+** load-path-filter by Spencer Baugh
+
+- [2025-02-20] [[https://lists.gnu.org/archive/html/emacs-devel/2025-02/msg00841.html][Speeding up loading when load-path has many packages]]
+  - [[https://lists.gnu.org/archive/html/emacs-devel/2025-04/msg00358.html][2025-04]], [[https://lists.gnu.org/archive/html/emacs-devel/2025-05/msg00019.html][2025-05]], [[https://yhetil.org/emacs-devel/87cyfcscqw.fsf@catern.com/T/#u][full]]
+
+在 2025 年 2 月，Spencer Baugh 指出，当使用 =package.el= 安装数百个包时，​=load-path= 会包含数百个目录，导致 =load= 操作在启动和运行时明显变慢。虽然 =package-quickstart= 功能可以优化启动时的路径添加过程，但它无法解决后续通过 =require= 或 =autoload= 实际加载文件时的搜索性能问题，因为这仍然需要遍历整个 =load-path=​。S.B. 建议不再将每个包的目录单独添加到 =load-path=​，而是在包安装时记录文件列表，并建立从文件到目录的映射，并让 =load= 利用这一映射查找文件。他提出的实现方法是允许 =load-path= 中包含符号或函数等非字符串元素，​然后由 =package.el= 实现一个利用映射查找包位置的 =package--locate-file= 函数。
+
+Stefan Monnier 指出他自己的 =load-path= 有超过 500 个条目，但在日常使用中并未感到由此引起的变慢。他建议 S.B. 明确自己使用的操作系统并参考 bug#41646，并警告 S.B. 的改变可能会破坏处理 =load-suffixes= 的逻辑。Eli 同意 S.M. 的观点，他建议 S.B 先做基准测试和性能分析以确定瓶颈是在 Emacs 内部还是操作系统层面。
+
+S.B. 于 4 月 11 日回归讨论，他构造了一个基准测试：重复尝试加载一个不存在的文件 =foo=​，并观察不同 =load-path= 长度下的耗时，测试结果显示随 =load-path= 目录数量增加耗时呈线性增长。S.M. 承认自己最近也开始怀疑深受其害，只是之前归咎于其他原因。S.B. 提出了两个不需要修改 =package.el= 的新思路：
+
+1. 创建一个包含所有包文件的符号链接的大目录，然后将这个目录加入 =load-path=​。
+2. 增加一个预构建的「文件-目录」缓存表，​=load= 操作时先查表，避免系统调用。
+
+S.M. 建议将问题拆分为两部分：(A) 设计加速搜索的数据库，(B) 将其 hook 到 =load= 或 =openp= 中，他建议在 =load= 中添加一个钩子函数 =Vload_filter_path_function= 来过滤路径，就像这样：
+
+#+begin_src c
+  load_path = calln (Vload_filter_path_function, Vload_path, file, suffixes);
+#+end_src
+
+在 4 月 14~15 日，S.M. 和 S.B. 讨论了缓存机制的副作用：新创建的文件在缓存刷新前无法被加载，但 S.M. 认为这是任何加速方案都「不可避免的限制」，可以接受。既然 S.M. 认为这可以接受，S.B. 意识到不需要费劲去维护一个持久化的硬盘数据库了，他提议直接在运行时处理：当 =load= 被调用时，扫描 =load-path= 中的目录并保存结构在内存中以作为缓存。这种方法非常简单、向后兼容且生成迅速，省去了修改 =package.el= 安装逻辑的麻烦。S.M. 随后指出在启动过程中如果 =load-path= 会逐步增长，那么每次 =load= 重新扫描会比较影响性能，S.B. 随机调整思路，提出只扫描新加入的目录对已扫描的目录做缓存。
+
+在 4 月 22 日，S.B. 给出了一个可用的补丁，并提供了极具说服力的基准测试数据。他引入了一个新的变量 =load-filter-path-function=​。如果设置该变量为函数，​=load= 会调用它来过滤 =load-path=​。通过这一方法，在一个包含 1000 个目录的人工构造环境中，加载不存在文件的耗时从 5.347s 骤降至 0.150s；在 S.B. 的真实工作环境中，Emacs 的启动时间从 3.021s 减少到了 1.233s。
+
+随后的审查重点转向了代码的健壮性与构建兼容性。针对 Eli 指出的 =regexp-opt= 通常仅在 GUI 构建中预加载的问题，S.M. 建议将其改为无条件预加载。这一变更最初引发了构建过程中的宏展开错误，促使开发者重新调整了 =loadup.el= 中的加载顺序以解决依赖冲突。在此期间，社区还解决了相关的兼容性细节。由于 TRAMP 需要维持向后兼容性，Michael Albinus 指导修正了相关宏定义的注释，明确该优化适用于 Emacs 31+。S.M. 进一步验证了缓存机制的内存占用（小于 1MB），确认其资源消耗在可接受范围内。在采纳建议统一命名规范（如重命名为 =load-path-filter-function=​）并增加了针对不存在目录的错误处理逻辑后，S.B. 于 5 月 1 日提交了最终完善的补丁，准备合并入主分支。
+
+5 月 22 日，S.B. 询问是否可以合并代码，S.M. 随后于 5 月 24 日将补丁推送到 master 分支 ([[https://github.com/emacs-mirror/emacs/commit/e5218df144203ff1b5da3d46b7579b6455008ee7][e5218df]])，并指出了缺失 =NEWS= 条目的问题。Eli 补充了相关文档 ([[https://github.com/emacs-mirror/emacs/commit/da174e4a15229ae498713444e70c382d7e0e90cd][da174e4]])，但提出他在测试中并未观察到明显的加速效果。Stefan 解释说，该功能主要是为了解决安装了数百个包导致 =load-path= 极长的情况，对于标准长度的 =load-path=​（少于 100 个条目），没有加速效果是符合预期的。
+
+随后，讨论转向了缓存结构的内存优化。Stefan 发现当后缀列表包含空字符串（​=""=​）时，缓存会维护两份数据，造成内存浪费。他提议去除针对空后缀的特殊优化，将缓存合并为单一的哈希表。尽管 S.B. 最初担心这会影响精确文件名的加载性能，但最终同意 S.M. 的观点，即过滤掉大量非 Lisp 文件（如 README、LICENSE）带来的收益更为重要。这一内存优化补丁最终于 5 月 31 日被合并 ([[https://github.com/emacs-mirror/emacs/commit/c3d9581f84107c2e137c71bb8fbf386bc20c944c][c3d9581]])，Eli 和 S.M. 也相应完善了文档字符串，说明了缓存内容可能包含子目录及其他非文件条目等内部实现细节 ([[https://github.com/emacs-mirror/emacs/commit/bcc7c4dbbbc1a68a6467c336db2b0910f3362ae0][bcc7c4d]])。
+
+在 7 月 2 日还有一次 commit ([[https://github.com/emacs-mirror/emacs/commit/b3b83b3603e9922c48eb782102933c6ac7fd16e9][b3b83b3]])，与补全功能相关，但已经不在讨论中了。
+
+** More efforts by Lin Sun
+
+- [2025-05-08] [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00337.html][bug#78306: [PATCH] Skip the non-exists path when loading a file on Windows]]
+
+在 2025 年 5 月 8 日，L.S. 提出，如果 =load-path= 包含不存在的目录，当执行类似 =(require 'debug)= 时 Emacs 仍然会在该目录下尝试寻找 =debug.dll=, =debug.elc=, =debug.el= 等文件。由于 Windows 的文件 I/O 较慢，这些无用的查找会拖慢启动速度。他修改了 =faccessat= 函数，在目录不存在时返回特定的错误码，在调用 =openp= 时，如果检测到该错误码，则直接跳过当前路径的后续查找。
+
+对这一改动，Eli 认为 =faccessat= 过于通用，修改它的行为会影响 Emacs 的其他部分，导致不可预测的后果，并建议先做基准测试。Michael Albinus 认为如果引入 Eli 提到的 =file-accessible-directory-p= 检查必须考虑远程文件，对远程路径做检查会产生巨大的网络开销从而拖慢速度。Stefan Monnier 认为这完全不必要，几十年来 Emacs 就是这样工作的，​=load-path= 中包含不存在目录是很正常的现象。
+
+最后，L.S. 也发现自己的 Emacs 中 =load-path= 包含了大量不存在的路径，认为清理 =load-path= 才是正解。
+
+- [2025-05-10] [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00427.html][bug#78340: [PATCH] New option for comp *.eln file name by the file timestamp of *.el]]
+
+在 2025 年 5 月 10 日，L.S. 指出目前 Emacs 的 native-comp 功能需要读取 =.el= 或 =.el.gz= 源文件的完整内容来计算哈希值，从而确定对应的 =.eln= 文件名。这增加了 I/O 开销，这一点在 Windows 系统上尤其明显。为此，他提交了一个补丁，引入了新选项 =fts=​，该选项允许 Emacs 通过检查文件的时间戳来确定 =.eln= 的文件名。根据他的测试，该补丁使 Windows 上加载 386 个包的 Emacs 启动时间从 8 秒减少到 6.5 秒，提速约 20%。
+
+Eli 拒绝了该补丁，指出时间戳作为验证机制并不可靠，文件时间戳很容易被伪造且 Windows 上文件时间戳的精度仅为 1 秒，可能导致新旧文件时间戳相同的情况。依赖时间戳可能导致 Emacs 加载不兼容或错误的 =.eln= 文件，进而导致 Emacs 崩溃。Eli 强调对于 Emacs 而言，正确性优于速度。Andrea Corallo 也明确表示他并不“热烈拥抱” (enthusiastically embrace) 这个提议。他认同 Eli 列出的可能的安全问题，而且他也并不是 Windows 专家，不太理解为什么在 Windows 上会观察到如此显著的性能问题。
+
+5 月 12 日，Lynn Winebarger 在中途参与了讨论，随后的讨论基本上都在他和 Eli 之间发生。L.W. 最初猜测 L.S. 遇到的性能问题可能不仅仅是因为哈希计算而是因为加载了数百个包，导致 Emacs 需要在很长的 =load-path= 中反复搜索。不过后面他也承认没有性能分析只能是猜测。L.W. 与 Eli 的余下讨论主要是“内容哈希”是否必要。
+
+L.W. 质疑为何必须通过读取源文件计算哈希来防止崩溃，他指出字节编译文件即使与源码不一致通常也不会引发崩溃，且函数签名等安全性问题应由 ABI 哈希而非内容哈希负责。Eli 则反驳称，native code 的加载风险远高于字节码，必须通过严格的证据确保代码调用的原语存在且签名正确以防止崩溃。针对 I/O 性能瓶颈，L.W. 提出了一种折中方案：将源文件的内容哈希存储在 =.elc= 文件的头部注释中，若 =.elc= 时间戳有效，则直接读取该头部信息以避免全文件读取 。然而，Eli 拒绝了这一建议，理由是在 Windows 系统上打开并读取文件（即使仅读取头部）同样存在显著的 I/O 开销，且修改 =.elc= 格式会破坏向后兼容性 。
+
+随后，讨论深入到了源码实现层面。L.W. 通过分析 =src/comp.c= 指出，代码注释表明哈希的主要用途是确保文件名的唯一性以配合 =dlopen=​，而非直接用于安全验证。Eli 则坚持认为现有的验证机制已经历了两个主要版本的考验，从未收到因加载不兼容文件导致崩溃的报告，因此在 Windows I/O 确实缓慢的现实下，仍应坚持“正确性优于速度”的原则。最终，L.W. 提出了一个更为彻底的架构构想：建立一个包含路径、哈希和时间戳的内存清单系统，从而完全避免启动时的磁盘读取。这一方案过于宏大，已超出了当前 Bug 修复的范畴。
+
+
+- [2025-05-10] [[https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-05/msg00429.html][bug#78341: [PATCH] * src/w32.c (is_symlink): Quick return for non accessible file]]
+
+L.S. 注意到在 Windows 版本的 Emacs 中，​=faccessat= 会对不存在的文件重复查询文件属性（调用两次 =GetFileAttributes=​）  。这在启动包含大量包的配置时会导致数千次不必要的文件查询从而拖慢启动速度。他建议直接修改 =chase_symlinks= 函数，通过检查 =errno= 来区分文件不存在的情况并提前返回。
+
+Eli 认为修改 =chase_symlinks= 的行为可能会破坏 Emacs 在其他地方依赖的 =errno= 逻辑，并提出了一个替代补丁。该方案在 =faccessat= 内部修改：先通过新的辅助函数 =access_attrs= 获取属性，如果文件不存在则立即失败，只有当文件确实可能是符号链接时才调用 =chase_symlinks=​。
+
+最后，L.S. 测试名确定新补丁有效且稳定运行，最终代码被合并入 master 分支：[[https://github.com/emacs-mirror/emacs/commit/882c849034a909a62179c38ee01cc08572fa1a68][882c849]]。
+
+* 对 =load-path-filter= 工作原理的介绍
+
+经过上面对的历史讨论的介绍，你应该对 =load-path-filter-function= 这一方案有所了解了，下面是对这一实现的详细分析，这有助于读者理解我的 =persistent-cached-load-filter= 的实现思路。那么废话少说，放码过来：
+
+#+begin_src c
+        Lisp_Object load_path = Vload_path;
+        if (FUNCTIONP (Vload_path_filter_function))
+  	load_path = calln (Vload_path_filter_function, load_path, file, suffixes);
+
+  #if !defined USE_ANDROID_ASSETS
+        fd = openp (load_path, file, suffixes, &found, Qnil,
+  		  load_prefer_newer, no_native, NULL);
+  #else
+        asset = NULL;
+        rc = openp (load_path, file, suffixes, &found, Qnil,
+  		  load_prefer_newer, no_native, &asset);
+        fd.fd = rc;
+        fd.asset = asset;
+
+        /* fd.asset will be non-NULL if this is actually an asset
+  	 file.  */
+  #endif
+#+end_src
+
+上面的代码展示了 =load= 函数中新增的优化逻辑：在调用底层的 =openp= 函数进行实际的文件搜索之前，引入了一个拦截步骤。代码首先检查 =load-path-filter-function= 是否被定义为一个函数；如果是，则调用该函数，将当前的全局 =load-path=​、目标文件名以及后缀列表作为参数传入。该函数的返回值（即经过筛选的目录列表）会替换原始的全局路径，被赋值给局部的 =load_path= 变量，随后 =openp= 使用这个缩减后的局部路径来进行文件查找，从而避免在无关目录中进行昂贵的 I/O 操作。目前 [2025-11-22]，默认的 =load-path-filter-function=​，​=load-path-filter-cache-directory-files= 实现如下：
+
+#+begin_src elisp
+  (defun load-path-filter-cache-directory-files (path file suffixes)
+    "Filter PATH to leave only directories which might contain FILE with SUFFIXES.
+
+  PATH should be a list of directories such as `load-path'.
+  Returns a copy of PATH with any directories that cannot contain FILE
+  with SUFFIXES removed from it.
+  Doesn't filter PATH if FILE is an absolute file name or if FILE is
+  a relative file name with leading directories.
+
+  Caches contents of directories in `load-path-filter--cache'.
+
+  This function is called from `load' via `load-path-filter-function'."
+    (if (file-name-directory file)
+        ;; FILE has more than one component, don't bother filtering.
+        path
+      (pcase-let
+          ((`(,rx . ,ht)
+            (with-memoization (alist-get suffixes load-path-filter--cache
+                                         nil nil #'equal)
+              (if (member "" suffixes)
+                  '(nil ;; Optimize the filtering.
+                    ;; Don't bother filtering if "" is among the suffixes.
+                    ;; It's a much less common use-case and it would use
+                    ;; more memory to keep the corresponding info.
+                    . nil)
+                (cons (concat (regexp-opt suffixes) "\\'")
+                      (make-hash-table :test #'equal))))))
+        (if (null ht)
+            path
+          (let ((completion-regexp-list nil))
+            (seq-filter
+             (lambda (dir)
+               (when (file-directory-p dir)
+                 (try-completion
+                  file
+                  (with-memoization (gethash dir ht)
+                    (directory-files dir nil rx t)))))
+             path))))))
+#+end_src
+
+函数首先检查文件名是否包含目录成分，如果是（常见于指定绝对路径或调用 =load-file= 时）则直接返回原路径而不进行过滤；这是因为绝大多数 =load= 调用源自 =require=​，其 =FEATURE= 参数通常是不含路径的简单符号（极少数含路径的 =feature= 如 =term/w32-nt= 通常已预加载）：
+
+#+begin_src elisp
+  (seq-filter (lambda (x) (string-match-p "/" (symbol-name x))) features)
+  ;;=> (term/w32-nt term/w32-win term/common-win term/tty-colors)
+#+end_src
+
+接着，函数尝试从缓存变量 =load-path-filter--cache= 中检索对应的哈希表，但特意排除了后缀列表包含空字符串 =""= 的情况（这通常对应于 =load= 的 =MUST-SUFFIX= 参数为空）；这种策略旨在避免将 =README= 或 =.gitignore= 等大量无关文件纳入缓存，从而显著优化内存占用。
+
+在最终的列表过滤阶段，函数遍历 =path= 列表，利用 =with-memoization= 机制确保每个目录的文件列表仅在首次访问时被扫描并缓存，随后通过 =try-completion= 进行前缀匹配检查（而非严格的精确匹配），
+从而高效地保留所有可能包含目标文件的目录。
+
+* 缓存持久化
+
+如果要说 =load-path-filter-function= 的默认实现有什么问题的话，那大概是遍历逻辑并没有根本性的改变，对于某个 =file= 依旧要遍历整个 =path= 找到可能存在于其中的路径。这个查找过程不需要系统调用来判断文件是否存在，所以速度上有很大提升。
+
+另一个问题是使用了 =try-completion= 导致出现 false-positive 路径。因为 =load= 的过滤逻辑只需要确认「目录下可能存在该文件」，而 =try-completion= 对于部分匹配也会成功（取决于目录内文件的具体情况），这就导致为了寻找 =s= 包，却错误地保留了包含 =s-mode= 或 =simple-call-tree= 的目录，虽然这些目录里并没有 =s.el=​。
+
+#+begin_src elisp
+  (pp (load-path-filter-cache-directory-files
+       load-path "s" (get-load-suffixes))
+      (current-buffer))
+  ("d:/_D/msys64/home/X/.emacs.d/elpa/expand-region-20241217.1840"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/async-20250831.1225"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/shader-mode-20220930.1052"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/shrface-20250923.958"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/simple-call-tree"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/sly-20250522.2241"
+   "d:/_D/msys64/home/X/.emacs.d/elpa/s-20220902.1511"
+   ...)
+#+end_src
+
+如果我们能够找到名字到路径的唯一路径，并将它写到磁盘在 Emacs 启动时读取，以上这两个问题都能避免。
+
+在 2025 年 11 月 16 日，坛友 junmoxiao [[https://emacs-china.org/t/load-path-emacs/30456/10][尝试]]通过将 =load= 成功的文件与对应路径缓存到磁盘文件加快 Emacs 启动过程。他利用了 =load= 内部的 =found= 参数，该参数会在查找成功时返回文件的绝对路径，但我们在没有修改 Emacs 源代码的 Elisp 层面拿不到这个值。
+
+虽然此时的我还没有阅读过邮件列表，但我已经想到了综合 junmoxiao 和 N.B. 思路的方法。我的实现思路是：接管 =load-path-filter-function=​。当 =load= 调用它时，先查我的磁盘缓存。如果命中且路径有效，直接返回；如果未命中，再调用 Emacs 原生的 =load-path-filter-cache-directory-files= 进行查找，并将结果写入我的缓存。
+
+#+begin_src elisp
+  (defvar yy/cache-2 nil)
+
+  (defun yy/load-cache ()
+    (setq yy/cache-2
+          (condition-case e
+              (car (read-from-string
+                    (with-temp-buffer
+                      (insert-file-contents
+                       (file-name-concat user-emacs-directory "ycache.eld"))
+                      (buffer-substring (point-min) (point-max)))))
+            (error nil))))
+              ;;(make-hash-table :test #'equal))))
+  (yy/load-cache)
+
+  (defun yy/load-path-filter (path file suffixes)
+    (if-let* ((ls (with-memoization (alist-get file yy/cache-2 nil nil #'equal)
+                    (let ((res (load-path-filter-cache-directory-files path file suffixes)))
+                      (if (eq res path) nil res)))))
+        ls path))
+
+  (defun yy/write-cache ()
+    (interactive)
+    (when yy/cache-2
+      (with-temp-file (file-name-concat user-emacs-directory "ycache.eld")
+        (pp yy/cache-2 (current-buffer)))))
+
+  (yy/load-cache)
+
+  (setq load-path-filter-function #'yy/load-path-filter)
+#+end_src
+
+在 11 月 19 日，我完善了我的代码并上传到了 GitHub，相比上面代码的主要改进是在保存时对缓存进行了清洗且添加了自动保存的功能：
+
+:persistent-cached-load-filter:
+#+begin_src elisp
+  (require 'pcase)
+  (require 'seq)
+
+  (defconst t-filename "load-path-cache.eld"
+    "Name of the cache file.")
+
+  (defconst t-cache-path (file-name-concat user-emacs-directory t-filename)
+    "The absolute path to the cache file.")
+
+  (defun t--read-cache ()
+    "Read and return the contents of the load-path cache file.
+  Return the Lisp object read from file.  Return nil if the file
+  does not exist or if an error occurs during reading."
+    (when (file-exists-p t-cache-path)
+      (ignore-errors
+        (thread-first
+          (with-temp-buffer
+            (insert-file-contents t-cache-path)
+            (buffer-string))
+          read))))
+
+  (defvar t--cache (t--read-cache)
+    "In-memory cache for `load-path' filtering.
+  This variable is an alist where each element is a cons cell of the
+  form (FILE . MATCHES).  FILE is the file name string being sought,
+  and MATCHES is a list of directories containing FILE.
+
+  The value is initialized by reading from the disk cache file when
+  this package is loaded.  This involves file I/O during startup.")
+
+  (defvar t--need-update nil
+    "Non-nil means the cache has changed and needs to be written to disk.")
+
+  ;;;###autoload
+  (defun persistent-cached-load-filter (path file suf)
+    "Filter PATH for FILE with suffixes SUF using a persistent cache.
+
+  If FILE contains a directory component, return PATH unchanged.
+  Otherwise, look up FILE in cache.
+
+  If a cached value exists and contains only directories present in PATH,
+  return it. If the cache is invalid or no entry is found, delegate to the
+  default mechanism `load-path-filter-cache-directory-files'.
+
+  If a new search is performed, add it to the cache for future use."
+    (if (file-name-directory file) path
+      (let ((ls-cached (alist-get file t--cache nil nil #'equal)))
+        (when (not (seq-every-p (lambda (p) (member p path)) ls-cached))
+          (setq t--need-update t)
+          (setq t--cache (seq-remove (lambda (x) (equal file (car x))) t--cache))
+          (setq ls-cached nil))
+        (or ls-cached
+            (let ((ls (load-path-filter-cache-directory-files path file suf)))
+              ;; It happens when suffixes has "", see comments of
+              ;; `load-path-filter-cache-directory-files' in startup.el.
+              (if (eq path ls) path
+                (when ls
+                  (setq t--need-update t)
+                  (push (cons file ls) t--cache)
+                  ls)))))))
+
+  (defun t--try-uniquify-cache ()
+    "Remove duplicates and non-existent files from the cache.
+  Return the cleaned list.  Verify that the cached files actually
+  exist on disk using the current load suffixes."
+    (let* ((suffixes (cons "" (get-load-suffixes))))
+      (seq-keep
+       (pcase-lambda (`(,name . ,paths))
+         ;; Actually we use `locate-file' here, so the shadowed path will be ignored.
+         (when-let* ((file (locate-file name paths suffixes)))
+           (cons name (list (directory-file-name (file-name-directory file))))))
+       t--cache)))
+
+  (defun t-write-cache ()
+    "Write the uniquified load path cache to disk.
+  Filter cache to remove duplicates and entries for files that
+  no longer exist, then write the result to
+  `persistent-cached-load-filter-cache-path'.
+
+  Do nothing if `persistent-cached-load-filter--need-update' is nil."
+    (interactive)
+    (when (and t--cache t--need-update)
+      (with-temp-file t-cache-path
+        (pp (t--try-uniquify-cache) (current-buffer)))))
+
+  (defun t-clear-cache ()
+    "Clear the content of the persistent load path cache file.
+  This resets both the cache file on disk and the in-memory variable."
+    (interactive)
+    (setq t--cache nil)
+    (setq t--need-update nil)
+    (with-temp-file t-cache-path
+      (insert "()")))
+
+  (defun t-easy-setup ()
+    "Configure the persistent load path cache.
+  Set `load-path-filter-function' to `persistent-cached-load-filter'
+  and add `persistent-cached-load-filter-write-cache' to
+  `kill-emacs-hook' to ensure the cache is saved on exit."
+    (when (boundp 'load-path-filter-function)
+      (setq load-path-filter-function #'persistent-cached-load-filter)
+      (add-hook 'kill-emacs-hook #'t-write-cache)))
+#+end_src
+:end:
+
+相比 N.B. 的实现，我的改进实质上是省去了遍历 =load-path= 的时间，因为它能够根据名字直接对应到路径而无需过滤，但是也多了加载缓存文件的时间。在我的 Windows 机器上使用我的配置，未优化、简单使用 =load-path-filter-function= 和使用我的方案的 Emacs 启动时间分别是 4.7~4.9s, 4.0~4.2s 和 3.5~3.7s，还是有一定提升的。
+
+* 后续改进与后记
+
+目前，我的实现采用了 alist 作为数据结构，也许 plist 或 hashtable 会更快，但对数百个 =load-path= entry 应该没有太大影响，下面是我的测试代码：
+
+:test:
+#+begin_src elisp
+;; 把缓存按 alist, plist, hash-table 格式写入测试文件
+(with-temp-file "mta.eld"
+  (pp (map-into persistent-cached-load-filter--cache 'alist)
+      (current-buffer)))
+(with-temp-file "mtp.eld"
+  (pp (map-into persistent-cached-load-filter--cache 'plist)
+      (current-buffer)))
+(with-temp-file "mtp.eld"
+  (pp (map-into persistent-cached-load-filter--cache 'hash-table)
+      (current-buffer)))
+;; 测试从测试文件读取得到关联对象的用时
+;; 可见对 200 左右长度的关联表时间差距不大
+(benchmark-run 1000
+  (read (with-temp-buffer
+          (insert-file-contents "mta.eld")
+          (buffer-string))))
+;;0.13ms
+(setq map-a (read (with-temp-buffer
+                    (insert-file-contents "mta.eld")
+                    (buffer-string))))
+(benchmark-run 1000
+  (read (with-temp-buffer
+          (insert-file-contents "mtp.eld")
+          (buffer-string))))
+;;0.13~0.14ms
+(setq map-p (read (with-temp-buffer
+                    (insert-file-contents "mtp.eld")
+                    (buffer-string))))
+(benchmark-run 1000
+  (read (with-temp-buffer
+          (insert-file-contents "mth.eld")
+          (buffer-string))))
+;;0.17ms
+(setq map-h (read (with-temp-buffer
+                    (insert-file-contents "mth.eld")
+                    (buffer-string))))
+;; 获取关联表的键
+(setq keys (map-keys persistent-cached-load-filter--cache))
+(length keys)
+;;214
+;; 测试按照 `persistent-cached-load-filter' 的逻辑查找路径的用时
+(benchmark-run 1000
+    (mapc (lambda (k)
+            (let ((ls (map-elt map-a k)))
+              (seq-every-p (lambda (p) (member p load-path)) ls)))
+          keys))
+;; 1.31ms
+(benchmark-run 1000
+    (mapc (lambda (k)
+            (let ((ls (map-elt map-p k)))
+              (seq-every-p (lambda (p) (member p load-path)) ls)))
+          keys))
+;; 1.09ms
+(benchmark-run 1000
+    (mapc (lambda (k)
+            (let ((ls (map-elt map-h k)))
+              (seq-every-p (lambda (p) (member p load-path)) ls)))
+          keys))
+;; 1.15ms
+
+;; 去掉检查的查找用时
+(benchmark-run 1000
+  (mapc (lambda (k) (map-elt map-a k)) keys))
+;; 0.21ms
+(benchmark-run 1000
+    (mapc (lambda (k) (map-elt map-p k)) keys))
+;; 0.12ms
+(benchmark-run 1000
+  (mapc (lambda (k) (map-elt map-h k)) keys))
+;; 0.034ms
+;; `load-path-filter-cache-directory-files' 的参考查找用时
+(benchmark-run
+    (mapc (lambda (k)
+            (load-path-filter-cache-directory-files
+             load-path k (get-load-suffixes)))
+          keys))
+;; 0.1s
+#+end_src
+:end:
+
+另一个点是 Lin Sun 与 Stefan Monnier 讨论时提到的 Radix tree 和最大公共路径，考虑到某些包含有大量的文件，使用这一方法可以减少缓存的条目数量，但同样这一优化影响不大，就我目前的体验来看，缓存的条目数量还是太小。我本来以为 =load-path-filter-function= 已经优化到头了，现在看来还有一点点空间，之后再看看罢。
+
+今年六月份我就打算总结一下邮件讨论，但一直没有时间而且我对内容也不是那么感兴趣。完成了 =persistent-cached-load-filter= 这个包后，我想这写个博客也许能宣传一下就写完了（笑）。感谢你的阅读，希望这个包能给提升你在 Windows 上使用 Emacs 的体验。
+
+# | [[https://www.pixiv.net/artworks/31047524][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/26376620][file:dev/p2.jpg]] |
+

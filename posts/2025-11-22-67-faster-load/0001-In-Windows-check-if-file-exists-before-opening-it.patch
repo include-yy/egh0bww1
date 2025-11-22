@@ -1,0 +1,39 @@
+From 497d2bccffa0a9b04870307ec5cd85d81cf65d89 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Nicol=C3=A1s=20B=C3=A9rtolo?= <nicolasbertolo@gmail.com>
+Date: Tue, 2 Jun 2020 22:02:27 -0300
+Subject: [PATCH] In Windows check if file exists before opening it.
+
+This reduces time spent in 'openp' by 15% during startup in my tests.
+
+* src/lread.c (openp): Use faccessat to check that a file exists
+before opening it.
+---
+ src/lread.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/lread.c b/src/lread.c
+index 29deddaf15f..8ea19dd8d08 100644
+--- a/src/lread.c
++++ b/src/lread.c
+@@ -1742,7 +1742,17 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
+ 	      }
+ 	    else
+ 	      {
+-		fd = emacs_open (pfn, O_RDONLY, 0);
++                /*  In some systems (like Windows) finding out if a
++                    file exists is cheaper to do than actually opening
++                    it.  Only open the file when we are sure that it
++                    exists.  */
++#ifdef WINDOWSNT
++                if (faccessat (AT_FDCWD, pfn, R_OK, AT_EACCESS))
++                  fd = -1;
++                else
++#endif
++                  fd = emacs_open (pfn, O_RDONLY, 0);
++
+ 		if (fd < 0)
+ 		  {
+ 		    if (! (errno == ENOENT || errno == ENOTDIR))
+-- 
+2.25.1.windows.1
+

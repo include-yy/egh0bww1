@@ -1,0 +1,231 @@
+From:	Nicolas Bértolo
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Mon, 1 Jun 2020 11:26:35 -0300
+
+I have an issue regarding startup times in Windows. My configuration is
+Spacemacs with many layers enabled. My load-path contains 380 entries.
+
+I have profiled Emacs in Windows and found that it spends most of the startup
+time calling wopen(). This is because when calling (load "foo") it checks all
+directories in load-path for ("foo.el" "foo.elc" "foo.el.gz" "foo.elc.gz"
+"foo.dll"). It gets worse when load-prefer-newer is t.
+
+In my case `load-path` contains 380 entries, so every call to load will perform
+380 * 5 = 1900 calls to wopen. This is very slow in Windows because its
+filesystem is not optimized for so many accesses to small files.
+
+I thought that a caching mechanism would help.
+
+This "cache" would consist of a mapping of files that would get probed when
+(load "foo") runs. It would be implemented as a hash table. The contents of this
+hash table could be loaded from load-cache.el files in each package directory.
+
+The directory foo-pkg could have a file load-cache.el with:
+
+foo -> ("foo-pkg/foo.el"
+        "foo-pkg/foo.elc")
+[...]
+
+The directory bar-pkg could have a file load-cache.el with:
+
+bar -> ("bar-pkg/bar.el"
+        "bar-pkg/bar.elc")
+[...]
+
+When a package is activated we could update the in-memory hash table by loading
+its load-cache.el file. Then, when (require 'foo) runs, the loading code could
+look at the hash table and only fopen() the files associated with the feature we
+are loading. This would reduce the number of calls to fopen() from thousands to
+~2 in the worst case.
+
+Or we could have a big load-cache.el in `package-user-dir'. I prefer many small
+files because maintaining the big file when many Emacs instances could be
+installing or removing packages is synchronization nightmare.
+
+Of course, this feature would be disabled by default.
+
+What do you think?
+
+Nicolas
+
+---------------------------------------------------------------------------------------------------
+
+From:	Eli Zaretskii
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Mon, 01 Jun 2020 19:05:58 +0300
+> From: Nicolas Bértolo <nicolasbertolo@gmail.com>
+> Date: Mon, 1 Jun 2020 11:26:35 -0300
+> 
+> I have an issue regarding startup times in Windows. My configuration is
+> Spacemacs with many layers enabled. My load-path contains 380 entries.
+> 
+> I have profiled Emacs in Windows and found that it spends most of the startup
+> time calling wopen(). This is because when calling (load "foo") it checks all
+> directories in load-path for ("foo.el" "foo.elc" "foo.el.gz" "foo.elc.gz"
+> "foo.dll"). It gets worse when load-prefer-newer is t.
+> 
+> In my case `load-path` contains 380 entries, so every call to load will 
+> perform
+> 380 * 5 = 1900 calls to wopen. This is very slow in Windows because its
+> filesystem is not optimized for so many accesses to small files.
+
+So this is not specific to Windows, it's just that Windows has slower
+file access.  IOW, if load-path becomes significantly larger, the slow
+startup will show on Posix systems as well, right?
+
+Next question: are the 'wopen' calls coming from 'openp'? if so,
+perhaps we could first try a cheaper call, like 'chmod' (or its Win32
+API equivalent), and save the 'wopen' call if 'chmod' fails?  Did you
+try that?
+
+> I thought that a caching mechanism would help.
+
+My main concern with a cache is how to make sure it reflects what's on
+the disk, when files are added or removed.
+
+Thanks.
+
+---------------------------------------------------------------------------------------------------
+
+From:	Nicolas Bértolo
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Mon, 1 Jun 2020 13:46:01 -0300
+> So this is not specific to Windows, it's just that Windows has slower
+> file access.  IOW, if load-path becomes significantly larger, the slow
+> startup will show on Posix systems as well, right?
+
+Exactly, but not nearly as bad. I profiled the same Spacemacs configuration in
+Ubuntu 20.04 and startup takes 10 seconds, with 5 seconds spent inside openp().
+
+Compare this to 40 seconds in total and 32 seconds inside openp() in Windows.
+
+> Next question: are the 'wopen' calls coming from 'openp'? if so,
+> perhaps we could first try a cheaper call, like 'chmod' (or its Win32
+> API equivalent), and save the 'wopen' call if 'chmod' fails?  Did you
+> try that?
+
+They come from openp(), yes. I haven't tried it. I think the issue is related to
+the IO architecture in Windows, so I don't expect major speedups, but it could
+certainly help.
+
+> My main concern with a cache is how to make sure it reflects what's on
+> the disk, when files are added or removed.
+
+That is my main concern as well. A good option would be to rely on package.el to
+generate the load-cache.el file for a package when it generates autoloads. If we
+can't find any of the files mentioned in the cache then we fallback to the
+current load-path code. That is a simple solution that would take care of
+addition and removal of files, I think.
+
+Nico.
+
+---------------------------------------------------------------------------------------------------
+
+From:	Eli Zaretskii
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Mon, 01 Jun 2020 20:17:19 +0300
+> From: Nicolas Bértolo <nicolasbertolo@gmail.com>
+> Date: Mon, 1 Jun 2020 13:46:01 -0300
+> Cc: 41646@debbugs.gnu.org
+> 
+> > So this is not specific to Windows, it's just that Windows has slower
+> > file access.  IOW, if load-path becomes significantly larger, the slow
+> > startup will show on Posix systems as well, right?
+> 
+> Exactly, but not nearly as bad. I profiled the same Spacemacs configuration in
+> Ubuntu 20.04 and startup takes 10 seconds, with 5 seconds spent inside 
+> openp().
+> 
+> Compare this to 40 seconds in total and 32 seconds inside openp() in Windows.
+
+You may be surprised how many users of GNU/Linux consider 5 sec during
+startup an unacceptable slowdown.
+
+> > Next question: are the 'wopen' calls coming from 'openp'? if so,
+> > perhaps we could first try a cheaper call, like 'chmod' (or its Win32
+> > API equivalent), and save the 'wopen' call if 'chmod' fails?  Did you
+> > try that?
+> 
+> They come from openp(), yes. I haven't tried it. I think the issue is related 
+> to
+> the IO architecture in Windows, so I don't expect major speedups, but it could
+> certainly help.
+
+'chmod' doesn't access the file, it only accesses the directory.  So
+it could be much faster.
+
+> > My main concern with a cache is how to make sure it reflects what's on
+> > the disk, when files are added or removed.
+> 
+> That is my main concern as well. A good option would be to rely on package.el 
+> to
+> generate the load-cache.el file for a package when it generates autoloads. If 
+> we
+> can't find any of the files mentioned in the cache then we fallback to the
+> current load-path code. That is a simple solution that would take care of
+> addition and removal of files, I think.
+
+Is this supposed to work only when packages are installed by
+package.el?  What about manual installation?
+
+---------------------------------------------------------------------------------------------------
+
+From:	Nicolas Bértolo
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Mon, 1 Jun 2020 16:51:11 -0300
+> You may be surprised how many users of GNU/Linux consider 5 sec during
+> startup an unacceptable slowdown.
+
+Me too. But I had given up on it until I read how it was implemented.
+
+> 'chmod' doesn't access the file, it only accesses the directory.  So
+> it could be much faster.
+
+As far as I can see there is no way to issue a call to 'chmod' that does not
+try to change the permissions of the file passed. I will try to do it
+with access().
+
+> Is this supposed to work only when packages are installed by
+> package.el?  What about manual installation?
+
+Everything should work OK as long as you provide a load-cache.el file in the
+directory you add to load-path. We could provide a function to generate it
+automatically.
+
+Thanks, Nico
+
+---------------------------------------------------------------------------------------------------
+
+From:	Eli Zaretskii
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Tue, 02 Jun 2020 05:17:40 +0300
+> From: Nicolas Bértolo <nicolasbertolo@gmail.com>
+> Date: Mon, 1 Jun 2020 16:51:11 -0300
+> Cc: 41646@debbugs.gnu.org
+> 
+> > 'chmod' doesn't access the file, it only accesses the directory.  So
+> > it could be much faster.
+> 
+> As far as I can see there is no way to issue a call to 'chmod' that does not
+> try to change the permissions of the file passed. I will try to do it
+> with access().
+
+Sorry, I meant 'access', of course.  More accurately,
+GetFileAttributes.
+
+---------------------------------------------------------------------------------------------------
+
+From:	Nicolas Bértolo
+Subject:	bug#41646: Startup in Windows is very slow when load-path contains many entries.
+Date:	Tue, 2 Jun 2020 22:07:45 -0300
+> Sorry, I meant 'access', of course.  More accurately,
+> GetFileAttributes.
+
+That was a very good idea. The attached patch reduces time spent
+in openp() during startup by 5 seconds, or 15%.
+
+Thanks, Nico.
+Attachment:0001-In-Windows-check-if-file-exists-before-opening-it.patch
+Description: Binary data
+
+---------------------------------------------------------------------------------------------------
