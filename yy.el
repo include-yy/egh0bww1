@@ -140,7 +140,7 @@
 (defun yynt/yy-get-post-rss ()
   (let ((items (yynt-select* "\
 SELECT title, path, description, filetags, substr(path,7,10) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%'
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%'
 ORDER BY path DESC
 LIMIT ?" (list yynt/yy-rss-post-n))))
     items))
@@ -279,7 +279,7 @@ build_name='projecteuler' AND ex='0'")))
 (defun yynt/yy-repost-list (prefix limit)
   (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
-build_name='republish' AND ex='0' AND file_name LIKE 'index%'
+build_name='republish' AND ex='0' AND file_name LIKE 'index.%'
 ORDER BY path DESC
 LIMIT ?" (list (or limit 100000)))))
     (mapconcat (lambda (i)
@@ -344,7 +344,7 @@ LIMIT ?" (list (or limit 100000)))))
 (defun yynt/yy-post-list (prefix limit)
   (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%'
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%'
 ORDER BY path DESC
 LIMIT ?" (list (or limit 100000)))))
     (mapconcat (lambda (i)
@@ -360,7 +360,7 @@ LIMIT ?" (list (or limit 100000)))))
 (defun yynt/yy-post-tag-list (prefix tag)
   (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%' AND filetags=?
 ORDER BY path DESC" (list tag))))
     (mapconcat (lambda (i)
 		 (let* ((name (car i))
@@ -375,14 +375,14 @@ ORDER BY path DESC" (list tag))))
 (defun yynt/yy-post-tag-num (tag)
   (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND filetags=?
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%' AND filetags=?
 ORDER BY path DESC" (list tag))))
     (format "=%s=" (caar res))))
 
 (defun yynt/yy-post-year-list (prefix year)
   (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%' AND
 substr(path, 7, 4)=?
 ORDER BY path DESC" (list year))))
     (mapconcat (lambda (i)
@@ -398,7 +398,7 @@ ORDER BY path DESC" (list year))))
 (defun yynt/yy-post-year-num (year)
   (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%' AND
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%' AND
 substr(path, 7, 4)=?
 ORDER BY path DESC" (list year))))
     (format "=%s=" (caar res))))
@@ -406,7 +406,7 @@ ORDER BY path DESC" (list year))))
 (defun yynt/yy-post-total-num ()
   (let ((res (yynt-select* "\
 SELECT COUNT(*) FROM YYNT WHERE
-build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
+build_name='posts' AND ex='0' AND file_name LIKE 'index.%'")))
     (format "%s" (caar res))))
 
 (defvar yynt/yy-drafts)
@@ -458,7 +458,7 @@ build_name='posts' AND ex='0' AND file_name LIKE 'index%'")))
 (defun yynt/yy-drafts-tmp-list (prefix tmp)
   (let ((items (yynt-select* "\
 SELECT path, title FROM YYNT WHERE
-build_name='drafts' AND ex='0' AND file_name LIKE 'index%' AND tmp=?
+build_name='drafts' AND ex='0' AND file_name LIKE 'index.%' AND tmp=?
 ORDER BY path DESC" (list tmp))))
     (setq items (cl-remove-if-not
 		 (lambda (x) (let ((file (yynt-get-file-project-fullname
@@ -478,7 +478,7 @@ ORDER BY path DESC" (list tmp))))
 (defun yynt/yy-drafts-total-num ()
   (let ((res (yynt-select* "\
 SELECT path FROM YYNT WHERE
-build_name='drafts' AND ex='0' AND file_name LIKE 'index%'")))
+build_name='drafts' AND ex='0' AND file_name LIKE 'index.%'")))
     (format "%s"
 	    (length (cl-remove-if-not
 		     (lambda (x) (let ((file (yynt-get-file-project-fullname

@@ -5,6 +5,8 @@
 
 # [[https://www.pixiv.net/artworks/135054601][file:dev/p0.jpg]]
 
+（这里有个[[./index-en.org][英文版]]的。）
+
 在 Emacs 31.0.50 的 etc/NEWS 中有这样一条记录：
 
 #+begin_src text
@@ -502,7 +504,7 @@ Eli 认为修改 =chase_symlinks= 的行为可能会破坏 Emacs 在其他地方
 #+end_src
 :end:
 
-相比 N.B. 的实现，我的改进实质上是省去了遍历 =load-path= 的时间，因为它能够根据名字直接对应到路径而无需过滤，但是也多了加载缓存文件的时间。在我的 Windows 机器上使用我的配置，未优化、简单使用 =load-path-filter-function= 和使用我的方案的 Emacs 启动时间分别是 4.7~4.9s, 4.0~4.2s 和 3.5~3.7s，还是有一定提升的。
+相比 S.B. 的实现，我的改进实质上是省去了遍历 =load-path= 的时间，因为它能够根据名字直接对应到路径而无需过滤，但是也多了加载缓存文件的时间。在我的 Windows 机器上使用我的配置，未优化、简单使用 =load-path-filter-function= 和使用我的方案的 Emacs 启动时间分别是 4.7~4.9s, 4.0~4.2s 和 3.5~3.7s，还是有一定提升的。
 
 * 后续改进与后记
 
