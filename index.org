@@ -61,7 +61,7 @@
   - [ ] 「如何编译 Emacs」，介绍如何在不同操作系统上使用工具链获取完全功能的 Emacs
   - [ ] 「Emacs 的 oclosure」，介绍如何使用 =oclosure= 来创建可手动捕获的「开闭包」
   - [ ] 「Emacs 与 OOP」，介绍 Emacs 中的 OOP 设施与它的 OOP 历史  
-  - [ ] 邮件列表整理 --- 加速 Emacs 包查找
+  - [X] 邮件列表整理 --- 加速 Emacs 包查找
   - [ ] Emacs 与 Windows 上的 ConPTY
   - [ ] 介绍如何使用 Emacs 29 内置的 =sqlite3= 支持
   - [ ] 介绍 Emacs 30 内置的简单补全前端 =completion-preview=
