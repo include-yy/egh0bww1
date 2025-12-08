@@ -1,5 +1,6 @@
 #+TITLE: Problem 1
-#+DATE: [2019-02-20 Web 01:01]
+#+subtitle: 求为 3 或 5 的倍数的和
+#+DATE: [2019-02-20 Web 01:01]--[2025-12-08 Mon 12:38]
 #+DESCRIPTION: 求为 3 或 5 的倍数的和
 
 * Problem
@@ -18,21 +19,16 @@ Find the sum of all the multiples of 3 or 5 below 1000.
 
 * Solution
 
-最简单的思路就是从 1 遍历到 999，通过取余（ =%= ）判断当前数字是否为 3 或 5 的倍数。当然我们知道 1 和 2 不是 3 或 5 的倍数，我们可以从 3 开始：
+最简单的思路就是从 1 遍历到 999，通过取余 (=%=) 判断当前数字是否为 3 或 5 的倍数。1 和 2 不是 3 或 5 的倍数，我们可以从 3 开始：
 
 #+BEGIN_SRC elisp
-;; emacs 29
-(named-let f ((i 3) (sum 0))
-  (cond
-   ((>= i 1000) sum)
-   ((or (= (% i 3) 0)
-	(= (% i 5) 0))
-    (f (1+ i) (+ sum i)))
-   (t (f (1+ i) sum))))
-;; 233168
+  (cl-loop for i from 3 below 1000
+           if (or (zerop (% i 3)) (zerop (% i 5)))
+           sum i)
+  ;;=> 233168
 #+END_SRC
 
-当然，容易看出在 999 内的 3 的倍数组成了一个等差数列，5 的倍数同理。我们可以使用等差数列求和分别得到 3 和 5 的倍数数列之和，然后减去同时是 3 和 5 的倍数的数列求和，即 15 倍数的数列求和。
+容易看出在 999 内的 3 的倍数组成了一个等差数列，5 的倍数同理。我们可以使用等差数列求和分别得到 3 和 5 的倍数数列之和，然后减去同时是 3 和 5 的倍数的数列求和，即 15 倍数的数列求和。
 
 #+BEGIN_SRC elisp
   ;; fn = an; Sn = n*(a + an)/2
@@ -40,24 +36,21 @@ Find the sum of all the multiples of 3 or 5 below 1000.
   ;; n for A is 999/3 = 333, for B is 995/5 = 199
   ;; Cn = 15n; 990/15 = 66
   (let ((a3 (/ (* 333 (+ 3 (* 333 3))) 2))
-	(a5 (/ (* 199 (+ 5 (* 199 5))) 2))
-	(a1 (/ (* 66 (+ 15 (* 66 15))) 2)))
+        (a5 (/ (* 199 (+ 5 (* 199 5))) 2))
+        (a1 (/ (* 66 (+ 15 (* 66 15))) 2)))
     (+ a3 a5 (- a1)))
-  ;; 233168
+  ;;=> 233168
 #+END_SRC
 
-当然，我们也可以用打表的方法筛出所有是 3 或 5 倍数的数，然后把它们加起来......
+当然，我们也可以用打表的方法筛出所有是 3 或 5 倍数的数，然后把它们加起来：
 
 #+begin_src elisp
   (let ((bits (make-bool-vector 1000 nil)))
-    (cl-do ((i 0 (+ i 3))) ((> i 999))
-      (aset bits i t))
-    (cl-do ((j 0 (+ j 5))) ((> j 999))
-      (aset bits j t))
-    (cl-do* ((i 0 (1+ i))
-	     (sum 0 (if (aref bits i) (+ sum i) sum)))
-	((> i 998) sum)))
-  ;; 233168
+    (cl-do ((i 0 (+ i 3))) ((> i 999)) (aset bits i t))
+    (cl-do ((j 0 (+ j 5))) ((> j 999)) (aset bits j t))
+    (cl-loop for i from 0 below 1000
+             if (aref bits i) sum i))
+  ;;=> 233168
 #+end_src
 
 * Extension
@@ -66,38 +59,32 @@ Find the sum of all the multiples of 3 or 5 below 1000.
 
 对于上面的取余判定方法和打表法，都可以很容易地写出通用的方法来：
 
-
 #+begin_src elisp
   (defun eu1-% (start end nums)
-    (let ((i start) (sum 0))
-      (while (< i end)
-	(let ((ls nums) temp)
-	  (while (setq temp (pop ls))
-	    (if (= (% i temp) 0)
-		(progn (cl-incf sum i)
-		       (setq ls nil)))))
-	(cl-incf i))
-      sum))
-  (eu1-% 0 1000 '(3 5)) => 233168
+    (cl-loop for i from start below end
+             if (cl-loop for n in nums
+                         if (zerop (% i n)) return t
+                         finally return nil)
+             sum i))
+  (eu1-% 0 1000 '(3 5))
+  ;;=> 233168
 #+end_src
 
 #+begin_src elisp
   (defun eu1-bits (start end nums)
-    (let* ((length (- end start))
-	   (bits (make-bool-vector length nil))
-	   (bound (1- length))
-	   n (sum 0))
-      (while (setq n (pop nums))
-	(cl-do ((i (% start n) (+ i n))) ((> i bound))
-	  (aset bits i t)))
-      (setq n 0)
-      (while (< n length)
-	(when (aref bits n)
-	  (cl-incf sum (+ start n)))
-	(cl-incf n))
-      sum))
-  (eu1-bits 0 1000 '(3 5)) => 233168
+    (let* ((len (- end start))
+           (bits (make-bool-vector len nil)))
+      (while-let ((n (pop nums)))
+        (cl-loop for i from (% start n) below len by n
+                 do (aset bits i t)))
+      (cl-loop for i from 0 below len
+               if (aref bits i)
+               sum (+ start i))))
+  (eu1-bits 0 1000 '(3 5))
+  ;;=> 233168
 #+end_src
+
+** 使用容斥定理
 
 对于基于通项公式的方法，某个范围 [a, b] 内的等差数列 a_{n} = cn + d 求和的值可以由以下公式给出：
 
@@ -118,81 +105,43 @@ Find the sum of all the multiples of 3 or 5 below 1000.
 	 (* d (+ n-max 1 (- n-min))))))
 #+end_src
 
-最后，使用容斥定理（[[https://zh.wikipedia.org/wiki/%E6%8E%92%E5%AE%B9%E5%8E%9F%E7%90%86][inclusion-exclusion principle]]），我们可以得到所有这些满足条件的数字取并集后的和：
-
+使用容斥定理（[[https://zh.wikipedia.org/wiki/%E6%8E%92%E5%AE%B9%E5%8E%9F%E7%90%86][inclusion-exclusion principle]]），我们可以得到所有这些满足条件的数字取并集后的和：
 
 \[
-\left| \bigcup_{i=1}^{n} A_i \right| = \sum_{i=1}^{n} |A_i| - \sum_{1 \le i < j \le n} |A_i \cap A_j| + \sum_{1 \le i < j < k \le n} |A_i \cap A_j \cap A_k| - \cdots + (-1)^{n+1} |A_1 \cap A_2 \cap \cdots \cap A_n|
+\left| \bigcup_{i=1}^{n} A_i \right| = \sum_{i=1}^{n} |A_i| - \sum_{1 \le i < j \le n} |A_i \cap A_j| + \sum_{1 \le i < j < k \le n} |A_i \cap A_j \cap A_k| - \cdots + (-1)^{n+1} |\bigcap_{i=1}^{n}A_i|
 \]
 
-以下代码可以根据列表元素进行组合：
+以下代码可以根据列表元素列出所有可能大小的子集（也就是求幂集），具体的思路是：
+
+\[
+\mathcal{P}(S) = \begin{cases}
+\{\emptyset\} & \text{if } S = \emptyset \\
+\mathcal{P}(S') \cup \{ \{e\} \cup X \mid X \in \mathcal{P}(S') \} & \text{if } S \neq \emptyset
+\end{cases}
+\]
 
 #+begin_src elisp
   (defun eu1-comb (ls)
     (if (null ls) '(())
       (let ((rest (eu1-comb (cdr ls))))
-	(append rest (mapcar (lambda (x) (cons (car ls) x)) rest)))))
+        (append rest (mapcar (lambda (x) (cons (car ls) x)) rest)))))
 
-  (eu1-comb '(3 5 4)) =>
-  (nil (4) (5) (5 4) (3) (3 4) (3 5) (3 5 4))
+  (eu1-comb '(3 5 4))
+  ;;=> (nil (4) (5) (5 4) (3) (3 4) (3 5) (3 5 4))
 #+end_src
 
 接着，我们可以使用以下代码求解：
 
 #+begin_src elisp
-  (defun eu1-form (start end nums)
-    (let ((combs (eu1-comb nums))
-	  (sum 0))
-      (dolist (x combs sum)
-	(let* ((len (length x))
-	       (sgn (expt -1 (1+ len)))
-	       (val (cl-reduce #'* x)))
-	  (when (/= val 1)
-	    (cl-incf sum (* sgn (eu1-sum start end val 0))))))))
-
-  (eu1-form 0 1000 '(3 5)) => 233168
+  (defun eu1-iep (start end nums)
+    (let ((combs (eu1-comb nums)))
+      (cl-loop for s in combs
+               for sgn = (if (evenp (length s)) -1 1)
+               for val = (apply #'cl-lcm s)
+               if (not (null s))
+               sum (* sgn (eu1-sum start end val 0)))))
+  (eu1-iep 0 1000 '(3 5))
+  ;;=> 233168
 #+end_src
 
-当然，这种公式做法还可以进一步改进，比如去掉 a_{n} 中有倍数关系的较大的数字，以及改进组合的计算和求和的计算。以下是优化后的公式解法：
-
-#+begin_src elisp
-  (defun eu1-cp (ls)
-    (let (res)
-      (named-let combine ((remaining ls)
-			  (product 1)
-			  (sgn -1))
-	(if (null remaining)
-	    (push (cons sgn product) res)
-	  (combine (cdr remaining) product sgn)
-	  (combine (cdr remaining)
-		   (* product (car remaining))
-		   (* sgn -1))))
-      res))
-  (defun eu1-s (a b c)
-    (let* ((n-min (ceiling (/ a (+ c 0.0))))
-	   (n-max (let ((r (/ b c)))
-		    (if (= (* r c) b) (1- r) r)))
-	   (add (+ n-min n-max))
-	   (sub (- n-max n-min)))
-      (/ (* c (1+ sub) add) 2)))
-  (defun eu1-final (start end nums)
-    (let ((combs (eu1-cp nums))
-	  (sum 0))
-      (dolist (x combs sum)
-	(let ((sgn (car x))
-	      (val (cdr x)))
-	  (when (/= val 1)
-	    (cl-incf sum (* sgn (eu1-s start end val))))))))
-  (eu1-final 0 1000 '(3 5)) => 233168
-#+end_src
-
-对于以上三种不同的方法，对于同样规模的问题，以下是运行时间的区别：
-
-#+begin_src elisp
-  (benchmark-run 10000 (eu1-% 0 1000 '(3 5)))
-  (5.725163 31 1.3109459999999995)
-  (benchmark-run 10000 (eu1-bits 0 1000 '(3 5)))
-  (1.754541 0 0.0)
-  (benchmark-run 10000 (eu1-final 0 1000 '(3 5)))
-  (0.510159 4 0.17571000000000048)
-#+end_src
+上面的代码还有一些可以优化的点，比如去掉求和函数的最后一个参数，使集合中的数字互质等等，最大的优化是改进幂集的计算。在利用容斥原理进行计算时，当涉及的集合数量 n 较小（通常 n < 20）时，位掩码是一种最高效的方法。该方法通过循环遍历整数 1 到 2^{n} - 1 来隐式地代表指标集 {1 ... n} 的所有非空子集。整数的二进制位 i 上的 1 表示指标 i 被选中；通过计算二进制数中 1 的个数 (popcount)，可以高效地确定子集大小，进而确定容斥原理中交集项所需的正负符号 (-1)^{|I|-1}。这种方式避免了显式生成和存储整个幂集列表。

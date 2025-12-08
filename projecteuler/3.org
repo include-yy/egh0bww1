@@ -1,5 +1,5 @@
 #+TITLE: Problem 3
-#+DATE: [2019-02-20 Web 01:24]
+#+DATE: [2019-02-20 Web 01:24]--[2025-12-08 Mon 16:46]
 #+DESCRIPTION: 求某数的最大质因数
 
 * Problem
@@ -18,40 +18,39 @@ What is the largest prime factor of the number 600851475143 ?
 
 * Solution
 
-由于 600851475143 并不是一个很大的数，我们可以考虑从 2 开始暴力求取：
+600851475143 并不是一个很大的数，我们可以考虑从 2 开始暴力求取：
 
 #+BEGIN_SRC elisp
-(named-let f ((i 2) (num 600851475143))
-  (cond
-   ((= i num) i)
-   ((zerop (% num i))
-    (f i (/ num i)))
-   (t (f (+ i 1) num))))
-;; 6857
+  (named-let f ((i 2) (num 600851475143))
+    (cond
+     ((= i num) i)
+     ((zerop (% num i)) (f i (/ num i)))
+     (t (f (+ i 1) num))))
+  ;;=> 6857
 #+END_SRC
 
-由于除 2 外的所有质数都是奇数，当我们用过 2 后，我们可以从 3 开始并将步长取 2 而不是 1，理论上这比上面的代码快两倍。由于一眼可以看出这个数字不是偶数，我们直接从 3 开始：
+除 2 外的所有质数都是奇数，当我们用过 2 后可以从 3 开始并将步长取 2 而不是 1，理论上这比上面的代码快两倍。由于一眼可以看出这个数字不是偶数，我们直接从 3 开始：
 
 #+BEGIN_SRC elisp
- (named-let f ((i 3) (num 600851475143))
-   (cond
-    ((= i num) i)
-    ((zerop (% num i))
-     (f i (/ num i)))
-    (t (f (+ i 2) num))))
+  (named-let f ((i 3) (num 600851475143))
+    (cond
+     ((= i num) i)
+     ((zerop (% num i)) (f i (/ num i)))
+     (t (f (+ i 2) num))))
+  ;;=> 6857
 #+END_SRC
 
-另一个优化是：我们不需要从 3 开始一直取到 num，这是因为 num 的因数不可能大于 =sqrt(num)= ，我们可以为除数设置一个限制，当除数大于该值时就说明该数为质数：
+另一个优化是：我们不需要从 3 开始一直取到 num，这是因为 num 的因数不可能大于 √num。可以为除数设置一个上限值，当除数大于该值时就说明该数为质数：
 
 #+BEGIN_SRC elisp
   (named-let f ((i 3)
-		(num 600851475143)
-		(range (floor (sqrt 600851475143))))
+        	      (num 600851475143)
+        	      (range (floor (sqrt 600851475143))))
     (cond
      ((> i range) num)
-     ((zerop (% num i))
-      (f i (/ num i) (floor (sqrt (/ num i)))))
+     ((zerop (% num i)) (f i (/ num i) (floor (sqrt (/ num i)))))
      (t (f (+ i 2) num range))))
+  ;;=> 6857
 #+END_SRC
 
 这个问题本质上就是求取某个数字的所有质因数，只不过题目只要求最大的质因数。

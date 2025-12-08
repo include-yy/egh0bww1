@@ -1,5 +1,6 @@
 #+TITLE: Problem 2
-#+DATE: [2019-02-20 Web 01:18]
+#+subtitle: 求一定范围内偶 fib 数之和
+#+DATE: [2019-02-20 Web 01:18]--[2025-12-08 Mon 16:25]
 #+DESCRIPTION: 求一定范围内偶 fib 数之和
 
 * Problem
@@ -29,12 +30,12 @@ By considering the terms in the Fibonacci sequence whose values do not exceed fo
 根据斐波那契数列公式 =f(n+2) = f(n+1) + f(n)= 从第 1 项求到第四百万项即可：
 
 #+BEGIN_SRC elisp
-(named-let f ((i 1) (j 1) (sum 0))
-  (cond
-   ((> j 4000000) sum)
-   ((cl-evenp j) (f j (+ i j) (+ sum j)))
-   (t (f j (+ i j) sum))))
-;; 4613732
+  (named-let f ((i 1) (j 1) (sum 0))
+    (cond
+     ((> j 4000000) sum)
+     ((evenp j) (f j (+ i j) (+ sum j)))
+     (t (f j (+ i j) sum))))
+  ;;=> 4613732
 #+END_SRC
 
 由于奇奇得偶，奇偶得奇，偶偶得偶，容易观察得出以下规律：
@@ -47,15 +48,14 @@ a b c a b c  a  b  c  a  b   c
 可见从第一项开始以 3 个数为 1 组，每组的最后一个数都是偶数，我们也可以如此实现：
 
 #+BEGIN_SRC elisp
-(named-let f ((a 1) (b 1) (c 2) (sum 0))
-  (cond
-   ((> sum 4000000) sum)
-   (t
-    (setq a1 (+ b c)
-	  b1 (+ a1 c)
-	  c1 (+ a1 b1))
-    (f a1 b1 c1 (+ sum c)))))
-;; 4613732
+  (named-let f ((a 1) (b 1) (c 2) (sum 0))
+    (let* ((a1 (+ b c))
+           (b1 (+ a1 c))
+           (c1 (+ a1 b1))
+           (sum1 (+ sum c)))
+      (if (>= c1 4000000) sum1
+        (f a1 b1 c1 sum1))))
+  ;;=> 4613732
 #+END_SRC
 
 进一步，我们可以推导出步长为 3 的斐波那契数列子列：
@@ -73,9 +73,8 @@ a b c a b c  a  b  c  a  b   c
 根据这个新数列公式，有如下代码：
 
 #+BEGIN_SRC elisp
-(named-let f ((a 0) (b 2) (sum 0))
-  (cond
-   ((> b 4000000) sum)
-   (t (f b (+ (* b 4) a) (+ sum b)))))
-;; 4613732
+  (named-let f ((a 0) (b 2) (sum 0))
+     (if (> b 4000000) sum
+       (f b (+ (* b 4) a) (+ sum b))))
+  ;;=> 4613732
 #+END_SRC
