@@ -1,5 +1,6 @@
 #+TITLE: Problem 9
-#+DATE: [2019-02-20 Web 04:55]
+#+subtitle: 求满足 a+b+c<1000 的毕达哥拉斯三元组
+#+DATE: [2019-02-20 Web 04:55]--[2025-12-09 Tue 12:12]
 #+DESCRIPTION: 求满足 a+b+c<1000 的毕达哥拉斯三元组
 
 * Problem
@@ -35,26 +36,15 @@ a^{2} + b^{2} = c^{2}
 由于这个问题的规模很小，a 和 b 之和不可能超过 1000，我们可以直接暴力求取。考虑到 a < b < c，因此 a 必不可能大于 (1000 - 3)/3, b 必不可能大于 (1000 - 1) / 2：
 
 #+BEGIN_SRC elisp
-  ;; bug in emacs 30.0.50
-  (named-let f ((a 1))
-    (named-let g ((b a))
-      (let* ((c (- 1000 a b))
-	     (res (- (+ (* a a) (* b b)) (* c c))))
-	(cond ((< res 0) (g (1+ b)))
-	      ((= res 0) (* a b c))
-	      ((> res 0) (f (1+ a)))))))
-
-  (cl-loop
-   for a from 1
-   do (let ((res (cl-loop
-		  for b from a
-		  do (let* ((c (- 1000 a b))
-			    (res (- (+ (* a a) (* b b)) (* c c))))
-		       (cond ((< res 0))
-			     ((= res 0) (cl-return (* a b c)))
-			     ((> res 0) (cl-return nil)))))))
-	(if res (cl-return res))))
-  ;; 31875000
+  (cl-loop for a from 1
+           for res = 
+           (cl-loop for b from a
+                    for c = (- 1000 a b)
+                    for r = (- (+ (* a a) (* b b)) (* c c))
+                    when (zerop r) return (* a b c)
+                    when (plusp r) return nil)
+           when res return res)
+  ;;=> 31875000
 #+END_SRC
 
 对于给定的和，上面实现的时间复杂度是 O(n^{2})，我们需要做出改进。
@@ -81,28 +71,22 @@ a+b+c=2m(m+n)d
 
 #+BEGIN_SRC elisp
   (let* ((s 1000)
-	 (s2 (/ s 2))
-	 (limit (floor (sqrt s2)))
-	 (res nil))
-    (named-let f ((m 3))
-      (cond
-       ((> m limit) res)
-       (t
-	(when (zerop (% s2 m))
-	  (let ((sm (/ s2 m)))
-	    (while (zerop (% sm 2))
-	      (setq sm (/ sm 2)))
-	    (let ((k (if (= (% m 2) 1) (+ m 2) (1+ m))))
-	      (while (and (< k (* m 2)) (<= k sm))
-		(if (and (zerop (% sm k))
-			 (= 1 (cl-gcd k m)))
-		    (let* ((d (/ s2 (* k m)))
-			   (n (- k m))
-			   (a (* d (- (* m m) (* n n))))
-			   (b (* 2 d m n))
-			   (c (* d (+ (* m m) (* n n)))))
-		      (push (list a b c) res)))
-		(cl-incf k 2)))))
-	(f (1+ m))))))
-  ;; ((375 200 425))
+         (s/2 (/ s 2))
+         (m-limit (cl-isqrt s/2)))
+    (cl-loop for m from 2 to m-limit
+             when (zerop (% s/2 m))
+             nconc
+             (let ((sm (/ s/2 m)))
+               (cl-loop for k from (if (cl-oddp m) (+ m 2) (1+ m)) by 2
+                        while (and (< k (* m 2)) (<= k sm))
+                        when (and (zerop (% sm k)) (= 1 (cl-gcd k m)))
+                        collect
+                        (let* ((d (/ sm k))
+                               (n (- k m))
+                               (m2 (* m m))
+                               (n2 (* n n)))
+                          (list (* d (- m2 n2))
+                                (* d (* 2 m n))
+                                (* d (+ m2 n2))))))))
+  ;;=> ((375 200 425))
 #+END_SRC

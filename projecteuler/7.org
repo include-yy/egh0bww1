@@ -1,5 +1,6 @@
 #+TITLE: Problem 7
-#+DATE: [2019-02-20 Web 03:10]
+#+subtitle: 第 10001 个质数是什么
+#+DATE: [2019-02-20 Web 03:10]--[2025-12-09 Tue 11:43]
 #+DESCRIPTION: 第 10001 个质数是什么
 #+FILETAGS: #prime#
 
@@ -10,7 +11,6 @@
 By listing the first six prime numbers: 2, 3, 5, 7, 11, and 13, we can see that the 6th prime is 13.
 
 What is the 10 001st prime number?
-
 
 *第 10001 个质数*
 
@@ -28,23 +28,16 @@ What is the 10 001st prime number?
      ((<= n 1) nil)
      ((= n 2) t)
      ((= n 3) t)
-     ((zerop (% n 2)) nil)
-     ((zerop (% n 3)) nil)
-     ((zerop (% n 5)) nil)
+     ((or (zerop (% n 2)) (zerop (% n 3)) (zerop (% n 5))) nil)
      (t (let ((bound (floor (sqrt n))))
-	  (named-let f ((i 3))
-	    (cond
-	     ((> i bound) t)
-	     ((zerop (% n i)) nil)
-	     (t (f (+ i 2)))))))))
-
-  (named-let f ((cnt 3) (i 7))
-    (cond
-     ((= cnt 10001) (- i 2))
-     ((eu7-primep i)
-      (f (1+ cnt) (+ i 2)))
-     (t (f cnt (+ i 2)))))
-  ;; 104743
+          (cl-loop for i from 3 by 2
+                   when (> i bound) return t
+                   when (zerop (% n i)) return nil)))))
+  (let ((cnt 3))
+    (cl-loop for i from 7 by 2
+             when (eu7-primep i) do (incf cnt)
+             when (= cnt 10001) return i))
+  ;;=> 104743
 #+END_SRC
 
 下面是一个高度优化的判断素数函数：
@@ -58,12 +51,16 @@ What is the 10 001st prime number?
      ((< n 9) t)
      ((zerop (% n 3)) nil)
      (t (let ((bound (floor (sqrt n))))
-	  (named-let f ((i 5))
-	    (cond
-	     ((> i bound) t)
-	     ((zerop (% n i)) nil)
-	     ((zerop (% n (+ i 2))) nil)
-	     (t (f (+ i 6)))))))))
+          (cl-loop for i from 5 by 6
+                   when (> i bound) return t
+                   when (or (zerop (% n i))
+                            (zerop (% n (+ i 2))))
+                   return nil)))))
+  (let ((cnt 3))
+    (cl-loop for i from 7 by 2
+             when (eu7-isprime i) do (incf cnt)
+             when (= cnt 10001) return i))
+  ;;=> 104743
 #+END_SRC
 
 对于不确定上限的素数判定，这已经是一个非常好的判定函数了，如果上限确定，我们可以使用各种筛法。比如埃氏筛或欧拉筛。也许我会在之后的题目中展示高度优化的筛法实现。

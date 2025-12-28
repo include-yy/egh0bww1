@@ -1,5 +1,6 @@
 #+TITLE: Problem 5
-#+DATE: [2019-02-20 Web 02:49]
+#+subtitle: 求能被 1 到 20 整除的最小整数
+#+DATE: [2019-02-20 Web 02:49]--[2025-12-09 Tue 11:18]
 #+DESCRIPTION: 求能被 1 到 20 整除的最小整数
 
 * Problem
@@ -20,36 +21,13 @@ What is the smallest positive number that is evenly divisible by all of the numb
 
 这一题不需要编程，我们完全可以列出 20 内的数字的所有质因数，然后取各因数所需最大个数即可：
 
-#+BEGIN_SRC elisp
-  2: 2
-  3: 3
-  4: 2 2
-  5: 5
-  6: 2 3
-  7: 7
-  8: 2 2 2
-  9: 3 3
-  10: 2 5
-  11: 11
-  12: 2 2 3
-  13: 13
-  14: 2 7
-  15: 3 5
-  16: 2 2 2 2
-  17: 17
-  18: 2 3 3
-  19: 19
-  20: 2 2 5
-
-  2: 4
-  3: 2
-  5: 1
-  7: 1
-  11: 1
-  13: 1
-  17: 1
-  19: 1
-#+END_SRC
+#+attr_html: :class data
+|  2 |     3 |   4 |   5 |   6 |       7 |     8 |     9 |  10 |
+|----+-------+-----+-----+-----+---------+-------+-------+-----|
+|  2 |     3 | 2 2 |   5 | 2 3 |       7 | 2 2 2 |   3 3 | 2 5 |
+| 11 |    12 |  13 |  14 |  15 |      16 |    17 |    18 |  19 |
+|----+-------+-----+-----+-----+---------+-------+-------+-----|
+| 11 | 2 2 3 |  13 | 2 7 | 3 5 | 2 2 2 2 |    17 | 2 3 3 |  19 |
 
 结果为： =16*9*5*7*11*13*17*19= ，即 232792560。
 
@@ -57,27 +35,23 @@ What is the smallest positive number that is evenly divisible by all of the numb
 
 #+BEGIN_SRC elisp
   (defmacro eu5-gen (ls)
-    (let ((res nil)
-	  (x (gensym)))
-      (dolist (a ls)
-	(push `(zerop (% ,x ,a)) res))
-      `(lambda (,x)
-	 ,(cons 'and res))))
+    (let ((res nil) (x (gensym)))
+      (dolist (a ls) (push `(zerop (% ,x ,a)) res))
+      `(lambda (,x) ,(cons 'and res))))
 
   ;;(macroexpand '(eu5-gen (2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)))
 
   (defun eu5-judge (g1001)
     (and (zerop (% g1001 20)) (zerop (% g1001 19)) (zerop (% g1001 18))
-	 (zerop (% g1001 17)) (zerop (% g1001 16)) (zerop (% g1001 15))
-	 (zerop (% g1001 14)) (zerop (% g1001 13)) (zerop (% g1001 12))
-	 (zerop (% g1001 11)) (zerop (% g1001 10)) (zerop (% g1001 9))
-	 (zerop (% g1001 8)) (zerop (% g1001 7)) (zerop (% g1001 6))
-	 (zerop (% g1001 5)) (zerop (% g1001 4)) (zerop (% g1001 3)) (zerop (% g1001 2))))
+         (zerop (% g1001 17)) (zerop (% g1001 16)) (zerop (% g1001 15))
+         (zerop (% g1001 14)) (zerop (% g1001 13)) (zerop (% g1001 12))
+         (zerop (% g1001 11)) (zerop (% g1001 10)) (zerop (% g1001 9))
+         (zerop (% g1001 8)) (zerop (% g1001 7)) (zerop (% g1001 6))
+         (zerop (% g1001 5)) (zerop (% g1001 4)) (zerop (% g1001 3)) (zerop (% g1001 2))))
 
-  (named-let f ((i 2))
-    (if (eu5-judge i) i
-      (f (+ i 2))))
-  ;;24.50512719154358s
+  (cl-loop for i from 2 by 2
+           if (eu5-judge i) return i)
+  ;;=> 232792560
 #+END_SRC
 
 我们也可以直接使用 elisp 内置的 =LCM= （least common multiple）函数：
@@ -90,16 +64,13 @@ What is the smallest positive number that is evenly divisible by all of the numb
 对于本问题来说手算或者比较简单的 LCM 实现已经足够了，但是当 K（对本题来说是 20）较大时我们需要找到足够高效的算法。一种思路是找到范围内所有数字的质因数分解，然后对每个质数取最大重数（比如 16 有 4 个 2，那么对 20 内的数字，2 的重数就是 4），一种更加聪明的思路是求 =log_p(k)= ，比如 =log_2(20)=4.32= ，我们取下界可以直接得到素数 2 的重数。
 
 #+BEGIN_SRC elisp
-  (let ((prime-vec [2 3 5 7 11 13 17 19])
-	(check t)
-	(res 0)
-	(bound (floor (sqrt 20))))
-    (cl-reduce '*
-	       (cl-loop for a across prime-vec
-			do (setq res 1)
-			do (if check
-			       (if (< a bound)
-				   (setq res (floor (/ (log 20) (log a))))
-				 (setq check nil)))
-			collect (expt a res))))
+  (let ((primes '(2 3 5 7 11 13 17 19))
+        (bound (floor (sqrt 20))))
+    (seq-reduce
+     (lambda (a x)
+       (if (>= x bound) (* a x)
+         (let ((exp (floor (/ (log 20) (log x)))))
+           (* a (expt x exp)))))
+     primes 1))
+  ;;=> 232792560
 #+END_SRC

@@ -1,5 +1,6 @@
 #+TITLE: Problem 10
-#+DATE: [2019-02-20 Web 05:35]
+#+subtitle: 求小于两百万的素数的和
+#+DATE: [2019-02-20 Web 05:35]--[2025-12-09 Tue 12:22]
 #+DESCRIPTION: 求小于两百万的素数的和
 #+FILETAGS: #prime#
 
@@ -30,20 +31,16 @@ Find the sum of all the primes below two million.
      ((< n 9) t)
      ((zerop (% n 3)) nil)
      (t (let ((bound (floor (sqrt n))))
-	  (named-let f ((i 5))
-	    (cond
-	     ((> i bound) t)
-	     ((zerop (% n i)) nil)
-	     ((zerop (% n (+ i 2))) nil)
-	     (t (f (+ i 6)))))))))
+          (cl-loop for i from 5 by 6
+                   when (> i bound) return t
+                   when (or (zerop (% n i))
+                            (zerop (% n (+ i 2))))
+                   return nil)))))
 
-  (named-let f ((n 3) (sum 2))
-    (cond
-     ((>= n 2000000) sum)
-     (t (if (eu7-isprime n)
-	    (f (+ n 2) (+ sum n))
-	  (f (+ n 2) sum)))))
-  ;; 142913828922
+  (cl-loop for i from 3 by 2
+           when (>= i 2000000) return (+ res 2)
+           when (eu7-isprime i) sum i into res)
+  ;;=> 142913828922
 #+END_SRC
 
 对于这个问题来说上面的代码是够用的，但是整个过程的复杂度大概是 O(n^{1.5}) （isprime 函数的复杂度大概是 O(n^{0.5})）。下面我们用埃氏筛实现一下，它的复杂度是 O(nlog(n)log(n)),整个算法的步骤大概是这样：
@@ -57,24 +54,22 @@ Find the sum of all the primes below two million.
 #+BEGIN_SRC elisp
   (defun eu10-sieve-of-Era (n)
     (let ((limit (floor (sqrt n)))
-	  (vec (make-bool-vector (1+ n) t)))
+          (vec (make-bool-vector (1+ n) t)))
       (aset vec 0 nil)
       (aset vec 1 nil)
-      (cl-loop for i from 4 to n by 2
-	       do (aset vec i nil))
+      (cl-loop for i from 4 to n by 2 do (aset vec i nil))
       (cl-loop for i from 3 to limit by 2
-	       do (when (aref vec i)
-		    (cl-loop for m from (* i i) to n by (* i 2)
-			     do (aset vec m nil))))
+               when (aref vec i) do
+               (cl-loop for m from (* i i) to n by (* i 2)
+                        do (aset vec m nil)))
       vec))
 
   (cl-loop for a across (eu10-sieve-of-Era 2000000)
-	   for i from 0
-	   sum (if a i 0))
-  ;; 142913828922
+           for i from 0 if a sum i)
+  ;;=> 142913828922
 #+END_SRC
 
-由于除了 2 以外的所有偶数都不可能是素数，我们完全可以忽略它们而只处理奇数，现在我们建立如下索引的数组：
+除了 2 以外的所有偶数都不可能是素数，我们完全可以忽略它们而只处理奇数，现在我们建立如下索引的数组：
 
 #+BEGIN_CENTER
 0, 1, 2, 3, 4,...
@@ -89,24 +84,23 @@ Find the sum of all the primes below two million.
 #+BEGIN_SRC elisp
   (defun eu10-sieve-of-Era2 (n)
     (let* ((bound (/ (1+ n) 2))
-	   (vec (make-bool-vector bound t))
-	   (crosslimit (/ (floor (sqrt n)) 2)))
+           (vec (make-bool-vector bound t))
+           (crosslimit (/ (floor (sqrt n)) 2)))
       (aset vec 0 nil)
-      (cl-loop for i from 1 to crosslimit
-	       do (when (aref vec i)
-		    (cl-loop for j from (* 2 i (1+ i))
-			     to (1- bound) by (1+ (* i 2))
-			     do (aset vec j nil))))
+      (cl-loop for i from 1 to crosslimit 
+               when (aref vec i) do
+               (cl-loop for j from (* 2 i (1+ i))
+                        to (1- bound) by (1+ (* i 2))
+                        do (aset vec j nil)))
       vec))
 
   (+ 2 (cl-loop
-	for a across (eu10-sieve-of-Era2 2000000)
-	for i from 0
-	sum (if a (1+ (* i 2)) 0)))
-  ;; 142913828922
+        for a across (eu10-sieve-of-Era2 2000000)
+        for i from 0 when a sum (1+ (* i 2))))
+  ;;=> 142913828922
 #+END_SRC
 
-理论上这能快一倍，不过实际可能要慢一会儿。
+理论上这能快一倍，不过实际可能要慢一点。
 
 * Extension
 
@@ -128,39 +122,36 @@ Find the sum of all the primes below two million.
 #+begin_src elisp
   (defun eu10-sieve-of-Era3 (n)
     (let* ((s 90000)
-	   (sum -1)
-	   (limit (floor (sqrt n)))
-	   (primes nil)
-	   (vec (make-bool-vector (1+ limit) t))
-	   (block (make-bool-vector s t)))
+           (sum -1)
+           (limit (floor (sqrt n)))
+           (primes nil)
+           (vec (make-bool-vector (1+ limit) t))
+           (block (make-bool-vector s t)))
       (aset vec 0 nil)
       (aset vec 1 nil)
       (cl-loop
-       for i from 4 to limit by 2
-       do (when (aref vec i)
-	    (cl-loop
-	     for j from (* i i) to limit by i
-	     do (aset vec j nil))))
+       for i from 2 to limit do
+       (when (aref vec i)
+         (push i primes)
+         (cl-loop
+          for j from (* i i) to limit by i do
+          (aset vec j nil))))
       (setq primes (nreverse primes))
-      (cl-loop
-       for i from 0 to limit
-       do (when (aref vec i) (push i primes)))
       (cl-do ((k 0 (1+ k))) ((> (* k s) n) sum)
-	(fillarray block t)
-	(let ((start (* k s)))
-	  (cl-loop
-	   for p in primes
-	   do (let* ((start-index (/ (+ start p -1) p)))
-		(cl-do ((j (- (* (max start-index p) p) start)
-			   (+ j p)))
-		    ((>= j s))
-		  (aset block j nil))))
-	  (cl-do ((i 0 (1+ i)))
-	      ((or (>= i s) (> (+ i start) n)))
-	    (when (aref block i) (cl-incf sum (+ i start))))))))
+        (fillarray block t)
+        (let ((start (* k s)))
+          (cl-loop
+           for p in primes
+           for start-index = (/ (+ start p -1) p) do
+           (cl-loop for j from (- (* (max start-index p) p) start)
+                    below s by p
+                    do (aset block j nil)))
+          (cl-do ((i 0 (1+ i)))
+              ((or (>= i s) (> (+ i start) n)))
+            (when (aref block i) (incf sum (+ i start))))))))
 
-  (eu10-sieve-of-Era3 2000000)
-  ;; 142913828922
+  (eu10-sieve-of-Era3 10)
+  ;;=> 142913828922
 #+end_src
 
 同样，这个实现也可以通过去掉偶数来进一步改进。
@@ -172,25 +163,25 @@ Find the sum of all the primes below two million.
 #+begin_src elisp
   (defun eu10-euler (n)
     (let* ((vec (make-bool-vector (1+ n) t))
-	   (primes (list 0))
-	   (primes-tail primes)
-	   (sum 0))
+           (primes (list 0))
+           (primes-tail primes)
+           (sum 0))
       (aset vec 0 nil)
       (aset vec 1 nil)
       (cl-do ((i 2 (1+ i))) ((> i n) sum)
-	(when (aref vec i)
-	  (cl-incf sum i)
-	  (setcdr primes-tail (list i))
-	  (setq primes-tail (cdr primes-tail)))
-	(let ((pri (cdr primes))
-	      (flag t)
-	      tmp)
-	  (while (and flag (setq tmp (pop pri)))
-	    (cond
-	     ((> (* tmp i) n) (setq flag nil))
-	     (t (aset vec (* i tmp) nil)
-		(when (zerop (% i tmp))
-		  (setq flag nil)))))))))
+        (when (aref vec i)
+          (cl-incf sum i)
+          (setcdr primes-tail (list i))
+          (setq primes-tail (cdr primes-tail)))
+        (let ((pri (cdr primes))
+              (flag t)
+              tmp)
+          (while (and flag (setq tmp (pop pri)))
+            (cond
+             ((> (* tmp i) n) (setq flag nil))
+             (t (aset vec (* i tmp) nil)
+                (when (zerop (% i tmp))
+                  (setq flag nil)))))))))
   (eu10-euler 2000000)
   ;; 142913828922
 

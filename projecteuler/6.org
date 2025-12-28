@@ -1,5 +1,6 @@
 #+TITLE: Problem 6
-#+DATE: [2019-02-20 Web 02:56]
+#+subtitle: 前 100 个自然数平方和与和平方之差
+#+DATE: [2019-02-20 Web 02:56]--[2025-12-09 Tue 11:27]
 #+DESCRIPTION: 前 100 个自然数平方和与和平方之差
 
 * Problem

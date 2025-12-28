@@ -1,5 +1,6 @@
 #+TITLE: Problem 8
-#+DATE: [2019-02-20 Web 04:25]
+#+subtitle: 在一个数字串中找到连续 13 个数字的最大乘积
+#+DATE: [2019-02-20 Web 04:25]--[2025-12-09 Tue 11:47]
 #+DESCRIPTION: 在一个数字串中找到连续 13 个数字的最大乘积
 
 * Problem
@@ -67,17 +68,15 @@ Find the thirteen adjacent digits in the 1000-digit number that have the greates
   71636269561882670428252483600823257530420752963450")
 
   (defun eu8-mulstr (str)
-    (cl-reduce '*
-	       (cl-loop for a across str
-			collect (- a ?0))))
+    (apply '* (cl-loop for a across str collect (- a ?0))))
 
   (named-let f ((i 0) (big 0))
     (cond
      ((= i (- 1000 13)) big)
      (t (let* ((sub (substring eu8-numstr i (+ i 13)))
-	       (num (eu8-mulstr sub)))
-	  (f (1+ i) (if (> num big) num big))))))
-  ;; 23514624000
+               (num (eu8-mulstr sub)))
+          (f (1+ i) (if (> num big) num big))))))
+  ;;=> 23514624000
 #+END_SRC
 
 非常简单，没什么好说的。
