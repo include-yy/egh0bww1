@@ -1,0 +1,911 @@
+#+TITLE: Generalized Variable in Elisp
+#+DATE: [2025-12-10 Wed 08:52]--[2026-01-02 Fri 04:19]
+#+FILETAGS: elisp
+#+DESCRIPTION: 差不多四年前我简单写过广义变量的用法，最近在研究过程中发现了一些不足之处，遂重构之
+#+begin_comment
+| [[https://www.pixiv.net/artworks/138820545][file:dev/p1.jpg]] | [[https://www.pixiv.net/artworks/138192924][file:dev/p2.jpg]] | [[https://www.pixiv.net/artworks/138382327][file:dev/p3.jpg]] |
+#+end_comment
+
+#+attr__: [amendment]
+我于 2022 年 2 月 22 日完成的 Common Lisp 和 Elisp 广义变量 (Generalized Variables，以下简称 GV) 博客，至今已有三年多的时间。在这期间，LLM 技术的爆发式增长极大地影响了内容创作，也让我意识到原有文章在深度上的不足。最近，通过与朋友的讨论，我对 Elisp 和 Common Lisp 在广义变量上的具体实现差异有了新的理解。是时候借此机会，对旧文进行一次彻底的重构了。
+
+本文是一份关于 GV (+GV is Gay Video+) 的 Tutorial 文档，组织上采用了 Diátaxis 文档框架的思路，力求结构清晰、层次分明。内容由 Gemini 3.0 Pro 深度校对和润色，致力于在保证深度的同时，优化理解难度，为读者提供一份既准确又易于消化的学习资料。
+
+* 什么是 GV：从 =setq= 到 =setf=
+
+在计算的混沌初开之时，只有组合逻辑 (Combinational Logic)，电流穿过与非门，像流沙一样，逝者如斯夫，不舍昼夜。输入一变，输出即变，瞬间的辉煌后不留一丝痕迹。但在现实世界中，我们需要「锚点」。为了留住时间，先驱们​*将输出引回输入，创造了反馈*​。于是，锁存器 (Latch) 和触发器 (Flip-flop，SR 或 JK 触发器) 诞生了，电路从此拥有了时序逻辑 (Sequential Logic) —— 也就是记忆。
+
+[[./1.webp]]
+
+与之类似，在纯粹的函数式世界里，没有「变量」，只有「绑定」。所有的计算都只是值的替换，数值仿佛原本就悬浮在虚空之中，我们只是通过计算去指向它们。这是一个无状态的完美世界，干净、确定、易于推导。然而，现实世界的核心特征是​*变化*​。为了在静止的代码中捕获流逝的时间，为了赋予变化的事物以不变的身份，我们必须引入状态 (state)。
+
+于是，cell（单元）诞生了。
+
+- 在硬件上它可以是 Flip-flop 维持的电位；
+- 在汇编中它可以是地址索引的内存字；
+- 在高级语言中它可以是指针指向的空间，亦或我们熟知的​*变量*​。
+
+它是「时间」在计算机上的物理投影，是容纳状态的时空槽位。有了槽位就有了取值 (get) 和赋值 (set) 这两个基本动作。抛开不可变性 (immutability) 的情况不谈，get/set 本应是对偶 (dual) 存在的。凡是能被读取的​「位置」，天然蕴含着被写入的可能。
+
+对于最简单的 cell —— 符号 (symbol)，取值是直接求值 =x=​，赋值是 =(setq x 42)=​​。当 cell 组合成复杂的数据结构时，取值/赋值操作接口的巴别塔便拔地而起：
+
+#+attr__: [amendment]
+=setq= 是 =set quote= 的缩写，​=(set 'x 42)= 是更原始的形式，它表明我们在操作名为 =x= 的这个符号对象。
+
+#+caption: 各数据结构的读写操作对应表
+#+attr_html: :class data
+| *取值* | car    | cdr    | gethash | plist-get | aref | ... |
+|--------+--------+--------+---------+-----------+------+-----|
+| *赋值* | setcar | setcdr | puthash | plist-put | aset | ... |
+
+随着数据结构数量的增加，这张表还在不断变长。我们不得不在脑中维护一张巨大的「取值/赋值映射表」。每次操作数据都得想想具体的函数名。
+
+既然取值和赋值是对偶的，那么凡是能被取值的 cell，理论上都应该能被赋值。如果我们能从「取值的形式」直接推导出「赋值的形式」，需要记忆的函数理论上就少了一半。
+
+由此，我们可以很自然地引出 generalized variable（广义变量），或者说，place form 的概念：指向可被修改 cell 的表达式。比如：
+
+- =(car x)= 是一个指向 =x= 的逻辑头部的表达式。
+- =(aref x 0)= 是一个指向数组 =x= 第一个元素的表达式。
+
+我们需要一个能将 place 转换为赋值操作的万能工具，它就是 =setf=​。它接受一个 place form 参数和一个 value form 参数，并自动「推导」出 place 对应的赋值形式。
+
+#+attr_html: :class data
+| Before            | After                   |
+|-------------------+-------------------------|
+| =(setq a 1)=      | =(setf a 1)=            |
+| =(setcar list 2)= | =(setf (car list) 2)=   |
+| =(aset vec 0 3)=  | =(setf (aref vec 0) 3)= |
+
+至此，我们不再关心底层是 =rplaca= 还是 =aset=​，只关心数据的逻辑位置。本质上，取值/赋值函数的总数并没有减少，这是数据结构固有的复杂度；但 =setf= 用统一的界面封装了这些细节，将我们从机械的记忆中解放了出来。
+
+#+attr__: [amendment]
+=rplaca= 是 replace car 的缩写，​=setcar= 的别称。
+
+** 一些常见的 place
+
+在看完上面的内容后，你可能会喜欢上 =setf= 这个小玩意并迫不及待地将所有赋值操作改成 =setf= 风格。但在日常编程中，​=setq= 这把锤子往往更顺手。在 Emacs 的源码统计中，​=setq= 占据了绝对统治地位：
+
+[[./2.png]]
+
+但这并不妨碍我们在关键时刻使用 =setf= 来简化逻辑。我们不需要掌握所有支持 GV 的函数，因为 99% 的场景下你只需要关注以下几类基础 place。
+
+（如果你好奇还有哪些函数支持 =setf=​，可以试着运行下面这段代码）：
+
+#+begin_src elisp
+  (let (res)
+    (mapatoms (lambda (s) (when (get s 'gv-expander) (push s res))))
+    (setq res (sort res (lambda (a b) (< (length (symbol-name a))
+                                         (length (symbol-name b)))))))
+#+end_src
+
+- 列表 ::
+
+  除了使用经典的 =CXR= 家族函数，我们还可以通过 =nth= 或 =elt= 修改列表特定位置的元素：
+
+  #+begin_src elisp
+    (let ((x '((((a)))))) (setf (caaaar x) 'b) x)
+    ;;=> ((((b))))
+    (let ((x '(1 2 3))) (setf (nth 1 x) 1) x)
+    ;;=> (1 1 3)
+    (let ((x '(1 2 3))) (setf (elt x 2) 2) x)
+    ;;=> (1 2 2)
+  #+end_src
+
+- 类向量 ::
+
+  在 Elisp 中 =aref= 可用于向量，字符串，字符表，布尔向量和 record 等对象。这也意味着可以在 =setf= 中使用它来修改这些对象：
+
+  #+begin_src elisp
+    (let ((x [1 2 3])) (setf (aref x 1) 3) x)
+    ;;=> [1 3 3]
+    (let ((x "123")) (setf (aref x 1) ?3) x)
+    ;;=> "133"
+    (let ((x (make-bool-vector 3 1))) (setf (aref x 1) nil) x)
+    ;;=> #&3"^E"
+    (let ((x #s(test 1 2))) (setf (aref x 0) 'test0) x)
+    ;;=> #s(test0 1 2)
+  #+end_src
+
+- 关联数组 ::
+
+  在 Elisp 中最常用作关联数组的数据类型有 plist, alist 和 hash-table。它们的取值函数分别是 =plist-get=, =alist-get= 和 =gethash=​：
+
+  #+begin_src elisp
+    (let ((x '(:a 1))) (setf (plist-get x :a) 2) x)
+    ;;=> (:a 2)
+    (let ((x '((a . 1)))) (setf (alist-get 'a x) 2) x)
+    ;;=> ((a . 2))
+    (let ((x #s(hash-table))) (setf (gethash 'a x) 2) x)
+    ;;=> #s(hash-table data (a 2))
+  #+end_src
+
+- 结构体与对象 ::
+
+  如果定义了 =cl-defstruct= 或 =eieio= 对象，它们的槽位访问表达式可以作为 place。
+
+  #+begin_src elisp
+    (cl-defstruct test a b)
+    (let ((x (make-test))) (setf (test-a x) 1 (test-b x) 2) x)
+    ;;=> #s(test 1 2)
+  #+end_src
+
+** 复合赋值操作
+
+在类 C 语言中，如果我们想让变量 =i= 自增，我们会写 ~i += 1~ 或 =i++=​。这被称为复合赋值 (Compound Assignment)。它隐含了一个完整的 Read-Modify-Write（读取-修改-写回）周期。
+
+在 Lisp 中，手动模拟这个过程不仅啰嗦而且非常危险：
+
+#+begin_src elisp
+  (setf (aref arr i) (+ (aref arr i) 1))
+
+  ;; (let ((print-circle t)
+  ;;       (print-gensym t))
+  ;;   (print (macroexpand '(setf (aref arr exp) (+ (aref arr exp) 1))) t))
+  ;;
+  ;; (let* ((#1=#:v arr)
+  ;;        (#2=#:v exp))
+  ;;   (aset #1# #2# (+ (aref arr exp) 1)))
+#+end_src
+
+它的潜在问题在于：place 的子表达式被求值了两次。如果 place 是一个耗时的计算或者带有副作用，重复求值会带来严重的后果，我们需要使用 =let= 创建临时绑定来避免重复求值。GV 机制提供了一系列宏 (modify macro) 来实现 Lisp 版的「复合赋值」。它们不仅简洁，更重要的是保证了 place 的子表达式不会被多次求值。
+
+- 数学运算 :: =incf= 和 =decf=​，对应 C 的 =+== 和 =-==​。
+
+#+begin_src elisp
+(incf i)
+(incf i 10)
+#+end_src
+
+- 栈操作 :: =push= 和 =pop=​，使用列表模拟栈操作。
+
+#+begin_src elisp
+(push 'x list)
+(pop list)
+#+end_src
+
+- 交换和旋转 :: =cl-rotatef=​。交换两个变量的值通常需要一个临时变量 =temp=​，但使用 GV，我们可以直接「旋转」它们。
+
+#+begin_src elisp
+(cl-rotatef a b)
+(cl-rotatef (car list) (car (last list)))
+#+end_src
+
+这些 modify macro 让 Lisp 代码拥有远超 C 语言复合赋值表达式的表达力。
+
+目前我们仅仅介绍了 Elisp 本身支持的 GV 操作的一小部分，但在绝大多数时候这些东西已经够用了（所谓二八定律）。如果你仍然对 GV 感兴趣的话，下面让我们看看如何自定义新的 GV 操作。
+
+* 如何使用 GV：定制赋值逻辑
+
+虽然 Elisp 内置的 place 已经足够丰富，但在编写特定代码时，我们往往需要更贴手的工具。GV 系统提供了不同层级的接口，让你能够像搭积木一样扩展语言的赋值能力。
+
+这里的指南主要服务于那些已经通过了入门阶段的 Emacs Lisp 开发者。如果你正面临具体的编码需求 —— 比如想让自己的函数支持 =setf=​，或者编写一个 modify macro —— 请直接参考以下方案。
+
+本章节不涉及底层实现原理（如 =gv-expander= 的回调机制），这些内容将在第三部分中详述。在这里，我们只关注如何用最少的代码达成目标。
+
+** 定义简单 place
+
+如果你已经有了一个取值函数，并且知道对应的写入代码，你可以将其注册为 place。根据写入逻辑的复杂度，分为两种情况：
+
+- 直接映射到现有赋值函数 ::
+
+  如果你的取值函数已有对应的赋值函数，且该函数的参数顺序刚好是 =({get args} newval)=​，直接向 =gv-define-simple-setter= 提供取值函数和赋值函数名即可。
+  
+  #+begin_src elisp
+    (defun my-car (x) (car x))
+    (let ((x '(1))) (setf (my-car x) 2) x)
+    ;;=> (void-function \(setf\ my-car\))
+    (gv-define-simple-setter my-car setcar)
+    (let ((x '(1))) (setf (my-car x) 2) x)
+    ;;=> (2)
+  #+end_src
+
+  #+html: <div class="note">
+  无需专门为函数别名定义 place。
+
+  #+begin_src elisp
+    (defalias 'my-car #'car)
+    (let ((x '(1))) (setf (my-car x) 2) x)
+    ;;=> (2)
+  #+end_src
+  #+html: </div>
+- 映射到赋值表达式 ::
+
+  如果对应的赋值函数的参数顺序与取值函数不一致（例如 =gethash= 和 =puthash=​），或者还没有直接对应的赋值函数，那就需要使用 =gv-define-setter=​。​=gv-define-setter= 的参数列表必须写作 =(val {get args})=​，即新值永远排在第一位，后面紧跟取值函数的参数：
+
+  #+begin_src elisp
+    (defun my-gethash (k table) (gethash k table))
+    (gv-define-setter my-gethash (val k table)
+      `(puthash ,k ,val ,table))
+    (let ((x #s(hash-table))) (setf (my-gethash 'a x) 1) x)
+    ;;=> #s(hash-table data (a 1))
+
+    (defun take2 (ls) (take 2 ls))
+    (gv-define-setter take2 (val ls)
+      (macroexp-let2* nil ((v val))
+        `(setf (nth 0 ,ls) (car ,v)
+               (nth 1 ,ls) (cadr ,v))))
+    (let ((x '(1 2 3))) (setf (take2 x) '(2 3)) x)
+    ;;=> (2 3 3)
+  #+end_src
+  
+  #+HTML: <div class="advisement">
+  在编写复杂的赋值展开式时，需要明确责任边界：
+
+  - place 参数由 GV 托管：​=gv-define-setter= 会保证 place 的求值安全性。即使调用 =(setf (take2 (push stack)) ...)=​，你也不必担心 stack 被 =push= 两次，GV 内部机制避免了重复求值。
+
+  - 新值表达式由你负责：GV 不负责保护新值表达式。在 =take2= 的例子中，生成的代码使用了 =v= 两次（分别取 =car= 和 =cadr=​）。如果不将 =val= 绑定到 =v= 上而是直接使用 =val=​，当用户执行 =(setf (take2 x) (side-effect-call))= 时，副作用就会被执行两次。
+  #+HTML: </div>
+  
+  你甚至可以实现一个获取列表中序数为奇数的 place：
+  #+begin_src elisp
+    (defun take-odd (ls)
+      (cl-loop for x in ls by #'cddr
+               collect x))
+    (gv-define-setter take-odd (v ls)
+      `(cl-loop for x in-ref ,ls by #'cddr
+                for val in ,v
+                do (setq x val)))
+
+    (take-odd '(1 2 3 4))
+    ;;=> (1 3)
+
+    (let ((x '(1 2 3 4)))
+      (setf (take-odd x) '(5 5)) x)
+    ;;=> (5 2 5 4)
+  #+end_src
+
+** 定义 modify macro
+
+有时你需要的不是一个新的 place，而是一个能够原地更新现有 place 的动作。比如，你想要一个 =togglef= 宏来切换布尔值，或者一个 =mulf= 宏来进行乘法赋值。此时需要使用 =gv-letplace=​：
+
+#+begin_src elisp
+  (defmacro togglef (place)
+    (gv-letplace (getter setter) place
+      (funcall setter `(not ,getter))))
+
+  (defmacro mulf (place n)
+    (gv-letplace (getter setter) place
+      (funcall setter `(* ,getter ,n))))
+#+end_src
+
+在 =(gv-letplace (getter setter) place ...)= 中：
+
+- =getter= 绑定的是「旧值表达式」。你应该把它放入你的计算公式中
+- =setter= 绑定的是​*生成赋值表达式*​的函数。你需要将计算好的「新值表达式」作为参数传给它。
+
+下面是一个稍微复杂一些的例子，交换两个 place 的值：
+
+#+begin_src elisp
+  (defmacro swapf (a b)
+    (let ((tmp (make-symbol "TMP")))
+      (gv-letplace (g1 s1) a
+        (gv-letplace (g2 s2) b
+          `(let ((,tmp ,g1))
+             ,(funcall s1 g2)
+             ,(funcall s2 tmp))))))
+#+end_src
+
+#+HTML: <div class="advisement">
+你可能会觉得使用 =gv-letplace= 太麻烦了。对于简单的交换操作，我们似乎可以直接利用临时变量：
+
+#+begin_src elisp
+  (defmacro naive-swapf (a b)
+    (let ((tmp (make-symbol "TMP")))
+      `(let ((,tmp ,a))
+         (setf ,a ,b) (setf ,b ,tmp))))
+#+end_src
+
+但这个实现是不安全的。如果 =a= 或 =b= 是带有副作用的 place，例如 =(aref arr (incf i))=​，​=naive-swapf= 会导致索引被增加两次：一次是在读取 =,a= 时，另一次是在 =(setf ,a ...)= 写入定位时。
+
+正确的做法必须使用 =gv-letplace= 来避免 place 中可能的副作用重复求值。这样，无论 place 多么复杂，它都保证只会被求值一次。
+#+HTML: </div>
+
+** 定义复杂 place
+
+有时，「位置」并不直接对应内存中的一个直接 cell（如 cons cell 或数组索引），而是数据结构的一个逻辑切片，甚至是某种控制结构。以 =substring= 为例，它返回的只是原字符串的一个临时拷贝。要通过 =setf=​「修改」这个切片，我们无法简单地覆写某块内存，而必须执行一个完整的「读取-重构-写回」更新流程：
+
+1. 读取完整的原字符串；
+2. 构造一个包含新子串的全新字符串对象；
+3. 将这个新对象写回到原来的 place 中。
+
+对于那些无法原地修改（必须​*创建新对象并重新赋值*​）的操作，或者取值/赋值逻辑​*高度不对称*​的场景，简单的 =gv-define-setter= 是无能为力的。我们需要使用终极武器 =gv-define-expander=​。
+
+虽然现代 Elisp 已经内置支持 =(setf (substring ...))=​，但为了理解如何处理这种复杂的「虚拟位置」，我们不妨亲手实现一个简易版的 =my-substring=​。假设我们要通过字符串拼接来实现子串替换：​=(setf (my-substring str 0 2) "Hi")=​。这涉及三个步骤：读取原字符串、拼接新旧部分、将新字符串写回 place。
+
+#+begin_src elisp
+  (defun my-substring (str start end)
+    (substring str start end))
+
+  (defun my-set-substring (str start end new-val)
+    (let ((end (or end (length str))))
+      (concat (substring str 0 start) new-val (substring str end))))
+
+  (gv-define-expander my-substring
+    (lambda (do place from &optional to)
+      (gv-letplace (getter setter) place
+        (macroexp-let2* nil ((start from) (end to))
+          (funcall do `(substring ,getter ,start ,end)
+                   (lambda (new-val)
+                     (funcall setter `(my-set-substring
+                                       ,getter ,start ,end ,new-val))))))))
+
+  (let ((x "abc"))
+    (setf (my-substring x 1 2) "d") x)
+  ;;=> "adc"
+#+end_src
+
+#+html: <div class="note">
+=macroexp-let2*= 可以看作「卫生的」 =let*=​，可以参考第三章的详细解释学习其用法。
+#+html: </div>
+
+如果你要定义自己的复杂 place，只需关注 =gv-letplace= 内部的两个核心动作：
+
+- 定义读取方式（​=funcall do= 的第一个参数）：填写你的取值表达式。
+- 定义回写方式（第二个参数的 lambda）：使用 =(funcall setter newval-form)= 生成将「新值表达式」写回 place 的代码。
+
+#+HTML: <div class="advisement">
+*那么，为什么不能用 =gv-define-setter=​？*​如果你尝试用 =gv-define-setter= 定义上述逻辑，宏展开时只会计算出新字符串并丢弃，而不会更新原始变量。
+
+#+begin_src elisp
+  (gv-define-setter my-substring (v str start end)
+    `(my-set-substring ,str ,start ,end ,v))
+#+end_src
+
+只有 =gv-define-expander= 能通过 =gv-letplace= 获取原始 place 的 setter（即代码中的 =funcall setter ...=​），从而实现对原始绑定的更新。
+#+HTML: </div>
+
+如果你想要获取和设定某个 fixnum 特定位置的 bit 值，下面的代码可以实现这一要求：
+
+#+begin_src elisp
+  (defun get-bit (fixnum n)
+    (cl-assert (natnump n))
+    (let ((mask (expt 2 n)))
+      (not (zerop (logand fixnum mask)))))
+
+  (gv-define-expander get-bit
+    (lambda (do place n)
+      (gv-letplace (g s) place
+        (macroexp-let2* nil ((value g) (num n))
+          (funcall do `(get-bit ,g ,num)
+                   (lambda (v)
+                     (funcall s (let ((tmp (gensym)))
+                                  `(let* ((,tmp (get-bit ,value ,num)))
+                                     (unless (eq ,tmp ,v)
+                                       (logxor ,value (ash 1 ,num))))))))))))
+
+  (cl-loop for i from 0 to 5
+           with a = 0
+           do (setf (get-bit a i) t)
+           collect a)
+  ;;=> (1 3 7 15 31 63)
+#+end_src
+
+至此，你已经掌握了扩展 GV 的所有实用技巧。从简单的函数映射，到利用 =gv-letplace= 处理宏展开安全，再到使用 =gv-define-expander= 编写复杂 place，你已经可以应对​*几乎所有场景*​的编码需求了。
+
+但是，在编写 =my-substring= 和 =get-bit= 的过程中，你可能对那个充满 =lambda= 的「通用模板」感到一丝困惑：
+
+- 为什么 =gv-define-expander= 不像 =defmacro= 那样直接返回代码？
+- 那个神秘的 =do= 参数到底是什么？
+- 为什么要写成 =(funcall do gform (lambda (v) (funcall setter sform))= 这种「回调套回调」的奇怪形状？
+
+我们在本章中刻意回避了这些理论细节，只将其作为「黑盒模板」提供给你。但在这些反直觉的接口背后，隐藏着 Elisp 对 GV 机制的一次优雅重构 —— 它摒弃了 Common Lisp 笨重的传统结构，转而拥抱了高阶函数的力量。
+
+如果你不满足于仅仅做一个「使用者」，而是想探究 =setf= 宏展开引擎内部的齿轮是如何咬合的，请阅读下一章。
+
+* GV 的工作原理
+
+在 Tutorial 和 How-to guides 部分，相信你已经学会了如何使用和创建 GV。但这仅仅是从 Elisp 这一方言的视角出发的。如果我们跳出 Emacs 的小世界，放眼整个 Lisp 家族，你会发现 GV 并不是 Elisp 的独创。当然，本文的目的并不是考古，历史这一部分只能跳过。
+
+#+attr__: [note]
+如果你对 Lisp 的历史细节感兴趣，这里推荐一篇极佳的综述性论文：[[https://dl.acm.org/doi/10.1145/234286.1057818][The evolution of Lisp]]。作者之一是大名鼎鼎的 Guy L. Steele（这里有一份 [[file:Hopl2.pdf][PDF]] 存档）。gv.el 的文档注释也是不错的参考资料。
+
+我们在上一章留下的最大疑问莫过于：​=(funcall do getter setter)= 中的那个神秘的 =do= 参数到底是干什么的？Haskeller 可能一看到 =do= 就能联想到 Monad，进而想到这可能是 Cont Monad 的某种变体。这里我们不谈什么 Cont Monad 和 CPS，而是回到原点，试着从「赋值」这个最基本的动作触发，重新推一遍。
+
+** 基础情况
+
+首先，对某一取值表达式，我们「一般」都能够找到对应的赋值表达式：
+
+#+begin_src elisp
+  (car x)                => (setcar x v)
+  (gethash 'hello table) => (puthash 'hello v table)
+  (plist-get plist 'abc) => (plist-put plist 'abc v)
+#+end_src
+
+就以上三个样例我们至少可以观察到这些共同点：
+
+1. 取值函数对应于赋值函数
+2. 相比取值表达式，赋值表达式接受一个额外的值参数
+3. 值参数位置不固定
+
+由于值参数位置不固定，我们不能简单地维护一个 =car->setcar= 的符号映射表。相反，我们需要为每一种 place 定义一个专属的代码生成策略，然后在策略本身上固定参数位置。这种策略可以抽象为一个函数：它接受「新值表达式」和「原参数列表」，然后负责把它们拼装成正确的赋值形式。通过将这些函数收集起来并建立一张从 =car=​、​=gethash= 到对应函数的查找表，就能实现一个通用的赋值转换器了，这也是我们的第一个 =setf= 实现：
+
+#+begin_src elisp
+  (defvar gs-table
+    '((car . (lambda (v place) `(setcar ,place ,v)))
+      (gethash . (lambda (v key table) `(puthash ,key ,v ,table)))
+      (plist-get . (lambda (v plist prop) `(plist-put ,plist ,prop ,v)))
+      (aref . (lambda (v place index) `(aset ,place ,index ,v)))))
+
+  (defun sform-maker (place val)
+    (if (symbolp place) `(setq ,place ,val)
+      (let* ((fun (car place))
+             (args (cdr place)))
+        (if-let* ((maker (alist-get fun gs-table)))
+            (apply maker val args)
+          (error "sform not implemented: %s" fun)))))
+
+  (sform-maker '(car x) '(+ 2 3))
+  ;;=> (setcar x (+ 2 3))
+  (sform-maker '(gethash 'key (car table)) 'val)
+  ;;=> (puthash 'key val (car table))
+  (sform-maker '(plist-get ps :foo) 'bar)
+  ;;=> (plist-put ps :foo bar)
+#+end_src
+
+当然，我们可以使用专门的变量存放所有的变换函数，也可以考虑把符号对应的函数放在符号的 plist 里，就像 gv.el 那样：
+
+#+begin_src elisp
+  (defmacro yy/define-setfun (name set-fun)
+    (declare (indent 1))
+    `(put ',name :yy-set-fun ,set-fun))
+
+  (defun sform-maker (place val)
+    (if (symbolp place) `(setq ,place ,val)
+      (pcase-let* ((`(,fun . ,args) place))
+        (if-let* ((maker (get fun :yy-set-fun)))
+            (apply maker val args)
+          (error "sform not implemented: %s" fun)))))
+
+  (yy/define-setfun car
+    (lambda (v place) `(setcar ,place ,v)))
+  (yy/define-setfun gethash
+    (lambda (v key table) `(puthash ,key ,v ,table)))
+  (yy/define-setfun plist-get
+    (lambda (v plist prop) `(plist-put ,plist ,prop ,v)))
+  (yy/define-setfun aref
+    (lambda (v place index) `(aset ,place ,index ,v)))
+#+end_src
+
+** 如何避免参数重复求值
+
+基于查找表的 =sform-maker= 在处理简单赋值时正常工作，这也许会让我们产生一种错觉：GV 就是这么简单？当我们试图在这个简单的抽象上构建更高级的功能，比如 modify macro 时，麻烦就来了：
+
+#+begin_src elisp
+  (defun incf1-maker (place)
+    (sform-maker place `(1+ ,place)))
+
+  (incf1-maker '(car (aref arr (setq i (+ i 1)))))
+  ;; (setcar (aref arr (setq i (+ i 1)))
+  ;;         (1+ (car (aref arr (setq i (+ i 1))))))
+#+end_src
+
+逻辑上，​=incf= 等同于 =(setf place (1+ place))=​。但是，如果用户操作的 place 包含副作用，简单的替换展开会导致 place 的重复求值。为了保证语义正确，我们必须让 place 中的子表达式只执行一次。直观的做法是拆解 place，把参数提取出来，绑定到临时的 =let= 变量中：
+
+#+begin_src elisp
+  (defun incf2-maker (place)
+    (pcase-let* (((or `(,fun . ,args) sym) place))
+      (let* ((vars (cl-loop repeat (length args) collect (gensym "ARG")))
+             (place* (or sym (cons fun vars)))
+             (bindings (cl-mapcar #'list vars args))
+             (sform (sform-maker place* `(1+ ,place*))))
+        (if (not bindings) sform
+          `(let ,bindings ,sform)))))
+
+  (incf2-maker 'x)
+  ;; (setq x (1+ x))
+
+  (incf2-maker '(car x))
+  ;; (let ((ARG16 x))
+  ;;   (setcar ARG16 (1+ (car ARG16))))
+
+  (incf2-maker '(aref x (setq i (1+ i))))
+  ;; (let ((ARG42 x) (ARG43 (setq i (1+ i))))
+  ;;   (aset ARG42 ARG43 (1+ (aref ARG42 ARG43))))
+#+end_src
+
+#+html: <div class="advisement">
+*练习*​：下面的 =addtwicef= 会将 place 值加两个参数，指出其中的问题并改正。
+
+#+begin_src elisp
+  (defmacro addtwicef (place n)
+    (pcase-let* (((or `(,fun . ,args) sym) place))
+      (let* ((vars (cl-loop for _ in args collect (gensym "ARG")))
+             (place* (or sym (cons fun vars)))
+             (bindings (cl-mapcar #'list vars args))
+             (sform (sform-maker place* `(+ ,place* ,n ,n))))
+        (if (not bindings) sform
+          `(let ,bindings ,sform)))))
+#+end_src
+
+:answer:
+
+可以注意到，当 =n= 本身是带副作用的表达式时，展开式子中执行两次：
+
+#+begin_src elisp
+  (macroexpand '(addtwicef x (incf i)))
+  ;; (let ((ARG138 x)) 
+  ;;   (setcar ARG138 (+ (car ARG138) (incf i) (incf i))))
+#+end_src
+
+最简单的解决方法是把传递给 =sform-maker= 的参数改为 =`(+ ,place* (* ,n 2))=​，这样就避免了新值表达式的多次求值。当然我们也不是不能这样写：​=`(+ ,place (let (x ,n) (+ x x)))=​。
+:end:
+#+html: </div>
+
+如果我们要定义多个 modify macro，那么上面的 =incf2-maker= 中大部分都是通用的流程：
+
+1. 首先，判断 place 是否为单个符号，若不是则拆解为取值函数和参数列表
+2. 根据参数列表生成对应的临时绑定符号
+3. 使用取值函数和临时符号重新组合得到 place*
+4. 创建绑定列表和根据新值表达式得到赋值表达式
+5. 将绑定列表和赋值表达式填入一个 =let= 表达式
+
+这其中不同 modify macro 差别在于如何得到新值表达式，我们可以将这一变动的部分放到接受 place* 参数并返回新值表达式的函数里：
+
+#+begin_src elisp
+  (defun sform2-maker (place val-fn)
+    (pcase-let* (((or `(,fun . ,args) sym) place))
+      (let* ((vars (cl-loop repeat (length args) collect (gensym "ARG")))
+             (place* (or sym (cons fun vars)))
+             (bindings (cl-mapcar #'list vars args))
+             (sform (sform-maker place* (funcall val-fn place*))))
+        (if (not bindings) sform
+          `(let ,bindings ,sform)))))
+
+  (defun incf3-maker (place &optional n)
+    (sform2-maker place (lambda (place) `(1+ ,place (or ,n 1)))))
+#+end_src
+
+现在，我们可以定义出一个简化版本的 =setf=​。它实际上是最简单的 modify macro，不需要对取值表达式求值：
+
+#+begin_src elisp
+  (defun setf-maker (place vform)
+    (sform2-maker place (lambda (_place) vform)))
+#+end_src
+
+** place 的递归查找
+
+目前的这一实现适用范围已经很广了：凡是存在对应于 =(<get> place ...)= 的 =(<set> place ...)= 即可。但上一节的 =substring= 不符合这一要求，​=(substring s st ed)= 并不指向一个可以直接作为某个赋值函数参数的 place。这玩意麻烦在两点：它需要根据 =s= 的值得到两边的字串并重新算出新串（需要子取值表达式）；我们实际需要的是 =s= 的对应赋值表达式，甚至是 =s= 的子形式的对应赋值表达式...（需要递归查找）
+
+#+begin_src elisp
+  (let* ((s "aabbbcc"))
+    (setf (substring (substring s 1 6) 1 4) "d") s)
+  ;;=> "aadcc"
+#+end_src
+
+对于这样没有直接赋值表达式对应，需要查找子表达式的 place，也许我们可以称之为 Non-Terminal place。那么，这一查找的终点自然是 Terminal place，即直接存在对应赋值表达式的 place。通过在 =substring= 的转换函数中调用 =sform-maker=​，我们可以初步实现递归查找：
+
+#+begin_src elisp
+  (defun my-set-substring (str start end new-val)
+      (let ((end (or end (length str))))
+        (concat (substring str 0 start) new-val (substring str end))))
+
+  (yy/define-setfun substring
+    (lambda (v place st ed)
+      (sform-maker place `(my-set-substring ,place ,st ,ed ,v))))
+
+  (sform-maker '(substring x 1 2) "3")
+  ;;=> (setq x (my-set-substring x 1 2 "3"))
+  (sform-maker '(substring (car x) 1 2) "3")
+  ;;=> (setcar x (my-set-substring (car x) 1 2 "3"))
+#+end_src
+
+就像上一小节介绍的那样，为了满足 modify macro 的需求，我们需要避免可能的参数多次求值。而 =sform2-maker= 仅仅实现浅层参数的一次绑定，它无法创建 place 内部结构的临时绑定：
+
+#+begin_src elisp
+  (setf-maker '(substring (car x) 1 2) "3")
+  ;; (let ((ARG89 (car x)) (ARG90 1) (ARG91 2))
+  ;;   (setq ARG89 (my-set-substring ARG89 ARG90 ARG91 "3")))
+#+end_src
+
+更重要的问题在于 =sform2-maker= 中并没有嵌套处理 place 的能力。而 =sform-maker= 也没有处理重复求值的机制，它仅仅是查找各符号的变换函数而已。由于各取值/赋值表达式中的 place 位置并不一致，像 =sform2-maker= 这样 trivial 的重复求值处理函数并不容易实现，重复求值的处理机制必须被放在各变换函数解决。
+
+由于我们有创建临时绑定的需求，不妨做一些研究。对于一般的表达式求值，如果我们要尝试按照求值顺序将它拆分为一个个 =let= 嵌套的表达式的话，在原表达式中出现在前面的子式应首先创建绑定，也就是说先创建的绑定位于外层，后创建的绑定位于内层；类似地，在同一位置，嵌套更深的在外层，嵌套更浅的在内层：
+
+#+begin_src elisp
+  (+ (+ 1 2) (+ 3 4) 5)
+  ;; (let ((a0 (+ 1 2)))
+  ;;   (let ((a1 (+ 3 4)))
+  ;;     (+ a0 a1 5)))
+
+  (+ (+ (+ (+ (+ 1 2) 3) 4) 5) 6)
+  ;; (let ((a0 (+ 1 2)))
+  ;;   (let ((a1 (+ a0 3)))
+  ;;     (let ((a2 (+ a1 4)))
+  ;;       (let ((a3 (+ a2 5)))
+  ;;         (+ a3 6)))))
+#+end_src
+
+我们如何才能让代码自动把深层嵌套的表达式「翻」出来变成外层的 =let= 呢？一种经典的方法是 CPS。简单来说，就是不直接返回结果，而是把「接下来要做的事」(continuation) 作为一个函数传进去。这样，由于我们掌握了 continuation，我们就可以把 =let= 包裹在 continuation 外面。下面的例子能够简单说明 CPS 的用法：
+
+#+begin_src elisp
+  (defun fact (N k)
+    (if (= N 0) (funcall k 1)
+      (fact (1- N) (lambda (v)
+                     (funcall k (* v N))))))
+
+  (fact 10 #'identity)
+  ;; 3628800
+#+end_src
+
+#+html: <div class="advisement">
+*练习*​：实现转换函数，将仅含 =+= 运算的 S 表达式按​*求值顺序*​表示为 =let= 表达式，比如：
+
+#+begin_src elisp
+  (+ (+ 1 2) 3 (+ 4 5))
+  ;; (let ((a0 (+ 1 2)))
+  ;;   (let ((a1 (+ 4 5)))
+  ;;     (+ a0 3 a1)))
+#+end_src
+
+当然，懂行的读者知道这叫 [[https://matt.might.net/articles/a-normalization/][A-normalization]]，读者可以参考其中的代码来实现。
+
+:answer:
+解答很简单，照抄上面链接中给出的代码即可。
+
+#+begin_src elisp
+  (defun N (M k)
+    (if (atom M) (funcall k M)
+      (let* ((fn (car M))
+             (arg (cdr M)))
+        (N-name* arg (lambda (v)
+                       (funcall k `(,fn . ,v)))))))
+
+  (defun N-name (M k)
+    (N M (lambda (N)
+           (if (atom N) (funcall k N)
+             (let ((s (gensym)))
+               `(let ((,s ,N)) ,(funcall k s)))))))
+
+  (defun N-name* (M* k)
+    (if (null M*) (funcall k '())
+      (N-name (car M*)
+              (lambda (v1)
+                (N-name* (cdr M*)
+                         (lambda (v2)
+                           (funcall k `(,v1 . ,v2))))))))
+
+  (N '(+ (+ 2 (+ 3 4)) 2 (+ 3 4)) #'identity)
+  ;; (let ((g161 (+ 3 4))) 
+  ;;   (let ((g162 (+ 2 g161))) 
+  ;;     (let ((g163 (+ 3 4))) 
+  ;;       (+ g162 2 g163))))
+#+end_src
+:end:
+#+html: </div>
+
+在上面的代码中，我们通过将当前表达式的计算结果放在通常以 K 命名的续体中，从而比较巧妙地实现了让较前位置的表达式位于嵌套内层。同样的思路也可以用在 place 的递归查找上，不过相比单纯的值，我们同时需要​*取值表达式*​和​*赋值表达式*​​，这也就是为什么 =(funcall do
+getter setter)= 中的 =do= 需要 =getter= 和 =setter= 两个参数，这里的 =do= 实际上就是接受两个参数的 continuation。由此，我们可以写出全新的 =sform-maker=​：
+
+#+begin_src elisp
+  (defun sform3-maker (place do)
+    (if (symbolp place) (funcall do place (lambda (v) `(setq ,place ,v)))
+      (pcase-let* ((`(,fn . ,args) place))
+        (if-let* ((maker (get fn :yy-set-fun)))
+            (apply maker do args)
+          (error "sform not implemented: %s" fn)))))
+
+  (yy/define-setfun car
+    (lambda (do place)
+      (macroexp-let2* nil ((p place))
+        (funcall do `(car ,p) (lambda (v) `(setcar ,p ,v))))))
+
+  (sform3-maker '(car x) (lambda (g s)
+                           (list g (funcall s 1))))
+  ;; (let* ((p x)) ((car p) (setcar p 1)))
+#+end_src
+
+在上面的代码中你可以注意到 =do= 的第二参数是一个接受新值的函数而不是直接的赋值表达式，这是因为赋值这一行为在宏展开时还未完成，需要保留一个「填空」的机会。对于 modify macro，这可以让上层宏（如 =setf= 和 =incf=​）决定填入什么值；对于 Non-Terminal place，这能让外层 place 先算出更新后的值再将其传递给内层的 =setter= 函数。如果是直接的赋值表达式，这种层层传递的流程难以实现。
+
+我可以在这里对 A-Normalization 做详细的说明来帮助读者理解，不过 Matt Might 写的已经够好了，不妨通过下面的练习来实际体验如何使用它：
+
+#+html: <div class="advisement">
+*练习*​：参考上面 =car= 的新定义，实现 =gethash=, =plist-get= 和 =aref= 的变换函数。
+:answer:
+#+begin_src elisp
+  (yy/define-setfun gethash
+    (lambda (do key place)
+      (macroexp-let2* nil ((k key) (p place))
+        (funcall do `(gethash ,k ,p)
+                 (lambda (v) `(puthash ,k ,v ,p))))))
+
+  (yy/define-setfun plist-get
+    (lambda (do place prop)
+      (macroexp-let2* nil ((p place) (pr prop))
+        (funcall do `(plist-get ,p ,pr)
+                 (lambda (v) `(plist-put ,p ,pr ,v))))))
+
+  (yy/define-setfun aref
+    (lambda (do place index)
+      (macroexp-let2* nil ((p place) (i index))
+        (funcall do `(aref ,p ,i)
+                 (lambda (v) `(aset ,p ,i ,v))))))
+#+end_src
+:end:
+*练习*​：使用 =sform3-maker= 实现 =incf= 和 =setf=​。
+
+:answer:
+#+begin_src elisp
+  (defmacro yy/incf (p &optional n)
+    (setq n (or n 1))
+    (sform3-maker
+     p (lambda (g s)
+         (funcall s `(+ ,g ,n)))))
+
+  (macroexpand '(yy/incf (car x) 2))
+  ;; (let* ((p x)) (setcar p (+ (car p) 2)))
+
+  (defmacro yy/setf (place value)
+    (sform3-maker
+     place (lambda (_g s)
+             (funcall s value))))
+  (macroexpand '(yy/setf (car x) 2))
+  ;; (let* ((p x)) (setcar p 2))
+#+end_src
+:end:
+
+#+html: </div>
+
+对于 =car=, =gethash=, =plist-get= 这类 Terminal place，它们并不需要递归查找过程，而 =substring= 需要：
+
+#+begin_src elisp
+  (yy/define-setfun substring
+    (lambda (do place from &optional to)
+      (sform3-maker
+       place (lambda (getter setter)
+               (macroexp-let2* nil ((s from) (e to))
+                 (funcall do `(substring ,getter ,s ,e)
+                          (lambda (v)
+                            (funcall setter `(my-set-substring
+                                              ,getter ,s ,e ,v)))))))))
+#+end_src
+
+在上面的代码中：
+
+1. 我们需要处理 =place=​（即字串的来源），于是调用 =sform3-maker= 递归处理它。
+2. 在回调中，我们拿到了子 place 的 =getter=​（用于读取源字符串）和子 place 的 =setter=​（将新串写回）。
+3. 利用子 place 的 =getter= 和 =setter= 构建出 =substring= 这一层的 =getter= （获取子串）和 =setter=​​（写回子串）。
+
+这就是 Elisp 实现 GV 的核心思路了，在 gv.el 中，其他代码主要是为了处理查找流程或简化简单变换函数的定义方法，剩下的大篇幅留给了大量变换函数的定义。
+
+** macroexp-let2*
+
+在上一节的实现中，眼尖的读者可能已经注意到了，我们频繁使用了一个名为 =macroexp-let2*= 的宏，而不是手动去调用 =gensym= 和构建 =let= 列表。这并非偶然。编写宏（尤其是像 GV 这样涉及代码重组的宏）是一项精细活，我们需要时刻警惕两个陷阱：
+
+- 名称冲突：生成的变量名不能覆盖用户已有的变量。
+- 重复求值：参数表达式不能被多次执行，特别是当它包含副作用时。
+
+在 =incf2-maker= 的尝试中，我们被迫写了大量样板代码来处理这些脏活累活：手动循环生成 =gensym=​，手动拼接 =let= 绑定列表。这不仅繁琐，而且生成的代码往往不够优雅 —— 即使参数只是简单的数字 1，我们也会傻乎乎地生成 =(let ((ARG1 1)) ...)=​。
+
+为了把宏编写者从这些重复劳动中解放出来，Emacs 提供了一个强大的辅助库：​=macroexp.el=​。它不仅封装了临时变量的创建逻辑，还内置了一些简单的优化策略。
+
+macroexp-let2* 是 GV 实现中最常用的工具。它的行为类似于 =let= (或 =let*=)，但它只在「必要」时才真正生成绑定代码。假设我们想编写一个宏，把 x 平方：
+
+#+begin_src elisp
+(defmacro square (x) (macroexp-let2 nil v x `(* ,v ,v)))
+#+end_src
+
+如果 =x= 是一个复杂的表达式，如 =(pop list)=​，它会乖乖生成 =let= 绑定以防止双重求值：
+
+#+begin_src elisp
+  (macroexpand '(square (pop list)))
+  ;;=> (let ((v (pop list))) (* v v))
+#+end_src
+
+但如果 =x= 只是一个简单的常量，它会聪明地跳过绑定，直接替换，从而生成更高效、更易读的代码：
+
+#+begin_src elisp
+  (macroexpand '(square 10))
+  ;;=> (* 10 10)
+#+end_src
+
+在 GV 的实现中，我们处理的参数经常是混合了常量、变量和复杂表达式的杂烩。使用 =macroexp-let2= 能确保我们生成的代码既安全又整洁。
+
+#+html: <div class="advisement">
+*练习*​：在上一小节的练习中，​我在答案中给出的 =gethash= 的变换函数实现为：
+
+#+begin_src elisp
+  (lambda (do key place)
+    (macroexp-let2* nil ((k key) (p place))
+      (funcall do `(gethash ,k ,p)
+               (lambda (v) `(puthash ,k ,v ,p)))))
+#+end_src
+
+我们能够调换 =key= 与 =place= 的绑定顺序吗？为什么？
+
+（这一练习主要目的是避免 =do= 后面总是接 =place= 的思维定势）
+:answer:
+
+不能。这关乎从左到右求值规则。在函数调用 =(gethash KEY PLACE)= 中，Elisp 规定必须先对 =KEY= 求值，再对 =PLACE= 求值。​=macroexp-let2*= 生成的是 =let*= 形式，它严格按照列表的顺序依次绑定变量。
+
+如果我们调换顺序写成 =((p place) (k key))=​，生成的代码就会变成：
+
+#+begin_src elisp
+  (let* ((p place) ; <-- 先求值了 place ! 
+         (k key)) ; <-- 后求值了 key!
+    ...)
+#+end_src
+
+如果参数是纯数值，这也许没问题。但如果参数包含副作用，顺序错误会导致灾难。
+:end:
+#+html: </div>
+
+* GV 常用接口参考
+
+相信通过浏览上面的内容你已经学会如何使用 GV，并理解了它的实现机制。现在让我们介绍一下 gv.el 中提供的一些公共 API，来方便读者查找一些功能的准确定义和用法。
+
+注意，这并没有完全覆盖整个 gv.el，尤其是一些黑魔法，不过对我们日常用户来说这完全够用了。
+
+*=(gv-get PLACE DO)=*
+
+GV 扩展机制的入口函数。它负责解析 =PLACE=​，生成用于读取和修改该位置的代码，并将其传递给回调函数 =DO=​。函数返回一个表达式，即 =DO= 被调用的返回结果。
+
+=PLACE= 必须是一个有效的广义变量，​=DO= 是一个接受两个参数 =GETTER= 和 =SETTER= 的回调函数，其中 =GETTER= 是一个求值结果为 =place= 当前值的 Elisp 表达式，该表达式应是可复制的（copyable）；​=SETTER= 是一个赋值构造器。它接受一个参数（新值的表达式），并返回设置 =PLACE= 为该值的 Elisp 表达式。
+
+*=(gv-letplace VARS PLACE &rest BODY)=*
+
+分析广义变量 =PLACE=​，并将用于读取和修改该变量的方法绑定到符号列表 =VARS= 中的符号。然后执行 =BODY=​。它实际上是 =gv-get= 的语法糖，将 CPS 风格的回调转换为更符合直觉的 =let= 绑定风格，简化了宏的编写。
+
+#+begin_src elisp
+  ;; before
+  (gv-get place (lambda (getter setter)
+                  (funcall do `(1+ ,getter)
+                           (lambda (v) (funcall setter `(1- ,v))))))
+
+  ;; after
+  (gv-letplace (getter setter) place
+    (funcall do `(1+ ,getter)
+             (lambda (v) (funcall setter `(1- ,v)))))
+#+end_src
+
+*=(gv-define-expander NAME HANDLER)=*
+
+将符号 =NAME= 定义为一个广义变量，使用 =HANDLER= 作为其扩展策略。定义新 GV 的底层核心宏。它建立了符号与扩展逻辑之间的映射关系。
+
+=HANDLER= 是负责生成代码的扩展器函数。该函数必须接受 =DO= 回调作为第一个参数，后跟与 =NAME= 原始调用形式完全一致的参数。
+
+*=(gv-define-setter NAME ARGLIST &rest BODY)=*
+
+为符号 =NAME= 定义一个扩展器，是 =gv-define-expander= 的简化版，适用于参数不需要递归处理、只需简单的模式匹配即可生成赋值代码的情况。
+
+参数 =ARGLIST= 格式为 =(VAL ARG1 ARG2 ...)=​，其中 =VAL= 绑定为新值的表达式，​=ARG1 ARG2 ...= 对应 =NAME= 调用时的原始参数，这些参数在进入 =BODY= 之前已经自动绑定为安全可复制的临时变量。​=BODY= 需返回执行赋值操作的表达式。
+
+#+begin_src elisp
+  ;; before
+  (gv-define-expander car
+    (lambda (do place)
+      (macroexp-let2* nil ((p place))
+        (funcall do `(car ,p)
+                 (lambda (v) `(setcar ,p ,v))))))
+
+  ;; after
+  (gv-define-setter car (v x)
+    `(setcar x v))
+#+end_src
+
+*=(gv-define-simple-setter NAME SETTER &optional FIX-RETURN)=*
+
+建立一个从取值函数 =NAME= 到赋值函数 =SETTER= 的简单映射。如果 =FIX-RETURN= 为非空值，表示 =SETTER= 函数的返回值不是赋入的值，宏会自动生成额外的代码以确保 =SETF= 表达式返回新赋的值。
+
+该宏要求赋值函数的参数列表仅仅是在取值函数的参数列表最后追加了新值。
+
+#+begin_src elisp
+  ;; before
+  (gv-define-setter car (v x) `(setcar x v))
+
+  ;; after
+  (gv-define-simple-setter car setcar)
+#+end_src
+
+* 后记
+
+如果说四年前的 [[../2022-02-22-17-setf-CL-five-gangs-elisp-high-order-approach/index.org][setf 之 CL 的 five gangs 与 elisp 的 high-order approach]] 把各种东西揉到了一起，那么本文算是对把它们分开的一次尝试。参考 Diátaxis 文档框架，至少我认为整个表述要清晰了很多，希望这能让原本陡峭的学习曲线平缓一些。原文中出现的一些比较复杂的 GV 例子我并没有放在这篇文章中，也许会和对 GV 的考古一起组成 GV 系列的三部曲。
+
+gv.el 的实现以及思路当然非常精妙，不过现在函数式的发展某种意义上也意味着赋值的式微。作为不是重点的难点，希望你「浪费」到这篇博客上的时间会对你的未来有所帮助。
+
+感谢阅读，顺便新年快乐。
+
+#+begin_comment
+| [[https://www.pixiv.net/artworks/76835057][file:dev/p4.png]] | [[https://www.pixiv.net/artworks/85806861][file:dev/p5.jpg]] | [[https://www.pixiv.net/artworks/92737838][file:dev/p6.jpg]] |
+
+[[https://www.pixiv.net/artworks/95704559][file:dev/p7.jpg]]
+#+end_comment
