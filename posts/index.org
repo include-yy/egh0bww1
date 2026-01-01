@@ -7,6 +7,13 @@
 
 Total number of articles: {{{arch_total}}}
 
+* 2026 {{{arch_num(2026)}}}
+:PROPERTIES:
+:CUSTOM_ID: y-2026
+:END:
+
+{{{arch_year(2026)}}}
+
 * 2025 {{{arch_num(2025)}}}
 :PROPERTIES:
 :CUSTOM_ID: y-2025
