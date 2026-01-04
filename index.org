@@ -26,10 +26,16 @@
 
 草，整理目标并不比写正经的博客简单。
 
+#+html: <div id="RedTargets"></div>
+
 ** BLOGGING
 
 *Emacs*
-
+- 随着 Emacs 的不断进化，使用了 MPS GC 的 igc 分支最快可能会在 Emacs 32 中正式出现，也许是时候为老式 GC 写一份简单的记录了
+  - [ ] 学习 Mark-Sweep GC 算法，并结合 Emacs 的 alloc.c 进行介绍
+- 我于 2026 年初完成了对 [[file:posts/2022-02-22-17-setf-CL-five-gangs-elisp-high-order-approach/index.org][setf 之 CL 的 five gangs 与 elisp 的 high-order approach]] 的重构，目前还有两件事要做，以完成 Generalized Variable 三部曲：
+  - [ ] 完成对 GV 历史的考古
+  - [ ] 记录一些实用 GV 例子
 - 在 [[https://lists.gnu.org/archive/html/emacs-devel/2025-08/msg00405.html][igc: GC responsiveness]] 讨论中，Helmut Eller 使用滚动屏幕测试 GC 性能
   - [ ] 总结 2025 年 8 月的所有讨论邮件，观察 IGC 相比 Emacs GC 的不同之处
 - 为 Windows 平台上的 Emacs 添加 ='alpha-background= 支持，即「背景透明」而非整个窗口的透明。具体讨论可以参考 emacs-devel 上的 [[https://lists.gnu.org/archive/html/emacs-devel/2025-07/msg00174.html][The frame parameter 'alpha-background semms not work on MS-Windows]]。这一目标主要可以分解为以下两个子目标：
@@ -38,7 +44,7 @@
 
 - 参考 Org-mode 的 ox-html.el，完成对 [[https://github.com/include-yy/ox-w3ctr][ox-w3ctr]] 的重构，即代码整理以及编写对应文档。在开始 special-block 的重构之前，应首先完成如下两部分的学习和博客记录：
   - [X] 学习如何编写良好且可维护的 docstring，即文档字符串
-  - [ ] 学习如何使用 ERT 编写良好且可维护的单元测试，或称回归测试
+  - [ ] @@html:<span style="color:red">@@​*学习如何使用 ERT 编写良好且可维护的单元测试，或称回归测试*​@@html:</span>@@
 
 - 完成「Emacs 的 treesit」的第二，第三部分：
   - [ ] 第二部分应使用 MoonBit 这一语言的 tree-sitter parser 来介绍 Emacs treesit 的 API 使用，在现在 [2025-08-17]，Emacs 的 treesit 已基本稳定
@@ -88,7 +94,7 @@
   - [[https://www.deinprogramm.de/sperber/papers/shift-reset-direct.pdf][Final Shift for Call/cc: Direct Implementation of Shift and Reset]]
 
 - 25 年年初我写了 [[file:posts/2025-02-24-aitac-1/index.org][「笔记」An Invitation to Applied Category Theory — Chapter 1]]，这本书是范畴论的入门级教程，目前还剩 2 到 7 章没有读和记笔记
-  - [ ] 「笔记」An Invitation to Applied Category Theory — Chapter *2*
+  - [ ] @@html:<span style="color:red">@@​*「笔记」An Invitation to Applied Category Theory — Chapter 2*​@@html:</div>@@
 
 - 24 年 7 月我完成了[[file:posts/2024-07-24-tr-plai3-evaluation/index.org][「翻译」Programming Languages: Application and Interpretation [Evaluation]​]]，后续内容尚待翻译
   - [ ] 完成 /Syntactic Sugar/ 一章的翻译
@@ -157,7 +163,7 @@
 #+attr__: [index]
 - [ ] 学会可持续性地整理资料
 - [ ] 学点日语
-
+- [ ] @@html:<span style="color:red">@@​*学点基金知识和理财知识*​@@html:</span>@@
 ** FUN
 
 *ギャルゲー*
@@ -210,6 +216,24 @@
 - [ ] 超元气三胞胎
 - [ ] 未确定进行式
 - [ ] 今日の5の2
+
+#+begin_export js
+(function () {
+    const reds = document.querySelectorAll('span[style*="color:red"]');
+    if (reds.length === 0) return;
+    let container = document.getElementById('RedTargets');
+    if (!container) return;
+    const ul = document.createElement('ul');
+    reds.forEach(span => {
+        const li = document.createElement('li');
+        const clone = span.cloneNode(true);
+        li.appendChild(clone);
+        ul.appendChild(li);
+    });
+    container.appendChild(ul);
+})();
+#+end_export
+
 
 * FOLKS
 
