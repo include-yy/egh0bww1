@@ -1,0 +1,565 @@
+#+TITLE: Vibe 了一个和 Emacs 协作的 C++ JSON-RPC 库
+#+DATE: [2026-02-28 Sat 18:28]--[2026-03-25 Thr 02:13]
+#+FILETAGS: c
+#+DESCRIPTION: 本文介绍了一个我 Vibe 出来的 C++ 的 JSON-RPC 库，主要用于和 Emacs 的 jsonrpc.el 协作完成子进程的管道通信
+#+TMP: 0
+
+# [[https://www.pixiv.net/artworks/141899730][file:dev/イラスト75.png]]
+
+我在 26 年 2 月份前半段沉迷投机无法自拔，后半段则主要把时间花在了[[https://github.com/include-yy/emacs-webview2][给 Emacs 贴 WebView2 的膜]]上，这也导致没什么时间去写博客。目前整个项目的基础组件写的差不多了，剩下的是成吨的细节，也许是时候给组件写点记录过程方便之后查阅了。
+
+本文介绍了这个项目的产生缘由和 JSON-RPC 的 vibe 实现片段，给出了一个可与 Emacs 的 jsonrpc.el 配合使用的 C++ [[https://github.com/include-yy/emacs-stdio-jsonrpc][JSON-RPC 实现]]。希望读者在尝试实现 C++ 子进程与 Emacs 的通信，或在实现其他语言程序与 Emacs 进行 JSON-RPC 通信时能有所帮助。
+
+由于 WebView2 目前仅支持 Windows 平台，我的代码不用考虑平台兼容性问题，最初的版本使用了一些 Windows 特性，后面在 Gemini 的建议下抽离了相关逻辑做成了平台无关的库。如果想要在其他平台上使用这个库应该仅需简单的平台相关代码。
+
+本文使用的具体环境如下：
+
+- Emacs 31.0.50 985e942d1cc
+- Windows 11 25H2 26200.7922
+- Visual Studio 2022
+
+* 为什么要造轮子？
+
+为什么我不直接使用已有的实现而是要自己造轮子呢？那当然是 AI 带给我的自信。
+
+** WebView 组件轮子
+
+在 2 月中旬，我通过群聊发现了这样一个项目：[[https://github.com/heartnheart/ewv][heartnheart/ewv: emacs webview2 binding]]。该项目使用动态模块实现了 WebView2 到 Emacs 的功能绑定，通过将 WebView2 页面绑定到 Emacs 的 buffer 配合 Emacs 的 window 实现了对标签页的管理。让标签页在 Emacs 内显示和管理能够显著降低 Emacs 和浏览器之间的上下文切换成本，从而提高效率。本文写作过程中的预览就是在 Emacs 中通过 WebView2 完成的，体验非常棒。
+
+如果你要说我对这个项目有什么不满的地方的话，那大概是使用了 Rust 而不是 C/C++，以及使用了动态模块而不是子进程。前者是因为我不会 Rust 😂，后者是因为 Emacs 加载动态模块后无法卸载，这意味着每次修改实现都需要启动一个 Emacs 实例来测试，非常麻烦。
+
+如果你是 Emacs 玩家，你绝对听说过大名鼎鼎的 [[https://github.com/emacs-eaf/emacs-application-framework][EAF]]，即 Emacs Application Framework，这是由 Emacs 社区的懒猫大神实现的 Emacs 内应用开发框架。懒猫通过它实现了 [[https://github.com/emacs-eaf/eaf-browser][eaf-browser]]，一个能在 Emacs 中使用的浏览器。相比我们上面提到的 ewv，eaf-browser 是跨平台的，而且还能利用 EAF 生态中的其他东西。但我在具体使用过程中的一大痛点就是包依赖过多安装麻烦，和系统自带的 WebView2 没法比。
+
+如果既想要 ewv 的原生体验又想要 EAF 的开发体验的话，那只能取长补短了：使用 WebView2 而不是 QtWebEngine，使用 C++ 而不是 Rust，使用子进程 RPC 而不是动态模块。除了代码需要自己写之外对我来说其他都是优点了，拥有一个完全掌握的 Windows WebView2 组件实现应该就是我的造轮子动机了。
+
+#+attr_html: :class data
+|            | ewv          | EAF            | emacs-webview2 |
+|------------+--------------+----------------+----------------|
+| 安装便捷性 | WebView2 ✅ | QtWebEngine ❌ | WebView2 ✅      |
+| 开发语言   | Rust ❌     | Python ✅     | C++ 🟡        |
+| 通信方式   | 动态模块 ❌ | [[https://github.com/kiwanami/emacs-epc][EPC]] ✅        | JSON-RPC ✅   |
+
+** RPC 通信轮子
+
+在 Emacs 与子进程的通信方式选择上，我借鉴了 EAF 的思路，选择了 RPC（Remote Procedure Call，远程过程调用）。虽然 EAF 使用的 EPC 协议历史悠久而且非常稳定，但它缺乏成熟的 C++ 端的实现。考虑到 Emacs 受益于 LSP 协议的普及早已内置了高水平的 jsonrpc.el 实现，加上 JSON 格式在各语言中的极高普及度，选择 JSON-RPC 是更现代和更省力的方案。
+
+市面上当然不缺现成的 C++ JSON-RPC 库，比如 [[https://github.com/badaix/jsonrpcpp][badaix/jsonrpcpp]]，但简单看过它的源代码后，我闻到了一股腐朽的 OOP 臭味，明明是数据导向的程序却非要套上几层继承。更实际的问题是它缺乏方便的业务逻辑接口，比如消息循环和方法注册机制。
+
+与其在不合适的框架上「打补丁」，不如直接根据 JSON-RPC 规范来重新实现一个。
+
+* （LLM）实现 JSON-RPC
+
+在整个编码过程中，我不是主要实现者，Gemini 3.0 Pro 为我生成了绝大部分的代码，我负责微调和继续提问让 Gemini 修正和细化代码。这一节的主要内容是对 vibe coding 过程的简单记录，我没有使用 Cursor 之类的工具，而是通过比较原始的论语式问答来迭代代码。
+
+** JSON-RPC 2.0 协议
+
+这里我带读者简单过一遍 JSON-RPC 2.0 [[https://www.jsonrpc.org/specification][规范]]的内容，比较熟悉的读者不用看了，或者看看标准的[[https://wiki.geekdream.com/Specification/json-rpc_2.0.html][中文翻译]]。
+
+#+begin_quote
+JSON-RPC 是一个无状态且轻量级的远程过程调用 (RPC) 协议。 本规范主要定义了一些数据结构及其相关的处理规则。它允许运行在基于 socket, http 等诸多不同消息传输环境的同一进程中。其使用 JSON (RFC 4627) 作为数据格式。
+
+它为简单而生!
+#+end_quote
+
+一个 *JSON-RPC 请求*​对象需要包含以下成员：
+
+- =jsonrpc=​，指定 JSON-RPC 协议版本的字符串，必须为 ="2.0"=​。
+- =method=​，要调用方法名称的字符串。
+- =params=​，调用方法需要的结构化参数值。
+- =id=​，一个标识调用的 id 值，一般为数值。
+  - 若 =id= 缺失，则该请求被视为通知 (Notification)，服务器无需回执。
+
+一个 *JSON-RPC 响应*​对象需要包含以下成员：
+
+- =jsonrpc=​，指定 JSON-RPC 协议版本的字符串，必须为 ="2.0"=​。
+- =result=​，调用成功时的结果值，调用失败则不包含该成员。
+- =error=​，调用失败时的错误对象，调用成功不包含该成员。
+- =id=​，标识调用的 id 值。  
+
+当调用失败时，相应对象中的 =error= 字段的对象的成员是：
+
+- =code=​，指定错误类型的整数数值。
+- =message=​，描述错误的字符串。
+- =data=​，包含关于错误附加信息的基本类型或结构化类型，可忽略。
+  
+JSON-RPC 还支持批量调用 (Batching)，即同时发送多个请求对象，我的实现中舍弃了这一部分。我认为让单一方法承担复合任务更加清晰，没有必要增加解析复杂度。
+
+在分布式系统设计中，常有「尽量避免使用通知语义」的争论，但在局部子进程通信的场景下，通知（Notification）反而是最轻量、最适合作为 UI 异步事件载体的方式。如果真的需要消息可靠性和事务保证，我们应该使用专门的 MQ，而不是在轻量级的 JSON-RPC 上过度工程。
+
+** 数据结构「设计」
+
+使用 LLM 写代码，与其说代码是写出来的，倒不如说是「长」出来的。它根据我们的提示词从它庞大的知识库里面把已有的 JSON-RPC 实现「捞」了出来，这一过程有点像携带遗传信息的基因在特定环境下的表达。因为这个原因，我们很难洞察 LLM 编码的深层逻辑，
+只能在事后做合理化推测。这种推测是否符合真相也搞不清楚 —— 只要我们的提问不过于离谱地偏离逻辑，LLM 总能顺着我们的思路，给出一份带有「奉承」意味的改进方案。
+
+整个 JSON-RPC 的最初实现来自我将 jsonrpcpp 交给 Gemini 后让它去掉恶心的多重继承的要求，然后它一下子为我生成了全部代码。最初它为我生成了四个 =struct=​，分别对应于 JSON-RPC 的 =Request=, =Response=​，​=Notification= 和 =Error=​。在这最初的实现中它就使用了 C++17 的 =std::variant= 来在 =Response= 中使用一个成员表示结果或错误，看来 C++17 代码它确实学了不少：
+
+#+begin_src cpp
+  struct Response {
+      Id id;
+      std::variant<json, Error> result_or_error; // Result (success) or Error (failure)
+      ...;
+  };
+#+end_src
+
+最开始我认为 =Notification= 是不必要的，Gemini 在这一指示下为我删去了 =Notification= 结构和 =send_notification= 代码。随后我意识到 =Notification= 用来承载 UI 事件非常好用，又让它加了回来，但新的实现中没有 =Notification=​，而是通过 =std::optional= 将 =Request= 结构的 =id= 可选化从而复用 =Request=​。
+
+#+begin_quote
+既然你已经明确了不需要 =Notification= 且 =ID= 必须为整数，这大大简化了逻辑。我们可以去掉 =std::variant= 在 ID 上的处理，去掉 =Notification= 类，并且可以将 =Parser= 的返回类型收窄。
+#+end_quote
+
+#+begin_src cpp
+  struct Request {
+      std::optional<int> id; // nullopt means it's a Notification.
+      std::string method;
+      json params = nullptr;
+  };
+#+end_src
+
+如果我们按照 [[https://github.com/nlohmann/json][nlohmann/json]] 给出的接口，对特定的类型静态重载了 =to_json= 和 =from_json=​​，那么就可以直接使用 =jsonobj.get<Type>()= 来获取 JSON 对应的结构，在 Gemini 最初给出的代码中这些函数全都在同一个名字空间，在编译时报错，根据 Gemini 的指导这是 ADL 问题，将各个函数作为友元函数放到对应结构里面就好了。
+
+#+begin_src cpp
+  template<class T>
+  void to_json(basic_json& j, const T& t);
+
+  template<class T>
+  void from_json(const basic_json& j, T& t);
+#+end_src
+
+在设计了各数据结构以及它们的序列化/反序列化后，具体的解析函数实现就比较简单了，检测 JSON 中的字段并分情况调用各结构的 =get= 函数即可。虽然在边界条件上和 Gemini 交手了多个回合，但这属于比较 trivial 的部分，就不展开了。
+
+** 消息循环与 I/O
+
+我做 emacs-webview2 的初衷就是通过管道 RPC 来让 Emacs 和 WebView2 协作，因此 IO 部分直接使用了 stdio。由于 =scanf= 或者 =std::cin= 是阻塞调用，为了不挂起主线程，必须引入独立的 Reader 线程来处理输入。
+
+Gemini 给出的方案是打开一个 Reader 线程处理来自 =std::cin= 的输入，输出则直接调用 =std::cout=​。在我提到 C++20 的 =std::basic_osyncstream= 可以避免 =std::cout= 的竞态混乱后，它直接给出了相关代码并去掉了互斥锁：
+
+#+begin_src cpp
+  // Thread-safe message sender.
+  void send_message(const std::string& body) {
+      // std::osyncstream will atomically write the buffer to the stream
+      // when it is destructed, so we don't need to manually lock.
+
+      // Emacs's jsonrpc use a HTTP-like framing with Content-Length header,
+      // Content-Length: <length>\r\n\r\n<body>
+      std::osyncstream(out_)
+          << "Content-Length: " << body.length() << "\r\n"
+          << "\r\n" << body << std::flush;
+  }
+#+end_src
+
+这里使用了类似 [[https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#headerPart][LSP]] 的数据头，这主要是因为 Emacs 的 jsonrpc.el 中的 =jsonrpc-process-connection= 使用了这种结构，而 jsonrpc.el 本身是从 eglot 中抽出来的库，eglot 是 Emacs 内置的 LSP client。如果不需要配合 jsonrpc.el，也可以考虑使用单行 JSON 约定，这样只需要一个 =getline= 就能搞定 JSON-RPC 的读取。Windows 上通过 stdio 读取也需要注意不要让 stdio 将 =\r\n= 处理为 =\n= 了：
+
+#+begin_src cpp
+  Conn() : next_id_(1), running_(false), main_thread_id_(0) {
+      // Force Windows stdin/stdout into binary mode to prevent \r\n
+      // translation that can cause Content-Length miscalculation or 
+      // byte reading errors.
+      (void)_setmode(_fileno(stdin), _O_BINARY);
+      (void)_setmode(_fileno(stdout), _O_BINARY);
+  }
+#+end_src
+
+在子进程的生命周期管理上，Gemini 生成的代码选择了 =thread.detach()= 而不是 =thread.join()= 作为管理 Reader 线程结构的析构函数的一部分。如果我们选择了 =join()=​，可能会因为 Reader 迟迟收不到 EOF 而无法结束 =join()= 等待。有趣的是，在将代码交给另一对话时，其中的 Gemini 严厉地批评了我这种「摆烂」的 =detach()= 做法（什么左右脑互搏），并建议我使用 =join= 配合系统特定函数来强制取消 IO 等待。
+
+在 Windows 上这个关键函数就是 [[https://learn.microsoft.com/en-us/windows/win32/fileio/cancelioex-func][=CancelIoEx=]]，虽然文档要求参数是用于异步 IO 的 =OVERLAPPED= 结构指针，但 [[https://learn.microsoft.com/en-us/windows/win32/fileio/canceling-pending-i-o-operations][Canceling Pending I/O Operations]] 这一文档也提到传递非 =OVERLAPPED= 指针时此函数会尝试取消进程中所有线程对该句柄发起的未结束 IO 操作。经过测试，它可以用于取消对 stdin 的等待：
+
+#+begin_quote
+When canceling asynchronous I/O, *when no overlapped structure is supplied to the CancelIoEx function, the function attempts to cancel all outstanding I/O on the file on all threads in the process.* Each thread is processed individually, so after a thread has been processed it may start another I/O on the file before all the other threads have had their I/O for the file canceled, causing synchronization issues.
+#+end_quote
+
+#+begin_src cpp
+  // Note: CancelIoEx provides a non-destructive way to interrupt a blocking stdin read.
+  HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+  if (hIn != INVALID_HANDLE_VALUE) {
+      CancelIoEx(hIn, nullptr); // Forcefully abort pending I/O on the reader thread
+  }
+#+end_src
+
+你可能会好奇能不能用 C++20 的 jthread 的 [[https://en.cppreference.com/w/cpp/thread/stop_token.html][=stop_token=]] 来终止进程，很可惜它是协作式中断，而 =std::cin= 卡住子线程后线程根本没有机会检查中断标志。
+
+当 Reader 线程读取到一个 JSON 后，它会调用我们上面实现的 Parser 解析得到 JSON 对应的对象，可能是 =Request= 或 =Response=​。接下来的挑战是如何将其安全地交给主线程。Gemini 很敏锐地注意到同步问题，它实现了一个线程安全队列，通过互斥锁确保主线程（消费者）和子线程（生产者）在消息传递时不会产生竞态：
+
+#+begin_src cpp
+  // Thread-safe queue for buffering incoming messages from the reader thread.
+  template <typename T>
+  class ThreadSafeQueue {
+  private:
+      std::queue<T> queue_;
+      std::mutex mutex_;
+
+  public:
+      void push(T value) {
+          std::lock_guard<std::mutex> lock(mutex_);
+          queue_.push(std::move(value));
+      }
+      bool try_pop(T& value) {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (queue_.empty()) return false;
+          value = std::move(queue_.front());
+          queue_.pop();
+          return true;
+      }
+  };
+#+end_src
+
+当子线程收到消息并投递到队列后，它需要通知主线程开始工作。在原始实现中，Gemini 采用了我的基于 Win32 消息循环的方案：主线程中使用 =GetMessage= 挂起，子线程中使用 =PostThreadMessage= 发送自定义消息（比如 =WM_JSONRPC_WAKEUP=​）来通知。如果没有通知环节，主线程可能只能做轮询或带 =sleep= 的轮询了。
+
+这种设计耦合了 Windows 的消息机制。在我的「强烈要求」下，Gemini 写出了第二版：使用回调通知。子线程不再关心具体的通知逻辑，而是直接使用管理结构中的 Waker 回调，具体的唤醒实现交给用户负责：
+
+#+begin_src cpp
+  uint32_t main_thread_id = GetCurrentThreadId();
+
+  // 1. Define a Waker to signal the main thread from the reader thread
+  auto waker = [main_thread_id]() {
+      PostThreadMessage(main_thread_id, WM_JSONRPC_WAKEUP, 0, 0);
+      };
+  jsonrpc::Conn server(waker);
+#+end_src
+
+如果读取到的数据不符合规范 —— 无论是 =Content-Length= 与实际字节数对不上、非数字的长度字段、非标准的数据头，甚至是残缺的 JSON —— Reader 线程都会直接终止运行。在子进程的本地管道（IPC）环境中，这类逻辑错误几乎是不可能发生的。我们还没有到需要去防御「宇宙射线」干扰内存位翻转的程度。在这种极高确定性的 IO 中，任何协议层面的不一致通常都意味着底层代码实现的重大 Bug。
+
+** 请求处理与注册
+
+在解决了底层的 IO 和同步问题后，我们总算是可以从逻辑或者说业务层面开始编写代码了。虽然 LLM 总是倾向于一股脑地输出所有代码，但书写本文我还是尽量按照人的逻辑来，先确定大方向再填充细节。
+
+在消息处理这一块，下面的内容可以分为​*发送*​/请求通知和​*处理*​请求通知，前一部分更加简单，我们从​*发送*​开始。
+
+*** Send
+
+发送请求和消息非常简单，我们只需要创建一个 =Request= 结构，使用 =to_json= 将它转换为 JSON 对象后 =dump= ，最后调用 =send_message= 即可。
+
+#+begin_src cpp
+  // Send a Request to the other side, with a callback for the response.
+  void send_request(const std::string& method, const json& params, ResponseHandler callback) {
+      int id = next_id_++;
+      {
+          std::lock_guard<std::mutex> lock(callback_mutex_);
+          pending_callbacks_[id] = callback;
+      }
+      Request req{ id, method, params };
+      json j;
+      to_json(j, req);
+      send_message(j.dump());
+  }
+
+  // Send a notification to other side.
+  void send_notification(const std::string& method, const json& params = nullptr) {
+      Request req{ std::nullopt, method, params };
+      json j;
+      to_json(j, req);
+      send_message(j.dump());
+  }
+#+end_src
+
+请求与通知的不同之处在于我们期望获取一个返回值，这里我采用了注册回调处理返回值的方式来实现。Gemini 给出的实现中没有同步请求，它的解释是同步请求实现麻烦而且容易出问题，考虑到 C++ 端主要是做服务而不是请求，我也懒得改了，采用了纯异步的回调模式。上面的互斥锁保证了多个线程同时请求时不会出现竞态。当收到请求的响应时，以下代码调用对应的回调完成闭环：
+
+#+begin_src cpp
+  void handle_response(const Response& resp) {
+      ResponseHandler callback = nullptr;
+      {
+          std::lock_guard<std::mutex> lock(callback_mutex_);
+          auto it = pending_callbacks_.find(resp.id);
+          if (it != pending_callbacks_.end()) {
+              callback = std::move(it->second);
+              pending_callbacks_.erase(it);
+          }
+      }
+      if (callback) callback(resp);
+  }
+#+end_src
+
+目前的实现中尚未加入请求超时的清理机制。虽然理论上未响应的回调会占用空间，但考虑到服务端主动发起请求的频率极低，且大多是在可靠的本地管道上运行，所以暂时没有添加这一机制的强烈需求。
+
+*** Receive
+
+如果说发送是主动投递消息，那么接受消息就是被动调度。​=process_queue= 承担了分拣员的角色：它不断从 =inbox_= 队列中取出 =IncomingMessage=​，并根据消息的类型将其分发给相应的处理函数：
+
+#+begin_src cpp
+  // Main Loop Processor: Call this from your main thread/event loop.
+  // It processes messages from the inbox queue.
+  void process_queue() {
+      IncomingMessage msg;
+      while (inbox_.try_pop(msg)) {
+          if (std::holds_alternative<Request>(msg)) {
+              handle_request(std::get<Request>(msg));
+          } else if (std::holds_alternative<Response>(msg)) {
+              handle_response(std::get<Response>(msg));
+          } else if (std::holds_alternative<Error>(msg)) {
+              continue;
+          }
+      }
+  }
+#+end_src
+
+在比较早期的版本中，​=ThreadSafeQueue= 中使用的类型如下：
+
+#+begin_src cpp
+  using IncomingMessage = std::variant<Request, Response>;
+#+end_src
+
+在仔细阅读 JSON-RPC 2.0 规范后，我注意到当发生解析错误或无效请求时，由于服务端无法提取请求 ID，返回的 =Response= 中 =id= 必须为 =null=​。既然这种特殊的 =Response= 总是伴随着 =error= 字段且缺乏有效的 =id=​，与其在 =Response= 结构内纠结如何表达空 =id=​，不如直接在 Parser 层将它「降级」为 =Error= 再塞入消息队列。Gemini 将 =IncomingMessage= 重新定义为：
+
+#+begin_src cpp
+  // A variant capable of holding any valid incoming message type.
+  using IncomingMessage = std::variant<Request, Response, Error>;
+#+end_src
+
+我们在上一小节已经给出了 =handle_response= 的实现，处理请求的 =handle_request= （早期）实现如下。它根据方法名在映射表中查找处理函数，调用函数，捕获异常，最后发送响应：
+
+#+begin_src cpp
+  void register_method(const std::string& name, RequestHandler handler) {
+      std::lock_guard<std::mutex> lock(map_mutex_);
+      method_handlers_[name] = handler;
+  }
+
+  void handle_request(const Request& req) {
+      RequestHandler handler = nullptr;
+      {
+          std::lock_guard<std::mutex> lock(map_mutex_);
+          if (method_handlers_.count(req.method)) {
+              handler = method_handlers_[req.method];
+          }
+      }
+
+      json result_json;
+      bool success = false;
+      std::string error_msg;
+
+      if (handler) {
+          try {
+              result_json = handler(req.params);
+              success = true;
+          } catch (const std::exception& e) {
+              error_msg = e.what();
+          }
+      } else {
+          error_msg = "Method not found";
+      }
+
+      json j_resp;
+      if (success) {
+          to_json(j_resp, Response::make_success(req.id, result_json));
+      } else {
+          int code = (error_msg == "Method not found") ? -32601 : -32603;
+          to_json(j_resp, Response::make_error(req.id, code, error_msg));
+      }
+      send_message(j_resp.dump());
+  }
+#+end_src
+
+在完成这一部分后我的[[file:jsonrpc_v1.hpp][第一版实现]]就基本上完成了，然而，这一版的实现无法处理异步方法，如果某个方法内部调用了异步函数，我们无法做到让异步函数的回调调用后再发送响应。
+
+为了解决这一问题，一种方法是将请求的 =id= 也作为方法的参数，同时让方法主动调用发送函数来响应而不是由 =handle_request= 响应。但用户一般可能不需要 =id= 信息，对此，Gemini 写了个 =Context= 结构来专门处理异步方法的回复问题：异步方法接受一个 =Context= 上下文参数和 =Params= 参数，​它不再需要立即返回结果，而是可以在并在任务完成后调用 =Context= 对象的 =reply= 或 =error= 来回复：
+
+#+begin_src cpp
+  // Context passed to async request handlers.
+  // Allows handlers to reply or send errors asynchronously.
+  class Context {
+  public:
+      Context(Conn& c, std::optional<int> i) : conn_(c), id_(i) {}
+
+      void reply(json result);
+      void error(int code, std::string message, json data = nullptr);
+
+      std::optional<int> id() const { return id_; }
+      bool is_notification() const { return !id_.has_value(); }
+
+  private:
+      Conn& conn_;
+      std::optional<int> id_;
+  };
+
+  // Implement Context methods inline after Conn is defined.
+  inline void Context::reply(json result) {
+      if (id_.has_value()) {
+          conn_.send_response_success(id_.value(), std::move(result));
+      }
+  }
+  inline void Context::error(int code, std::string message, json data) {
+      if (id_.has_value()) {
+          conn_.send_response_error(id_.value(), code, std::move(message), std::move(data));
+      }
+  }
+#+end_src
+
+在这一新实现下，异步方法将作为同步方法和通知的基础，在 =register_async_method= 上加上包装，我们就能够方便地注册同步 RPC 方法和通知方法了：
+
+#+begin_src cpp
+  using AsyncRequestHandler = std::function<void(Context, const json&)>;
+  using RequestHandler      = std::function<json(const json&)>;
+  using ResponseHandler     = std::function<void(const Response&)>;
+  using NotificationHandler = std::function<void(const json&)>;
+
+  void register_async_method(const std::string& name, AsyncRequestHandler handler) {
+      method_handlers_[name] = handler;
+  }
+
+  // Register a sync method.
+  // Wraps the sync handler into an async one.
+  void register_method(const std::string& name, RequestHandler handler) {
+      register_async_method(name, [handler](Context ctx, const json& params) {
+          try {
+              // Call user logic, get result, reply immediately
+              json res = handler(params);
+              ctx.reply(std::move(res));
+          } catch (const JsonRpcException& e) {
+              // Allow handler to throw JsonRpcException directly.
+              ctx.error(e.code, e.what(), e.data);
+          } catch (const std::exception& e) {
+              // Catch generic exceptions as Internal Error.
+              ctx.error(spec::kInternalError, e.what());
+          }
+          });
+  }
+
+  // Register a notification handler.
+  void register_notification(const std::string& name, NotificationHandler handler) {
+      register_async_method(name, [handler](Context ctx, const json& params) {
+          if (ctx.is_notification()) {
+              handler(params);
+          } else {
+              ctx.error(spec::kInvalidRequest, "Notification handler expects no id");
+          }
+          });
+  }
+#+end_src
+
+新的 =handle_request= 实现如下：
+
+#+begin_src cpp
+  void handle_request(const Request& req) {
+      AsyncRequestHandler handler;
+      if (method_handlers_.count(req.method)) {
+          handler = method_handlers_[req.method];
+      }
+
+      if (handler) {
+          try {
+              // Pass Context to handler. It is responsible for replying.
+              handler(Context(*this, req.id), req.params);
+          } catch (const JsonRpcException& e) {
+              if (req.id.has_value()) {
+                  send_response_error(req.id.value(), e.code, e.what(), e.data);
+              }
+          } catch (const std::exception& e) {
+              // User threw a generic exception -> Internal Error
+              if (req.id.has_value()) {
+                  send_response_error(req.id.value(), spec::kInternalError, e.what());
+              }
+          }
+      } else {
+          // Method not found.
+          if (req.id.has_value()) {
+              send_response_error(req.id.value(), spec::kMethodNotFound, spec::msg_MethodNotFound);
+          }
+      }
+  }
+
+#+end_src
+
+其余部分还有一些细节没讲，但这差不多就是大体的工作原理了。和 Gemini 掰扯异常细节和单元测试应该是我的代码大体确定后耗费时间最多的事情。
+
+* 例子
+
+在本项目的 Github Readme 页面我已经给出了一个例子，这里直接拿过来：
+
+#+begin_src cpp
+#include "jsonrpc.hpp"
+#include <windows.h>
+
+#define WM_JSONRPC_WAKEUP (WM_USER + 1)
+
+int main() {
+    uint32_t main_thread_id = GetCurrentThreadId();
+
+    // 1. Define a Waker to signal the main thread from the reader thread
+    auto waker = [main_thread_id]() {
+        PostThreadMessage(main_thread_id, WM_JSONRPC_WAKEUP, 0, 0);
+        };
+
+    jsonrpc::Conn server(waker);
+
+    // 2. Register a synchronous method
+    server.register_method("add", [](const jsonrpc::json& params) {
+        return params[0].get<double>() + params[1].get<double>();
+        });
+
+    // 3. Register a asynchronous method (non-blocking)
+    // Useful for heavy tasks that should not freeze the main message loop.
+    server.register_async_method("heavy_task", [](jsonrpc::Context ctx, const jsonrpc::json& params) {
+        // Move task to a background thread; 'ctx' and 'params' are captured by value
+        std::thread([ctx, params]() mutable {
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            ctx.reply("Task Complete!"); // Safely reply from any thread
+            }).detach();
+        });
+
+    // 4. Register an exit notification (no response)
+    server.register_notification("exit", [](const jsonrpc::json&) {
+        PostQuitMessage(0); // Signal the GetMessage loop to terminate.
+        });
+
+    // Start the background I/O reader thread.
+    server.start();
+
+    // 5. Standard Win32 Message Loop
+    MSG msg;
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        if (msg.message == WM_JSONRPC_WAKEUP) {
+            // Process the message queue on the main thread
+            server.process_queue();
+            // Check if the reader thread died.
+            if (!server.is_running()) {
+                break;
+            }
+        } else {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+    // 6. Graceful Shutdown Implementation
+    // Note: CancelIoEx provides a non-destructive way to interrupt a blocking stdin read.
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    if (hIn != INVALID_HANDLE_VALUE) {
+        CancelIoEx(hIn, nullptr); // Forcefully abort pending I/O on the reader thread
+    }
+    server.stop();
+    return 0;
+}
+#+end_src
+
+上面的 C++ 服务程序分别注册了同步方法，异步方法和消息处理函数，分别实现了加法、模拟耗时任务和退出功能。下面的 Elisp 代码对这些功能进行了简单的测试，读者可以使用 =C-x C-e= 逐条测试。
+
+#+begin_src elisp
+(require 'jsonrpc)
+
+;; Change to example.exe's path if needed.
+(setq path (expand-file-name "../out/build/x64-Debug/example.exe"))
+
+(setq rpc (let ((proc (make-process :name "example"
+                                    :command `(,path)
+                                    ;; binary is necessary on Windows
+                                    :coding 'binary) ))
+            (make-instance 'jsonrpc-process-connection
+                           :name "jsonrpc-example"
+                           :process proc)))
+
+(jsonrpc-request rpc "add" [1 2])
+;;=> 3.0
+(jsonrpc-request rpc "heavy_task" nil)
+;;=> Wait 3 seconds
+(jsonrpc-notify rpc "exit" nil)
+;;=> exit subprocess
+#+end_src
+
+* 后记
+
+写到这里，我去看了一眼这个 JSON-RPC 项目的第一次提交时间，是在 2026 年的 2 月 17 日，最后一次提交是在 3 月 2 日。这应该是我第一次在大量 LLM 参与的情况下编写一个玩具级的小项目。从具体体验上来说，LLM 从一开始就能输出​*几乎*​实际可用的代码，但是还需要大量的根据自身体验和反馈的微调才能最终达到可用的程度。如果说古法编程是自行车的话，AI 编程可能会达到开车的程度，但目前要开好车可能基础的机械和电气知识少不了。我至少把整个库的每一行代码都检查过。
+
+如果你平时关注一些 AI 编程相关的东西，你可能看到过这个新闻：[[https://www.zhihu.com/question/2009666916382421190][如何评价文章“文科生 72 小时杀入 GitHub 全球榜：我没写一行代码但指挥了一支 AI 军队”？]]，我只能呃呃 😅。也许未来的 AI 真正能做到直接生成极高质量的代码，但让它变得真正可用还是得靠人的具体反馈和启示（至少在 AI 有能力自己根据反馈调整代码之前）。我本人并非专业的软件行业从业者，没有用过当前最先进的 AI 协作工具，比如各种 Agent，这一认识是否准确我对自己持保留意见。
+
+最近和朋友聊了下 AI 对图形学的冲击，他给了我这样一个回答的链接：[[https://www.zhihu.com/question/1992724690851095881/answer/1993481454194283914][大二生还有必要坚持引擎开发吗？ - Vinluo46的回答]]。我们传统图形学......会变成（哽咽）什么样子（哽咽）😭。目前 AI 也是蓬勃发展啊，虽然我们可能和它的生产端沾不上什么边了，各种意义上的门槛都不低。
+
+一方面我对人在开发中的重要性感到乐观，一方面这个重要性也在肉眼可见地减小，之后到底还有没有大量的让人从技术菜鸟一步步成长的环境呢？我的脑子可能没法预料的到了，先躺为敬 😂。
+
+感谢阅读，后续可能写点和 jsonrpc.el 相关的内容。
