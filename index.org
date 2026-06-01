@@ -301,6 +301,8 @@
   - [[https://blog.mecheye.net/2019/05/why-is-2d-graphics-is-harder-than-3d-graphics/][Why are 2D vector graphics so much harder than 3D?]]
 - [[https://appetrosyan.github.io/][Aleksandr Petrosyan]]
   - [[https://appetrosyan.github.io/posts/layoff/][Post-Eclipse Layoff: an Update and Plan]]
+- [[https://plumz.me/][Plum's Blog]]
+  - [[https://plumz.me/archives/14403/][关于 39 岁对于死亡的焦虑]]
 
 * ABOUT
 
